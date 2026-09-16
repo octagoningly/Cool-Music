@@ -194,7 +194,8 @@ internal fun listenTogetherQualityRank(
         PlaybackAudioSource.NETEASE -> NETEASE_LISTEN_TOGETHER_QUALITY_ORDER
         PlaybackAudioSource.BILIBILI -> BILI_LISTEN_TOGETHER_QUALITY_ORDER
         PlaybackAudioSource.YOUTUBE_MUSIC -> YOUTUBE_LISTEN_TOGETHER_QUALITY_ORDER
-        PlaybackAudioSource.LOCAL -> emptyList()
+        PlaybackAudioSource.LOCAL,
+        PlaybackAudioSource.CUSTOM_LX -> emptyList()
     }.indexOf(normalized).takeIf { it >= 0 }
 }
 
@@ -223,7 +224,8 @@ private fun normalizeListenTogetherQualityKey(
         PlaybackAudioSource.YOUTUBE_MUSIC -> normalized.takeIf {
             it in YOUTUBE_LISTEN_TOGETHER_QUALITY_ORDER
         }
-        PlaybackAudioSource.LOCAL -> null
+        PlaybackAudioSource.LOCAL,
+        PlaybackAudioSource.CUSTOM_LX -> null
     }
 }
 
@@ -233,6 +235,7 @@ private fun listenTogetherSourceKey(source: PlaybackAudioSource): String {
         PlaybackAudioSource.BILIBILI -> "bili"
         PlaybackAudioSource.YOUTUBE_MUSIC -> "youtube"
         PlaybackAudioSource.LOCAL -> "local"
+        PlaybackAudioSource.CUSTOM_LX -> "lx"
     }
 }
 
@@ -338,7 +341,8 @@ internal fun PlayerManager.listenTogetherFallbackResult(song: SongItem): SongUrl
         PlaybackAudioSource.NETEASE -> effectiveNeteaseQuality()
         PlaybackAudioSource.BILIBILI -> effectiveBiliQuality()
         PlaybackAudioSource.YOUTUBE_MUSIC -> effectiveYouTubeQuality()
-        PlaybackAudioSource.LOCAL -> ""
+        PlaybackAudioSource.LOCAL,
+        PlaybackAudioSource.CUSTOM_LX -> ""
     }
     val legacyAudioInfo = listenTogetherFallbackAudioInfo(song)
     val candidates = orderListenTogetherStreamUrlsForPreference(
@@ -373,7 +377,8 @@ internal fun PlayerManager.listenTogetherPreferredQualityKey(song: SongItem): St
         PlaybackAudioSource.NETEASE -> effectiveNeteaseQuality()
         PlaybackAudioSource.BILIBILI -> effectiveBiliQuality()
         PlaybackAudioSource.YOUTUBE_MUSIC -> effectiveYouTubeQuality()
-        PlaybackAudioSource.LOCAL -> null
+        PlaybackAudioSource.LOCAL,
+        PlaybackAudioSource.CUSTOM_LX -> null
     }
 }
 
@@ -428,6 +433,11 @@ internal fun buildListenTogetherFallbackAudioInfo(
             )
         }
         PlaybackAudioSource.LOCAL -> PlaybackAudioInfo(source = PlaybackAudioSource.LOCAL)
+        PlaybackAudioSource.CUSTOM_LX -> PlaybackAudioInfo(
+            source = PlaybackAudioSource.CUSTOM_LX,
+            qualityKey = preferredQualityKey.takeIf { it.isNotBlank() },
+            qualityLabel = preferredQualityKey.takeIf { it.isNotBlank() }
+        )
     }
 }
 

@@ -51,6 +51,7 @@ import moe.ouom.neriplayer.core.player.quality.effectiveYouTubeQuality
 import moe.ouom.neriplayer.core.player.resolver.netease.NeteasePlaybackResponseParser
 import moe.ouom.neriplayer.core.player.resolver.netease.tryResolveNeteaseAutoBiliSource
 import moe.ouom.neriplayer.core.player.resolver.netease.tryResolveNeteaseMatchedLocalSource
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.tryResolveLxMusicCustomSource
 import moe.ouom.neriplayer.core.player.watchdog.configureActivePlaybackCandidates
 import moe.ouom.neriplayer.core.player.watchdog.currentPlaybackCandidate
 import moe.ouom.neriplayer.core.player.watchdog.resetPlaybackProgressAdvanceBaseline
@@ -331,6 +332,10 @@ internal suspend fun PlayerManager.resolveSongUrl(
             !isFinalAttempt ||
             initialListenTogetherFallback != null ||
             suppressListenTogetherResolverErrors
+        // 优先走已导入的 LX 在线音源；失败再进入原有平台音源顺序
+        tryResolveLxMusicCustomSource(song)?.let { lxResult ->
+            return@retrySongUrlResolution lxResult
+        }
         when {
             isYouTubeTrack -> getYouTubeMusicAudioUrl(
                 song = song,

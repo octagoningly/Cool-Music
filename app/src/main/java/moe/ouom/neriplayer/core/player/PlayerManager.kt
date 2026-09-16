@@ -1792,7 +1792,8 @@ object PlayerManager {
                 PlaybackAudioSource.NETEASE -> settingsRepo.setAudioQuality(normalizedKey)
                 PlaybackAudioSource.BILIBILI -> settingsRepo.setBiliAudioQuality(normalizedKey)
                 PlaybackAudioSource.YOUTUBE_MUSIC -> settingsRepo.setYouTubeAudioQuality(normalizedKey)
-                PlaybackAudioSource.LOCAL -> Unit
+                PlaybackAudioSource.LOCAL,
+                PlaybackAudioSource.CUSTOM_LX -> Unit
             }
         }
     }
@@ -2002,7 +2003,8 @@ object PlayerManager {
             PlaybackAudioSource.NETEASE -> ::neteaseQualityRefreshJob
             PlaybackAudioSource.YOUTUBE_MUSIC -> ::youtubeQualityRefreshJob
             PlaybackAudioSource.BILIBILI -> ::biliQualityRefreshJob
-            PlaybackAudioSource.LOCAL -> return
+            PlaybackAudioSource.LOCAL,
+            PlaybackAudioSource.CUSTOM_LX -> return
         }
         targetJob.get()?.cancel()
         targetJob.set(

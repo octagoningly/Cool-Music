@@ -78,6 +78,8 @@ import moe.ouom.neriplayer.data.settings.readBootstrapSettingsSnapshotSync
 import moe.ouom.neriplayer.data.settings.SettingsRepository
 import moe.ouom.neriplayer.data.settings.toBootstrapSettingsSnapshot
 import moe.ouom.neriplayer.data.settings.toPlaybackPreferenceSnapshot
+import moe.ouom.neriplayer.data.source.lxmusic.LxMusicSourceClient
+import moe.ouom.neriplayer.data.source.lxmusic.LxMusicSourceRepository
 import moe.ouom.neriplayer.data.platform.youtube.buildYouTubeInnertubeRequestHeaders
 import moe.ouom.neriplayer.data.platform.youtube.buildYouTubePageRequestHeaders
 import moe.ouom.neriplayer.data.platform.youtube.buildYouTubeStreamRequestHeaders
@@ -410,6 +412,13 @@ object AppContainer {
         )
     }
     val listenTogetherApi by lazy { ListenTogetherApi(sharedOkHttpClient) }
+    val lxMusicSourceClient by lazy { LxMusicSourceClient(sharedOkHttpClient) }
+    val lxMusicSourceRepository by lazy {
+        LxMusicSourceRepository(
+            context = application,
+            client = lxMusicSourceClient
+        )
+    }
     private val listenTogetherOkHttpClient by lazy {
         sharedOkHttpClient.newBuilder()
             .pingInterval(15, TimeUnit.SECONDS)

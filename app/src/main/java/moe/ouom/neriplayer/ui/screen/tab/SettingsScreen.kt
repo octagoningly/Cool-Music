@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.ui.screen.tab
+package moe.ouom.neriplayer.ui.screen.tab
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -65,6 +65,7 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.MeetingRoom
 import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.RestartAlt
@@ -174,6 +175,7 @@ import moe.ouom.neriplayer.ui.effect.glass.isolatedAdvancedGlassHorizontalTransi
 import moe.ouom.neriplayer.ui.screen.tab.settings.about.SettingsAboutContent
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.LoginSuccessDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsBiliAuthDialogs
+import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsLxMusicSourceDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsNeteaseAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsYouTubeAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.component.LazyAnimatedVisibility
@@ -231,6 +233,7 @@ import moe.ouom.neriplayer.ui.viewmodel.auth.YouTubeAuthEvent
 import moe.ouom.neriplayer.ui.viewmodel.auth.YouTubeAuthViewModel
 import moe.ouom.neriplayer.ui.viewmodel.debug.NeteaseAuthEvent
 import moe.ouom.neriplayer.ui.viewmodel.debug.NeteaseAuthViewModel
+import moe.ouom.neriplayer.ui.viewmodel.settings.LxMusicSourceViewModel
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 
@@ -707,6 +710,9 @@ fun SettingsScreen(
     var neteaseSheetInitialTab by rememberSaveable { mutableIntStateOf(0) }
     val youtubeVm: YouTubeAuthViewModel = viewModel()
     var youtubeSheetInitialTab by rememberSaveable { mutableIntStateOf(0) }
+    val lxSourceVm: LxMusicSourceViewModel = viewModel()
+    var showLxSourceManageDialog by remember { mutableStateOf(false) }
+    var showLxSourceImportDialog by remember { mutableStateOf(false) }
     
     // 备份与恢复
     val backupRestoreVm: BackupRestoreViewModel = viewModel()
@@ -1537,6 +1543,9 @@ fun SettingsScreen(
                                 inlineMsg = null
                                 neteaseSheetInitialTab = 0
                                 showNeteaseSheet = true
+                            },
+                            onOpenLxSourceDialog = {
+                                showLxSourceManageDialog = true
                             }
                         )
                     }
@@ -2302,6 +2311,15 @@ fun SettingsScreen(
             showYouTubeSavedCookieDialog = false
             youtubeVm.clearAuth()
         }
+    )
+
+    SettingsLxMusicSourceDialogs(
+        showManageDialog = showLxSourceManageDialog,
+        onDismissManageDialog = { showLxSourceManageDialog = false },
+        showImportDialog = showLxSourceImportDialog,
+        onDismissImportDialog = { showLxSourceImportDialog = false },
+        onOpenImportDialog = { showLxSourceImportDialog = true },
+        vm = lxSourceVm
     )
     loginSuccessTitle?.let { title ->
         LoginSuccessDialog(
@@ -4159,6 +4177,7 @@ private fun SettingsLoginExpandedContent(
     onOpenNeteaseSavedCookieDialog: () -> Unit,
     onOpenYouTubeSheet: () -> Unit,
     onOpenNeteaseSheet: () -> Unit,
+    onOpenLxSourceDialog: () -> Unit,
 ) {
     val biliAuthUiState by biliVm.uiState.collectAsStateWithLifecycleCompat()
     val youtubeAuthUiState by youtubeVm.uiState.collectAsStateWithLifecycleCompat()
@@ -4304,6 +4323,23 @@ private fun SettingsLoginExpandedContent(
                         onOpenNeteaseSheet()
                     }
                 }
+            ),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        ListItem(
+            leadingContent = {
+                Icon(
+                    imageVector = Icons.Outlined.CloudDownload,
+                    contentDescription = stringResource(R.string.lx_source_manage_title),
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            headlineContent = { Text(stringResource(R.string.lx_source_manage_title)) },
+            supportingContent = { Text(stringResource(R.string.lx_source_manage_desc)) },
+            modifier = Modifier.settingsItemClickable(
+                onClick = { onOpenLxSourceDialog() }
             ),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )

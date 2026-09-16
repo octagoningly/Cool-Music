@@ -1756,6 +1756,7 @@ internal fun resolveNowPlayingPlaybackSourceType(
         PlaybackAudioSource.BILIBILI -> return PlaybackSourceType.BILIBILI
         PlaybackAudioSource.YOUTUBE_MUSIC -> return PlaybackSourceType.YOUTUBE_MUSIC
         PlaybackAudioSource.LOCAL,
+        PlaybackAudioSource.CUSTOM_LX,
         null -> Unit
     }
 

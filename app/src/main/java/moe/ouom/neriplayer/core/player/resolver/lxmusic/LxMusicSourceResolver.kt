@@ -49,9 +49,10 @@ import kotlin.math.absoluteValue
 private const val TAG = "NERI-LxMusicSource"
 private const val LX_SEARCH_LIMIT = 6
 private const val LX_MIN_ACCEPT_SCORE = 68
-private const val LX_RESOLVE_TOTAL_TIMEOUT_MS = 8_000L
+private const val LX_RESOLVE_TOTAL_TIMEOUT_MS = 12_000L
 private const val LX_MAX_SEARCH_QUERIES = 2
 private const val LX_MAX_QUALITY_ATTEMPTS = 2
+private const val LX_JS_MAX_PLATFORMS = 3
 private val lxCacheKeyUnsafeRegex = Regex("[^A-Za-z0-9_.-]+")
 private val lxNonTextRegex = Regex("[^\\p{L}\\p{N}]+")
 private val lxWhitespaceRegex = Regex("\\s+")
@@ -132,10 +133,11 @@ private suspend fun PlayerManager.resolveFromLxJsSource(
         return null
     }
 
-    val musicInfoJson = buildLxOldMusicInfoJson(song)
     val sourceIds = (source.jsSourceIds.ifEmpty { listOf("kw", "kg", "tx", "wy", "mg") })
         .filter { runtime.supportedSources.isEmpty() || it in runtime.supportedSources }
         .ifEmpty { listOf("kw", "kg", "tx", "wy", "mg") }
+        .take(LX_JS_MAX_PLATFORMS)
+    val musicInfoBySource = sourceIds.associateWith { buildLxOldMusicInfoJson(song, it) }
     val qualities = mapNeteaseQualityToLxOrder(preferredNeteaseQuality).take(LX_MAX_QUALITY_ATTEMPTS)
 
     for (sourceId in sourceIds) {
@@ -143,8 +145,8 @@ private suspend fun PlayerManager.resolveFromLxJsSource(
             val url = runtime.getMusicUrl(
                 sourceId = sourceId,
                 quality = quality,
-                musicInfoJson = musicInfoJson,
-                timeoutMs = 4_000L
+                musicInfoJson = musicInfoBySource[sourceId].orEmpty(),
+                timeoutMs = 5_000L
             ) ?: continue
             if (!url.startsWith("http", ignoreCase = true)) continue
             val mimeType = inferLxMimeType(quality, url)
@@ -169,8 +171,8 @@ private suspend fun PlayerManager.resolveFromLxJsSource(
     return null
 }
 
-/** 落雪 JS 音源期望的旧版 musicInfo 形状 */
-private fun buildLxOldMusicInfoJson(song: SongItem): String {
+/** 落雪 JS 音源期望的旧版 musicInfo 形状；source 需与请求的平台 id 一致 */
+private fun buildLxOldMusicInfoJson(song: SongItem, platformSourceId: String): String {
     val name = (song.originalName ?: song.name).trim()
     val singer = (song.originalArtist ?: song.artist).trim()
     val intervalSec = if (song.durationMs > 0) song.durationMs / 1000L else 0L
@@ -183,7 +185,7 @@ private fun buildLxOldMusicInfoJson(song: SongItem): String {
     return JSONObject().apply {
         put("name", name)
         put("singer", singer)
-        put("source", "wy")
+        put("source", platformSourceId)
         put("songmid", song.id.toString())
         put("interval", interval)
         put("albumName", song.album.orEmpty())

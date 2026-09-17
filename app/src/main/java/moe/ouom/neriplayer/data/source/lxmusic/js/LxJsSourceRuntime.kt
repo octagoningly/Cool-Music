@@ -161,52 +161,60 @@ class LxJsSourceRuntime(
         ctx.evaluate(preload)
         ctx.getGlobalObject().getJSFunction("lx_setup")
             .call(key, scriptId, scriptName, "", "", "", "", script)
-        ctx.evaluate(script)
-        // 脚本初始化可能稍晚，给一点时间等待 inited
-        Thread.sleep(50)
+        ctx.evaluate(script, "lx-source.js")
+        // 等待脚本 lx.send('inited') 回调
+        var waited = 0
+        while (waited < 400 && supportedSources.isEmpty()) {
+            Thread.sleep(20)
+            waited += 20
+        }
+        NPLogger.d(
+            TAG,
+            "LX JS load done: sources=$supportedSources qualities=$supportedQualities waitedMs=$waited"
+        )
         return true
     }
 
     private fun createEnvObj(ctx: QuickJSContext) {
+        // JSCallFunction.call(Object... args)
         ctx.getGlobalObject().setProperty("__lx_native_call__") { args ->
-            val callKey = args.get(0) as? String ?: return@setProperty null
+            val callKey = args.getOrNull(0) as? String ?: return@setProperty null
             if (callKey != key) return@setProperty null
-            val action = args.get(1) as? String ?: return@setProperty null
-            val data = args.get(2) as? String
+            val action = args.getOrNull(1) as? String ?: return@setProperty null
+            val data = args.getOrNull(2) as? String
             handleNativeCall(action, data)
             null
         }
         ctx.getGlobalObject().setProperty("__lx_native_call__utils_str2b64") { args ->
-            val input = args.get(0) as? String ?: return@setProperty ""
+            val input = args.getOrNull(0) as? String ?: return@setProperty ""
             String(Base64.encode(input.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP), StandardCharsets.UTF_8)
         }
         ctx.getGlobalObject().setProperty("__lx_native_call__utils_b642buf") { args ->
-            val input = args.get(0) as? String ?: return@setProperty ""
+            val input = args.getOrNull(0) as? String ?: return@setProperty ""
             val bytes = Base64.decode(input.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP)
             bytes.joinToString(prefix = "[", postfix = "]") { (it.toInt() and 0xFF).toString() }
         }
         ctx.getGlobalObject().setProperty("__lx_native_call__utils_str2md5") { args ->
-            val input = args.get(0) as? String ?: return@setProperty ""
+            val input = args.getOrNull(0) as? String ?: return@setProperty ""
             md5Hex(input)
         }
         ctx.getGlobalObject().setProperty("__lx_native_call__utils_aes_encrypt") { args ->
             try {
-                val data = args.get(0) as String
-                val key = args.get(1) as String
-                val iv = args.get(2) as String
-                val mode = args.get(3) as String
+                val data = args.getOrNull(0) as? String ?: return@setProperty ""
+                val key = args.getOrNull(1) as? String ?: return@setProperty ""
+                val iv = args.getOrNull(2) as? String ?: return@setProperty ""
+                val mode = args.getOrNull(3) as? String ?: return@setProperty ""
                 aesEncrypt(data, key, iv, mode)
             } catch (_: Exception) {
                 ""
             }
         }
-        ctx.getGlobalObject().setProperty("__lx_native_call__utils_rsa_encrypt") { args ->
-            // RSA 暂不完整实现，返回空串让脚本自行失败并回落
+        ctx.getGlobalObject().setProperty("__lx_native_call__utils_rsa_encrypt") { _ ->
             ""
         }
         ctx.getGlobalObject().setProperty("__lx_native_call__set_timeout") { args ->
-            val id = args.get(0)
-            val delay = (args.get(1) as? Number)?.toLong() ?: 0L
+            val id = args.getOrNull(0)
+            val delay = (args.getOrNull(1) as? Number)?.toLong() ?: 0L
             timeoutHandler.postDelayed({
                 executor.execute {
                     runCatching {
@@ -252,16 +260,20 @@ class LxJsSourceRuntime(
                 Thread {
                     try {
                         call.execute().use { resp ->
-                            val body = resp.body.string()
+                            val rawBody = resp.body.string()
                             val headers = JSONObject()
                             resp.headers.forEach { (name, value) ->
                                 headers.put(name, headers.optString(name, "") + value)
                             }
-                            val parsedBody = try {
-                                JSONObject(body)
-                                body
+                            // 与落雪一致：能解析成 JSON 就传对象，否则保持字符串
+                            val parsedBody: Any = try {
+                                JSONObject(rawBody)
                             } catch (_: Exception) {
-                                body
+                                try {
+                                    org.json.JSONArray(rawBody)
+                                } catch (_: Exception) {
+                                    rawBody
+                                }
                             }
                             val response = JSONObject().apply {
                                 put("requestKey", requestKey)
@@ -276,6 +288,10 @@ class LxJsSourceRuntime(
                                     }
                                 )
                             }
+                            NPLogger.d(
+                                TAG,
+                                "LX JS http ${resp.code} ${url.take(80)} bodyLen=${rawBody.length}"
+                            )
                             callJs("response", response.toString())
                         }
                     } catch (e: Exception) {

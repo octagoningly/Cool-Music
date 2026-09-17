@@ -85,6 +85,7 @@
     <string name="lx_source_refresh_failed">Refresh failed; the source may be invalid</string>
     <string name="lx_source_remove">Remove</string>
     <string name="lx_source_removed">Source removed</string>
+    <string name="lx_source_nowplaying_badge">Online Source</string>
     <string name="settings_youtube_playback_source">YouTube Playback Source</string>
     <string name="settings_youtube_playback_source_desc">Choose the preferred YouTube playback client; unavailable clients fall back to the remaining sources</string>
     <string name="settings_youtube_playback_source_web_remix">Web Remix Low Latency</string>

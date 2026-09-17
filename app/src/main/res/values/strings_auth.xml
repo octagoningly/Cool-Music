@@ -85,6 +85,7 @@
     <string name="lx_source_refresh_failed">刷新失败，音源可能已失效</string>
     <string name="lx_source_remove">移除</string>
     <string name="lx_source_removed">已移除音源</string>
+    <string name="lx_source_nowplaying_badge">在线音源</string>
     <string name="settings_youtube_playback_source">YouTube 播放源</string>
     <string name="settings_youtube_playback_source_desc">选择优先使用的 YouTube 播放客户端；不可用时会自动回退到其余来源</string>
     <string name="settings_youtube_playback_source_web_remix">Web Remix 低延迟</string>

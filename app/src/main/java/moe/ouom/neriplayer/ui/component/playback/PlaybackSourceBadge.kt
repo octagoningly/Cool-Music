@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +48,8 @@ enum class PlaybackSourceType {
     NETEASE,
     BILIBILI,
     YOUTUBE_MUSIC,
-    LOCAL
+    LOCAL,
+    CUSTOM_LX
 }
 
 @Composable
@@ -119,6 +121,20 @@ fun PlaybackSourceBadge(
                     text = stringResource(R.string.local_files),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            PlaybackSourceType.CUSTOM_LX -> {
+                Icon(
+                    imageVector = Icons.Outlined.CloudDownload,
+                    contentDescription = stringResource(R.string.lx_source_nowplaying_badge),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = stringResource(R.string.lx_source_nowplaying_badge),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }

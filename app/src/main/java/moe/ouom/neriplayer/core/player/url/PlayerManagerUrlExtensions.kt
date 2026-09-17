@@ -209,6 +209,20 @@ internal suspend fun PlayerManager.resolveSongUrl(
         return SongUrlResult.Failure
     }
 
+    // 在线曲目优先尝试 LX 在线音源；失败再走缓存/平台链路
+    tryResolveLxMusicCustomSource(song, onlyOnFirstAttempt = true, attempt = 0)
+        ?.let { lxResult ->
+            NPLogger.d(
+                "NERI-PlayerManager",
+                "resolveSongUrl: LX custom source hit for song=${song.name}"
+            )
+            return mergeListenTogetherFallbackResult(
+                localResult = lxResult,
+                listenTogetherFallback = initialListenTogetherFallback,
+                preferredQualityKey = listenTogetherPreferredQualityKey(song)
+            )
+        }
+
     val localResult = checkLocalCache(song, sideEffects)
     if (localResult != null) {
         prepareBiliPlaybackSkipsForResolvedPlayback(song, playbackRequestTokenOverride)
@@ -332,11 +346,6 @@ internal suspend fun PlayerManager.resolveSongUrl(
             !isFinalAttempt ||
             initialListenTogetherFallback != null ||
             suppressListenTogetherResolverErrors
-        // 仅在首次尝试优先走 LX 在线音源，避免重试放大延迟
-        tryResolveLxMusicCustomSource(song, onlyOnFirstAttempt = true, attempt = retryAttempt)
-            ?.let { lxResult ->
-                return@retrySongUrlResolution lxResult
-            }
         when {
             isYouTubeTrack -> getYouTubeMusicAudioUrl(
                 song = song,

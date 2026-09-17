@@ -145,6 +145,7 @@ import moe.ouom.neriplayer.core.player.policy.command.shouldRunPlaybackServiceIn
 import moe.ouom.neriplayer.core.player.playback.applyListenTogetherPlaybackModeImpl
 import moe.ouom.neriplayer.core.player.playback.cancelPendingPauseRequestImpl
 import moe.ouom.neriplayer.core.player.playback.cancelVolumeFadeImpl
+import moe.ouom.neriplayer.core.player.playback.cyclePlaybackOrderImpl
 import moe.ouom.neriplayer.core.player.playback.cycleRepeatModeImpl
 import moe.ouom.neriplayer.core.player.playback.handleTrackEndedIfNeededImpl
 import moe.ouom.neriplayer.core.player.playback.nextImpl
@@ -160,6 +161,7 @@ import moe.ouom.neriplayer.core.player.playback.playPlaylistImpl
 import moe.ouom.neriplayer.core.player.playback.previousImpl
 import moe.ouom.neriplayer.core.player.playback.restoreAudioRouteMuteImpl
 import moe.ouom.neriplayer.core.player.playback.seekToImpl
+import moe.ouom.neriplayer.core.player.playback.setRepeatModeImpl
 import moe.ouom.neriplayer.core.player.playback.setShuffleImpl
 import moe.ouom.neriplayer.core.player.playback.stopPlaybackPreservingQueueImpl
 import moe.ouom.neriplayer.core.player.playback.stopProgressUpdatesImpl
@@ -2644,6 +2646,14 @@ object PlayerManager {
 
     fun cycleRepeatMode(commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL) =
         this.cycleRepeatModeImpl(commandSource)
+
+    fun setRepeatMode(
+        mode: Int,
+        commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL
+    ) = this.setRepeatModeImpl(mode, commandSource)
+
+    fun cyclePlaybackOrder(commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL) =
+        this.cyclePlaybackOrderImpl(commandSource)
 
     fun release() = releaseImpl()
 

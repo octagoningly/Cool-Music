@@ -100,11 +100,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Headset
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Search
@@ -346,7 +348,7 @@ private val QueueReorderDragCancelStiffness = Spring.StiffnessMediumLow
 private const val QueueReorderDraggedItemScale = 1.01f
 private const val HighUiDensityScaleThreshold = 1.1f
 private const val CompactNowPlayingPortraitMaxHeightDp = 600f
-private const val PlaybackActionToolbarItemCount = 5
+private const val PlaybackActionToolbarItemCount = 4
 private val PlaybackActionToolbarMinimumTouchTarget = 48.dp
 private val PlaybackActionToolbarSmallSlotThreshold = 40.dp
 private val NowPlayingMainControlsMinimumSpacing = 4.dp
@@ -519,7 +521,7 @@ internal fun shouldUseNowPlayingToolbarDock(
     toolbarDockEnabled: Boolean,
     useCompactPortraitLayout: Boolean,
     controlsAtBottom: Boolean = false
-): Boolean = toolbarDockEnabled && !useCompactPortraitLayout && !controlsAtBottom
+): Boolean = toolbarDockEnabled && !useCompactPortraitLayout
 
 internal data class PlaybackActionToolbarLayout(
     val horizontalPadding: Dp,
@@ -563,6 +565,23 @@ internal fun resolvePlaybackActionToolbarLayout(
     )
 }
 
+internal enum class PlaybackOrderMode {
+    SEQUENTIAL,
+    SHUFFLE,
+    REPEAT_ALL,
+    REPEAT_ONE
+}
+
+internal fun resolvePlaybackOrderMode(
+    shuffleEnabled: Boolean,
+    repeatMode: Int
+): PlaybackOrderMode = when {
+    shuffleEnabled -> PlaybackOrderMode.SHUFFLE
+    repeatMode == Player.REPEAT_MODE_ONE -> PlaybackOrderMode.REPEAT_ONE
+    repeatMode == Player.REPEAT_MODE_ALL -> PlaybackOrderMode.REPEAT_ALL
+    else -> PlaybackOrderMode.SEQUENTIAL
+}
+
 internal data class NowPlayingMainControlsLayout(
     val secondaryButtonSize: Dp,
     val primaryButtonSize: Dp,
@@ -575,8 +594,9 @@ internal fun resolveNowPlayingMainControlsLayout(
     primaryButtonSize: Dp,
     preferredSpacing: Dp
 ): NowPlayingMainControlsLayout {
-    val gapCount = PlaybackActionToolbarItemCount - 1
-    val requestedButtonWidth = secondaryButtonSize * 4 + primaryButtonSize
+    // Apple Music 风格：上一首 / 播放 / 下一首，共 3 个控件
+    val gapCount = 2
+    val requestedButtonWidth = secondaryButtonSize * 2 + primaryButtonSize
     val minimumSpacing = minOf(
         NowPlayingMainControlsMinimumSpacing,
         availableWidth / gapCount
@@ -593,7 +613,7 @@ internal fun resolveNowPlayingMainControlsLayout(
     val resolvedSecondaryButtonSize = secondaryButtonSize * buttonScale
     val resolvedPrimaryButtonSize = primaryButtonSize * buttonScale
     val maximumSpacing = (
-        (availableWidth - resolvedSecondaryButtonSize * 4 - resolvedPrimaryButtonSize) /
+        (availableWidth - resolvedSecondaryButtonSize * 2 - resolvedPrimaryButtonSize) /
             gapCount
         ).coerceAtLeast(0.dp)
     return NowPlayingMainControlsLayout(
@@ -1980,6 +2000,7 @@ fun NowPlayingScreen(
     var showAddSheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var showDockMoreSheet by remember { mutableStateOf(false) }
     var showCoverPageSourceBadge by remember { mutableStateOf(false) }
     var animateCoverPageSourceBadge by remember { mutableStateOf(false) }
     var previousLyricsScreenState by remember { mutableStateOf(false) }
@@ -2064,6 +2085,7 @@ fun NowPlayingScreen(
     // 控制音量弹窗的显示
     var showVolumeSheet by remember { mutableStateOf(false) }
     val volumeSheetState = rememberModalBottomSheetState()
+    val dockMoreSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val currentLyricSourceKey = Triple(
         currentSong?.id,
@@ -2563,20 +2585,20 @@ fun NowPlayingScreen(
     )
     val isCompactTabletLandscape = useWideLandscapeLayout && windowWidthDp < 720.dp
     val baseSecondaryControlButtonSize = when {
-        useWideLandscapeLayout && isCompactTabletLandscape -> 42.dp
-        useWideLandscapeLayout -> 46.dp
-        else -> 42.dp
+        useWideLandscapeLayout && isCompactTabletLandscape -> 52.dp
+        useWideLandscapeLayout -> 58.dp
+        else -> 56.dp
     }
     val basePrimaryControlButtonSize = when {
-        useWideLandscapeLayout && isCompactTabletLandscape -> 46.dp
-        useWideLandscapeLayout -> 50.dp
-        else -> 42.dp
+        useWideLandscapeLayout && isCompactTabletLandscape -> 64.dp
+        useWideLandscapeLayout -> 72.dp
+        else -> 72.dp
     }
     val baseControlButtonSpacing = when {
-        useWideLandscapeLayout && isCompactTabletLandscape -> 18.dp
-        useWideLandscapeLayout -> 22.dp
-        useCompactPortraitLayout -> 12.dp
-        else -> 20.dp
+        useWideLandscapeLayout && isCompactTabletLandscape -> 12.dp
+        useWideLandscapeLayout -> 16.dp
+        useCompactPortraitLayout -> 8.dp
+        else -> 12.dp
     }
     val nowPlayingTopActionButtonSize = nowPlayingControlSize.scaleButtonSize(48.dp)
     val nowPlayingTopActionIconSize = nowPlayingControlSize.scaleIconSize(24.dp)
@@ -2591,7 +2613,8 @@ fun NowPlayingScreen(
     val nowPlayingToolbarIconSize = nowPlayingControlSize.scaleIconSize(
         if (useWideLandscapeLayout) 22.dp else 20.dp
     )
-    val nowPlayingMainControlIconSize = nowPlayingControlSize.scaleIconSize(24.dp)
+    val nowPlayingMainControlIconSize = nowPlayingControlSize.scaleIconSize(36.dp)
+    val nowPlayingPrimaryControlIconSize = nowPlayingControlSize.scaleIconSize(48.dp)
     val nowPlayingToolbarMinimumTouchTarget = nowPlayingControlSize.scaleButtonSize(
         PlaybackActionToolbarMinimumTouchTarget
     )
@@ -2738,32 +2761,18 @@ fun NowPlayingScreen(
                             nowPlayingMainControlIconSize *
                                 (controlsLayout.secondaryButtonSize.value /
                                     secondaryControlButtonSize.value)
-                            ).coerceAtLeast(18.dp)
+                            ).coerceAtLeast(24.dp)
                         val primaryIconSize = (
-                            nowPlayingMainControlIconSize *
+                            nowPlayingPrimaryControlIconSize *
                                 (controlsLayout.primaryButtonSize.value /
                                     primaryControlButtonSize.value)
-                            ).coerceAtLeast(18.dp)
+                            ).coerceAtLeast(28.dp)
+                        // Apple Music 风格：上一首 / 播放 / 下一首，尽量占满整行
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(controlsLayout.spacing),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            HapticIconButton(
-                                onClick = { PlayerManager.setShuffle(!shuffleEnabled) },
-                                modifier = Modifier.size(controlsLayout.secondaryButtonSize)
-                            ) {
-                                Icon(
-                                    Icons.Outlined.Shuffle,
-                                    contentDescription = stringResource(R.string.player_shuffle),
-                                    modifier = Modifier.size(secondaryIconSize),
-                                    tint = if (shuffleEnabled) {
-                                        nowPlayingActiveIconColor
-                                    } else {
-                                        LocalContentColor.current
-                                    }
-                                )
-                            }
-
                             HapticIconButton(
                                 onClick = { PlayerManager.previous() },
                                 modifier = Modifier
@@ -2773,7 +2782,8 @@ fun NowPlayingScreen(
                                         ),
                                         animatedVisibilityScope = this@AnimatedContent
                                     )
-                                    .size(controlsLayout.secondaryButtonSize)
+                                    .weight(1f)
+                                    .height(controlsLayout.secondaryButtonSize)
                             ) {
                                 Icon(
                                     Icons.Outlined.SkipPrevious,
@@ -2792,7 +2802,8 @@ fun NowPlayingScreen(
                                         ),
                                         animatedVisibilityScope = this@AnimatedContent
                                     )
-                                    .size(controlsLayout.primaryButtonSize)
+                                    .weight(1f)
+                                    .height(controlsLayout.primaryButtonSize)
                             ) {
                                 PlaybackControlIndicator(
                                     isPlaying = isPlaybackControlPlaying,
@@ -2816,32 +2827,13 @@ fun NowPlayingScreen(
                                         ),
                                         animatedVisibilityScope = this@AnimatedContent
                                     )
-                                    .size(controlsLayout.secondaryButtonSize)
+                                    .weight(1f)
+                                    .height(controlsLayout.secondaryButtonSize)
                             ) {
                                 Icon(
                                     Icons.Outlined.SkipNext,
                                     contentDescription = stringResource(R.string.player_next),
                                     modifier = Modifier.size(secondaryIconSize)
-                                )
-                            }
-
-                            HapticIconButton(
-                                onClick = { PlayerManager.cycleRepeatMode() },
-                                modifier = Modifier.size(controlsLayout.secondaryButtonSize)
-                            ) {
-                                Icon(
-                                    imageVector = if (repeatMode == Player.REPEAT_MODE_ONE) {
-                                        Icons.Filled.RepeatOne
-                                    } else {
-                                        Icons.Outlined.Repeat
-                                    },
-                                    contentDescription = stringResource(R.string.player_repeat),
-                                    modifier = Modifier.size(secondaryIconSize),
-                                    tint = if (repeatMode != Player.REPEAT_MODE_OFF) {
-                                        nowPlayingActiveIconColor
-                                    } else {
-                                        LocalContentColor.current
-                                    }
                                 )
                             }
                         }
@@ -3328,7 +3320,39 @@ fun NowPlayingScreen(
                                         } else {
                                             Modifier
                                         }
-                                // 播放队列
+                                val playbackOrderMode = resolvePlaybackOrderMode(
+                                    shuffleEnabled = shuffleEnabled,
+                                    repeatMode = repeatMode
+                                )
+                                // 播放顺序：随机 / 循环 / 单曲循环
+                                HapticIconButton(
+                                    onClick = { PlayerManager.cyclePlaybackOrder() },
+                                    modifier = toolbarActionModifier
+                                        .sharedBounds(
+                                            rememberSharedContentState(key = "btn_playback_order"),
+                                            animatedVisibilityScope = this@AnimatedContent,
+                                            enter = EnterTransition.None,
+                                            exit = ExitTransition.None,
+                                        ).zIndex(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = when (playbackOrderMode) {
+                                            PlaybackOrderMode.SHUFFLE -> Icons.Outlined.Shuffle
+                                            PlaybackOrderMode.REPEAT_ALL -> Icons.Outlined.Repeat
+                                            PlaybackOrderMode.REPEAT_ONE -> Icons.Filled.RepeatOne
+                                            PlaybackOrderMode.SEQUENTIAL -> Icons.Outlined.Shuffle
+                                        },
+                                        contentDescription = stringResource(R.string.player_playback_order),
+                                        tint = if (playbackOrderMode == PlaybackOrderMode.SEQUENTIAL) {
+                                            LocalContentColor.current
+                                        } else {
+                                            nowPlayingActiveIconColor
+                                        },
+                                        modifier = Modifier.size(toolbarLayout.iconSize)
+                                    )
+                                }
+
+                                // 播放列表
                                 HapticIconButton(onClick = { showQueueSheet = true },
                                     modifier = toolbarActionModifier
                                         .sharedBounds(
@@ -3340,45 +3364,6 @@ fun NowPlayingScreen(
                                     Icon(
                                         Icons.AutoMirrored.Outlined.QueueMusic,
                                         contentDescription = stringResource(R.string.playlist_queue),
-                                        modifier = Modifier.size(toolbarLayout.iconSize)
-                                    )
-                                }
-
-                                // 定时器按钮
-                                HapticIconButton(onClick = { showSleepTimerDialog = true },
-                                    modifier = toolbarActionModifier
-                                    .sharedBounds(
-                                        rememberSharedContentState(key = "btn_timer"),
-                                        animatedVisibilityScope = this@AnimatedContent,
-                                        enter = EnterTransition.None,
-                                        exit = ExitTransition.None,
-                                    ).zIndex(1f)) {
-                                    Icon(
-                                        Icons.Outlined.Timer,
-                                        contentDescription = stringResource(R.string.sleep_timer_short),
-                                        tint = if (sleepTimerState.isActive) {
-                                            nowPlayingActiveIconColor
-                                        } else {
-                                            LocalContentColor.current
-                                        },
-                                        modifier = Modifier.size(toolbarLayout.iconSize)
-                                    )
-                                }
-
-                                // 音量按钮 (根据设备显示不同图标, 居中)
-                                val audioDeviceInfo = rememberAudioDeviceInfo()
-                                HapticIconButton(onClick = { showVolumeSheet = true },
-                                    modifier = toolbarActionModifier
-                                        .sharedBounds(
-                                        rememberSharedContentState(key = "btn_volume"),
-                                        animatedVisibilityScope = this@AnimatedContent,
-                                        enter = EnterTransition.None,
-                                        exit = ExitTransition.None,
-                                    ).zIndex(1f)
-                                ) {
-                                    Icon(
-                                        audioDeviceInfo.second,
-                                        contentDescription = audioDeviceInfo.first,
                                         modifier = Modifier.size(toolbarLayout.iconSize)
                                     )
                                 }
@@ -3414,19 +3399,25 @@ fun NowPlayingScreen(
                                     }
                                 }
 
-                                // 添加到歌单
-                                HapticIconButton(onClick = { showAddSheet = true },
+                                // 其他：定时 / 加入歌单 / 音量
+                                HapticIconButton(
+                                    onClick = { showDockMoreSheet = true },
                                     modifier = toolbarActionModifier
                                         .sharedBounds(
-                                            rememberSharedContentState(key = "btn_add"),
+                                            rememberSharedContentState(key = "btn_dock_more"),
                                             animatedVisibilityScope = this@AnimatedContent,
                                             enter = EnterTransition.None,
                                             exit = ExitTransition.None,
                                         ).zIndex(1f)
                                 ) {
                                     Icon(
-                                        Icons.AutoMirrored.Outlined.PlaylistAdd,
-                                        contentDescription = stringResource(R.string.playlist_add_to),
+                                        Icons.Filled.MoreHoriz,
+                                        contentDescription = stringResource(R.string.nowplaying_dock_more),
+                                        tint = if (sleepTimerState.isActive) {
+                                            nowPlayingActiveIconColor
+                                        } else {
+                                            LocalContentColor.current
+                                        },
                                         modifier = Modifier.size(toolbarLayout.iconSize)
                                     )
                                 }
@@ -3603,6 +3594,59 @@ fun NowPlayingScreen(
                     sheetGesturesEnabled = false
                 ) {
                     VolumeControlSheetContent()
+                }
+            }
+
+            // 底部 Docker「其他」：定时 / 加入歌单 / 音量
+            if (showDockMoreSheet) {
+                ModalBottomSheet(
+                    onDismissRequest = { showDockMoreSheet = false },
+                    sheetState = dockMoreSheetState
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp)
+                    ) {
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.sleep_timer_short)) },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Outlined.Timer,
+                                    contentDescription = null,
+                                    tint = if (sleepTimerState.isActive) {
+                                        nowPlayingActiveIconColor
+                                    } else {
+                                        LocalContentColor.current
+                                    }
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                showDockMoreSheet = false
+                                showSleepTimerDialog = true
+                            }
+                        )
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.playlist_add_to)) },
+                            leadingContent = {
+                                Icon(Icons.AutoMirrored.Outlined.PlaylistAdd, contentDescription = null)
+                            },
+                            modifier = Modifier.clickable {
+                                showDockMoreSheet = false
+                                showAddSheet = true
+                            }
+                        )
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.volume_control)) },
+                            leadingContent = {
+                                Icon(Icons.AutoMirrored.Outlined.VolumeUp, contentDescription = null)
+                            },
+                            modifier = Modifier.clickable {
+                                showDockMoreSheet = false
+                                showVolumeSheet = true
+                            }
+                        )
+                    }
                 }
             }
 

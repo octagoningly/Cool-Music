@@ -54,7 +54,7 @@
     <string name="settings_nowplaying_toolbar_dock_desc">Show a rounded dock container for the bottom toolbar on Now Playing</string>
     <string name="settings_nowplaying_toolbar_dock_disabled_by_control_position">Dock is temporarily disabled because bottom playback controls would overlap it</string>
     <string name="settings_nowplaying_control_placement">Now Playing controls position</string>
-    <string name="settings_nowplaying_control_placement_desc">Position shuffle, previous, play, next, and repeat controls</string>
+    <string name="settings_nowplaying_control_placement_desc">Position previous, play, and next controls</string>
     <string name="settings_nowplaying_control_placement_lower">Lower middle</string>
     <string name="settings_nowplaying_control_placement_bottom">Bottom</string>
     <string name="settings_nowplaying_control_placement_bottom_with_progress">Bottom + progress</string>

@@ -9,6 +9,9 @@
     <string name="player_next">下一首</string>
     <string name="player_shuffle">随机</string>
     <string name="player_repeat">循环</string>
+    <string name="player_playback_order">播放顺序</string>
+    <string name="nowplaying_dock_more">其他</string>
+    <string name="volume_control">调节音量</string>
     <string name="player_now_playing">正在播放</string>
     <string name="player_no_playback">暂无播放</string>
     <string name="widget_playback_4x2_label">播放器</string>

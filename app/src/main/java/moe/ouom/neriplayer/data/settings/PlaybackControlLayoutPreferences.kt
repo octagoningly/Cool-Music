@@ -21,7 +21,8 @@ enum class PlaybackControlSize(
 }
 
 data class PlaybackControlLayoutPreferences(
-    val nowPlayingPlacement: NowPlayingControlPlacement = NowPlayingControlPlacement.LOWER,
+    val nowPlayingPlacement: NowPlayingControlPlacement =
+        NowPlayingControlPlacement.BOTTOM_WITH_PROGRESS,
     val nowPlayingSize: PlaybackControlSize = PlaybackControlSize.MEDIUM,
     val lyricsSize: PlaybackControlSize = PlaybackControlSize.MEDIUM
 )
@@ -33,7 +34,9 @@ internal fun resolvePlaybackControlLayoutPreferences(
 ): PlaybackControlLayoutPreferences {
     return PlaybackControlLayoutPreferences(
         nowPlayingPlacement = NowPlayingControlPlacement.values()
-            .getOrElse(nowPlayingPlacementValue ?: -1) { NowPlayingControlPlacement.LOWER },
+            .getOrElse(nowPlayingPlacementValue ?: -1) {
+                NowPlayingControlPlacement.BOTTOM_WITH_PROGRESS
+            },
         nowPlayingSize = PlaybackControlSize.values()
             .getOrElse(nowPlayingSizeValue ?: -1) { PlaybackControlSize.MEDIUM },
         lyricsSize = PlaybackControlSize.values()

@@ -54,7 +54,7 @@
     <string name="settings_nowplaying_toolbar_dock_desc">为播放页底部工具栏显示圆角 Dock 容器</string>
     <string name="settings_nowplaying_toolbar_dock_disabled_by_control_position">主播放控件已贴底，为避免与 Dock 重叠，Dock 效果暂时关闭</string>
     <string name="settings_nowplaying_control_placement">正在播放主控位置</string>
-    <string name="settings_nowplaying_control_placement_desc">调整随机、上一首、播放、下一首和循环按钮的位置</string>
+    <string name="settings_nowplaying_control_placement_desc">调整上一首、播放、下一首按钮的位置</string>
     <string name="settings_nowplaying_control_placement_lower">中下</string>
     <string name="settings_nowplaying_control_placement_bottom">底部</string>
     <string name="settings_nowplaying_control_placement_bottom_with_progress">底部 + 进度</string>

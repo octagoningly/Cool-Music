@@ -16,6 +16,7 @@ import moe.ouom.neriplayer.core.player.model.PlayerQueueDisplayItem
 import moe.ouom.neriplayer.data.settings.NowPlayingControlPlacement
 import moe.ouom.neriplayer.ui.component.playback.PlaybackSourceType
 import moe.ouom.neriplayer.data.model.SongItem
+import androidx.media3.common.Player
 import kotlin.math.pow
 
 class NowPlayingScreenTest {
@@ -165,13 +166,13 @@ class NowPlayingScreenTest {
     }
 
     @Test
-    fun `bottom playback layouts temporarily disable the dock`() {
+    fun `bottom playback layouts keep the dock enabled`() {
         listOf(
             NowPlayingControlPlacement.BOTTOM,
             NowPlayingControlPlacement.BOTTOM_WITH_PROGRESS
         ).forEach { placement ->
             assertTrue(placement.placesControlsAtBottom)
-            assertFalse(
+            assertTrue(
                 shouldUseNowPlayingToolbarDock(
                     toolbarDockEnabled = true,
                     useCompactPortraitLayout = false,
@@ -186,6 +187,26 @@ class NowPlayingScreenTest {
                 useCompactPortraitLayout = false,
                 controlsAtBottom = false
             )
+        )
+    }
+
+    @Test
+    fun `playback order mode resolves from shuffle and repeat state`() {
+        assertEquals(
+            PlaybackOrderMode.SHUFFLE,
+            resolvePlaybackOrderMode(shuffleEnabled = true, repeatMode = Player.REPEAT_MODE_OFF)
+        )
+        assertEquals(
+            PlaybackOrderMode.REPEAT_ALL,
+            resolvePlaybackOrderMode(shuffleEnabled = false, repeatMode = Player.REPEAT_MODE_ALL)
+        )
+        assertEquals(
+            PlaybackOrderMode.REPEAT_ONE,
+            resolvePlaybackOrderMode(shuffleEnabled = false, repeatMode = Player.REPEAT_MODE_ONE)
+        )
+        assertEquals(
+            PlaybackOrderMode.SEQUENTIAL,
+            resolvePlaybackOrderMode(shuffleEnabled = false, repeatMode = Player.REPEAT_MODE_OFF)
         )
     }
 
@@ -206,7 +227,7 @@ class NowPlayingScreenTest {
     }
 
     @Test
-    fun `large main controls reduce spacing before overflowing narrow screens`() {
+    fun `large main controls keep preferred spacing when three buttons fit`() {
         val layout = resolveNowPlayingMainControlsLayout(
             availableWidth = 280.dp,
             secondaryButtonSize = 50.dp,
@@ -214,23 +235,27 @@ class NowPlayingScreenTest {
             preferredSpacing = 24.dp
         )
 
-        assertEquals(5.dp, layout.spacing)
-        assertEquals(280.dp, layout.secondaryButtonSize * 4 + layout.primaryButtonSize + layout.spacing * 4)
+        assertEquals(24.dp, layout.spacing)
+        assertEquals(50.dp, layout.secondaryButtonSize)
+        assertEquals(60.dp, layout.primaryButtonSize)
     }
 
     @Test
     fun `main controls scale as a group when minimum spacing cannot fit`() {
         val layout = resolveNowPlayingMainControlsLayout(
-            availableWidth = 250.dp,
+            availableWidth = 140.dp,
             secondaryButtonSize = 50.dp,
             primaryButtonSize = 60.dp,
             preferredSpacing = 24.dp
         )
 
-        assertEquals(45f, layout.secondaryButtonSize.value, 0.001f)
-        assertEquals(54f, layout.primaryButtonSize.value, 0.001f)
+        assertEquals(41.25f, layout.secondaryButtonSize.value, 0.001f)
+        assertEquals(49.5f, layout.primaryButtonSize.value, 0.001f)
         assertEquals(4.dp, layout.spacing)
-        assertEquals(250.dp, layout.secondaryButtonSize * 4 + layout.primaryButtonSize + layout.spacing * 4)
+        assertEquals(
+            140.dp,
+            layout.secondaryButtonSize * 2 + layout.primaryButtonSize + layout.spacing * 2
+        )
     }
 
     @Test
@@ -321,7 +346,7 @@ class NowPlayingScreenTest {
     }
 
     @Test
-    fun `playback action toolbar keeps normal spacing when five touch targets fit`() {
+    fun `playback action toolbar keeps normal spacing when four touch targets fit`() {
         val layout = resolvePlaybackActionToolbarLayout(
             availableWidth = 300.dp,
             preferredHorizontalPadding = 16.dp,
@@ -335,7 +360,7 @@ class NowPlayingScreenTest {
     }
 
     @Test
-    fun `playback action toolbar assigns five equal slots when high density width is narrow`() {
+    fun `playback action toolbar assigns four equal slots when high density width is narrow`() {
         val layout = resolvePlaybackActionToolbarLayout(
             availableWidth = 220.dp,
             preferredHorizontalPadding = 16.dp,
@@ -343,21 +368,21 @@ class NowPlayingScreenTest {
         )
 
         assertEquals(0.dp, layout.horizontalPadding)
-        assertEquals(44.dp, layout.minimumInteractiveComponentSize)
+        assertEquals(48.dp, layout.minimumInteractiveComponentSize)
         assertEquals(20.dp, layout.iconSize)
         assertTrue(layout.useEqualWidthSlots)
     }
 
     @Test
-    fun `playback action toolbar reduces icon size before a very narrow fifth slot overflows`() {
+    fun `playback action toolbar reduces icon size before a very narrow fourth slot overflows`() {
         val layout = resolvePlaybackActionToolbarLayout(
             availableWidth = 190.dp,
             preferredHorizontalPadding = 16.dp,
             defaultIconSize = 20.dp
         )
 
-        assertEquals(38.dp, layout.minimumInteractiveComponentSize)
-        assertEquals(18.dp, layout.iconSize)
+        assertEquals(47.5.dp, layout.minimumInteractiveComponentSize)
+        assertEquals(20.dp, layout.iconSize)
         assertTrue(layout.useEqualWidthSlots)
     }
 

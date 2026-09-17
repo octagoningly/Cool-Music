@@ -22,7 +22,7 @@ class PlaybackControlLayoutPreferencesTest {
     fun `invalid persisted values fall back without changing valid values`() {
         assertEquals(
             PlaybackControlLayoutPreferences(
-                nowPlayingPlacement = NowPlayingControlPlacement.LOWER,
+                nowPlayingPlacement = NowPlayingControlPlacement.BOTTOM_WITH_PROGRESS,
                 nowPlayingSize = PlaybackControlSize.LARGE,
                 lyricsSize = PlaybackControlSize.MEDIUM
             ),

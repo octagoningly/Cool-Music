@@ -1994,6 +1994,73 @@ internal fun PlayerManager.cycleRepeatModeImpl(
     )
 }
 
+internal fun PlayerManager.setRepeatModeImpl(
+    mode: Int,
+    commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL
+) {
+    ensureInitialized()
+    if (!initialized) return
+    if (shouldBlockLocalRoomControl(commandSource)) return
+    val normalized = when (mode) {
+        Player.REPEAT_MODE_OFF,
+        Player.REPEAT_MODE_ALL,
+        Player.REPEAT_MODE_ONE -> mode
+        else -> Player.REPEAT_MODE_OFF
+    }
+    if (repeatModeSetting == normalized) return
+    val previousMode = repeatModeSetting
+    repeatModeSetting = normalized
+    syncExoRepeatMode()
+    _repeatModeFlow.value = normalized
+    NPLogger.d(
+        "NERI-PlayerManager",
+        "setRepeatMode: previousMode=$previousMode, newMode=$normalized"
+    )
+    scheduleStatePersist()
+    emitPlaybackCommand(
+        type = "PLAYBACK_MODE",
+        source = commandSource,
+        repeatMode = normalized,
+        shuffleEnabled = player.shuffleModeEnabled
+    )
+}
+
+/**
+ * 底部 Docker 播放顺序：随机 → 列表循环 → 单曲循环 → 随机。
+ */
+internal fun PlayerManager.cyclePlaybackOrderImpl(
+    commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL
+) {
+    ensureInitialized()
+    if (!initialized) return
+    if (shouldBlockLocalRoomControl(commandSource)) return
+
+    val shuffleEnabled = player.shuffleModeEnabled
+    val repeatMode = repeatModeSetting
+    val nextShuffle: Boolean
+    val nextRepeat: Int
+    when {
+        shuffleEnabled -> {
+            nextShuffle = false
+            nextRepeat = Player.REPEAT_MODE_ALL
+        }
+        repeatMode == Player.REPEAT_MODE_ALL -> {
+            nextShuffle = false
+            nextRepeat = Player.REPEAT_MODE_ONE
+        }
+        repeatMode == Player.REPEAT_MODE_ONE -> {
+            nextShuffle = true
+            nextRepeat = Player.REPEAT_MODE_OFF
+        }
+        else -> {
+            nextShuffle = true
+            nextRepeat = Player.REPEAT_MODE_OFF
+        }
+    }
+    setShuffleImpl(nextShuffle, commandSource)
+    setRepeatModeImpl(nextRepeat, commandSource)
+}
+
 internal fun PlayerManager.setShuffleImpl(
     enabled: Boolean,
     commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL

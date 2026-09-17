@@ -44,39 +44,17 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.isActive
-import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.math.pow
-import kotlin.math.sin
 
-private const val WAVE_AMPLITUDE = 6f   // 波浪的振幅
-private const val WAVE_FREQUENCY = 0.08f // 波浪的频率
-private const val WAVE_ANIMATION_DURATION_NS = 2_000_000_000L
 private const val NANOS_PER_MILLISECOND = 1_000_000L
-private const val WAVE_SAMPLE_SPACING_PX = 6f
-private const val MIN_WAVE_SEGMENTS = 48
-private const val MAX_WAVE_SEGMENTS = 180
-private const val WAITING_PULSE_ANIMATION_DURATION_NS = 1_400_000_000L
-private const val WAITING_PULSE_RADIUS_SEGMENTS = 4f
-private const val MIN_WAITING_PULSE_SEGMENTS = 1
-private const val MAX_WAITING_PULSE_SEGMENTS = 72
-private val WaveInactiveStroke = androidx.compose.ui.graphics.drawscope.Stroke(
-    width = 4f,
-    cap = StrokeCap.Round
-)
-private val WaveActiveStroke = androidx.compose.ui.graphics.drawscope.Stroke(
-    width = 6f,
-    cap = StrokeCap.Round
-)
+private const val TRACK_HEIGHT_DP = 3f
+private const val TRACK_HEIGHT_DRAGGED_DP = 5f
 
 @Composable
 fun WaveformSlider(
@@ -97,9 +75,9 @@ fun WaveformSlider(
     playbackSessionKey: String? = null
 ) {
     val clampedValue = normalizeWaveProgress(value)
-    val activeColor = activeTint.copy(alpha = if (enabled) 1f else 0.55f)
-    val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.3f else 0.18f)
-    val thumbColor = activeTint.copy(alpha = if (enabled) 1f else 0.55f)
+    // 未播放部分更浅，已播放部分更深 —— 用颜色深浅表示进度
+    val activeColor = activeTint.copy(alpha = if (enabled) 1f else 0.45f)
+    val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.22f else 0.12f)
 
     var isDragging by remember { mutableStateOf(false) }
     val latestOnValueChangeCanceled by rememberUpdatedState(onValueChangeCanceled)
@@ -110,22 +88,16 @@ fun WaveformSlider(
         }
     }
 
-    val animatedAmplitude by animateFloatAsState(
-        targetValue = if (
-            enabled && isPlaying && !isPlaybackWaiting && !isDragging
-        ) WAVE_AMPLITUDE else 0f,
-        animationSpec = tween(durationMillis = 500, easing = LinearEasing),
-        label = "amplitude_animation"
+    val trackHeight by animateFloatAsState(
+        targetValue = if (isDragging) TRACK_HEIGHT_DRAGGED_DP else TRACK_HEIGHT_DP,
+        animationSpec = tween(durationMillis = 160, easing = LinearEasing),
+        label = "track_height_animation"
     )
 
-    var phase by remember { mutableFloatStateOf(0f) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val animationsEnabled = ValueAnimator.areAnimatorsEnabled()
-    val isWaitingPulseAnimating = animationsEnabled && isPlaybackWaiting && !isDragging
-    val isWaveAnimating =
-        animationsEnabled && enabled && isPlaying && !isPlaybackWaiting && !isDragging
     val isProgressPredicting = shouldPredictWaveProgress(
-        isWaveAnimating = isWaveAnimating,
+        isWaveAnimating = animationsEnabled && enabled && isPlaying && !isDragging,
         isProgressStalled = isProgressStalled,
         isProgressPreviewing = isProgressPreviewing
     )
@@ -144,32 +116,13 @@ fun WaveformSlider(
             animate = isProgressPredicting
         )
     }
-    LaunchedEffect(
-        lifecycleOwner,
-        waveProgress,
-        isWaitingPulseAnimating,
-        isWaveAnimating,
-        isProgressPredicting
-    ) {
-        if (!isWaitingPulseAnimating && !isWaveAnimating) return@LaunchedEffect
+    LaunchedEffect(lifecycleOwner, waveProgress, isProgressPredicting) {
+        if (!isProgressPredicting) return@LaunchedEffect
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             waveProgress.resetFrameAnchor()
-            val anchorPhase = phase
-            var anchorFrameNs = 0L
             while (isActive) {
                 val frameNs = withFrameNanos { it }
-                if (anchorFrameNs == 0L) {
-                    anchorFrameNs = frameNs
-                }
-                val elapsedNs = frameNs - anchorFrameNs
-                if (isProgressPredicting) {
-                    waveProgress.onFrame(frameNs)
-                }
-                phase = if (isWaitingPulseAnimating) {
-                    resolveWaitingPulsePhase(anchorPhase, elapsedNs)
-                } else {
-                    resolveWavePhase(anchorPhase, elapsedNs)
-                }
+                waveProgress.onFrame(frameNs)
             }
         }
     }
@@ -210,12 +163,11 @@ fun WaveformSlider(
     } else {
         Modifier
     }
-    val wavePath = remember { Path() }
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(28.dp)
             .then(dragModifier)
     ) {
         val centerY = size.height / 2
@@ -224,95 +176,27 @@ fun WaveformSlider(
         } else {
             clampedValue
         }
-        val progressPx = progressValue * size.width
-        val currentPhase = phase
+        val progressPx = (progressValue * size.width).coerceIn(0f, size.width)
+        val barHeight = trackHeight.dp.toPx()
 
-        if (isPlaybackWaiting && !isDragging) {
-            val preferredSpacingPx = 8.dp.toPx()
-            val pulseSegmentCount = resolveWaitingPulseSegmentCount(
-                widthPx = size.width,
-                preferredSpacingPx = preferredSpacingPx
-            )
-            val pulseSegmentWidth = size.width / pulseSegmentCount
-            val pulseStrokeWidth = (pulseSegmentWidth * 0.42f)
-                .coerceIn(1.5.dp.toPx(), 3.dp.toPx())
-            val minHalfHeight = 2.dp.toPx()
-            val maxHalfHeight = 7.dp.toPx()
-
-            repeat(pulseSegmentCount) { index ->
-                val x = (index + 0.5f) * pulseSegmentWidth
-                val strength = resolveWaitingPulseStrength(
-                    segmentIndex = index,
-                    segmentCount = pulseSegmentCount,
-                    phase = currentPhase
-                )
-                val halfHeight = minHalfHeight + (maxHalfHeight - minHalfHeight) * strength
-                val baseColor = if (x <= progressPx) activeColor else inactiveColor
-                val pulseColor = baseColor.copy(
-                    alpha = (baseColor.alpha * (0.55f + 0.45f * strength)).coerceIn(0f, 1f)
-                )
-                drawLine(
-                    color = pulseColor,
-                    start = Offset(x, centerY - halfHeight),
-                    end = Offset(x, centerY + halfHeight),
-                    strokeWidth = pulseStrokeWidth,
-                    cap = StrokeCap.Round
-                )
-            }
-
-            drawCircle(
-                color = thumbColor,
-                radius = 16f,
-                center = Offset(progressPx, centerY)
-            )
-            return@Canvas
-        }
-
-        val segmentCount = resolveWaveSegmentCount(size.width)
-        val segmentWidth = size.width / segmentCount
-
-        wavePath.rewind()
-        wavePath.moveTo(0f, centerY + sin(currentPhase) * animatedAmplitude)
-        for (index in 1..segmentCount) {
-            val x = index * segmentWidth
-            val angle = x * WAVE_FREQUENCY + currentPhase
-            val y = centerY + sin(angle) * animatedAmplitude
-            wavePath.lineTo(x, y)
-        }
-
-        drawPath(
-            path = wavePath,
+        drawLine(
             color = inactiveColor,
-            style = WaveInactiveStroke
+            start = Offset(0f, centerY),
+            end = Offset(size.width, centerY),
+            strokeWidth = barHeight,
+            cap = StrokeCap.Round
         )
 
-        clipRect(right = progressPx) {
-            drawPath(
-                path = wavePath,
+        if (progressPx > 0f) {
+            drawLine(
                 color = activeColor,
-                style = WaveActiveStroke
+                start = Offset(0f, centerY),
+                end = Offset(progressPx, centerY),
+                strokeWidth = barHeight,
+                cap = StrokeCap.Round
             )
         }
-
-        val thumbY = centerY + sin(progressPx * WAVE_FREQUENCY + currentPhase) * animatedAmplitude
-        drawCircle(
-            color = thumbColor,
-            radius = 16f,
-            center = Offset(progressPx, thumbY)
-        )
     }
-}
-
-private val TWO_PI = 2f * Math.PI.toFloat()
-
-internal fun resolveWaveSegmentCount(widthPx: Float): Int {
-    return ceil(widthPx.coerceAtLeast(0f) / WAVE_SAMPLE_SPACING_PX)
-        .toInt()
-        .coerceIn(MIN_WAVE_SEGMENTS, MAX_WAVE_SEGMENTS)
-}
-
-internal fun resolveWavePhase(anchorPhase: Float, elapsedNs: Long): Float {
-    return resolveAnimationPhase(anchorPhase, elapsedNs, WAVE_ANIMATION_DURATION_NS)
 }
 
 internal fun resolveWaveProgress(
@@ -336,49 +220,6 @@ internal fun shouldPredictWaveProgress(
     isProgressPreviewing: Boolean
 ): Boolean {
     return isWaveAnimating && !isProgressStalled && !isProgressPreviewing
-}
-
-internal fun resolveWaitingPulsePhase(anchorPhase: Float, elapsedNs: Long): Float {
-    return resolveAnimationPhase(
-        anchorPhase = anchorPhase,
-        elapsedNs = elapsedNs,
-        durationNs = WAITING_PULSE_ANIMATION_DURATION_NS
-    )
-}
-
-internal fun resolveWaitingPulseSegmentCount(
-    widthPx: Float,
-    preferredSpacingPx: Float
-): Int {
-    if (preferredSpacingPx <= 0f) return MIN_WAITING_PULSE_SEGMENTS
-    return ceil(widthPx.coerceAtLeast(0f) / preferredSpacingPx)
-        .toInt()
-        .coerceIn(MIN_WAITING_PULSE_SEGMENTS, MAX_WAITING_PULSE_SEGMENTS)
-}
-
-internal fun resolveWaitingPulseStrength(
-    segmentIndex: Int,
-    segmentCount: Int,
-    phase: Float
-): Float {
-    if (segmentCount <= 0 || segmentIndex !in 0 until segmentCount) return 0f
-    val normalizedPhase = phase.floorMod(TWO_PI)
-    val travelDistance = segmentCount - 1 + WAITING_PULSE_RADIUS_SEGMENTS * 2f
-    val pulseHead = normalizedPhase / TWO_PI * travelDistance - WAITING_PULSE_RADIUS_SEGMENTS
-    val distance = abs(segmentIndex - pulseHead)
-    return (1f - distance / WAITING_PULSE_RADIUS_SEGMENTS)
-        .coerceIn(0f, 1f)
-        .pow(2)
-}
-
-private fun resolveAnimationPhase(
-    anchorPhase: Float,
-    elapsedNs: Long,
-    durationNs: Long
-): Float {
-    val elapsedInCycle = elapsedNs.floorMod(durationNs)
-    val cycleFraction = elapsedInCycle.toFloat() / durationNs.toFloat()
-    return (anchorPhase + TWO_PI * cycleFraction).floorMod(TWO_PI)
 }
 
 private fun normalizeWaveProgress(value: Float): Float {
@@ -445,12 +286,4 @@ internal class WaveProgressPredictor(initialValue: Float) {
         anchorFrameNs = 0L
         hasPendingAnchor = true
     }
-}
-
-private fun Long.floorMod(other: Long): Long {
-    return ((this % other) + other) % other
-}
-
-private fun Float.floorMod(other: Float): Float {
-    return ((this % other) + other) % other
 }

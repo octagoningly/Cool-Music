@@ -110,8 +110,6 @@ internal suspend fun PlayerManager.tryResolveLxMusicCustomSource(
     }
 }
 
-private val lxJsRuntimeCache = java.util.concurrent.ConcurrentHashMap<String, LxJsSourceRuntime>()
-
 private suspend fun PlayerManager.resolveFromLxJsSource(
     song: SongItem,
     source: LxImportedSource,
@@ -119,19 +117,21 @@ private suspend fun PlayerManager.resolveFromLxJsSource(
 ): SongUrlResult? {
     val repository = AppContainer.lxMusicSourceRepository
     val script = repository.readJsScript(source) ?: return null
-    val runtime = lxJsRuntimeCache.getOrPut(source.id) {
-        LxJsSourceRuntime(
+    val engine = moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceEngine
+    if (!engine.ensureLoaded(
             context = application,
             okHttpClient = AppContainer.sharedOkHttpClient,
-            scriptId = source.id,
-            scriptName = source.name,
-            script = script
+            sourceId = source.id,
+            sourceName = source.name,
+            script = script,
+            description = source.description,
+            version = source.version,
+            author = source.author
         )
-    }
-    if (runtime.supportedSources.isEmpty() && !runtime.load()) {
-        lxJsRuntimeCache.remove(source.id)
+    ) {
         return null
     }
+    val runtime = engine.runtime(source.id) ?: return null
 
     val sourceIds = (source.jsSourceIds.ifEmpty { listOf("kw", "kg", "tx", "wy", "mg") })
         .filter { runtime.supportedSources.isEmpty() || it in runtime.supportedSources }

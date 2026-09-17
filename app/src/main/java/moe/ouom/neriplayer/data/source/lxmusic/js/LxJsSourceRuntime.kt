@@ -58,7 +58,11 @@ class LxJsSourceRuntime(
     private val okHttpClient: OkHttpClient,
     private val scriptId: String,
     private val scriptName: String,
-    private val script: String
+    private val script: String,
+    private val scriptDescription: String = "",
+    private val scriptVersion: String = "",
+    private val scriptAuthor: String = "",
+    private val scriptHomepage: String = ""
 ) {
     private val key = UUID.randomUUID().toString()
     private val executor = Executors.newSingleThreadExecutor { r ->
@@ -69,11 +73,12 @@ class LxJsSourceRuntime(
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    private var jsContext: QuickJSContext? = null
+    @Volatile
     private var loaded = false
+
+    private var jsContext: QuickJSContext? = null
     private val pendingMusicUrl = ConcurrentHashMap<String, CompletableDeferred<String?>>()
     private val pendingNativeRequests = ConcurrentHashMap<String, okhttp3.Call>()
-    private val timeoutIds = AtomicInteger(0)
     private val timeoutHandler = android.os.Handler(context.mainLooper)
 
     @Volatile
@@ -84,17 +89,20 @@ class LxJsSourceRuntime(
     var supportedQualities: Set<String> = emptySet()
         private set
 
+    fun isReady(): Boolean = loaded
+
     fun load(): Boolean {
+        if (loaded) return true
         val latch = java.util.concurrent.CountDownLatch(1)
         var success = false
         executor.execute {
             success = runCatching { loadInternal() }.getOrElse { error ->
-                NPLogger.e(TAG, "Load LX JS source failed: ${error.message}")
+                NPLogger.e(TAG, "Load LX JS source failed: ${error.message}", error)
                 false
             }
             latch.countDown()
         }
-        latch.await(5, TimeUnit.SECONDS)
+        latch.await(8, TimeUnit.SECONDS)
         loaded = success
         return success
     }
@@ -154,19 +162,45 @@ class LxJsSourceRuntime(
         QuickJSLoader.init()
         val ctx = QuickJSContext.create()
         jsContext = ctx
+        ctx.setConsole(object : QuickJSContext.Console {
+            override fun log(info: String?) {
+                NPLogger.d(TAG, "JS[log] ${info.orEmpty().take(500)}")
+            }
+
+            override fun info(info: String?) {
+                NPLogger.i(TAG, "JS[info] ${info.orEmpty().take(500)}")
+            }
+
+            override fun warn(info: String?) {
+                NPLogger.w(TAG, "JS[warn] ${info.orEmpty().take(500)}")
+            }
+
+            override fun error(info: String?) {
+                NPLogger.e(TAG, "JS[error] ${info.orEmpty().take(500)}")
+            }
+        })
         createEnvObj(ctx)
         val preload = context.assets.open("script/user-api-preload.js")
             .bufferedReader(StandardCharsets.UTF_8)
             .use { it.readText() }
         ctx.evaluate(preload)
         ctx.getGlobalObject().getJSFunction("lx_setup")
-            .call(key, scriptId, scriptName, "", "", "", "", script)
+            .call(
+                key,
+                scriptId,
+                scriptName,
+                scriptDescription,
+                scriptVersion,
+                scriptAuthor,
+                scriptHomepage,
+                script
+            )
         ctx.evaluate(script, "lx-source.js")
         // 等待脚本 lx.send('inited') 回调
         var waited = 0
-        while (waited < 400 && supportedSources.isEmpty()) {
-            Thread.sleep(20)
-            waited += 20
+        while (waited < 1500 && supportedSources.isEmpty()) {
+            Thread.sleep(30)
+            waited += 30
         }
         NPLogger.d(
             TAG,
@@ -209,8 +243,16 @@ class LxJsSourceRuntime(
                 ""
             }
         }
-        ctx.getGlobalObject().setProperty("__lx_native_call__utils_rsa_encrypt") { _ ->
-            ""
+        ctx.getGlobalObject().setProperty("__lx_native_call__utils_rsa_encrypt") { args ->
+            try {
+                val dataB64 = args.getOrNull(0) as? String ?: return@setProperty ""
+                val publicKey = args.getOrNull(1) as? String ?: return@setProperty ""
+                val padding = args.getOrNull(2) as? String ?: "RSA/ECB/NoPadding"
+                rsaEncrypt(dataB64, publicKey, padding)
+            } catch (e: Exception) {
+                NPLogger.w(TAG, "RSA encrypt failed: ${e.message}")
+                ""
+            }
         }
         ctx.getGlobalObject().setProperty("__lx_native_call__set_timeout") { args ->
             val id = args.getOrNull(0)
@@ -255,6 +297,10 @@ class LxJsSourceRuntime(
                 val options = json.optJSONObject("options") ?: JSONObject()
                 if (requestKey.isBlank() || url.isBlank()) return
                 val request = runCatching { buildHttpRequest(url, options) }.getOrNull() ?: return
+                NPLogger.d(
+                    TAG,
+                    "LX JS http req ${options.optString("method", "get")} ${url.take(120)}"
+                )
                 val call = httpRequestClient.newCall(request)
                 pendingNativeRequests[requestKey] = call
                 Thread {
@@ -290,7 +336,7 @@ class LxJsSourceRuntime(
                             }
                             NPLogger.d(
                                 TAG,
-                                "LX JS http ${resp.code} ${url.take(80)} bodyLen=${rawBody.length}"
+                                "LX JS http ${resp.code} ${url.take(80)} bodyLen=${rawBody.length} body=${rawBody.take(200)}"
                             )
                             callJs("response", response.toString())
                         }
@@ -335,14 +381,14 @@ class LxJsSourceRuntime(
         val method = options.optString("method", "get").lowercase()
         val headers = options.optJSONObject("headers") ?: JSONObject()
         val builder = Request.Builder().url(url)
+        // 与落雪 mobile request.js 默认头保持一致
+        builder.header("Accept", "application/json")
+        builder.header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+        )
         headers.keys().forEach { name ->
             builder.header(name, headers.optString(name))
-        }
-        if (!headers.has("User-Agent") && !headers.has("user-agent")) {
-            builder.header(
-                "User-Agent",
-                "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36"
-            )
         }
         val timeoutMs = options.optLong("timeout", 13_000L)
         // timeout 由 client 统一控制，这里仅记录
@@ -383,25 +429,44 @@ class LxJsSourceRuntime(
     }
 
     private fun md5Hex(input: String): String {
+        // 落雪原版：先 URLDecode 再 MD5（preload 侧会 encodeURIComponent）
+        val decoded = try {
+            java.net.URLDecoder.decode(input, "UTF-8")
+        } catch (_: Exception) {
+            input
+        }
         val md = MessageDigest.getInstance("MD5")
-        val bytes = md.digest(input.toByteArray(StandardCharsets.UTF_8))
+        val bytes = md.digest(decoded.toByteArray(StandardCharsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
     private fun aesEncrypt(dataB64: String, keyB64: String, ivB64: String, mode: String): String {
-        val data = Base64.decode(dataB64, Base64.NO_WRAP)
-        val key = Base64.decode(keyB64, Base64.NO_WRAP)
+        // 与落雪 AES 保持一致：decode 用 DEFAULT，encode 用 NO_WRAP
+        val data = Base64.decode(dataB64, Base64.DEFAULT)
+        val key = Base64.decode(keyB64, Base64.DEFAULT)
         val cipher = Cipher.getInstance(mode)
         val secretKey = SecretKeySpec(key, "AES")
         if (ivB64.isBlank() || mode.contains("ECB", ignoreCase = true)) {
             cipher.init(Cipher.ENCRYPT_MODE, secretKey)
         } else {
-            val iv = Base64.decode(ivB64, Base64.NO_WRAP)
+            val iv = Base64.decode(ivB64, Base64.DEFAULT)
             val finalIv = ByteArray(16)
             System.arraycopy(iv, 0, finalIv, 0, minOf(iv.size, 16))
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, IvParameterSpec(finalIv))
         }
         return String(Base64.encode(cipher.doFinal(data), Base64.NO_WRAP), StandardCharsets.UTF_8)
+    }
+
+    private fun rsaEncrypt(dataB64: String, publicKey: String, padding: String): String {
+        val keyFactory = java.security.KeyFactory.getInstance("RSA")
+        val keySpec = java.security.spec.X509EncodedKeySpec(
+            Base64.decode(publicKey.trim().toByteArray(), Base64.DEFAULT)
+        )
+        val key = keyFactory.generatePublic(keySpec)
+        val cipher = Cipher.getInstance(padding)
+        cipher.init(Cipher.ENCRYPT_MODE, key)
+        val encrypted = cipher.doFinal(Base64.decode(dataB64, Base64.DEFAULT))
+        return String(Base64.encode(encrypted, Base64.NO_WRAP), StandardCharsets.UTF_8)
     }
 
     private companion object {

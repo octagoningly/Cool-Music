@@ -478,6 +478,34 @@ object AppContainer {
                 lxMusicSourceRepository.preferCustomSourceFlow.collect { }
             }
         }
+        // 预加载 JS 音源引擎，便于尽早暴露脚本/环境错误
+        scope.launch {
+            kotlinx.coroutines.delay(1_500L)
+            runCatching {
+                val sources = lxMusicSourceRepository.getEnabledSources().filter { it.isJsSource }
+                if (sources.isEmpty()) return@runCatching
+                val engine = moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceEngine
+                sources.forEach { source ->
+                    val script = lxMusicSourceRepository.readJsScript(source) ?: return@forEach
+                    val ok = engine.ensureLoaded(
+                        context = application,
+                        okHttpClient = sharedOkHttpClient,
+                        sourceId = source.id,
+                        sourceName = source.name,
+                        script = script,
+                        description = source.description,
+                        version = source.version,
+                        author = source.author
+                    )
+                    NPLogger.i(
+                        "NERI-LxMusicSource",
+                        "Warmup JS source ${source.name}: loaded=$ok sources=${engine.peekSupportedSources(source.id)}"
+                    )
+                }
+            }.onFailure { error ->
+                NPLogger.w("NERI-LxMusicSource", "Warmup JS source failed: ${error.message}")
+            }
+        }
     }
 
     private fun warmLocalPlaylistRepository() {

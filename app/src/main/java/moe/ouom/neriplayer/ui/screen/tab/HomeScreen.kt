@@ -405,7 +405,6 @@ fun HomeScreen(
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
         ) {
             NeriTabLargeTitleTopBar(
                 title = appBarTitle,

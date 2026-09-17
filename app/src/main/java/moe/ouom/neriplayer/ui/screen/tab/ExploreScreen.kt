@@ -713,8 +713,7 @@ fun ExploreScreen(
 
     Scaffold(
         modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .fillMaxSize(),
         containerColor = Color.Transparent,
         snackbarHost = {
             NeriSnackbarHost(
@@ -1287,8 +1286,7 @@ private fun ExploreOfflineContent(topAppBarState: TopAppBarState) {
 
     Scaffold(
         modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .fillMaxSize(),
         containerColor = Color.Transparent,
         topBar = {
             NeriTabLargeTitleTopBar(

@@ -415,8 +415,7 @@ fun LibraryScreen(
 
     Column(
         Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         NeriTabLargeTitleTopBar(

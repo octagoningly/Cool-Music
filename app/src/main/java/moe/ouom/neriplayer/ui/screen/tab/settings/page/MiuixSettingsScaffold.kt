@@ -126,25 +126,11 @@ internal fun MiuixSettingsHomeScaffold(
     Scaffold(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .background(Color.Transparent),
         containerColor = Color.Transparent,
         topBar = {
             NeriTabLargeTitleTopBar(
-                title = {
-                    // large top app bars compose both title slots, but only one is visible
-                    val isExpandedTitleSlot = LocalTextStyle.current.fontSize.value > 24f
-                    CompositionLocalProvider(
-                        LocalAdvancedGlassBackdropRegistrationEnabled provides
-                            if (isExpandedTitleSlot) {
-                                showExpandedTitleMask
-                            } else {
-                                !showExpandedTitleMask
-                            }
-                    ) {
-                        title()
-                    }
-                }
+                title = { title() }
             )
         }
     ) { innerPadding ->

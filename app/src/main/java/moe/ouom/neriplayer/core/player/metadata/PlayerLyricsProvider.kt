@@ -48,6 +48,7 @@ import moe.ouom.neriplayer.core.api.search.MusicPlatform
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicClient
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.player.download.AudioDownloadManager
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.fetchLxSourceLyric
 import moe.ouom.neriplayer.data.local.media.LocalMediaSupport
 import moe.ouom.neriplayer.data.local.media.isLocalSong
 import moe.ouom.neriplayer.data.model.stableKey
@@ -127,6 +128,29 @@ internal fun resolveLocalFirstLyricText(
 internal fun shouldLoadRemoteLyrics(song: SongItem): Boolean {
     return !song.isLocalSong()
 }
+
+/**
+ * 占位歌词判定。
+ * 网易云对没有歌词的曲目会返回「[00:00.00]暂无歌词」这类占位文本，
+ * 若把它当成“有歌词”，后面的在线音源歌词同步就永远不会执行。
+ */
+internal fun isPlaceholderLyrics(entries: List<LyricEntry>): Boolean {
+    if (entries.isEmpty()) return true
+    val texts = entries.map { it.text.trim() }.filter { it.isNotEmpty() }
+    if (texts.isEmpty()) return true
+    if (texts.size > PLACEHOLDER_LYRIC_MAX_LINES) return false
+    return texts.all { text ->
+        text.length <= PLACEHOLDER_LYRIC_MAX_LENGTH && placeholderLyricRegex.containsMatchIn(text)
+    }
+}
+
+private const val PLACEHOLDER_LYRIC_MAX_LINES = 2
+private const val PLACEHOLDER_LYRIC_MAX_LENGTH = 20
+
+private val placeholderLyricRegex = Regex(
+    "暂无歌词|无歌词|暂无|没有歌词|纯音乐|请欣赏|该歌曲|此歌曲|no\\s*lyric|instrumental|lyrics\\s*not",
+    RegexOption.IGNORE_CASE
+)
 
 internal fun hasCollapsedLyricEntryTimeline(entries: List<LyricEntry>): Boolean {
     val contentEntries = entries.filter { it.text.isNotBlank() }
@@ -1030,16 +1054,52 @@ internal object PlayerLyricsProvider {
                 else -> getNeteaseLyrics(song.id, neteaseClient, neteaseLyricsCache)
             }
 
-            if (platformLyrics.hasWordTimedEntries() || !amllLyricsEnabled) {
-                platformLyrics
-            } else {
-                loadAmllLyricsWithCache(
-                    song = song,
-                    amllTtmlClient = amllTtmlClient,
-                    requireDurationMatch = false
-                ).ifEmpty { platformLyrics }
+            val platformLyricsUsable = platformLyrics.isNotEmpty() && !isPlaceholderLyrics(platformLyrics)
+            val resolvedPlatformLyrics = when {
+                platformLyricsUsable && (platformLyrics.hasWordTimedEntries() || !amllLyricsEnabled) ->
+                    platformLyrics
+
+                platformLyricsUsable || amllLyricsEnabled ->
+                    loadAmllLyricsWithCache(
+                        song = song,
+                        amllTtmlClient = amllTtmlClient,
+                        requireDurationMatch = false
+                    ).ifEmpty { if (platformLyricsUsable) platformLyrics else emptyList() }
+
+                else -> emptyList()
             }
+            if (resolvedPlatformLyrics.isNotEmpty()) {
+                return@withContext resolvedPlatformLyrics
+            }
+            // 平台与 AMLL 都没有可用歌词时，从在线音源对应的平台同步一份
+            loadLxSourceLyrics(song)
         }
+    }
+
+    /**
+     * 在线音源歌词兜底：用跨平台取流时命中的曲目 ID（没有则现搜）拉取 LRC。
+     * 只在配置了在线音源时生效，避免给没启用该功能的用户增加额外请求。
+     */
+    private suspend fun loadLxSourceLyrics(song: SongItem): List<LyricEntry> {
+        val repository = runCatching { AppContainer.lxMusicSourceRepository }.getOrNull()
+            ?: return emptyList()
+        if (repository.peekEnabledSources().isEmpty()) return emptyList()
+
+        val fetched = runCatching { fetchLxSourceLyric(song) }.getOrElse { error ->
+            if (error is CancellationException) throw error
+            NPLogger.w("NERI-PlayerManager", "在线音源歌词同步失败: song=${song.name}, error=${error.message}")
+            null
+        } ?: return emptyList()
+        val entries = parseSafeLyricEntries(
+            rawLyric = fetched.lyric,
+            durationMs = song.durationMs,
+            logPrefix = "在线音源歌词"
+        ) ?: return emptyList()
+        NPLogger.w(
+            "NERI-PlayerManager",
+            "在线音源歌词已同步: song=${song.name}, platform=${fetched.sourceId}, lines=${entries.size}"
+        )
+        return entries
     }
 
     private suspend fun getYouTubeMusicLyrics(

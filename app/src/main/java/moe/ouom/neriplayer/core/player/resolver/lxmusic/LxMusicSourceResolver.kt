@@ -294,72 +294,83 @@ private suspend fun PlayerManager.resolveFromLxJsCrossPlatform(
     maxQualityAttempts: Int
 ): SongUrlResult? {
     val supportedSources = runtime.supportedSources
-    if (supportedSources.isNotEmpty() && LX_KUWO_PLATFORM_ID !in supportedSources) return null
-
-    val songKey = song.stableKey()
-    val hit = LxCrossPlatformHitCache.get(songKey) ?: run {
-        val queries = buildLxSearchQueries(song)
-        var found: LxCrossPlatformHit? = null
-        for (query in queries) {
-            val hits = fetchLxKuwoHits(AppContainer.sharedOkHttpClient, query)
-            if (hits.isEmpty()) continue
-            found = selectBestLxCrossPlatformHit(song, hits)
-            if (found != null) break
-        }
-        if (found == null) {
-            NPLogger.w(TAG, "LX cross-platform search found no match: song=${song.name}")
-            return null
-        }
-        NPLogger.w(
-            TAG,
-            "LX cross-platform match: song=${song.name}, hit=${found.describe()}, " +
-                "score=${scoreLxCrossPlatformHit(song, found)}"
-        )
-        LxCrossPlatformHitCache.put(songKey, found)
-        found
+    val platforms = LX_CROSS_PLATFORM_ORDER.filter { platform ->
+        supportedSources.isEmpty() || platform in supportedSources
     }
+    if (platforms.isEmpty()) return null
 
     val qualities = selectLxQualityOrder(
         preferredNeteaseQuality = preferredNeteaseQuality,
         supportedQualities = runtime.supportedQualities,
         maxAttempts = maxQualityAttempts
     )
-    val musicInfoJson = buildLxOldMusicInfoJson(
-        song = song,
-        platformSourceId = hit.sourceId,
-        songMid = hit.songMid
-    )
-    for (quality in qualities) {
-        val url = runtime.getMusicUrl(
-            sourceId = hit.sourceId,
-            quality = quality,
-            musicInfoJson = musicInfoJson,
-            timeoutMs = LX_JS_CALL_TIMEOUT_MS
-        ) ?: continue
-        if (!url.startsWith("http", ignoreCase = true)) continue
-        val mimeType = inferLxMimeType(quality, url)
+    if (qualities.isEmpty()) return null
+
+    val songKey = song.stableKey()
+    for (platform in platforms) {
+        val cacheKey = "$songKey|$platform"
+        val hit = LxCrossPlatformHitCache.get(cacheKey) ?: run {
+            val found = searchLxCrossPlatformHit(song, platform)
+            if (found != null) LxCrossPlatformHitCache.put(cacheKey, found)
+            found
+        } ?: continue
+
+        for (quality in qualities) {
+            val url = runtime.getMusicUrl(
+                sourceId = hit.sourceId,
+                quality = quality,
+                musicInfoJson = buildLxCrossPlatformMusicInfoJson(song, hit, quality),
+                timeoutMs = LX_JS_CALL_TIMEOUT_MS
+            ) ?: continue
+            if (!url.startsWith("http", ignoreCase = true)) continue
+            val mimeType = inferLxMimeType(quality, url)
+            NPLogger.w(
+                TAG,
+                "LX cross-platform source selected: source=${source.name}, platform=${hit.sourceId}, " +
+                    "songmid=${hit.songMid}, song=${song.name}, quality=$quality"
+            )
+            return SongUrlResult.Success(
+                url = url,
+                durationMs = song.durationMs.takeIf { it > 0L },
+                mimeType = mimeType,
+                audioInfo = buildLxPlaybackAudioInfo(
+                    source = source,
+                    qualityKey = quality,
+                    mimeType = mimeType
+                ),
+                cacheKeyOverride = "lxjs-${source.id}-${hit.sourceId}-${hit.songMid}-$quality"
+            )
+        }
         NPLogger.w(
             TAG,
-            "LX cross-platform source selected: source=${source.name}, platform=${hit.sourceId}, " +
-                "songmid=${hit.songMid}, song=${song.name}, quality=$quality"
-        )
-        return SongUrlResult.Success(
-            url = url,
-            durationMs = song.durationMs.takeIf { it > 0L },
-            mimeType = mimeType,
-            audioInfo = buildLxPlaybackAudioInfo(
-                source = source,
-                qualityKey = quality,
-                mimeType = mimeType
-            ),
-            cacheKeyOverride = "lxjs-${source.id}-${hit.sourceId}-${hit.songMid}-$quality"
+            "LX cross-platform channel returned no url: platform=${hit.sourceId}, " +
+                "songmid=${hit.songMid}, song=${song.name}, qualities=$qualities"
         )
     }
-    NPLogger.w(
-        TAG,
-        "LX cross-platform source returned no url: platform=${hit.sourceId}, " +
-            "songmid=${hit.songMid}, song=${song.name}, qualities=$qualities"
-    )
+    return null
+}
+
+/** 在单个平台上搜索并挑出最佳候选（取流与歌词同步共用） */
+internal suspend fun searchLxCrossPlatformHit(
+    song: SongItem,
+    platform: String
+): LxCrossPlatformHit? {
+    for (query in buildLxSearchQueries(song)) {
+        val hits = fetchLxCrossPlatformHits(
+            client = AppContainer.sharedOkHttpClient,
+            sourceId = platform,
+            keyword = query
+        )
+        if (hits.isEmpty()) continue
+        val best = selectLxCrossPlatformHit(song, hits) ?: continue
+        NPLogger.w(
+            TAG,
+            "LX cross-platform match: song=${song.name}, platform=$platform, " +
+                "hit=${best.describe()}, score=${scoreLxCrossPlatformHit(song, best)}"
+        )
+        return best
+    }
+    NPLogger.w(TAG, "LX cross-platform search found no match on $platform: song=${song.name}")
     return null
 }
 

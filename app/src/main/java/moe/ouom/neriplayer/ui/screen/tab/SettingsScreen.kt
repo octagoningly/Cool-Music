@@ -4337,7 +4337,7 @@ private fun SettingsLoginExpandedContent(
                 )
             },
             headlineContent = { Text(stringResource(R.string.lx_source_manage_title)) },
-            supportingContent = { Text(stringResource(R.string.lx_source_manage_desc)) },
+            supportingContent = { Text(stringResource(R.string.lx_source_manage_summary)) },
             modifier = Modifier.settingsItemClickable(
                 onClick = { onOpenLxSourceDialog() }
             ),

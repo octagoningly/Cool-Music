@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxChannelProbeResult
 import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
 import moe.ouom.neriplayer.data.source.lxmusic.LxMusicSourceRepository
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsButton
@@ -145,6 +146,12 @@ internal fun SettingsLxMusicSourceDialogs(
                     }
                     HorizontalDivider()
                     LxSourceRuntimeStatusRow(status = state.runtimeStatus)
+                    LxSourceChannelProbeSection(
+                        probing = state.probing,
+                        results = state.channelProbes,
+                        hasJsSource = state.sources.any { it.isJsSource && it.enabled },
+                        onProbe = { vm.probeChannels(context) }
+                    )
                     if (state.sources.isEmpty()) {
                         Text(
                             text = stringResource(R.string.lx_source_empty),
@@ -256,6 +263,90 @@ private fun LxSourceRuntimeStatusRow(status: LxMusicSourceRepository.RuntimeStat
             MaterialTheme.colorScheme.error
         } else {
             MaterialTheme.colorScheme.primary
+        }
+    )
+}
+
+@Composable
+private fun LxSourceChannelProbeSection(
+    probing: Boolean,
+    results: List<LxChannelProbeResult>,
+    hasJsSource: Boolean,
+    onProbe: () -> Unit
+) {
+    if (!hasJsSource && results.isEmpty()) return
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.lx_source_probe_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (probing) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .padding(end = 6.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text = stringResource(R.string.lx_source_probe_running),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            } else {
+                MiuixSettingsButton(onClick = onProbe) {
+                    Text(stringResource(R.string.lx_source_probe_button))
+                }
+            }
+        }
+        results.forEach { result ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = lxPlatformLabel(result.sourceId),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = if (result.healthy) {
+                        stringResource(R.string.lx_source_probe_ok)
+                    } else {
+                        stringResource(R.string.lx_source_probe_failed) + " · " + result.detail
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (result.healthy) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun lxPlatformLabel(sourceId: String): String {
+    return stringResource(
+        when (sourceId.lowercase()) {
+            "kw" -> R.string.lx_source_platform_kw
+            "kg" -> R.string.lx_source_platform_kg
+            "tx" -> R.string.lx_source_platform_tx
+            "mg" -> R.string.lx_source_platform_mg
+            else -> R.string.lx_source_platform_wy
         }
     )
 }

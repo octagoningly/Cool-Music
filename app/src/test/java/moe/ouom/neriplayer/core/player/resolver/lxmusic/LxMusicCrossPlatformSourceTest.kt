@@ -1,4 +1,4 @@
-package moe.ouom.neriplayer.core.player.resolver.lxmusic
+﻿package moe.ouom.neriplayer.core.player.resolver.lxmusic
 
 import moe.ouom.neriplayer.data.model.SongItem
 import org.junit.Assert.assertEquals
@@ -128,7 +128,7 @@ class LxMusicCrossPlatformSourceTest {
         assertTrue("original=$original live=$live", original > live)
         assertEquals(
             "228908",
-            selectBestLxCrossPlatformHit(target, listOf(hit("80456317", "晴天 (Live)", "周杰伦", 249), hit("228908", "晴天", "周杰伦", 269)))?.songMid
+            selectLxCrossPlatformHit(target, listOf(hit("80456317", "晴天 (Live)", "周杰伦", 249), hit("228908", "晴天", "周杰伦", 269)))?.songMid
         )
     }
 
@@ -139,7 +139,7 @@ class LxMusicCrossPlatformSourceTest {
         val original = hit("228908", "晴天", "周杰伦", 269)
 
         assertTrue(scoreLxCrossPlatformHit(target, cover) < LX_CROSS_PLATFORM_MIN_SCORE)
-        assertEquals("228908", selectBestLxCrossPlatformHit(target, listOf(cover, original))?.songMid)
+        assertEquals("228908", selectLxCrossPlatformHit(target, listOf(cover, original))?.songMid)
     }
 
     @Test
@@ -149,15 +149,15 @@ class LxMusicCrossPlatformSourceTest {
         val remix = hit("5", "晴天", "周杰伦", 506)
 
         assertTrue(scoreLxCrossPlatformHit(target, remix) < LX_CROSS_PLATFORM_MIN_SCORE)
-        assertNull(selectBestLxCrossPlatformHit(target, listOf(remix)))
+        assertNull(selectLxCrossPlatformHit(target, listOf(remix)))
     }
 
     @Test
     fun `no acceptable candidate returns null`() {
         val target = song()
-        assertNull(selectBestLxCrossPlatformHit(target, emptyList()))
+        assertNull(selectLxCrossPlatformHit(target, emptyList()))
         assertNull(
-            selectBestLxCrossPlatformHit(
+            selectLxCrossPlatformHit(
                 target,
                 listOf(hit("6", "稻香", "周杰伦", 223), hit("7", "七里香", "周杰伦", 299))
             )
@@ -167,5 +167,119 @@ class LxMusicCrossPlatformSourceTest {
     @Test
     fun `hit without song mid is rejected`() {
         assertEquals(0, scoreLxCrossPlatformHit(song(), hit("", "晴天", "周杰伦", 269)))
+    }
+
+    @Test
+    fun `parses kugou response with per quality hashes`() {
+        val body = """
+            {"status":1,"data":{"total":401,"lists":[
+              {"Audioid":"20505418","OriSongName":"晴天","Suffix":"","Duration":"269",
+               "AlbumName":"叶惠美","AlbumID":"966846","Singers":[{"name":"周杰伦","id":3520}],
+               "FileHash":"B3A52A7A958BF0AED0EBFBA2E9A818B7",
+               "HQFileHash":"1B56126A8A03924F1DD066259C095CBC",
+               "SQFileHash":"0A69169202DE95AAF24A9944CCF0730D","ResFileHash":""}
+            ]}}
+        """.trimIndent()
+
+        val hits = parseLxKugouSearchBody(body)
+
+        assertEquals(1, hits.size)
+        assertEquals(LX_KUGOU_PLATFORM_ID, hits[0].sourceId)
+        assertEquals("20505418", hits[0].songMid)
+        assertEquals("晴天", hits[0].name)
+        assertEquals("周杰伦", hits[0].artist)
+        assertEquals(269, hits[0].durationSec)
+        assertEquals("1B56126A8A03924F1DD066259C095CBC", hits[0].qualityHashes["320k"])
+        assertEquals("0A69169202DE95AAF24A9944CCF0730D", hits[0].qualityHashes["flac"])
+    }
+
+    @Test
+    fun `kugou suffix becomes part of the song name`() {
+        val body = """{"data":{"lists":[{"Audioid":"1","OriSongName":"晴天","Suffix":"Live",
+            "Duration":"249","FileHash":"X","Singers":[{"name":"周杰伦"}]}]}}"""
+
+        val hits = parseLxKugouSearchBody(body)
+
+        assertEquals("晴天 Live", hits[0].name)
+        // Live 版本应被判为次优，不能盖过原版
+        assertTrue(scoreLxCrossPlatformHit(song(), hits[0]) < scoreLxCrossPlatformHit(song(), hit("228908", "晴天", "周杰伦", 269)))
+    }
+
+    @Test
+    fun `kugou entry without any hash is dropped`() {
+        val body = """{"data":{"lists":[{"Audioid":"1","OriSongName":"晴天","Duration":"269","Singers":[]}]}}"""
+        assertTrue(parseLxKugouSearchBody(body).isEmpty())
+    }
+
+    @Test
+    fun `parses qq response`() {
+        val body = """
+            {"code":0,"data":{"song":{"totalnum":823,"list":[
+              {"mid":"0039MnYb0qxYhV","id":97773,"title":"晴天","interval":269,
+               "singer":[{"id":4558,"name":"周杰伦"}],
+               "album":{"id":8220,"mid":"000MkMni19ClKG","name":"叶惠美"}}
+            ]}}}
+        """.trimIndent()
+
+        val hits = parseLxQqSearchBody(body)
+
+        assertEquals(1, hits.size)
+        assertEquals(LX_QQ_PLATFORM_ID, hits[0].sourceId)
+        assertEquals("0039MnYb0qxYhV", hits[0].songMid)
+        assertEquals("晴天", hits[0].name)
+        assertEquals("周杰伦", hits[0].artist)
+        assertEquals(269, hits[0].durationSec)
+        assertEquals("叶惠美", hits[0].albumName)
+        assertEquals("8220", hits[0].albumId)
+    }
+
+    @Test
+    fun `parsing ignores empty platform responses`() {
+        assertTrue(parseLxKugouSearchBody("").isEmpty())
+        assertTrue(parseLxKugouSearchBody("{\"data\":{\"lists\":[]}}").isEmpty())
+        assertTrue(parseLxQqSearchBody("").isEmpty())
+        assertTrue(parseLxQqSearchBody("{\"data\":{\"song\":{\"list\":[]}}}").isEmpty())
+    }
+
+    @Test
+    fun `kugou music info carries hashes for the requested quality`() {
+        val kugouHit = LxCrossPlatformHit(
+            sourceId = LX_KUGOU_PLATFORM_ID,
+            songMid = "20505418",
+            name = "晴天",
+            artist = "周杰伦",
+            durationSec = 269,
+            albumName = "叶惠美",
+            qualityHashes = mapOf(
+                "128k" to "LOW",
+                "320k" to "HIGH320",
+                "flac" to "LOSSLESS"
+            )
+        )
+
+        val json = org.json.JSONObject(buildLxCrossPlatformMusicInfoJson(song(), kugouHit, "320k"))
+
+        assertEquals(LX_KUGOU_PLATFORM_ID, json.getString("source"))
+        assertEquals("20505418", json.getString("songmid"))
+        assertEquals("HIGH320", json.getString("hash"))
+        assertEquals("HIGH320", json.getJSONObject("_types").getJSONObject("320k").getString("hash"))
+        assertEquals("LOSSLESS", json.getJSONObject("_types").getJSONObject("flac").getString("hash"))
+    }
+
+    @Test
+    fun `music info without hashes stays plain`() {
+        val kuwoHit = hit("228908", "晴天", "周杰伦", 269)
+        val json = org.json.JSONObject(buildLxCrossPlatformMusicInfoJson(song(), kuwoHit, "320k"))
+
+        assertEquals("228908", json.getString("songmid"))
+        assertTrue(!json.has("hash"))
+    }
+
+    @Test
+    fun `probe targets cover the three cross platform channels`() {
+        val platforms = LX_CHANNEL_PROBE_TARGETS.map { it.sourceId }.toSet()
+
+        assertEquals(setOf(LX_KUWO_PLATFORM_ID, LX_KUGOU_PLATFORM_ID, LX_QQ_PLATFORM_ID), platforms)
+        assertTrue(LX_CHANNEL_PROBE_TARGETS.all { it.songMid.isNotBlank() })
     }
 }

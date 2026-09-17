@@ -1,11 +1,15 @@
-package moe.ouom.neriplayer.core.player.resolver.lxmusic
+﻿package moe.ouom.neriplayer.core.player.resolver.lxmusic
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
+import moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceEngine
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.absoluteValue
@@ -36,6 +40,19 @@ private const val TAG = "NERI-LxMusicSource"
 
 /** 酷我平台在落雪协议里的 source id */
 internal const val LX_KUWO_PLATFORM_ID = "kw"
+
+/** 酷狗平台在落雪协议里的 source id */
+internal const val LX_KUGOU_PLATFORM_ID = "kg"
+
+/** QQ 音乐在落雪协议里的 source id */
+internal const val LX_QQ_PLATFORM_ID = "tx"
+
+/** 跨平台兜底按顺序尝试的平台（酷我 → 酷狗 → QQ） */
+internal val LX_CROSS_PLATFORM_ORDER = listOf(
+    LX_KUWO_PLATFORM_ID,
+    LX_KUGOU_PLATFORM_ID,
+    LX_QQ_PLATFORM_ID
+)
 
 /** 酷我客户端参数里的固定 uid（公开客户端值，落雪同款） */
 private const val LX_KUWO_SEARCH_UID = "794762570"
@@ -77,7 +94,13 @@ internal data class LxCrossPlatformHit(
     val name: String,
     val artist: String,
     val durationSec: Int,
-    val albumName: String
+    val albumName: String,
+    val albumId: String = "",
+    /**
+     * 平台专有：酷狗按音质档位区分的文件 hash。
+     * 音源站的酷狗通道实际按 hash 取流，缺了它只会拿到 502。
+     */
+    val qualityHashes: Map<String, String> = emptyMap()
 )
 
 /** 去掉歌名里的版本括号内容，便于比对正题名 */
@@ -132,7 +155,7 @@ internal fun scoreLxCrossPlatformHit(song: SongItem, hit: LxCrossPlatformHit): I
     return score
 }
 
-internal fun selectBestLxCrossPlatformHit(
+internal fun selectLxCrossPlatformHit(
     song: SongItem,
     hits: List<LxCrossPlatformHit>,
     minScore: Int = LX_CROSS_PLATFORM_MIN_SCORE
@@ -294,18 +317,30 @@ private fun decodeLxHtmlEntities(value: String): String {
 }
 
 /**
- * 按关键词搜索酷我曲目。
- *
- * 必须带上酷我客户端的参数（uid/ver/vipver/strategy/...）：
- * 精简参数时接口只回翻唱和伴奏，带客户端参数才会把原版排在最前，
- * 这也是落雪等客户端能跨平台换源的原因。
+ * 按关键词在指定平台搜索曲目。
+ * 每个平台都用该平台客户端实际使用的搜索入口，否则拿不到原版。
  */
+internal suspend fun fetchLxCrossPlatformHits(
+    client: OkHttpClient,
+    sourceId: String,
+    keyword: String,
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+): List<LxCrossPlatformHit> {
+    if (keyword.isBlank() || limit <= 0) return emptyList()
+    return when (sourceId) {
+        LX_KUWO_PLATFORM_ID -> fetchLxKuwoHits(client, keyword, limit)
+        LX_KUGOU_PLATFORM_ID -> fetchLxKugouHits(client, keyword, limit)
+        LX_QQ_PLATFORM_ID -> fetchLxQqHits(client, keyword, limit)
+        else -> emptyList()
+    }
+}
+
+/** 按关键词搜索酷我曲目 */
 internal suspend fun fetchLxKuwoHits(
     client: OkHttpClient,
     keyword: String,
     limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
-): List<LxCrossPlatformHit> = withContext(Dispatchers.IO) {
-    if (keyword.isBlank() || limit <= 0) return@withContext emptyList()
+): List<LxCrossPlatformHit> {
     val url = buildString {
         append("https://search.kuwo.cn/r.s?client=kt&uid=")
         append(LX_KUWO_SEARCH_UID)
@@ -316,26 +351,201 @@ internal suspend fun fetchLxKuwoHits(
         append("&pn=0&rn=")
         append(limit)
     }
+    val body = fetchText(
+        client = client,
+        url = url,
+        referer = "https://www.kuwo.cn/",
+        label = "Kuwo",
+        keyword = keyword
+    ) ?: return emptyList()
+    return parseLxKuwoSearchBody(body)
+}
+
+/** 按关键词搜索酷狗曲目（song_search_v2，明文接口） */
+internal suspend fun fetchLxKugouHits(
+    client: OkHttpClient,
+    keyword: String,
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+): List<LxCrossPlatformHit> {
+    val url = buildString {
+        append("https://songsearch.kugou.com/song_search_v2?keyword=")
+        append(java.net.URLEncoder.encode(keyword, "UTF-8"))
+        append("&page=1&pagesize=")
+        append(limit)
+        append("&userid=0&clientver=&platform=WebFilter&filter=2&iscorrection=1&privilege_filter=0&area_code=1")
+    }
+    val body = fetchText(
+        client = client,
+        url = url,
+        referer = "https://www.kugou.com/",
+        label = "Kugou",
+        keyword = keyword
+    ) ?: return emptyList()
+    return parseLxKugouSearchBody(body)
+}
+
+/** 按关键词搜索 QQ 音乐曲目 */
+internal suspend fun fetchLxQqHits(
+    client: OkHttpClient,
+    keyword: String,
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+): List<LxCrossPlatformHit> {
+    val url = buildString {
+        append("https://c.y.qq.com/soso/fcgi-bin/client_search_cp?w=")
+        append(java.net.URLEncoder.encode(keyword, "UTF-8"))
+        append("&format=json&n=")
+        append(limit)
+        append("&p=1&cr=1&t=0&new_json=1")
+    }
+    val body = fetchText(
+        client = client,
+        url = url,
+        referer = "https://y.qq.com/",
+        label = "QQMusic",
+        keyword = keyword
+    ) ?: return emptyList()
+    return parseLxQqSearchBody(body)
+}
+
+private suspend fun fetchText(
+    client: OkHttpClient,
+    url: String,
+    referer: String,
+    label: String,
+    keyword: String
+): String? = withContext(Dispatchers.IO) {
     val request = Request.Builder()
         .url(url)
         .header("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Safari/537.36")
-        .header("Referer", "https://www.kuwo.cn/")
+        .header("Referer", referer)
         .header("Accept", "application/json")
         .get()
         .build()
     runCatching {
         client.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
-                NPLogger.w(TAG, "Kuwo search http ${response.code}: keyword=$keyword")
-                return@use emptyList()
+                NPLogger.w(TAG, "$label search http ${response.code}: keyword=$keyword")
+                return@use null
             }
-            parseLxKuwoSearchBody(body)
+            response.body?.string()
         }
     }.getOrElse { error ->
-        NPLogger.w(TAG, "Kuwo search failed: keyword=$keyword, error=${error.message}")
+        NPLogger.w(TAG, "$label search failed: keyword=$keyword, error=${error.message}")
+        null
+    }
+}
+
+/** 解析酷狗搜索响应 */
+internal fun parseLxKugouSearchBody(body: String): List<LxCrossPlatformHit> {
+    if (body.isBlank() || !body.contains("Audioid")) return emptyList()
+    return runCatching {
+        val lists = JSONObject(body)
+            .optJSONObject("data")
+            ?.optJSONArray("lists")
+            ?: return emptyList()
+        buildList {
+            for (index in 0 until lists.length()) {
+                val item = lists.optJSONObject(index) ?: continue
+                val songMid = item.optString("Audioid").trim()
+                if (songMid.isBlank()) continue
+                val title = decodeLxHtmlEntities(item.optString("OriSongName")).trim()
+                if (title.isBlank()) continue
+                val suffix = decodeLxHtmlEntities(item.optString("Suffix")).trim()
+                val qualityHashes = buildMap {
+                    item.optString("FileHash").takeIf { it.isNotBlank() }?.let { put("128k", it) }
+                    item.optString("HQFileHash").takeIf { it.isNotBlank() }?.let { put("320k", it) }
+                    item.optString("SQFileHash").takeIf { it.isNotBlank() }?.let { put("flac", it) }
+                    item.optString("ResFileHash").takeIf { it.isNotBlank() }?.let { put("flac24bit", it) }
+                }
+                if (qualityHashes.isEmpty()) continue
+                add(
+                    LxCrossPlatformHit(
+                        sourceId = LX_KUGOU_PLATFORM_ID,
+                        songMid = songMid,
+                        // 酷狗把版本写在 Suffix 里，拼回歌名才能让评分识别出 Live 等版本
+                        name = if (suffix.isBlank()) title else "$title $suffix",
+                        artist = parseLxKugouSingers(item.optJSONArray("Singers")),
+                        durationSec = item.optString("Duration").trim().toIntOrNull() ?: 0,
+                        albumName = decodeLxHtmlEntities(item.optString("AlbumName")).trim(),
+                        albumId = item.optString("AlbumID").trim(),
+                        qualityHashes = qualityHashes
+                    )
+                )
+            }
+        }.distinctBy { it.songMid }
+    }.getOrElse { error ->
+        NPLogger.w(TAG, "Kugou search parse failed: ${error.message}")
         emptyList()
     }
+}
+
+private fun parseLxKugouSingers(singers: org.json.JSONArray?): String {
+    if (singers == null) return ""
+    val names = buildList {
+        for (index in 0 until singers.length()) {
+            val singer = singers.optJSONObject(index) ?: continue
+            decodeLxHtmlEntities(singer.optString("name")).trim()
+                .takeIf { it.isNotBlank() }
+                ?.let { add(it) }
+        }
+    }
+    return names.joinToString("、")
+}
+
+/** 解析 QQ 音乐搜索响应 */
+internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
+    if (body.isBlank()) return emptyList()
+    return runCatching {
+        val list = JSONObject(body)
+            .optJSONObject("data")
+            ?.optJSONObject("song")
+            ?.optJSONArray("list")
+            ?: return emptyList()
+        buildList {
+            for (index in 0 until list.length()) {
+                val item = list.optJSONObject(index) ?: continue
+                val songMid = item.optString("mid").trim()
+                    .ifBlank { item.optString("songmid").trim() }
+                if (songMid.isBlank()) continue
+                val title = decodeLxHtmlEntities(item.optString("title")).trim()
+                    .ifBlank { decodeLxHtmlEntities(item.optString("songname")).trim() }
+                if (title.isBlank()) continue
+                add(
+                    LxCrossPlatformHit(
+                        sourceId = LX_QQ_PLATFORM_ID,
+                        songMid = songMid,
+                        name = title,
+                        artist = parseLxQqSingers(item.optJSONArray("singer")),
+                        durationSec = item.optInt("interval", 0),
+                        albumName = decodeLxHtmlEntities(
+                            item.optJSONObject("album")?.optString("name").orEmpty()
+                        ).trim(),
+                        albumId = item.optJSONObject("album")
+                            ?.optLong("id", 0L)
+                            ?.takeIf { it > 0L }
+                            ?.toString()
+                            .orEmpty()
+                    )
+                )
+            }
+        }.distinctBy { it.songMid }
+    }.getOrElse { error ->
+        NPLogger.w(TAG, "QQ search parse failed: ${error.message}")
+        emptyList()
+    }
+}
+
+private fun parseLxQqSingers(singers: org.json.JSONArray?): String {
+    if (singers == null) return ""
+    val names = buildList {
+        for (index in 0 until singers.length()) {
+            val singer = singers.optJSONObject(index) ?: continue
+            decodeLxHtmlEntities(singer.optString("name")).trim()
+                .takeIf { it.isNotBlank() }
+                ?.let { add(it) }
+        }
+    }
+    return names.joinToString("、")
 }
 
 /**
@@ -360,6 +570,82 @@ internal fun LxCrossPlatformHit.describe(): String {
     return "$sourceId/$songMid ${name.take(20)} - ${artist.take(20)} (${durationSec}s)"
 }
 
+/**
+ * 跨平台取流用的 musicInfo。
+ *
+ * 除了通用字段，酷狗还需要按音质档位传文件 hash——音源站的酷狗通道实际是按 hash 取流的
+ * （只传 Audioid 会得到 502），因此 hash 同时写进 `hash` 与 `_types[quality]`。
+ */
+internal fun buildLxCrossPlatformMusicInfoJson(
+    song: SongItem,
+    hit: LxCrossPlatformHit,
+    quality: String
+): String {
+    val base = buildLxOldMusicInfoJson(
+        song = song,
+        platformSourceId = hit.sourceId,
+        songMid = hit.songMid
+    )
+    if (hit.qualityHashes.isEmpty()) return base
+    return runCatching {
+        JSONObject(base).apply {
+            hit.qualityHashes[quality]?.let { put("hash", it) }
+            val types = JSONArray()
+            val typesByQuality = JSONObject()
+            hit.qualityHashes.forEach { (qualityKey, hash) ->
+                types.put(
+                    JSONObject().apply {
+                        put("type", qualityKey)
+                        put("hash", hash)
+                    }
+                )
+                typesByQuality.put(
+                    qualityKey,
+                    JSONObject().apply { put("hash", hash) }
+                )
+            }
+            put("types", types)
+            put("_types", typesByQuality)
+        }.toString()
+    }.getOrElse { base }
+}
+
+/**
+ * 平台通道探测用的固定曲目（同一首歌在各平台都存在）。
+ * 用于「音源通道自检」：请求能出流说明该平台通道是活的。
+ */
+internal val LX_CHANNEL_PROBE_TARGETS: List<LxCrossPlatformHit> = listOf(
+    LxCrossPlatformHit(
+        sourceId = LX_KUWO_PLATFORM_ID,
+        songMid = "228908",
+        name = "晴天",
+        artist = "周杰伦",
+        durationSec = 269,
+        albumName = "叶惠美"
+    ),
+    LxCrossPlatformHit(
+        sourceId = LX_KUGOU_PLATFORM_ID,
+        songMid = "20505418",
+        name = "晴天",
+        artist = "周杰伦",
+        durationSec = 269,
+        albumName = "叶惠美",
+        qualityHashes = mapOf(
+            "128k" to "B3A52A7A958BF0AED0EBFBA2E9A818B7",
+            "320k" to "1B56126A8A03924F1DD066259C095CBC",
+            "flac" to "0A69169202DE95AAF24A9944CCF0730D"
+        )
+    ),
+    LxCrossPlatformHit(
+        sourceId = LX_QQ_PLATFORM_ID,
+        songMid = "0039MnYb0qxYhV",
+        name = "晴天",
+        artist = "周杰伦",
+        durationSec = 269,
+        albumName = "叶惠美"
+    )
+)
+
 /** 供单测构造酷我风格的搜索响应 */
 internal fun lxKuwoSearchBodyForTesting(entries: List<LxCrossPlatformHit>): String {
     val list = entries.joinToString(",") { hit ->
@@ -369,3 +655,81 @@ internal fun lxKuwoSearchBodyForTesting(entries: List<LxCrossPlatformHit>): Stri
     }
     return "{'ARTISTPIC':'','HIT':'1','abslist':[$list]}"
 }
+
+/** 单个平台通道的探测结果 */
+data class LxChannelProbeResult(
+    val sourceId: String,
+    val healthy: Boolean,
+    val detail: String
+)
+
+/** 通道探测用的固定曲目（各平台都有这首，用来验证通道而不是验证匹配） */
+internal val LX_CHANNEL_PROBE_SONG = SongItem(
+    id = 186016L,
+    name = "晴天",
+    artist = "周杰伦",
+    album = "叶惠美",
+    albumId = 1293L,
+    durationMs = 269_000L,
+    coverUrl = null
+)
+
+/**
+ * 探测在线音源各平台通道是否可用（音源健康自检）。
+ *
+ * 用《晴天》这首各平台都存在的歌各请求一次取流：
+ * 能拿到 URL 说明该平台通道是活的，502 之类说明服务端那条通道故障。
+ */
+internal suspend fun probeLxSourceChannels(
+    context: android.content.Context,
+    source: LxImportedSource
+): List<LxChannelProbeResult> {
+    if (!source.isJsSource) return emptyList()
+    val repository = runCatching { AppContainer.lxMusicSourceRepository }.getOrNull()
+        ?: return emptyList()
+    val script = repository.readJsScript(source) ?: return emptyList()
+    val engine = LxJsSourceEngine
+    if (!engine.ensureLoaded(
+            context = context,
+            okHttpClient = AppContainer.sharedOkHttpClient,
+            sourceId = source.id,
+            sourceName = source.name,
+            script = script,
+            description = source.description,
+            version = source.version,
+            author = source.author
+        )
+    ) {
+        return emptyList()
+    }
+    val runtime = engine.runtime(source.id) ?: return emptyList()
+    val supportedSources = runtime.supportedSources
+    val quality = selectLxQualityOrder(
+        preferredNeteaseQuality = "exhigh",
+        supportedQualities = runtime.supportedQualities,
+        maxAttempts = 1
+    ).firstOrNull() ?: "320k"
+
+    return LX_CHANNEL_PROBE_TARGETS
+        .filter { supportedSources.isEmpty() || it.sourceId in supportedSources }
+        .map { hit ->
+            engine.clearFailureReasons()
+            val url = runtime.getMusicUrl(
+                sourceId = hit.sourceId,
+                quality = quality,
+                musicInfoJson = buildLxCrossPlatformMusicInfoJson(
+                    song = LX_CHANNEL_PROBE_SONG,
+                    hit = hit,
+                    quality = quality
+                ),
+                timeoutMs = LX_PROBE_CALL_TIMEOUT_MS
+            )
+            LxChannelProbeResult(
+                sourceId = hit.sourceId,
+                healthy = url != null,
+                detail = url ?: engine.activeFailureReason().orEmpty().ifBlank { "failed" }
+            )
+        }
+}
+
+private const val LX_PROBE_CALL_TIMEOUT_MS = 6_000L

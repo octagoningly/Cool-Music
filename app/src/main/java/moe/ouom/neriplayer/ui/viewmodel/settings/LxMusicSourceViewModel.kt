@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.core.di.AppContainer
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxChannelProbeResult
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.probeLxSourceChannels
 import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
 import moe.ouom.neriplayer.data.source.lxmusic.LxMusicSourceRepository
 
@@ -44,7 +46,9 @@ data class LxMusicSourceUiState(
     val importing: Boolean = false,
     val refreshingId: String? = null,
     val message: String? = null,
-    val runtimeStatus: LxMusicSourceRepository.RuntimeStatus = LxMusicSourceRepository.RuntimeStatus()
+    val runtimeStatus: LxMusicSourceRepository.RuntimeStatus = LxMusicSourceRepository.RuntimeStatus(),
+    val probing: Boolean = false,
+    val channelProbes: List<LxChannelProbeResult> = emptyList()
 )
 
 sealed class LxMusicSourceEvent {
@@ -85,6 +89,21 @@ class LxMusicSourceViewModel : ViewModel() {
         val repo = repository ?: return
         viewModelScope.launch {
             repo.setPreferCustomSource(enabled)
+        }
+    }
+
+    /** 音源健康自检：用固定曲目探测各平台通道，结果显示在管理对话框里 */
+    fun probeChannels(context: Context) {
+        val repo = repository ?: return
+        if (_uiState.value.probing) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(probing = true, channelProbes = emptyList()) }
+            val sources = repo.getEnabledSources().filter { it.isJsSource }
+            val results = sources.flatMap { source ->
+                runCatching { probeLxSourceChannels(context.applicationContext, source) }
+                    .getOrElse { emptyList() }
+            }
+            _uiState.update { it.copy(probing = false, channelProbes = results) }
         }
     }
 

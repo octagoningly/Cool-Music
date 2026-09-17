@@ -1246,7 +1246,10 @@ fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(stringResource(R.string.settings_title))
+            Text(
+                text = stringResource(R.string.settings_title),
+                style = MaterialTheme.typography.headlineLarge
+            )
             ThemeModeActionButton(
                 isDarkTheme = isDarkTheme,
                 onToggleRequest = onThemeToggleRequest

@@ -118,6 +118,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.ui.component.common.NeriTabLargeTitleTopBar
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.download.GlobalDownloadManager
 import moe.ouom.neriplayer.core.download.toPlaybackSongItem
@@ -406,8 +407,8 @@ fun HomeScreen(
                 .statusBarsPadding()
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
         ) {
-            LargeTopAppBar(
-                title = { Text(appBarTitle) },
+            NeriTabLargeTitleTopBar(
+                title = appBarTitle,
                 actions = {
                     HapticIconButton(
                         enabled = !offlineMode,
@@ -425,12 +426,7 @@ fun HomeScreen(
                         )
                     }
                 },
-                scrollBehavior = scrollBehavior,
-                windowInsets = WindowInsets(0),
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                )
+                windowInsets = WindowInsets(0)
             )
 
             Box(

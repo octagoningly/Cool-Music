@@ -117,6 +117,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.ui.component.common.NeriTabLargeTitleTopBar
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
 import moe.ouom.neriplayer.data.stats.PlaybackStatsPeriod
@@ -418,13 +419,8 @@ fun LibraryScreen(
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        LargeTopAppBar(
-            title = { Text(stringResource(R.string.library_title)) },
-            scrollBehavior = scrollBehavior,
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent,
-                scrolledContainerColor = Color.Transparent
-            ),
+        NeriTabLargeTitleTopBar(
+            title = stringResource(R.string.library_title),
             actions = {
                 HapticIconButton(onClick = onOpenStats) {
                     Icon(

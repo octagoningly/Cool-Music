@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
+import moe.ouom.neriplayer.ui.component.common.NeriTabLargeTitleTopBar
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassNavigationHandoff
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassScene
@@ -129,7 +130,7 @@ internal fun MiuixSettingsHomeScaffold(
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = Color.Transparent,
         topBar = {
-            LargeTopAppBar(
+            NeriTabLargeTitleTopBar(
                 title = {
                     // large top app bars compose both title slots, but only one is visible
                     val isExpandedTitleSlot = LocalTextStyle.current.fontSize.value > 24f
@@ -143,12 +144,7 @@ internal fun MiuixSettingsHomeScaffold(
                     ) {
                         title()
                     }
-                },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                )
+                }
             )
         }
     ) { innerPadding ->

@@ -163,6 +163,7 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.ui.component.common.NeriTabLargeTitleTopBar
 import moe.ouom.neriplayer.core.api.bili.BiliClient
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicCreatorSummary
 import moe.ouom.neriplayer.core.di.AppContainer
@@ -722,13 +723,8 @@ fun ExploreScreen(
             )
         },
         topBar = {
-            LargeTopAppBar(
-                title = { Text(stringResource(R.string.nav_explore)) },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                )
+            NeriTabLargeTitleTopBar(
+                title = stringResource(R.string.nav_explore)
             )
         }
     ) { innerPadding ->
@@ -1295,13 +1291,8 @@ private fun ExploreOfflineContent(topAppBarState: TopAppBarState) {
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = Color.Transparent,
         topBar = {
-            LargeTopAppBar(
-                title = { Text(stringResource(R.string.nav_explore)) },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                )
+            NeriTabLargeTitleTopBar(
+                title = stringResource(R.string.nav_explore)
             )
         }
     ) { innerPadding ->

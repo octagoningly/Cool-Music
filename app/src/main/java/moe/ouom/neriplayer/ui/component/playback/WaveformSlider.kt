@@ -53,8 +53,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.isActive
 
 private const val NANOS_PER_MILLISECOND = 1_000_000L
-private const val TRACK_HEIGHT_DP = 3f
-private const val TRACK_HEIGHT_DRAGGED_DP = 5f
+private const val TRACK_HEIGHT_DP = 4.5f
+private const val TRACK_HEIGHT_DRAGGED_DP = 7f
 
 @Composable
 fun WaveformSlider(

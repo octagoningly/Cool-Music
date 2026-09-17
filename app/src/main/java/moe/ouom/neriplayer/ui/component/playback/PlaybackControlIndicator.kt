@@ -6,11 +6,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
-import androidx.compose.material.icons.outlined.Pause
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -77,16 +76,16 @@ internal fun PlaybackControlIndicator(
         }
     ) { state ->
         when (state) {
-            PlaybackControlVisualState.PLAY -> Icon(
-                imageVector = Icons.Outlined.PlayArrow,
-                contentDescription = resolvedContentDescription,
-                tint = color
+            PlaybackControlVisualState.PLAY -> AppleMusicPlayIcon(
+                modifier = Modifier.fillMaxSize(),
+                tint = color,
+                contentDescription = resolvedContentDescription
             )
 
-            PlaybackControlVisualState.PAUSE -> Icon(
-                imageVector = Icons.Outlined.Pause,
-                contentDescription = resolvedContentDescription,
-                tint = color
+            PlaybackControlVisualState.PAUSE -> AppleMusicPauseIcon(
+                modifier = Modifier.fillMaxSize(),
+                tint = color,
+                contentDescription = resolvedContentDescription
             )
 
             PlaybackControlVisualState.RESTORE_VOLUME -> Icon(

@@ -278,6 +278,8 @@ import moe.ouom.neriplayer.ui.component.lyrics.LyricsEditorSeed
 import moe.ouom.neriplayer.ui.component.lyrics.LyricEntry
 import moe.ouom.neriplayer.ui.component.lyrics.LyricShareSheet
 import moe.ouom.neriplayer.ui.component.lyrics.LyricVisualSpec
+import moe.ouom.neriplayer.ui.component.playback.AppleMusicSkipNextIcon
+import moe.ouom.neriplayer.ui.component.playback.AppleMusicSkipPreviousIcon
 import moe.ouom.neriplayer.ui.component.playback.PlaybackSoundSheet
 import moe.ouom.neriplayer.ui.component.playback.SongMetadataSearchContent
 import moe.ouom.neriplayer.ui.component.playback.NowPlayingCoverPreviewDialog
@@ -2785,14 +2787,15 @@ fun NowPlayingScreen(
                                     .weight(1f)
                                     .height(controlsLayout.secondaryButtonSize)
                             ) {
-                                Icon(
-                                    Icons.Outlined.SkipPrevious,
-                                    contentDescription = stringResource(R.string.player_previous),
-                                    modifier = Modifier.size(secondaryIconSize)
+                                AppleMusicSkipPreviousIcon(
+                                    modifier = Modifier.size(secondaryIconSize),
+                                    tint = LocalContentColor.current,
+                                    contentDescription = stringResource(R.string.player_previous)
                                 )
                             }
 
-                            HapticFilledIconButton(
+                            // Apple Music 风格：无填充底衬，图标直接叠在背景上
+                            HapticIconButton(
                                 onClick = { PlayerManager.togglePlayPause() },
                                 enabled = !usbPlaybackPreparing,
                                 modifier = Modifier
@@ -2830,10 +2833,10 @@ fun NowPlayingScreen(
                                     .weight(1f)
                                     .height(controlsLayout.secondaryButtonSize)
                             ) {
-                                Icon(
-                                    Icons.Outlined.SkipNext,
-                                    contentDescription = stringResource(R.string.player_next),
-                                    modifier = Modifier.size(secondaryIconSize)
+                                AppleMusicSkipNextIcon(
+                                    modifier = Modifier.size(secondaryIconSize),
+                                    tint = LocalContentColor.current,
+                                    contentDescription = stringResource(R.string.player_next)
                                 )
                             }
                         }

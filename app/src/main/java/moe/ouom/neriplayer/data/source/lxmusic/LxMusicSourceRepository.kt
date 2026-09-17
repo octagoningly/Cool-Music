@@ -6,8 +6,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import moe.ouom.neriplayer.core.logging.NPLogger
@@ -52,6 +56,39 @@ class LxMusicSourceRepository(
         ignoreUnknownKeys = true
         encodeDefaults = true
         explicitNulls = false
+    }
+
+    /** 播放期解析结果：用于在设置页显示在线音源当前是否可用 */
+    data class RuntimeStatus(
+        val lastSuccessAtMs: Long = 0L,
+        val lastFailureAtMs: Long = 0L,
+        val lastFailureReason: String? = null
+    ) {
+        val hasActivity: Boolean get() = lastSuccessAtMs > 0L || lastFailureAtMs > 0L
+        val lastAttemptFailed: Boolean get() = lastFailureAtMs > lastSuccessAtMs
+    }
+
+    private val _runtimeStatus = MutableStateFlow(RuntimeStatus())
+    val runtimeStatusFlow: StateFlow<RuntimeStatus> = _runtimeStatus.asStateFlow()
+
+    fun recordResolveSuccess() {
+        _runtimeStatus.value = RuntimeStatus(
+            lastSuccessAtMs = System.currentTimeMillis(),
+            lastFailureAtMs = _runtimeStatus.value.lastFailureAtMs,
+            lastFailureReason = null
+        )
+    }
+
+    fun recordResolveFailure(reason: String) {
+        val now = System.currentTimeMillis()
+        _runtimeStatus.update { current ->
+            // 同一轮解析会按音质/平台多次失败，节流避免刷屏
+            if (current.lastAttemptFailed && now - current.lastFailureAtMs < STATUS_THROTTLE_MS) {
+                current
+            } else {
+                current.copy(lastFailureAtMs = now, lastFailureReason = reason)
+            }
+        }
     }
 
     /** 播放热路径用内存缓存，避免每次 resolve 都读 DataStore */
@@ -122,6 +159,7 @@ class LxMusicSourceRepository(
     }
 
     suspend fun removeSource(id: String) {
+        moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceEngine.destroy(id)
         saveSources(sourcesFlow.first().filterNot { it.id == id })
     }
 
@@ -202,6 +240,8 @@ class LxMusicSourceRepository(
     }
 
     private suspend fun upsertSource(imported: LxImportedSource) {
+        // 脚本内容可能已更新：丢弃旧运行时，下次播放按新脚本重新加载
+        moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceEngine.destroy(imported.id)
         val current = sourcesFlow.first()
         val next = if (current.any { it.id == imported.id }) {
             current.map { if (it.id == imported.id) imported else it }
@@ -268,5 +308,6 @@ class LxMusicSourceRepository(
 
     private companion object {
         private const val TAG = "LxMusicSourceRepository"
+        private const val STATUS_THROTTLE_MS = 5_000L
     }
 }

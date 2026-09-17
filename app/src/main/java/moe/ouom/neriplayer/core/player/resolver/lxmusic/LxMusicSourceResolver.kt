@@ -1,5 +1,6 @@
-package moe.ouom.neriplayer.core.player.resolver.lxmusic
+﻿package moe.ouom.neriplayer.core.player.resolver.lxmusic
 
+import android.os.SystemClock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.ouom.neriplayer.core.di.AppContainer
@@ -11,10 +12,12 @@ import moe.ouom.neriplayer.core.player.model.PlaybackQualityOption
 import moe.ouom.neriplayer.core.player.model.SongUrlResult
 import moe.ouom.neriplayer.core.player.quality.effectiveNeteaseQuality
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.data.model.stableKey
 import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
 import moe.ouom.neriplayer.data.source.lxmusic.LxSearchItem
 import moe.ouom.neriplayer.data.source.lxmusic.LxSongUrlResult
 import moe.ouom.neriplayer.data.source.lxmusic.inferLxMimeType
+import moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceEngine
 import moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceRuntime
 import moe.ouom.neriplayer.data.source.lxmusic.mapNeteaseQualityToLxOrder
 import moe.ouom.neriplayer.data.source.lxmusic.normalizeLxQualityLabel
@@ -49,10 +52,46 @@ import kotlin.math.absoluteValue
 private const val TAG = "NERI-LxMusicSource"
 private const val LX_SEARCH_LIMIT = 6
 private const val LX_MIN_ACCEPT_SCORE = 68
-private const val LX_RESOLVE_TOTAL_TIMEOUT_MS = 12_000L
+private const val LX_RESOLVE_TOTAL_TIMEOUT_MS = 11_000L
+private const val LX_FALLBACK_TOTAL_TIMEOUT_MS = 7_000L
+private const val LX_JS_CALL_TIMEOUT_MS = 4_500L
 private const val LX_MAX_SEARCH_QUERIES = 2
 private const val LX_MAX_QUALITY_ATTEMPTS = 2
-private const val LX_JS_MAX_PLATFORMS = 3
+private const val LX_FALLBACK_QUALITY_ATTEMPTS = 1
+private const val LX_ATTEMPT_DEDUPE_WINDOW_MS = 15_000L
+
+/** 落雪 user-api 的标准音质集合；脚本未上报时按它兜底 */
+internal val DEFAULT_LX_QUALITIES = listOf("128k", "320k", "flac", "flac24bit")
+
+/** NeriPlayer 里在线曲目默认来自网易云，落雪协议中对应 source=wy */
+internal const val LX_NETEASE_PLATFORM_ID = "wy"
+
+/**
+ * 同一次解析链路里避免重复等待在线音源：
+ * 顶部优先解析失败后，网易云无版权回落链路不再无谓地重试一遍。
+ */
+private object LxAttemptGuard {
+    private var lastSongKey: String? = null
+    private var lastAttemptAtMs: Long = 0L
+
+    @Synchronized
+    fun shouldSkip(songKey: String, nowMs: Long): Boolean {
+        return lastSongKey == songKey && nowMs - lastAttemptAtMs < LX_ATTEMPT_DEDUPE_WINDOW_MS
+    }
+
+    @Synchronized
+    fun record(songKey: String, nowMs: Long) {
+        lastSongKey = songKey
+        lastAttemptAtMs = nowMs
+    }
+
+    @Synchronized
+    fun reset() {
+        lastSongKey = null
+        lastAttemptAtMs = 0L
+    }
+}
+
 private val lxCacheKeyUnsafeRegex = Regex("[^A-Za-z0-9_.-]+")
 private val lxNonTextRegex = Regex("[^\\p{L}\\p{N}]+")
 private val lxWhitespaceRegex = Regex("\\s+")
@@ -61,18 +100,17 @@ private val lxWhitespaceRegex = Regex("\\s+")
  * 优先通过已导入的 LX Music 在线音源解析播放地址。
  * 成功返回 [SongUrlResult.Success]；失败或未启用时返回 null，回落到原有音源链路。
  *
+ * @param isFallbackAttempt 为 true 时表示「平台音源已确认不可播（无版权/仅试听）」后的回落尝试，
+ *   此时收紧预算：同一次链路里刚试过就跳过，且只请求最高一档音质。
+ *
  * 热路径约束：
  * - 无启用音源时零 I/O 立即返回
- * - 仅在首次解析尝试时介入（重试交给原有平台链路）
  * - 整体限时，避免音源站超时拖慢播放
  */
 internal suspend fun PlayerManager.tryResolveLxMusicCustomSource(
     song: SongItem,
-    onlyOnFirstAttempt: Boolean = true,
-    attempt: Int = 0
+    isFallbackAttempt: Boolean = false
 ): SongUrlResult? {
-    if (onlyOnFirstAttempt && attempt > 0) return null
-
     val repository = runCatching { AppContainer.lxMusicSourceRepository }.getOrNull()
         ?: return null
 
@@ -80,21 +118,50 @@ internal suspend fun PlayerManager.tryResolveLxMusicCustomSource(
     val enabledSources = repository.peekEnabledSources()
     if (enabledSources.isEmpty()) return null
 
+    val songKey = song.stableKey()
+    val nowMs = SystemClock.elapsedRealtime()
+    if (isFallbackAttempt && LxAttemptGuard.shouldSkip(songKey, nowMs)) {
+        NPLogger.d(
+            TAG,
+            "Skip fallback LX attempt, already tried recently: song=${song.name}"
+        )
+        return null
+    }
+    LxAttemptGuard.record(songKey, nowMs)
+
     val preferredNeteaseQuality = effectiveNeteaseQuality()
-    return withTimeoutOrNull(LX_RESOLVE_TOTAL_TIMEOUT_MS) {
+    LxJsSourceEngine.clearFailureReasons()
+    NPLogger.d(
+        TAG,
+        "Try LX custom source: song=${song.name}, id=${song.id}, fallback=$isFallbackAttempt, " +
+            "sources=${enabledSources.map { "${it.name}(${it.kind})" }}, quality=$preferredNeteaseQuality"
+    )
+    val totalTimeoutMs = if (isFallbackAttempt) {
+        LX_FALLBACK_TOTAL_TIMEOUT_MS
+    } else {
+        LX_RESOLVE_TOTAL_TIMEOUT_MS
+    }
+    val qualityAttempts = if (isFallbackAttempt) {
+        LX_FALLBACK_QUALITY_ATTEMPTS
+    } else {
+        LX_MAX_QUALITY_ATTEMPTS
+    }
+    val resolved = withTimeoutOrNull(totalTimeoutMs) {
         for (source in enabledSources) {
             try {
                 val result = if (source.isJsSource) {
                     resolveFromLxJsSource(
                         song = song,
                         source = source,
-                        preferredNeteaseQuality = preferredNeteaseQuality
+                        preferredNeteaseQuality = preferredNeteaseQuality,
+                        maxQualityAttempts = qualityAttempts
                     )
                 } else {
                     resolveFromLxSource(
                         song = song,
                         source = source,
-                        preferredNeteaseQuality = preferredNeteaseQuality
+                        preferredNeteaseQuality = preferredNeteaseQuality,
+                        maxQualityAttempts = qualityAttempts
                     )
                 }
                 if (result != null) {
@@ -108,12 +175,25 @@ internal suspend fun PlayerManager.tryResolveLxMusicCustomSource(
         }
         null
     }
+    if (resolved != null) {
+        repository.recordResolveSuccess()
+    } else {
+        repository.recordResolveFailure(resolveFailureReason())
+    }
+    return resolved
+}
+
+/** 汇总本次失败原因（优先取 JS 运行时记录的 HTTP 状态码/脚本报错） */
+private fun resolveFailureReason(): String {
+    val jsReason = LxJsSourceEngine.activeFailureReason()
+    return jsReason ?: "no playable url"
 }
 
 private suspend fun PlayerManager.resolveFromLxJsSource(
     song: SongItem,
     source: LxImportedSource,
-    preferredNeteaseQuality: String
+    preferredNeteaseQuality: String,
+    maxQualityAttempts: Int
 ): SongUrlResult? {
     val repository = AppContainer.lxMusicSourceRepository
     val script = repository.readJsScript(source) ?: return null
@@ -133,46 +213,207 @@ private suspend fun PlayerManager.resolveFromLxJsSource(
     }
     val runtime = engine.runtime(source.id) ?: return null
 
-    val sourceIds = (source.jsSourceIds.ifEmpty { listOf("kw", "kg", "tx", "wy", "mg") })
-        .filter { runtime.supportedSources.isEmpty() || it in runtime.supportedSources }
-        .ifEmpty { listOf("kw", "kg", "tx", "wy", "mg") }
-        .take(LX_JS_MAX_PLATFORMS)
-    val musicInfoBySource = sourceIds.associateWith { buildLxOldMusicInfoJson(song, it) }
-    val qualities = mapNeteaseQualityToLxOrder(preferredNeteaseQuality).take(LX_MAX_QUALITY_ATTEMPTS)
-
-    for (sourceId in sourceIds) {
-        for (quality in qualities) {
-            val url = runtime.getMusicUrl(
-                sourceId = sourceId,
-                quality = quality,
-                musicInfoJson = musicInfoBySource[sourceId].orEmpty(),
-                timeoutMs = 5_000L
-            ) ?: continue
-            if (!url.startsWith("http", ignoreCase = true)) continue
-            val mimeType = inferLxMimeType(quality, url)
-            NPLogger.w(
-                TAG,
-                "LX JS source selected: source=${source.name}, platform=$sourceId, " +
-                    "song=${song.name}, quality=$quality"
-            )
-            return SongUrlResult.Success(
-                url = url,
-                durationMs = song.durationMs.takeIf { it > 0L },
-                mimeType = mimeType,
-                audioInfo = buildLxPlaybackAudioInfo(
-                    source = source,
-                    qualityKey = quality,
-                    mimeType = mimeType
-                ),
-                cacheKeyOverride = "lxjs-${source.id}-$sourceId-${url.hashCode()}"
-            )
-        }
+    val supportedSources = runtime.supportedSources
+    val target = resolveLxJsPlatformTarget(
+        song = song,
+        isNeteaseTrack = isNeteaseMusicTrack(song),
+        supportedSourceIds = supportedSources
+    )
+    if (target == null) {
+        NPLogger.d(
+            TAG,
+            "LX JS source skipped, no platform id for song: song=${song.name}, " +
+                "bili=${isBiliTrack(song)}, youtube=${isYouTubeMusicTrack(song)}, " +
+                "sources=$supportedSources"
+        )
+        return null
     }
+
+    val qualities = selectLxQualityOrder(
+        preferredNeteaseQuality = preferredNeteaseQuality,
+        supportedQualities = runtime.supportedQualities,
+        maxAttempts = maxQualityAttempts
+    )
+    val musicInfoJson = buildLxOldMusicInfoJson(
+        song = song,
+        platformSourceId = target.sourceId,
+        songMid = target.songMid
+    )
+
+    for (quality in qualities) {
+        val url = runtime.getMusicUrl(
+            sourceId = target.sourceId,
+            quality = quality,
+            musicInfoJson = musicInfoJson,
+            timeoutMs = LX_JS_CALL_TIMEOUT_MS
+        ) ?: continue
+        if (!url.startsWith("http", ignoreCase = true)) continue
+        val mimeType = inferLxMimeType(quality, url)
+        NPLogger.w(
+            TAG,
+            "LX JS source selected: source=${source.name}, platform=${target.sourceId}, " +
+                "songmid=${target.songMid}, song=${song.name}, quality=$quality"
+        )
+        return SongUrlResult.Success(
+            url = url,
+            durationMs = song.durationMs.takeIf { it > 0L },
+            mimeType = mimeType,
+            audioInfo = buildLxPlaybackAudioInfo(
+                source = source,
+                qualityKey = quality,
+                mimeType = mimeType
+            ),
+            cacheKeyOverride = "lxjs-${source.id}-${target.sourceId}-${target.songMid}-$quality"
+        )
+    }
+    NPLogger.w(
+        TAG,
+        "LX JS source returned no url: source=${source.name}, platform=${target.sourceId}, " +
+            "songmid=${target.songMid}, song=${song.name}, qualities=$qualities"
+    )
+    // 网易云通道不通时，退一步用其他平台的曲目 ID 取流（与落雪换源行为一致）
+    return resolveFromLxJsCrossPlatform(
+        song = song,
+        source = source,
+        runtime = runtime,
+        preferredNeteaseQuality = preferredNeteaseQuality,
+        maxQualityAttempts = maxQualityAttempts
+    )
+}
+
+/**
+ * 跨平台取流：NeriPlayer 没有其他平台的曲目 ID，就只能按「歌名 + 歌手」去搜，
+ * 命中的候选再用时长复核，然后交给在线音源对应平台的通道取流。
+ * 这样即使音源服务端的某个平台通道故障，在线音源仍然可用。
+ */
+private suspend fun PlayerManager.resolveFromLxJsCrossPlatform(
+    song: SongItem,
+    source: LxImportedSource,
+    runtime: LxJsSourceRuntime,
+    preferredNeteaseQuality: String,
+    maxQualityAttempts: Int
+): SongUrlResult? {
+    val supportedSources = runtime.supportedSources
+    if (supportedSources.isNotEmpty() && LX_KUWO_PLATFORM_ID !in supportedSources) return null
+
+    val songKey = song.stableKey()
+    val hit = LxCrossPlatformHitCache.get(songKey) ?: run {
+        val queries = buildLxSearchQueries(song)
+        var found: LxCrossPlatformHit? = null
+        for (query in queries) {
+            val hits = fetchLxKuwoHits(AppContainer.sharedOkHttpClient, query)
+            if (hits.isEmpty()) continue
+            found = selectBestLxCrossPlatformHit(song, hits)
+            if (found != null) break
+        }
+        if (found == null) {
+            NPLogger.w(TAG, "LX cross-platform search found no match: song=${song.name}")
+            return null
+        }
+        NPLogger.w(
+            TAG,
+            "LX cross-platform match: song=${song.name}, hit=${found.describe()}, " +
+                "score=${scoreLxCrossPlatformHit(song, found)}"
+        )
+        LxCrossPlatformHitCache.put(songKey, found)
+        found
+    }
+
+    val qualities = selectLxQualityOrder(
+        preferredNeteaseQuality = preferredNeteaseQuality,
+        supportedQualities = runtime.supportedQualities,
+        maxAttempts = maxQualityAttempts
+    )
+    val musicInfoJson = buildLxOldMusicInfoJson(
+        song = song,
+        platformSourceId = hit.sourceId,
+        songMid = hit.songMid
+    )
+    for (quality in qualities) {
+        val url = runtime.getMusicUrl(
+            sourceId = hit.sourceId,
+            quality = quality,
+            musicInfoJson = musicInfoJson,
+            timeoutMs = LX_JS_CALL_TIMEOUT_MS
+        ) ?: continue
+        if (!url.startsWith("http", ignoreCase = true)) continue
+        val mimeType = inferLxMimeType(quality, url)
+        NPLogger.w(
+            TAG,
+            "LX cross-platform source selected: source=${source.name}, platform=${hit.sourceId}, " +
+                "songmid=${hit.songMid}, song=${song.name}, quality=$quality"
+        )
+        return SongUrlResult.Success(
+            url = url,
+            durationMs = song.durationMs.takeIf { it > 0L },
+            mimeType = mimeType,
+            audioInfo = buildLxPlaybackAudioInfo(
+                source = source,
+                qualityKey = quality,
+                mimeType = mimeType
+            ),
+            cacheKeyOverride = "lxjs-${source.id}-${hit.sourceId}-${hit.songMid}-$quality"
+        )
+    }
+    NPLogger.w(
+        TAG,
+        "LX cross-platform source returned no url: platform=${hit.sourceId}, " +
+            "songmid=${hit.songMid}, song=${song.name}, qualities=$qualities"
+    )
     return null
 }
 
-/** 落雪 JS 音源期望的旧版 musicInfo 形状；source 需与请求的平台 id 一致 */
-private fun buildLxOldMusicInfoJson(song: SongItem, platformSourceId: String): String {
+/**
+ * NeriPlayer 没有独立的平台字段：本地/B 站/YouTube 都有各自的标记，
+ * 其余在线曲目一律按网易云处理（[SongItem.id] 即网易云 songId）。
+ */
+private fun PlayerManager.isNeteaseMusicTrack(song: SongItem): Boolean {
+    return !isLocalSong(song) && !isBiliTrack(song) && !isYouTubeMusicTrack(song)
+}
+
+internal data class LxJsPlatformTarget(
+    val sourceId: String,
+    val songMid: String
+)
+
+/**
+ * 决定用哪个平台的曲目 ID 去请求在线音源。
+ *
+ * 落雪协议里 `musicInfo.songmid` 必须是**该平台自己的曲目 ID**。
+ * NeriPlayer 只有网易云曲目带有对应的平台 ID（[SongItem.id] 即网易云 songId），
+ * B 站 / YouTube 曲目没有对应平台的 ID。
+ * 把网易云 ID 填给 kw/kg/tx/mg 会让音源站按「别人家的另一首歌」取流，
+ * 这正是之前「显示在线音源但放的不是同一首」的根因，因此这里不再跨平台试探。
+ */
+internal fun resolveLxJsPlatformTarget(
+    song: SongItem,
+    isNeteaseTrack: Boolean,
+    supportedSourceIds: Set<String>
+): LxJsPlatformTarget? {
+    if (!isNeteaseTrack) return null
+    val songId = song.id.takeIf { it > 0L } ?: return null
+    if (supportedSourceIds.isNotEmpty() && LX_NETEASE_PLATFORM_ID !in supportedSourceIds) return null
+    return LxJsPlatformTarget(sourceId = LX_NETEASE_PLATFORM_ID, songMid = songId.toString())
+}
+
+/** 只请求音源脚本真正声明的音质档位（落雪协议里没有 hq/sq/aac 这些档位） */
+internal fun selectLxQualityOrder(
+    preferredNeteaseQuality: String,
+    supportedQualities: Set<String>,
+    maxAttempts: Int
+): List<String> {
+    if (maxAttempts <= 0) return emptyList()
+    val order = mapNeteaseQualityToLxOrder(preferredNeteaseQuality)
+    val allowed = supportedQualities.ifEmpty { DEFAULT_LX_QUALITIES.toSet() }
+    return order.filter { it in allowed }.distinct().take(maxAttempts)
+}
+
+/** 落雪 JS 音源期望的旧版 musicInfo 形状；source/songmid 必须同属一个平台 */
+internal fun buildLxOldMusicInfoJson(
+    song: SongItem,
+    platformSourceId: String,
+    songMid: String
+): String {
     val name = (song.originalName ?: song.name).trim()
     val singer = (song.originalArtist ?: song.artist).trim()
     val intervalSec = if (song.durationMs > 0) song.durationMs / 1000L else 0L
@@ -182,17 +423,17 @@ private fun buildLxOldMusicInfoJson(song: SongItem, platformSourceId: String): S
         intervalSec / 60,
         intervalSec % 60
     )
-    // 不要把网易云 songId 塞进 songmid：那是各平台自己的曲目 ID，
+    // 不要把网易云 songId 塞进其他平台的 songmid：那是各平台自己的曲目 ID，
     // 错误 ID 会导致源端按错误曲目取流，出现「显示在线音源但不是同一首」。
     return JSONObject().apply {
         put("name", name)
         put("singer", singer)
         put("source", platformSourceId)
-        put("songmid", "")
+        put("songmid", songMid)
         put("interval", interval)
         put("albumName", song.album.orEmpty())
-        put("img", "")
-        put("albumId", "")
+        put("img", song.coverUrl.orEmpty())
+        put("albumId", song.albumId.takeIf { it > 0L }?.toString().orEmpty())
         put("types", JSONArray())
         put("_types", JSONObject())
         put("typeUrl", JSONObject())
@@ -202,7 +443,8 @@ private fun buildLxOldMusicInfoJson(song: SongItem, platformSourceId: String): S
 private suspend fun PlayerManager.resolveFromLxSource(
     song: SongItem,
     source: LxImportedSource,
-    preferredNeteaseQuality: String
+    preferredNeteaseQuality: String,
+    maxQualityAttempts: Int
 ): SongUrlResult? {
     val client = AppContainer.lxMusicSourceClient
     val queries = buildLxSearchQueries(song).take(LX_MAX_SEARCH_QUERIES)
@@ -233,7 +475,7 @@ private suspend fun PlayerManager.resolveFromLxSource(
                 source.supportedQualities.isEmpty() || quality in source.supportedQualities
             }
             .ifEmpty { mapNeteaseQualityToLxOrder(preferredNeteaseQuality) }
-            .take(LX_MAX_QUALITY_ATTEMPTS)
+            .take(maxQualityAttempts)
 
         for (quality in qualityOrder) {
             when (val urlResult = client.resolveSongUrl(
@@ -312,7 +554,7 @@ private fun buildLxCacheKey(
     return "lx-$sourcePart-$idPart-$qualityPart"
 }
 
-private fun buildLxSearchQueries(song: SongItem): List<String> {
+internal fun buildLxSearchQueries(song: SongItem): List<String> {
     val title = (song.originalName ?: song.name).trim()
     val artist = (song.originalArtist ?: song.artist).trim()
     return listOf(
@@ -324,7 +566,7 @@ private fun buildLxSearchQueries(song: SongItem): List<String> {
         .distinct()
 }
 
-private fun normalizeLxText(value: String): String {
+internal fun normalizeLxText(value: String): String {
     return Normalizer.normalize(value, Normalizer.Form.NFKC)
         .replace(lxNonTextRegex, " ")
         .replace(lxWhitespaceRegex, " ")
@@ -392,7 +634,7 @@ private fun parseLxIntervalToMs(interval: String): Long {
 }
 
 /** 简易相似度：前缀/包含 + token 重叠，范围 0..1 */
-private fun textSimilarityScore(left: String, right: String): Double {
+internal fun textSimilarityScore(left: String, right: String): Double {
     if (left.isBlank() || right.isBlank()) return 0.0
     if (left.equals(right, ignoreCase = true)) return 1.0
     if (left.contains(right, ignoreCase = true) || right.contains(left, ignoreCase = true)) {

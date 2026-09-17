@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
+import moe.ouom.neriplayer.data.source.lxmusic.LxMusicSourceRepository
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsInlineMessage
@@ -143,6 +144,7 @@ internal fun SettingsLxMusicSourceDialogs(
                         )
                     }
                     HorizontalDivider()
+                    LxSourceRuntimeStatusRow(status = state.runtimeStatus)
                     if (state.sources.isEmpty()) {
                         Text(
                             text = stringResource(R.string.lx_source_empty),
@@ -223,6 +225,39 @@ internal fun SettingsLxMusicSourceDialogs(
             }
         )
     }
+}
+
+/**
+ * 显示在线音源最近一次解析结果。
+ * 音源站服务端故障时（如网易云通道 502），这里会直接显示原因，
+ * 避免「明明启用了音源却一直走平台音源」看起来像功能没生效。
+ */
+@Composable
+private fun LxSourceRuntimeStatusRow(status: LxMusicSourceRepository.RuntimeStatus) {
+    if (!status.hasActivity) return
+    val failed = status.lastAttemptFailed
+    val timestampMs = if (failed) status.lastFailureAtMs else status.lastSuccessAtMs
+    val timeText = remember(timestampMs) {
+        java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+            .format(java.util.Date(timestampMs))
+    }
+    Text(
+        text = if (failed) {
+            stringResource(
+                R.string.lx_source_status_failure,
+                timeText,
+                status.lastFailureReason.orEmpty().ifBlank { "-" }
+            )
+        } else {
+            stringResource(R.string.lx_source_status_success, timeText)
+        },
+        style = MaterialTheme.typography.bodySmall,
+        color = if (failed) {
+            MaterialTheme.colorScheme.error
+        } else {
+            MaterialTheme.colorScheme.primary
+        }
+    )
 }
 
 @Composable

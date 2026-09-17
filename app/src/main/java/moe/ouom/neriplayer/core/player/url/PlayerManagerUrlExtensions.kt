@@ -210,7 +210,7 @@ internal suspend fun PlayerManager.resolveSongUrl(
     }
 
     // 在线曲目优先尝试 LX 在线音源；失败再走缓存/平台链路
-    tryResolveLxMusicCustomSource(song, onlyOnFirstAttempt = true, attempt = 0)
+    tryResolveLxMusicCustomSource(song)
         ?.let { lxResult ->
             NPLogger.d(
                 "NERI-PlayerManager",
@@ -1585,6 +1585,17 @@ private suspend fun PlayerManager.getNeteaseSongUrl(
         if (previewFallback != null ||
             lastFailureReason == NeteasePlaybackResponseParser.FailureReason.NO_PERMISSION
         ) {
+            // 平台已确认不可播（无版权/仅试听）时，先让在线音源再拿一次机会，
+            // 它才是「换源播放」的首选，本地/ B 站只是兜底。
+            if (allowAutoBiliFallback) {
+                tryResolveLxMusicCustomSource(song, isFallbackAttempt = true)?.let {
+                    NPLogger.w(
+                        "NERI-PlayerManager",
+                        "Netease unplayable, LX custom source hit: song=${song.name}"
+                    )
+                    return@withContext it
+                }
+            }
             if (allowLocalFallback) {
                 tryResolveNeteaseMatchedLocalSource(song)?.let {
                     return@withContext it

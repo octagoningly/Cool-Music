@@ -43,7 +43,8 @@ data class LxMusicSourceUiState(
     val preferCustomSource: Boolean = true,
     val importing: Boolean = false,
     val refreshingId: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val runtimeStatus: LxMusicSourceRepository.RuntimeStatus = LxMusicSourceRepository.RuntimeStatus()
 )
 
 sealed class LxMusicSourceEvent {
@@ -71,6 +72,11 @@ class LxMusicSourceViewModel : ViewModel() {
         viewModelScope.launch {
             repo.preferCustomSourceFlow.collect { enabled ->
                 _uiState.update { it.copy(preferCustomSource = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            repo.runtimeStatusFlow.collect { status ->
+                _uiState.update { it.copy(runtimeStatus = status) }
             }
         }
     }

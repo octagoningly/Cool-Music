@@ -68,6 +68,8 @@
     <string name="lx_source_manage_desc">导入落雪音乐（LX Music）音源链接（支持 JSON API 与 JS 脚本型）；播放时优先从此类音源取流，失败后自动回退到原有平台音源</string>
     <string name="lx_source_prefer_first">优先使用在线音源</string>
     <string name="lx_source_prefer_first_desc">开启后播放时先尝试已启用的在线音源；关闭后仅保留导入列表</string>
+    <string name="lx_source_status_success">最近一次解析成功（%1$s）</string>
+    <string name="lx_source_status_failure">最近一次解析失败（%1$s）：%2$s，已回落平台音源</string>
     <string name="lx_source_empty">尚未导入音源</string>
     <string name="lx_source_add">添加</string>
     <string name="lx_source_import">导入</string>

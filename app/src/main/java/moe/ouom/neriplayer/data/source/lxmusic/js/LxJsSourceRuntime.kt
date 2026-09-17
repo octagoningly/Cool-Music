@@ -76,6 +76,10 @@ class LxJsSourceRuntime(
     @Volatile
     private var loaded = false
 
+    /** 保证同一个运行时的脚本只加载一次：预热与播放解析可能并发触发 load() */
+    private val loadLatch = java.util.concurrent.CountDownLatch(1)
+    private val loadStarted = java.util.concurrent.atomic.AtomicBoolean(false)
+
     private var jsContext: QuickJSContext? = null
     private val pendingMusicUrl = ConcurrentHashMap<String, CompletableDeferred<String?>>()
     private val pendingNativeRequests = ConcurrentHashMap<String, okhttp3.Call>()
@@ -89,22 +93,38 @@ class LxJsSourceRuntime(
     var supportedQualities: Set<String> = emptySet()
         private set
 
+    /** 最近一次 musicUrl 失败原因（HTTP 状态码或脚本报错），供设置页显示 */
+    @Volatile
+    var lastFailureReason: String? = null
+        private set
+
+    fun clearLastFailure() {
+        lastFailureReason = null
+    }
+
     fun isReady(): Boolean = loaded
 
+    /**
+     * 加载脚本（幂等、可并发调用）。
+     * 加载失败后不会重复加载，返回 false，调用方按音源不可用处理。
+     */
     fun load(): Boolean {
         if (loaded) return true
-        val latch = java.util.concurrent.CountDownLatch(1)
-        var success = false
-        executor.execute {
-            success = runCatching { loadInternal() }.getOrElse { error ->
-                NPLogger.e(TAG, "Load LX JS source failed: ${error.message}", error)
-                false
+        if (loadStarted.compareAndSet(false, true)) {
+            executor.execute {
+                val success = runCatching { loadInternal() }.getOrElse { error ->
+                    NPLogger.e(TAG, "Load LX JS source failed: ${error.message}", error)
+                    false
+                }
+                loaded = success
+                loadLatch.countDown()
             }
-            latch.countDown()
         }
-        latch.await(8, TimeUnit.SECONDS)
-        loaded = success
-        return success
+        val finished = loadLatch.await(8, TimeUnit.SECONDS)
+        if (!finished) {
+            NPLogger.w(TAG, "LX JS source load timed out: id=$scriptId")
+        }
+        return loaded
     }
 
     suspend fun getMusicUrl(
@@ -143,7 +163,15 @@ class LxJsSourceRuntime(
                 pendingMusicUrl.remove(requestKey)?.complete(null)
             }
         }
-        withTimeoutOrNull(timeoutMs) { deferred.await() }
+        val result = withTimeoutOrNull(timeoutMs) { deferred.await() }
+        if (result == null) {
+            pendingMusicUrl.remove(requestKey)
+            NPLogger.w(
+                TAG,
+                "LX JS musicUrl timed out after ${timeoutMs}ms: source=$sourceId quality=$quality"
+            )
+        }
+        result
     }
 
     fun destroy() {
@@ -334,10 +362,18 @@ class LxJsSourceRuntime(
                                     }
                                 )
                             }
-                            NPLogger.d(
-                                TAG,
-                                "LX JS http ${resp.code} ${url.take(80)} bodyLen=${rawBody.length} body=${rawBody.take(400)}"
-                            )
+                            if (resp.isSuccessful) {
+                                NPLogger.d(
+                                    TAG,
+                                    "LX JS http ${resp.code} ${url.take(80)} bodyLen=${rawBody.length}"
+                                )
+                            } else {
+                                lastFailureReason = "HTTP ${resp.code}"
+                                NPLogger.w(
+                                    TAG,
+                                    "LX JS http ${resp.code} ${url.take(120)} body=${rawBody.take(300)}"
+                                )
+                            }
                             callJs("response", response.toString())
                         }
                     } catch (e: Exception) {
@@ -369,10 +405,20 @@ class LxJsSourceRuntime(
                 } else {
                     null
                 }
-                NPLogger.d(
-                    TAG,
-                    "LX JS musicUrl key=$requestKey status=$status url=${url?.take(120)}"
-                )
+                if (status && url != null) {
+                    lastFailureReason = null
+                    NPLogger.d(TAG, "LX JS musicUrl ok url=${url.take(120)}")
+                } else {
+                    val errorMessage = json.optString("errorMessage").take(200)
+                    if (lastFailureReason == null && errorMessage.isNotBlank()) {
+                        lastFailureReason = errorMessage
+                    }
+                    NPLogger.w(
+                        TAG,
+                        "LX JS musicUrl failed: status=$status, " +
+                            "error=$errorMessage, url=${url?.take(120)}"
+                    )
+                }
                 deferred.complete(url)
             }
             "log" -> {

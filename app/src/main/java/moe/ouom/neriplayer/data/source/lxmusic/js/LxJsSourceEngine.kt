@@ -46,6 +46,7 @@ object LxJsSourceEngine {
     ): Boolean {
         val existing = runtimes[sourceId]
         if (existing != null && existing.isReady()) return true
+        // 复用已有实例重试加载，避免并发/重复调用各建一个 QuickJS 上下文
         val runtime = existing ?: LxJsSourceRuntime(
             context = context.applicationContext,
             okHttpClient = okHttpClient,
@@ -65,13 +66,25 @@ object LxJsSourceEngine {
                 "JS source loaded: id=$sourceId name=$sourceName sources=${runtime.supportedSources}"
             )
         } else {
-            runtimes.remove(sourceId)
+            if (existing == null) {
+                runtimes.remove(sourceId)
+                runtime.destroy()
+            }
             NPLogger.e(TAG, "JS source load failed: id=$sourceId name=$sourceName")
         }
         return ok
     }
 
     fun runtime(sourceId: String): LxJsSourceRuntime? = runtimes[sourceId]
+
+    /** 本轮解析前清空失败原因，避免把上一次的旧原因报给用户 */
+    fun clearFailureReasons() {
+        runtimes.values.forEach { it.clearLastFailure() }
+    }
+
+    /** 最近一次解析中任一 JS 源记录的失败原因 */
+    fun activeFailureReason(): String? =
+        runtimes.values.firstNotNullOfOrNull { it.lastFailureReason?.takeIf(String::isNotBlank) }
 
     fun peekSupportedSources(sourceId: String): Set<String> =
         runtimes[sourceId]?.supportedSources.orEmpty()

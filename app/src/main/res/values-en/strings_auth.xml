@@ -68,6 +68,8 @@
     <string name="lx_source_manage_desc">Import LX Music source links (JSON API or JS scripts). Playback tries these first, then falls back to existing platform sources.</string>
     <string name="lx_source_prefer_first">Prefer online sources first</string>
     <string name="lx_source_prefer_first_desc">When on, playback tries enabled online sources before platform APIs. Turn off to keep the list only.</string>
+    <string name="lx_source_status_success">Last resolve succeeded (%1$s)</string>
+    <string name="lx_source_status_failure">Last resolve failed (%1$s): %2$s — fell back to platform sources</string>
     <string name="lx_source_empty">No sources imported yet</string>
     <string name="lx_source_add">Add</string>
     <string name="lx_source_import">Import</string>

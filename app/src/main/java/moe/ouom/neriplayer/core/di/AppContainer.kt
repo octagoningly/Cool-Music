@@ -462,6 +462,22 @@ object AppContainer {
         startYouTubeAuthObserver()
         startSettingsObserver()
         warmYouTubePlaybackOnAppStart()
+        warmLxMusicSourceCache()
+    }
+
+    private fun warmLxMusicSourceCache() {
+        scope.launch {
+            runCatching {
+                lxMusicSourceRepository.sourcesFlow.collect { }
+            }.onFailure { error ->
+                NPLogger.w("AppContainer", "LX source cache warm failed: ${error.message}")
+            }
+        }
+        scope.launch {
+            runCatching {
+                lxMusicSourceRepository.preferCustomSourceFlow.collect { }
+            }
+        }
     }
 
     private fun warmLocalPlaylistRepository() {

@@ -65,7 +65,7 @@
     <string name="settings_netease_local_source_fallback">Local Audio Fallback</string>
     <string name="settings_netease_local_source_fallback_desc">Off by default. When enabled, prefer a local audio file matched to the same song when a NetEase song is unavailable or only returns a preview clip.</string>
     <string name="lx_source_manage_title">Online Music Sources</string>
-    <string name="lx_source_manage_desc">Import LX Music JSON source links. Playback tries these sources first, then falls back to the existing platform sources.</string>
+    <string name="lx_source_manage_desc">Import LX Music source links (JSON API or JS scripts). Playback tries these first, then falls back to existing platform sources.</string>
     <string name="lx_source_prefer_first">Prefer online sources first</string>
     <string name="lx_source_prefer_first_desc">When on, playback tries enabled online sources before platform APIs. Turn off to keep the list only.</string>
     <string name="lx_source_empty">No sources imported yet</string>
@@ -74,7 +74,7 @@
     <string name="lx_source_cancel">Cancel</string>
     <string name="lx_source_close">Close</string>
     <string name="lx_source_import_title">Import Online Source</string>
-    <string name="lx_source_import_desc">Paste an LX Music network source JSON URL (jsDelivr, GitHub raw, or other HTTPS links). JS script sources are not supported.</string>
+    <string name="lx_source_import_desc">Paste an LX Music source URL (.js script or JSON API; jsDelivr, GitHub raw, or other HTTPS links).</string>
     <string name="lx_source_url_hint">Source JSON URL</string>
     <string name="lx_source_import_success">Imported successfully</string>
     <string name="lx_source_import_failed">Import failed. Check the URL and source format.</string>

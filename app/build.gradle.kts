@@ -291,6 +291,7 @@ dependencies {
     implementation(libs.dec)
     implementation(libs.newpipe.extractor)
     implementation(libs.okhttp)
+    implementation(libs.quickjs.wrapper.android)
     implementation(libs.lyricon.provider)
     implementation(libs.zxing.core)
     implementation(libs.tiny.pinyin)

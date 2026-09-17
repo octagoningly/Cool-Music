@@ -27,10 +27,18 @@ import org.json.JSONObject
  * Updated: 2026/3/23
  */
 
+data class LxJsScriptMetadata(
+    val name: String,
+    val description: String = "",
+    val author: String = "",
+    val version: String = "",
+    val sourceIds: List<String> = listOf("kw", "kg", "tx", "wy", "mg")
+)
+
 /**
  * 解析落雪音乐（LX Music）自定义「网络音源」JSON。
  *
- * 仅支持 JSON API 型音源（含 search / songUrl 接口），不支持 JS 脚本型音源。
+ * 支持 JSON API 型；JS 脚本型由 QuickJS 运行时处理。
  */
 object LxMusicSourceParser {
     private const val TAG = "LxMusicSourceParser"
@@ -43,7 +51,43 @@ object LxMusicSourceParser {
             trimmed.startsWith("async function") ||
             trimmed.startsWith("module.exports") ||
             trimmed.contains("exports.default") ||
+            trimmed.contains("lx.send") ||
             (trimmed.contains("getMusicUrl") && trimmed.contains("function"))
+    }
+
+    fun parseJsScriptMetadata(script: String): LxJsScriptMetadata {
+        // 优先解析落雪标准头： /* @name xxx @author yyy ... */
+        val header = Regex("""/\*[\s\S]+?\*/""").find(script)?.value
+        fun fromHeader(tag: String): String {
+            if (header == null) return ""
+            return Regex("""^\s*\*\s*@$tag\s+(.+)$""", setOf(RegexOption.MULTILINE, RegexOption.IGNORE_CASE))
+                .find(header)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                .orEmpty()
+        }
+        fun fromObjectLiteral(vararg keys: String): String {
+            for (key in keys) {
+                val regex = Regex("""['"]?$key['"]?\s*:\s*['"]([^'"]+)['"]""", RegexOption.IGNORE_CASE)
+                regex.find(script)?.groupValues?.getOrNull(1)?.let { return it.trim() }
+            }
+            return ""
+        }
+        val name = fromHeader("name").ifBlank { fromObjectLiteral("name", "title") }
+            .ifBlank { "LX JS Source" }
+        val sourceIds = buildList {
+            listOf("kw", "kg", "tx", "wy", "mg").forEach { id ->
+                if (script.contains(id, ignoreCase = true)) add(id)
+            }
+        }.ifEmpty { listOf("kw", "kg", "tx", "wy", "mg") }
+        return LxJsScriptMetadata(
+            name = name,
+            description = fromHeader("description").ifBlank { fromObjectLiteral("description", "desc") },
+            author = fromHeader("author").ifBlank { fromObjectLiteral("author") },
+            version = fromHeader("version").ifBlank { fromObjectLiteral("version") },
+            sourceIds = sourceIds
+        )
     }
 
     fun parseSourceDefinition(body: String): LxSourceDefinition? {

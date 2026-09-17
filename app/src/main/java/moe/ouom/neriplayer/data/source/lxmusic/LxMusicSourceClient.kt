@@ -60,6 +60,12 @@ class LxMusicSourceClient(private val okHttpClient: OkHttpClient) {
             }
         }
 
+    /** 拉取原始正文，用于区分 JSON / JS 音源 */
+    suspend fun fetchRawSourceBody(sourceUrl: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            runCatching { executeGet(sourceUrl) }
+        }
+
     suspend fun search(
         searchApiUrl: String,
         keyword: String,

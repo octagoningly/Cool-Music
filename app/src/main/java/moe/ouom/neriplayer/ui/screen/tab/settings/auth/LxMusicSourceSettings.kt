@@ -308,8 +308,10 @@ private fun mapLxSourceMessage(message: String): String {
             stringResource(R.string.lx_source_import_success)
         message.startsWith("import_failed") -> {
             val reason = message.substringAfter("import_failed:", "").trim()
-            if (reason.equals("JS source not supported", ignoreCase = true)) {
-                stringResource(R.string.lx_source_js_unsupported)
+            if (reason.equals("Invalid LX source", ignoreCase = true) ||
+                reason.equals("Invalid LX source JSON", ignoreCase = true)
+            ) {
+                stringResource(R.string.lx_source_import_failed)
             } else if (reason.isNotBlank()) {
                 stringResource(R.string.lx_source_import_failed_detail, reason)
             } else {

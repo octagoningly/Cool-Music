@@ -25,26 +25,34 @@ import kotlinx.serialization.Serializable
  * Updated: 2026/3/23
  */
 
-/** 已导入的 LX Music 网络音源（JSON API 型） */
+/** 已导入的 LX Music 音源（JSON API 型 / JS 脚本型） */
 @Serializable
 data class LxImportedSource(
     val id: String,
     val url: String,
     val name: String,
+    /** json = 网络 API 型；js = QuickJS 脚本型 */
+    val kind: String = "json",
     val description: String = "",
     val author: String = "",
     val version: String = "",
     val srcId: String = "",
     val enabled: Boolean = true,
     val supportedQualities: List<String> = emptyList(),
-    val searchApiUrl: String,
-    val songUrlApiUrl: String,
+    val searchApiUrl: String = "",
+    val songUrlApiUrl: String = "",
     val lyricApiUrl: String = "",
     val picApiUrl: String = "",
+    /** JS 脚本本地文件相对路径（filesDir 下） */
+    val scriptPath: String = "",
+    /** JS 脚本声明的可解析平台源，如 kw/kg/tx/wy/mg */
+    val jsSourceIds: List<String> = emptyList(),
     val importedAt: Long = 0L,
     val lastValidatedAt: Long = 0L,
     val lastError: String? = null
-)
+) {
+    val isJsSource: Boolean get() = kind.equals("js", ignoreCase = true)
+}
 
 @Serializable
 data class LxImportedSourceList(

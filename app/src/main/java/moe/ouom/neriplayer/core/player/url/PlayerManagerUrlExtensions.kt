@@ -332,10 +332,11 @@ internal suspend fun PlayerManager.resolveSongUrl(
             !isFinalAttempt ||
             initialListenTogetherFallback != null ||
             suppressListenTogetherResolverErrors
-        // 优先走已导入的 LX 在线音源；失败再进入原有平台音源顺序
-        tryResolveLxMusicCustomSource(song)?.let { lxResult ->
-            return@retrySongUrlResolution lxResult
-        }
+        // 仅在首次尝试优先走 LX 在线音源，避免重试放大延迟
+        tryResolveLxMusicCustomSource(song, onlyOnFirstAttempt = true, attempt = retryAttempt)
+            ?.let { lxResult ->
+                return@retrySongUrlResolution lxResult
+            }
         when {
             isYouTubeTrack -> getYouTubeMusicAudioUrl(
                 song = song,

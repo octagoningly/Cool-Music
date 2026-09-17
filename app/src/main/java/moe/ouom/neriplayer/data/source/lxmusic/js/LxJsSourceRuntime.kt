@@ -336,7 +336,7 @@ class LxJsSourceRuntime(
                             }
                             NPLogger.d(
                                 TAG,
-                                "LX JS http ${resp.code} ${url.take(80)} bodyLen=${rawBody.length} body=${rawBody.take(200)}"
+                                "LX JS http ${resp.code} ${url.take(80)} bodyLen=${rawBody.length} body=${rawBody.take(400)}"
                             )
                             callJs("response", response.toString())
                         }
@@ -369,6 +369,10 @@ class LxJsSourceRuntime(
                 } else {
                     null
                 }
+                NPLogger.d(
+                    TAG,
+                    "LX JS musicUrl key=$requestKey status=$status url=${url?.take(120)}"
+                )
                 deferred.complete(url)
             }
             "log" -> {

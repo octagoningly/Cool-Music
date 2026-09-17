@@ -182,11 +182,13 @@ private fun buildLxOldMusicInfoJson(song: SongItem, platformSourceId: String): S
         intervalSec / 60,
         intervalSec % 60
     )
+    // 不要把网易云 songId 塞进 songmid：那是各平台自己的曲目 ID，
+    // 错误 ID 会导致源端按错误曲目取流，出现「显示在线音源但不是同一首」。
     return JSONObject().apply {
         put("name", name)
         put("singer", singer)
         put("source", platformSourceId)
-        put("songmid", song.id.toString())
+        put("songmid", "")
         put("interval", interval)
         put("albumName", song.album.orEmpty())
         put("img", "")

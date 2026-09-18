@@ -60,14 +60,14 @@ class ExploreSearchHistoryDisplayTest {
     }
 
     @Test
-    fun `netease search type bar hides after content leaves the top`() {
+    fun `netease search type bar stays visible after content scrolls`() {
         assertTrue(
             shouldShowExploreNeteaseSearchTypeBar(
                 selectedSearchSource = SearchSource.NETEASE,
                 contentScrolled = false
             )
         )
-        assertFalse(
+        assertTrue(
             shouldShowExploreNeteaseSearchTypeBar(
                 selectedSearchSource = SearchSource.NETEASE,
                 contentScrolled = true
@@ -92,14 +92,14 @@ class ExploreSearchHistoryDisplayTest {
     }
 
     @Test
-    fun `youtube search type bar follows the selected source and scroll state`() {
+    fun `youtube search type bar follows the selected source and stays when scrolled`() {
         assertTrue(
             shouldShowExploreYouTubeSearchTypeBar(
                 selectedSearchSource = SearchSource.YOUTUBE_MUSIC,
                 contentScrolled = false
             )
         )
-        assertFalse(
+        assertTrue(
             shouldShowExploreYouTubeSearchTypeBar(
                 selectedSearchSource = SearchSource.YOUTUBE_MUSIC,
                 contentScrolled = true
@@ -153,7 +153,7 @@ class ExploreSearchHistoryDisplayTest {
             )
         )
         assertEquals(
-            null,
+            SearchSource.NETEASE,
             exploreSearchTypeBarSource(
                 selectedSearchSource = SearchSource.NETEASE,
                 contentScrolled = true

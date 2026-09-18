@@ -1537,7 +1537,8 @@ internal fun exploreSearchTypeBarSource(
     selectedSearchSource: SearchSource,
     contentScrolled: Boolean
 ): SearchSource? {
-    if (contentScrolled) return null
+    // 上滑时仍保留类型图标栏，避免筛选入口在滚动中消失
+    @Suppress("UNUSED_PARAMETER")
     return selectedSearchSource.takeIf {
         it == SearchSource.NETEASE || it == SearchSource.YOUTUBE_MUSIC
     }

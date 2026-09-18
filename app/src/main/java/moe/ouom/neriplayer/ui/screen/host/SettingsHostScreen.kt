@@ -234,6 +234,7 @@ fun SettingsHostScreen(
     onBeforeLanguageRestart: () -> Unit = {},
     onLanguageChanged: (LanguageManager.Language) -> Unit = {},
     coherentFeedbackEnabled: Boolean = false,
+    settingsTabEntryTick: Int = 0,
     renderScene: @Composable (
         revealTopFraction: Float,
         contentTranslationYFraction: Float,
@@ -372,6 +373,7 @@ fun SettingsHostScreen(
                         when (state) {
                             SettingsScreenState.Settings -> {
                                 SettingsScreen(
+                            settingsTabEntryTick = settingsTabEntryTick,
                             listState = settingsListState,
                             dynamicColor = dynamicColor,
                             onDynamicColorChange = onDynamicColorChange,

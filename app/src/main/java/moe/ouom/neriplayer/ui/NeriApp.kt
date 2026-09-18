@@ -2409,9 +2409,14 @@ private fun NeriAppContent(
                     visibleMainTabGlassOwners +
                     MainTabGlassOwner(selectedMainTabRoute)
             }
+            var settingsTabEntryTick by remember { mutableIntStateOf(0) }
             fun navigateToMainTab(route: String) {
                 if (selectedMainTabRoute != route) {
                     selectedMainTabRoute = route
+                }
+                // 从其他主 Tab 再次进入设置时，重置为设置一级页
+                if (route == Destinations.Settings.route) {
+                    settingsTabEntryTick++
                 }
                 mainTabTransitionState.request(route)
                 if (
@@ -2843,6 +2848,7 @@ private fun NeriAppContent(
                     )
 
                     Destinations.Settings.route -> SettingsHostScreen(
+                        settingsTabEntryTick = settingsTabEntryTick,
                         dynamicColor = dynamicColorEnabled,
                         onDynamicColorChange = { scope.launch { repo.setDynamicColor(it) } },
                         isDarkTheme = isDark,

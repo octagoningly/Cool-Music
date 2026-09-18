@@ -456,6 +456,7 @@ private fun SettingsSearchResultRow(
 @Suppress("AssignedValueIsNeverRead")
 fun SettingsScreen(
     listState: LazyListState,
+    settingsTabEntryTick: Int = 0,
     dynamicColor: Boolean,
     onDynamicColorChange: (Boolean) -> Unit,
     isDarkTheme: Boolean,
@@ -1176,6 +1177,14 @@ fun SettingsScreen(
     }
     var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
     var settingsHighlightTargetId by rememberSaveable { mutableStateOf<String?>(null) }
+    // 从其他主 Tab 再次进入设置：回到一级页
+    LaunchedEffect(settingsTabEntryTick) {
+        if (settingsTabEntryTick <= 0) return@LaunchedEffect
+        activeSettingsPage = if (isSettingsSplitLayout) SettingsPage.General else null
+        settingsSearchQuery = ""
+        settingsHighlightTargetId = null
+        listState.scrollToItem(0)
+    }
     var settingsHighlightPulse by rememberSaveable { mutableIntStateOf(0) }
     var settingsSearchRequestId by rememberSaveable { mutableIntStateOf(0) }
     var pendingSettingsSearchNavigation by remember { mutableStateOf<PendingSettingsSearchNavigation?>(null) }

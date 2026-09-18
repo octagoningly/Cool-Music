@@ -116,33 +116,9 @@ fun DownloadProgressScreen(
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
-        // 顶部栏
+        // 顶部栏：二级页去掉标题，仅保留返回与操作
         TopAppBar(
-            title = {
-                Column {
-                    Text(
-                        stringResource(R.string.download_progress),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Text(
-                        text = if (visibleBatchProgress != null) {
-                            stringResource(
-                                R.string.download_progress_format,
-                                visibleBatchProgress.completedSongs,
-                                visibleBatchProgress.totalSongs
-                            )
-                        } else {
-                            pluralStringResource(
-                                R.plurals.download_tasks_count,
-                                pendingTaskCount,
-                                pendingTaskCount
-                            )
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
+            title = {},
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.action_back))

@@ -112,21 +112,9 @@ fun DownloadManagerScreen(
             .background(Color.Transparent)
             .padding(bottom = miniPlayerHeight)
     ) {
-        // 顶部栏
+        // 顶部栏：二级页去掉标题，仅保留返回与操作
         TopAppBar(
-            title = {
-                Column {
-                    Text(
-                        stringResource(R.string.download_manager_title),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                    Text(
-                        stringResource(R.string.download_manager_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
+            title = {},
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.action_back))

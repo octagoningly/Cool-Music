@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -36,7 +37,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -56,7 +56,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
@@ -358,16 +357,6 @@ internal fun MiuixSettingsDetailScaffold(
     showBackButton: Boolean = true,
     content: LazyListScope.() -> Unit
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        state = topAppBarState,
-        canScroll = {
-            shouldAllowCollapsingTopAppBar(
-                canScrollForward = listState.canScrollForward,
-                canScrollBackward = listState.canScrollBackward,
-                collapsedFraction = topAppBarState.collapsedFraction
-            )
-        }
-    )
     val miniPlayerHeight = LocalMiniPlayerHeight.current
     val isTabletLayout = currentWindowWidthDp() >= 720.dp
     val horizontalPadding = if (isTabletLayout) 28.dp else 18.dp
@@ -375,28 +364,26 @@ internal fun MiuixSettingsDetailScaffold(
     Scaffold(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Transparent)
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .background(Color.Transparent),
         containerColor = Color.Transparent,
         topBar = {
-            LargeTopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    if (showBackButton) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                contentDescription = stringResource(R.string.action_back)
-                            )
-                        }
+            // 二级页去掉大标题，仅保留紧凑返回栏，内容紧贴顶部
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(TopAppBarDefaults.windowInsets)
+                    .padding(start = 4.dp, end = 4.dp, top = 0.dp, bottom = 0.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (showBackButton) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back)
+                        )
                     }
-                },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent
-                )
-            )
+                }
+            }
         }
     ) { innerPadding ->
         Box(
@@ -413,7 +400,7 @@ internal fun MiuixSettingsDetailScaffold(
                 contentPadding = PaddingValues(
                     start = horizontalPadding,
                     end = horizontalPadding,
-                    top = 10.dp,
+                    top = 2.dp,
                     bottom = 18.dp + miniPlayerHeight
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),

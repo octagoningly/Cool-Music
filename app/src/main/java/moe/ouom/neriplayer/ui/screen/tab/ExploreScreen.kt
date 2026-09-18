@@ -809,23 +809,22 @@ fun ExploreScreen(
                     Spacer(Modifier.height(8.dp))
                     var sourceMenuExpanded by remember { mutableStateOf(false) }
                     val currentSearchSource = ui.selectedSearchSource
-                    // 第一行：左侧搜索类型（歌曲/歌单/歌手），右侧搜索源按钮（点击原地展开）
+                    // 第一行：左侧搜索类型（歌曲/歌单/歌手），右侧搜索源按钮 —— 整组水平居中
                     Row(
                         modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            ExploreSearchTypeBar(
-                                source = searchTypeBarSource,
-                                selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
-                                selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
-                                onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
-                                onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
-                                selectedAlpha = tagChipSelectedAlpha,
-                                unselectedAlpha = tagChipUnselectedAlpha,
-                                borderAlpha = tagChipBorderAlpha
-                            )
-                        }
+                        ExploreSearchTypeBar(
+                            source = searchTypeBarSource,
+                            selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                            selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                            onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                            onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                            selectedAlpha = tagChipSelectedAlpha,
+                            unselectedAlpha = tagChipUnselectedAlpha,
+                            borderAlpha = tagChipBorderAlpha
+                        )
                         Box(modifier = Modifier.padding(start = 8.dp)) {
                             Surface(
                                 shape = ExplorePrimaryTabShape,
@@ -1650,7 +1649,6 @@ internal fun ExploreSearchTypeBar(
             SearchSource.NETEASE -> {
                 LazyRow(
                     modifier = Modifier
-                        .fillMaxWidth()
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_NETEASE_SEARCH_TYPE_BAR_TAG),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1677,7 +1675,6 @@ internal fun ExploreSearchTypeBar(
             SearchSource.YOUTUBE_MUSIC -> {
                 LazyRow(
                     modifier = Modifier
-                        .fillMaxWidth()
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_YOUTUBE_SEARCH_TYPE_BAR_TAG),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)

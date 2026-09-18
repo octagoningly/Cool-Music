@@ -170,6 +170,7 @@ data class ExploreUiState(
     val error: String? = null,
     val playlists: List<PlaylistSummary> = emptyList(),
     val selectedTag: String = "tag_all",  // String resource key
+    val neteaseDiscoveryOpen: Boolean = false,
     val searching: Boolean = false,
     val searchError: String? = null,
     val searchResults: List<SongItem> = emptyList(),
@@ -350,8 +351,14 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             neteaseRepo.cookieFlow.collect {
-                NPLogger.d(TAG, "cookieFlow updated, reload high quality playlists tag=${_uiState.value.selectedTag}")
-                loadHighQuality()
+                // cookie 流在启动阶段会多次发射（登录态初始化、cookie 注入），
+                // 每次都重新拉精品歌单会造成重复请求，并让列表反复进入 loading——观感就是「刷新很慢」。
+                // 已有数据时不再重复拉取；切换标签仍由界面显式触发 loadHighQuality。
+                val state = _uiState.value
+                if (state.playlists.isEmpty() && !state.loading && !state.neteaseDiscoveryOpen) {
+                    NPLogger.d(TAG, "cookieFlow updated, load featured playlist")
+                    loadFeaturedPlaylist()
+                }
             }
         }
         viewModelScope.launch {
@@ -674,7 +681,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = currentState.copy(
             loading = true,
             error = null,
-            selectedTag = realCat
+            selectedTag = realCat,
+            neteaseDiscoveryOpen = true
         )
         NPLogger.d(
             TAG,
@@ -716,6 +724,75 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
         }
+    }
+
+    /**
+     * 探索首页只拉一张精品歌单封面；完整网格等用户点「新发现」再拉。
+     */
+    fun loadFeaturedPlaylist() {
+        val currentState = _uiState.value
+        if (currentState.neteaseDiscoveryOpen) {
+            loadHighQuality()
+            return
+        }
+        if (currentState.loading) return
+        highQualityLoadJob?.cancel()
+        _uiState.value = currentState.copy(
+            loading = true,
+            error = null,
+            selectedTag = "tag_all"
+        )
+        NPLogger.d(TAG, "loadFeaturedPlaylist start")
+        highQualityLoadJob = viewModelScope.launch {
+            try {
+                val raw = withContext(Dispatchers.IO) {
+                    neteaseClient.getHighQualityPlaylists("全部", 1, 0L)
+                }
+                val mapped = parsePlaylists(raw).take(1)
+                NPLogger.d(TAG, "loadFeaturedPlaylist success: count=${mapped.size}")
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    error = null,
+                    playlists = mapped,
+                    selectedTag = "tag_all"
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                NPLogger.e(TAG, "loadFeaturedPlaylist failed", e)
+                _uiState.value = _uiState.value.copy(
+                    loading = false,
+                    error = app.getString(
+                        R.string.error_load_playlist,
+                        e.message ?: app.getString(R.string.github_sync_failed_message)
+                    )
+                )
+            }
+        }
+    }
+
+    fun openNeteaseDiscovery() {
+        val state = _uiState.value
+        if (state.neteaseDiscoveryOpen) return
+        NPLogger.d(TAG, "openNeteaseDiscovery: cachedPlaylists=${state.playlists.size}")
+        _uiState.value = state.copy(neteaseDiscoveryOpen = true)
+        if (state.playlists.size < 2 && !state.loading) {
+            loadHighQuality(state.selectedTag)
+        }
+    }
+
+    fun closeNeteaseDiscovery() {
+        val state = _uiState.value
+        if (!state.neteaseDiscoveryOpen) return
+        NPLogger.d(TAG, "closeNeteaseDiscovery")
+        _uiState.value = state.copy(
+            neteaseDiscoveryOpen = false,
+            playlists = if (state.playlists.isEmpty()) {
+                emptyList()
+            } else {
+                listOf(state.playlists.first())
+            }
+        )
     }
 
     private fun parsePlaylists(raw: String): List<PlaylistSummary> {

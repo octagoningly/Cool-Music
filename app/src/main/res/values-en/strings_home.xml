@@ -46,4 +46,5 @@
     <string name="home_offline_no_continue">Offline mode only shows Continue Playing. Nothing is available yet.</string>
     <string name="offline_mode_title">Offline Mode</string>
     <string name="offline_mode_bottom_hint">Currently in offline mode</string>
+    <string name="home_show_more_sections">More</string>
 </resources>

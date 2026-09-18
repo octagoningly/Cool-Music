@@ -2594,7 +2594,7 @@ fun NowPlayingScreen(
     val basePrimaryControlButtonSize = when {
         useWideLandscapeLayout && isCompactTabletLandscape -> 64.dp
         useWideLandscapeLayout -> 72.dp
-        else -> 72.dp
+        else -> 86.dp
     }
     val baseControlButtonSpacing = when {
         useWideLandscapeLayout && isCompactTabletLandscape -> 12.dp
@@ -2616,7 +2616,8 @@ fun NowPlayingScreen(
         if (useWideLandscapeLayout) 22.dp else 20.dp
     )
     val nowPlayingMainControlIconSize = nowPlayingControlSize.scaleIconSize(36.dp)
-    val nowPlayingPrimaryControlIconSize = nowPlayingControlSize.scaleIconSize(48.dp)
+    // 播放/暂停：在原 48dp 基础上放大 1.2 倍
+    val nowPlayingPrimaryControlIconSize = nowPlayingControlSize.scaleIconSize(58.dp)
     val nowPlayingToolbarMinimumTouchTarget = nowPlayingControlSize.scaleButtonSize(
         PlaybackActionToolbarMinimumTouchTarget
     )

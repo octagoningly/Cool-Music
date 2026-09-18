@@ -128,7 +128,7 @@ private fun DrawScope.drawPlayTriangle(
     )
 }
 
-/** 播放：实心对称圆润三角（朝右） */
+/** 播放：实心对称圆润三角（朝右），在现有槽位内再放大一档 */
 @Composable
 fun AppleMusicPlayIcon(
     modifier: Modifier = Modifier,
@@ -143,9 +143,9 @@ fun AppleMusicPlayIcon(
     Canvas(modifier = describedModifier) {
         val w = size.width
         val h = size.height
-        // 比例贴近 Apple Music：三角略偏高、厚实
-        val shapeW = w * 0.72f
-        val shapeH = h * 0.86f
+        // 比例贴近 Apple Music：三角略偏高、厚实（播放/暂停整体约 1.2 倍）
+        val shapeW = w * 0.80f
+        val shapeH = h * 0.92f
         val left = (w - shapeW) / 2f
         val top = (h - shapeH) / 2f
         val right = left + shapeW
@@ -162,7 +162,7 @@ fun AppleMusicPlayIcon(
     }
 }
 
-/** 暂停：两根对称实心圆角竖条 */
+/** 暂停：两根对称实心圆角竖条，整体加大 */
 @Composable
 fun AppleMusicPauseIcon(
     modifier: Modifier = Modifier,
@@ -177,9 +177,9 @@ fun AppleMusicPauseIcon(
     Canvas(modifier = describedModifier) {
         val w = size.width
         val h = size.height
-        val barWidth = w * 0.26f
-        val barHeight = h * 0.78f
-        val gap = w * 0.16f
+        val barWidth = w * 0.28f
+        val barHeight = h * 0.86f
+        val gap = w * 0.14f
         val top = (h - barHeight) / 2f
         val total = barWidth * 2f + gap
         val leftStart = (w - total) / 2f
@@ -189,7 +189,10 @@ fun AppleMusicPauseIcon(
     }
 }
 
-/** 上一首：两个对称圆润实心三角，朝左 */
+/**
+ * 上一首：两枚朝左实心三角，相互贴合。
+ * 靠近播放键（右侧/内侧）的三角更大。
+ */
 @Composable
 fun AppleMusicSkipPreviousIcon(
     modifier: Modifier = Modifier,
@@ -204,41 +207,40 @@ fun AppleMusicSkipPreviousIcon(
     Canvas(modifier = describedModifier) {
         val w = size.width
         val h = size.height
-        val shapeH = h * 0.72f
-        val shapeW = w * 0.40f
-        val top = (h - shapeH) / 2f
-        val bottom = top + shapeH
-        val radius = min(shapeW, shapeH) * 0.30f
+        val cy = h / 2f
+        val outerW = w * 0.34f
+        val innerW = w * 0.48f
+        val outerH = h * 0.58f
+        val innerH = h * 0.86f
+        val pad = (w - outerW - innerW) / 2f
 
-        // 右侧（靠后）略小的三角
-        val backRight = w - w * 0.04f
-        val backLeft = backRight - shapeW * 0.88f
+        // 外侧（左，离播放键更远）较小
         drawPlayTriangle(
             color = tint,
             direction = -1,
-            left = backLeft,
-            top = top + h * 0.02f,
-            right = backRight,
-            bottom = bottom - h * 0.02f,
-            cornerRadius = radius * 0.9f
+            left = pad,
+            top = cy - outerH / 2f,
+            right = pad + outerW,
+            bottom = cy + outerH / 2f,
+            cornerRadius = min(outerW, outerH) * 0.30f
         )
-
-        // 左侧（靠前）完整三角
-        val frontLeft = w * 0.04f
-        val frontRight = frontLeft + shapeW
+        // 内侧（右，靠近播放键）更大，与外侧相接
         drawPlayTriangle(
             color = tint,
             direction = -1,
-            left = frontLeft,
-            top = top,
-            right = frontRight,
-            bottom = bottom,
-            cornerRadius = radius
+            left = pad + outerW,
+            top = cy - innerH / 2f,
+            right = pad + outerW + innerW,
+            bottom = cy + innerH / 2f,
+            cornerRadius = min(innerW, innerH) * 0.30f
         )
     }
 }
 
-/** 下一首：两个对称圆润实心三角，朝右 */
+/**
+ * 下一首：两枚朝右实心三角，相互贴合。
+ * 靠近播放键（左侧/内侧）的三角更大。
+ */
 @Composable
 fun AppleMusicSkipNextIcon(
     modifier: Modifier = Modifier,
@@ -253,36 +255,32 @@ fun AppleMusicSkipNextIcon(
     Canvas(modifier = describedModifier) {
         val w = size.width
         val h = size.height
-        val shapeH = h * 0.72f
-        val shapeW = w * 0.40f
-        val top = (h - shapeH) / 2f
-        val bottom = top + shapeH
-        val radius = min(shapeW, shapeH) * 0.30f
+        val cy = h / 2f
+        val innerW = w * 0.48f
+        val outerW = w * 0.34f
+        val innerH = h * 0.86f
+        val outerH = h * 0.58f
+        val pad = (w - innerW - outerW) / 2f
 
-        // 左侧（靠后）略小的三角
-        val backLeft = w * 0.04f
-        val backRight = backLeft + shapeW * 0.88f
+        // 内侧（左，靠近播放键）更大
         drawPlayTriangle(
             color = tint,
             direction = 1,
-            left = backLeft,
-            top = top + h * 0.02f,
-            right = backRight,
-            bottom = bottom - h * 0.02f,
-            cornerRadius = radius * 0.9f
+            left = pad,
+            top = cy - innerH / 2f,
+            right = pad + innerW,
+            bottom = cy + innerH / 2f,
+            cornerRadius = min(innerW, innerH) * 0.30f
         )
-
-        // 右侧（靠前）完整三角
-        val frontRight = w - w * 0.04f
-        val frontLeft = frontRight - shapeW
+        // 外侧（右，离播放键更远）较小，与内侧相接
         drawPlayTriangle(
             color = tint,
             direction = 1,
-            left = frontLeft,
-            top = top,
-            right = frontRight,
-            bottom = bottom,
-            cornerRadius = radius
+            left = pad + innerW,
+            top = cy - outerH / 2f,
+            right = pad + innerW + outerW,
+            bottom = cy + outerH / 2f,
+            cornerRadius = min(outerW, outerH) * 0.30f
         )
     }
 }

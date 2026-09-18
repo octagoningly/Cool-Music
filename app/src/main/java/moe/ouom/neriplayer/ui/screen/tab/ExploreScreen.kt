@@ -81,6 +81,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
@@ -99,6 +100,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -106,6 +108,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -518,7 +521,15 @@ fun ExploreScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (ui.playlists.isEmpty()) vm.loadHighQuality()
+        if (ui.playlists.isEmpty() && !ui.neteaseDiscoveryOpen) vm.loadFeaturedPlaylist()
+    }
+
+    if (
+        ui.neteaseDiscoveryOpen &&
+        ui.selectedSearchSource == SearchSource.NETEASE &&
+        searchQuery.isBlank()
+    ) {
+        BackHandler { vm.closeNeteaseDiscovery() }
     }
 
     LaunchedEffect(ui.selectedSearchSource, orderedSearchSources) {
@@ -881,27 +892,7 @@ fun ExploreScreen(
                         }
                     }
 
-                    // 第二行：原类型栏上移（网易云场景为歌单类型标签）
-                    if (ui.selectedSearchSource == SearchSource.NETEASE) {
-                        ExploreNeteasePlaylistTagRow(
-                            tagKeys = tagKeys,
-                            tagLabels = tagLabels,
-                            selectedTag = ui.selectedTag,
-                            onTagClick = { tagKey ->
-                                if (ui.selectedTag != tagKey) vm.loadHighQuality(tagKey)
-                            },
-                            selectedAlpha = tagChipSelectedAlpha,
-                            unselectedAlpha = tagChipUnselectedAlpha,
-                            borderAlpha = tagChipBorderAlpha
-                        )
-                        if (ui.loading) {
-                            LinearProgressIndicator(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 6.dp)
-                            )
-                        }
-                    }
+                    // 类型标签行仅在「新发现」二级页展示（见 NeteaseDiscoveryPage）
                 }
 
             Box(
@@ -1088,19 +1079,29 @@ fun ExploreScreen(
                 } else {
                     when (currentSource) {
                         SearchSource.NETEASE -> {
-                            NeteaseDefaultContent(
-                                gridState = gridState,
-                                ui = ui,
-                                tagKeys = tagKeys,
-                                tagLabels = tagLabels,
-                                favoriteKeys = favoriteKeys,
-                                vm = vm,
-                                onPlay = onPlay,
-                                tagChipSelectedAlpha = tagChipSelectedAlpha,
-                                tagChipUnselectedAlpha = tagChipUnselectedAlpha,
-                                tagChipBorderAlpha = tagChipBorderAlpha,
-                                isTabletLayout = isTabletLayout
-                            )
+                            if (ui.neteaseDiscoveryOpen && searchQuery.isBlank()) {
+                                NeteaseDiscoveryPage(
+                                    onBack = vm::closeNeteaseDiscovery,
+                                    ui = ui,
+                                    tagKeys = tagKeys,
+                                    tagLabels = tagLabels,
+                                    favoriteKeys = favoriteKeys,
+                                    vm = vm,
+                                    onPlay = onPlay,
+                                    tagChipSelectedAlpha = tagChipSelectedAlpha,
+                                    tagChipUnselectedAlpha = tagChipUnselectedAlpha,
+                                    tagChipBorderAlpha = tagChipBorderAlpha,
+                                    isTabletLayout = isTabletLayout,
+                                    gridState = gridState
+                                )
+                            } else {
+                                NeteaseFeaturedHomeContent(
+                                    ui = ui,
+                                    favoriteKeys = favoriteKeys,
+                                    onPlay = onPlay,
+                                    onDiscover = vm::openNeteaseDiscovery
+                                )
+                            }
                         }
                         SearchSource.BILIBILI -> {
                             Box(Modifier.fillMaxSize(), Alignment.Center) {
@@ -1715,6 +1716,171 @@ private const val EXPLORE_SEARCH_TYPE_BAR_SLIDE_DIVISOR = 5
 internal const val EXPLORE_SEARCH_TYPE_BAR_CONTAINER_TAG = "explore_search_type_bar"
 internal const val EXPLORE_NETEASE_SEARCH_TYPE_BAR_TAG = "explore_netease_search_type_bar"
 internal const val EXPLORE_YOUTUBE_SEARCH_TYPE_BAR_TAG = "explore_youtube_search_type_bar"
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun NeteaseFeaturedHomeContent(
+    ui: ExploreUiState,
+    favoriteKeys: Set<String>,
+    onPlay: (PlaylistSummary) -> Unit,
+    onDiscover: () -> Unit
+) {
+    val miniPlayerHeight = LocalMiniPlayerHeight.current
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = miniPlayerHeight)
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        val featured = ui.playlists.firstOrNull()
+        when {
+            featured != null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.78f)
+                        .widthIn(max = 280.dp)
+                ) {
+                    PlaylistCard(
+                        playlist = featured,
+                        isFavorite = favoriteKeys.contains("netease:${featured.id}"),
+                        onClick = { onPlay(featured) }
+                    )
+                }
+            }
+            ui.loading -> {
+                CircularProgressIndicator()
+            }
+            ui.error != null -> {
+                Text(
+                    text = ui.error.orEmpty(),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            else -> {
+                Text(
+                    text = stringResource(R.string.search_no_result),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = onDiscover) {
+            Text(stringResource(R.string.explore_new_discovery))
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun NeteaseDiscoveryPage(
+    onBack: () -> Unit,
+    ui: ExploreUiState,
+    tagKeys: List<String>,
+    tagLabels: List<String>,
+    favoriteKeys: Set<String>,
+    vm: ExploreViewModel,
+    onPlay: (PlaylistSummary) -> Unit,
+    tagChipSelectedAlpha: Float,
+    tagChipUnselectedAlpha: Float,
+    tagChipBorderAlpha: Float,
+    isTabletLayout: Boolean = false,
+    gridState: LazyGridState
+) {
+    val miniPlayerHeight = LocalMiniPlayerHeight.current
+    val gridHorizontalPadding = if (isTabletLayout) 56.dp else 16.dp
+    val gridMinCellSize = if (isTabletLayout) 170.dp else 150.dp
+    val gridSpacing = if (isTabletLayout) 16.dp else 12.dp
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = miniPlayerHeight)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(R.string.explore_new_discovery)
+                )
+            }
+            Text(
+                text = stringResource(R.string.explore_new_discovery),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
+
+        ExploreNeteasePlaylistTagRow(
+            tagKeys = tagKeys,
+            tagLabels = tagLabels,
+            selectedTag = ui.selectedTag,
+            onTagClick = { tagKey ->
+                if (ui.selectedTag != tagKey) vm.loadHighQuality(tagKey)
+            },
+            selectedAlpha = tagChipSelectedAlpha,
+            unselectedAlpha = tagChipUnselectedAlpha,
+            borderAlpha = tagChipBorderAlpha
+        )
+        if (ui.loading) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp)
+            )
+        }
+
+        LazyVerticalGrid(
+            state = gridState,
+            columns = GridCells.Adaptive(gridMinCellSize),
+            verticalArrangement = Arrangement.spacedBy(gridSpacing),
+            horizontalArrangement = Arrangement.spacedBy(gridSpacing),
+            contentPadding = PaddingValues(
+                start = gridHorizontalPadding,
+                end = gridHorizontalPadding,
+                top = 12.dp,
+                bottom = 16.dp
+            ),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            if (ui.playlists.isNotEmpty()) {
+                items(items = ui.playlists, key = { it.id }) { playlist ->
+                    PlaylistCard(
+                        playlist = playlist,
+                        isFavorite = favoriteKeys.contains("netease:${playlist.id}"),
+                        onClick = { onPlay(playlist) }
+                    )
+                }
+            } else if (!ui.loading) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        Alignment.Center
+                    ) {
+                        Text(
+                            text = ui.error ?: stringResource(R.string.search_no_result),
+                            color = if (ui.error != null) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)

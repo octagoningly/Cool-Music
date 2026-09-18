@@ -77,6 +77,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarState
@@ -182,6 +183,9 @@ private const val HomeScrollKeyYtShelvesError = "home:ytmusic:shelves:error"
 private const val HomeScrollKeyYtEmptyFeedLoading = "home:ytmusic:empty-feed:loading"
 private const val HomeScrollKeyYtEmptyFeedError = "home:ytmusic:empty-feed:error"
 private const val HomeScrollKeyNeteaseRadarPlaylists = "home:netease:radar-playlists"
+
+/** 首页「更多」按钮的滚动键 */
+private const val HomeScrollKeyShowMore = "home:show-more"
 private const val HomeScrollKeyNeteaseRadarPlaylistsHeader = "$HomeScrollKeyNeteaseRadarPlaylists:header"
 private const val HomeScrollKeyNeteaseRadarPlaylistsContent = "$HomeScrollKeyNeteaseRadarPlaylists:content"
 
@@ -767,7 +771,10 @@ fun HomeScreen(
                                 }
 
                                 ui.radarSongSections
-                                    .filter { it.source != NeteaseHomeSongSource.PERSONAL_RADAR }
+                                    .filter {
+                                        it.source != NeteaseHomeSongSource.PERSONAL_RADAR &&
+                                            it.source != NeteaseHomeSongSource.PRIVATE_FM
+                                    }
                                     .forEach { sectionState ->
                                         val sectionKey = homeNeteaseSongSectionKey(
                                             group = "radar",
@@ -788,7 +795,39 @@ fun HomeScreen(
                                     }
                             }
 
-                            if (showNeteaseTrending) {
+                            if (!ui.homeMoreExpanded && (showNeteaseTrending || showRecommendedCard)) {
+                                item(
+                                    key = registerGridItemKey(HomeScrollKeyShowMore),
+                                    span = { GridItemSpan(maxLineSpan) }
+                                ) {
+                                    HomeShowMoreRow(onClick = vm::expandHomeMore)
+                                }
+                            }
+
+                            // 私人 FM 与榜单、推荐歌单一样收在「更多」后面
+                            if (ui.homeMoreExpanded) {
+                                ui.radarSongSections
+                                    .filter { it.source == NeteaseHomeSongSource.PRIVATE_FM }
+                                    .forEach { sectionState ->
+                                        addNeteaseSongSection(
+                                            sectionKey = homeNeteaseSongSectionKey(
+                                                group = "radar",
+                                                source = sectionState.source
+                                            ),
+                                            registerKey = ::registerGridItemKey,
+                                            sectionState = sectionState,
+                                            icon = neteaseSongSectionIcon(sectionState.source),
+                                            loadingText = homeLoadingText,
+                                            onSongClick = onSongClick,
+                                            favoriteSongs = favoriteSongs,
+                                            onFavoriteToggle = ::toggleHomeSongFavorite,
+                                            onShowSnackbar = showHomeSnackbar,
+                                            offlineMode = offlineMode
+                                        )
+                                    }
+                            }
+
+                            if (showNeteaseTrending && ui.homeMoreExpanded) {
                                 ui.trendingSongSections.forEach { sectionState ->
                                     val sectionKey = homeNeteaseSongSectionKey(
                                         group = "trending",
@@ -809,7 +848,7 @@ fun HomeScreen(
                                 }
                             }
 
-                            if (showRecommendedCard) {
+                            if (showRecommendedCard && ui.homeMoreExpanded) {
                                 ui.playlistSections.forEach { sectionState ->
                                     addNeteasePlaylistSection(
                                         sectionKey = homeNeteasePlaylistSectionKey(sectionState.source),
@@ -982,6 +1021,35 @@ private fun neteaseSongSectionIcon(source: NeteaseHomeSongSource): ImageVector {
         NeteaseHomeSongSource.TOP_NEW -> Icons.Outlined.Bolt
         NeteaseHomeSongSource.DAILY_RECOMMEND,
         NeteaseHomeSongSource.PRIVATE_FM -> Icons.Outlined.Explore
+    }
+}
+
+/**
+ * 首页「更多」按钮。
+ * 榜单与推荐歌单等次级板块默认不加载，点这里才拉取，避免冷启动时十几个请求
+ * 同时返回、把解析与列表构建挤在同一帧里。
+ */
+@Composable
+private fun HomeShowMoreRow(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            onClick = onClick,
+            shape = RoundedCornerShape(50),
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            tonalElevation = 0.dp
+        ) {
+            Text(
+                text = stringResource(R.string.home_show_more_sections),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 32.dp, vertical = 10.dp)
+            )
+        }
     }
 }
 

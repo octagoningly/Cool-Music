@@ -199,7 +199,9 @@ data class HomeUiState(
     val ytMusicPlaylists: HomeSectionState<YouTubeMusicPlaylist> = HomeSectionState(),
     val ytMusicHomeShelves: HomeSectionState<YouTubeMusicHomeShelf> = HomeSectionState(),
     val hasLogin: Boolean = false,
-    val internationalizationEnabled: Boolean = false
+    val internationalizationEnabled: Boolean = false,
+    /** 首页「更多」是否已展开：展开前不加载榜单与推荐歌单等次级板块 */
+    val homeMoreExpanded: Boolean = false
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -225,6 +227,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var ytMusicHomeRefreshPending = false
     private var ytMusicHomeLoadGeneration: Long = 0L
     private var homeRecommendationsBootstrapped = false
+
+    /** 首页「更多」是否已展开（展开前不加载次级板块） */
+    private var homeMoreExpanded = false
     private var lastYouTubeAuthFingerprint: String? = null
     private var lastNeteaseRadarCacheContext = neteaseRadarCacheContext(repo.getCookiesOnce())
     private var radarPlaylistLoadGeneration: Long = 0L
@@ -484,9 +489,27 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshNeteaseHome() {
         if (offlineMode) return
 
-        refreshRecommend()
-        loadHomeRecommendations(force = true)
+        // 首屏只加载「私人雷达 → 每日推荐 → 雷达歌单」这条主线。
+        // 私人 FM、榜单与推荐歌单等次级板块收在「更多」按钮后面，等用户点开再加载：
+        // 启动瞬间十几个请求同时返回会把解析、状态更新和列表构建全挤在同一帧里。
+        refreshRadarSongs(NeteaseHomeRadarSongSources - NeteaseHomeSongSource.PRIVATE_FM)
         refreshRadarPlaylists()
+        if (homeMoreExpanded) {
+            refreshRadarSongs(listOf(NeteaseHomeSongSource.PRIVATE_FM))
+            refreshHotSongs()
+            refreshRecommend()
+        }
+    }
+
+    /** 展开首页「更多」：加载私人 FM、榜单与推荐歌单等次级板块 */
+    fun expandHomeMore() {
+        if (homeMoreExpanded) return
+        homeMoreExpanded = true
+        _uiState.update { it.copy(homeMoreExpanded = true) }
+        if (offlineMode) return
+        refreshRadarSongs(listOf(NeteaseHomeSongSource.PRIVATE_FM))
+        refreshHotSongs()
+        refreshRecommend()
     }
 
     /** 拉首页推荐歌单 */
@@ -585,11 +608,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** 刷新首页雷达歌曲板块，保留各来源独立的加载和错误状态 */
-    private fun refreshRadarSongs() {
+    private fun refreshRadarSongs(candidates: List<NeteaseHomeSongSource> = NeteaseHomeRadarSongSources) {
         if (offlineMode) return
 
         val sources = availableNeteaseHomeSongSources(
-            candidates = NeteaseHomeRadarSongSources,
+            candidates = candidates,
             hasLogin = hasRecommendLogin
         )
         if (sources.isEmpty()) {
@@ -602,7 +625,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             state.copy(
                 radarSongSections = buildSongSectionsForRefresh(
                     current = state.radarSongSections,
-                    sources = NeteaseHomeRadarSongSources
+                    sources = candidates
                 ),
                 hasLogin = hasRecommendLogin
             )

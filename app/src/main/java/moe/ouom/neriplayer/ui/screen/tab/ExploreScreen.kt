@@ -113,7 +113,6 @@ import androidx.compose.material3.ripple
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledModalBottomSheet as ModalBottomSheet
 import androidx.compose.foundation.background
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -809,8 +808,7 @@ fun ExploreScreen(
                     }
                     Spacer(Modifier.height(8.dp))
                     var sourceMenuExpanded by remember { mutableStateOf(false) }
-                    val currentSearchSource = orderedSearchSources.getOrNull(pagerState.currentPage)
-                        ?: ui.selectedSearchSource
+                    val currentSearchSource = ui.selectedSearchSource
                     // 第一行：左侧搜索类型（歌曲/歌单/歌手），右侧搜索源按钮（点击原地展开）
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -914,6 +912,8 @@ fun ExploreScreen(
             ) {
                 HorizontalPager(
                     state = pagerState,
+                    // 搜索源已由右侧按钮切换，关闭左右滑动以免误触
+                    userScrollEnabled = false,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
                     val currentSource = orderedSearchSources[page]

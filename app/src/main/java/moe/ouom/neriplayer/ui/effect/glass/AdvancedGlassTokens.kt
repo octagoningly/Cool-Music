@@ -61,6 +61,11 @@ internal fun advancedGlassTokens(
             tintAlpha = if (isDarkTheme) 0.34f else 0.38f,
             edgeAlpha = 0.08f
         )
+        AdvancedGlassRole.ExploreSearchOverlay -> AdvancedGlassTokens(
+            blurRadiusDp = adjustableRadiusDp ?: 32f,
+            tintAlpha = if (isDarkTheme) 0.40f else 0.46f,
+            edgeAlpha = 0.06f
+        )
         AdvancedGlassRole.ThemeModeToggle -> AdvancedGlassTokens(
             blurRadiusDp = adjustableRadiusDp ?: 18f,
             tintAlpha = if (isDarkTheme) 0.36f else 0.40f,

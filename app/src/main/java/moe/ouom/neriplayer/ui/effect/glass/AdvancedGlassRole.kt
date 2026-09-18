@@ -10,6 +10,7 @@ internal enum class AdvancedGlassRole {
     PlaylistSheet,
     SemanticCard,
     ExploreTag,
+    ExploreSearchOverlay,
     ThemeModeToggle,
     InlineControl
 }

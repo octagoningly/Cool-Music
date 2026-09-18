@@ -22,12 +22,41 @@ class ExploreSearchHistoryDisplayTest {
     }
 
     @Test
-    fun `search history hides after content leaves the top`() {
+    fun `search history only shows while search overlay is active`() {
         val history = listOf("你好")
 
-        assertEquals(true, shouldShowExploreSearchHistory(history, contentScrolled = false))
-        assertEquals(false, shouldShowExploreSearchHistory(history, contentScrolled = true))
-        assertEquals(false, shouldShowExploreSearchHistory(emptyList(), contentScrolled = false))
+        assertEquals(
+            true,
+            shouldShowExploreSearchHistory(
+                history,
+                contentScrolled = false,
+                searchOverlayActive = true
+            )
+        )
+        assertEquals(
+            false,
+            shouldShowExploreSearchHistory(
+                history,
+                contentScrolled = false,
+                searchOverlayActive = false
+            )
+        )
+        assertEquals(
+            false,
+            shouldShowExploreSearchHistory(
+                history,
+                contentScrolled = true,
+                searchOverlayActive = true
+            )
+        )
+        assertEquals(
+            false,
+            shouldShowExploreSearchHistory(
+                emptyList(),
+                contentScrolled = false,
+                searchOverlayActive = true
+            )
+        )
     }
 
     @Test

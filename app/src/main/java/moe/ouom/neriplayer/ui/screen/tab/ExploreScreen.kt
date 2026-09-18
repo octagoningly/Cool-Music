@@ -75,6 +75,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
@@ -455,6 +456,8 @@ fun ExploreScreen(
     val tagChipUnselectedAlpha = if (backgroundImageUri == null) 1f else 0.74f
     val tagChipBorderAlpha = if (backgroundImageUri == null) 1f else 0.58f
     var previousSearchSource by remember { mutableStateOf(ui.selectedSearchSource) }
+    var isSearchFieldFocused by remember { mutableStateOf(false) }
+    val isSearchOverlayActive = isSearchFieldFocused && searchQuery.isBlank()
     val isExploreContentScrolled by remember(
         searchQuery,
         ui.selectedSearchSource,
@@ -477,7 +480,8 @@ fun ExploreScreen(
     }
     val shouldShowSearchHistory = shouldShowExploreSearchHistory(
         history = visibleSearchHistory,
-        contentScrolled = isExploreContentScrolled
+        contentScrolled = isExploreContentScrolled,
+        searchOverlayActive = isSearchOverlayActive
     )
     val searchTypeBarSource = exploreSearchTypeBarSource(
         selectedSearchSource = ui.selectedSearchSource,
@@ -676,6 +680,7 @@ fun ExploreScreen(
             resolveExploreSearchKeyword(normalizedQuery, availableSearchHistory)
         }
         onSearchQueryChange(normalizedQuery)
+        isSearchFieldFocused = false
         focusManager.clearFocus()
         vm.search(keyword, displayQuery = normalizedQuery)
         queueExploreSearchRecord(normalizedQuery)
@@ -780,22 +785,15 @@ fun ExploreScreen(
                         }),
                         singleLine = true,
                         shape = ExploreSearchFieldShape,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    ExploreSearchHistoryRow(
-                        history = visibleSearchHistory,
-                        visible = shouldShowSearchHistory,
-                        query = searchQuery,
-                        onHistoryClick = { item -> submitExploreSearch(item) },
-                        onClearHistory = {
-                            lastRecordedSearchKeyword = null
-                            pendingSearchHistoryRecord = null
-                            scope.launch {
-                                searchHistoryRepository.clear()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                isSearchFieldFocused = focusState.isFocused
                             }
-                        }
                     )
-                    if (ui.selectedSearchSource == SearchSource.NETEASE && !ui.isNeteaseLoggedIn) {
+                    if (ui.selectedSearchSource == SearchSource.NETEASE && !ui.isNeteaseLoggedIn &&
+                        !isSearchOverlayActive
+                    ) {
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = stringResource(R.string.netease_login_required_search),
@@ -803,7 +801,9 @@ fun ExploreScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    if (ui.selectedSearchSource == SearchSource.LINK_RECOGNITION) {
+                    if (ui.selectedSearchSource == SearchSource.LINK_RECOGNITION &&
+                        !isSearchOverlayActive
+                    ) {
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = stringResource(R.string.explore_link_input_hint),
@@ -811,6 +811,7 @@ fun ExploreScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
+                    if (!isSearchOverlayActive) {
                     Spacer(Modifier.height(8.dp))
                     AdvancedGlassSurface(
                         role = AdvancedGlassRole.ScreenTopTab,
@@ -855,8 +856,60 @@ fun ExploreScreen(
                         unselectedAlpha = tagChipUnselectedAlpha,
                         borderAlpha = tagChipBorderAlpha
                     )
+                    }
                 }
 
+            if (isSearchOverlayActive) {
+                // 点搜索框：毛玻璃 + 搜索历史；提交搜索后关闭
+                val overlayDismissInteraction = remember { MutableInteractionSource() }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = overlayDismissInteraction,
+                                indication = null
+                            ) {
+                                isSearchFieldFocused = false
+                                focusManager.clearFocus()
+                            }
+                    ) {
+                        AdvancedGlassSurface(
+                            role = AdvancedGlassRole.ExploreSearchOverlay,
+                            modifier = Modifier.fillMaxSize(),
+                            fallbackColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.28f)
+                        ) {
+                            Box(Modifier.fillMaxSize())
+                        }
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = searchPanelHorizontalPadding,
+                                vertical = 12.dp
+                            )
+                    ) {
+                        ExploreSearchHistoryRow(
+                            history = visibleSearchHistory,
+                            visible = shouldShowSearchHistory,
+                            query = searchQuery,
+                            onHistoryClick = { item -> submitExploreSearch(item) },
+                            onClearHistory = {
+                                lastRecordedSearchKeyword = null
+                                pendingSearchHistoryRecord = null
+                                scope.launch {
+                                    searchHistoryRepository.clear()
+                                }
+                            }
+                        )
+                    }
+                }
+            } else {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
@@ -1075,6 +1128,7 @@ fun ExploreScreen(
                         }
                     }
                 }
+            }
             }
         }
     }
@@ -1456,9 +1510,10 @@ internal fun filteredExploreSearchHistory(history: List<String>): List<String> {
 
 internal fun shouldShowExploreSearchHistory(
     history: List<String>,
-    contentScrolled: Boolean
+    contentScrolled: Boolean,
+    searchOverlayActive: Boolean = false
 ): Boolean {
-    return history.isNotEmpty() && !contentScrolled
+    return history.isNotEmpty() && searchOverlayActive && !contentScrolled
 }
 
 internal fun shouldShowExploreNeteaseSearchTypeBar(

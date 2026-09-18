@@ -266,6 +266,7 @@ private fun advancedGlassRoleColor(role: AdvancedGlassRole): Color = when (role)
     AdvancedGlassRole.PlaylistSheet,
     AdvancedGlassRole.SemanticCard -> MaterialTheme.colorScheme.surfaceContainerHigh
     AdvancedGlassRole.ExploreTag -> MaterialTheme.colorScheme.surface
+    AdvancedGlassRole.ExploreSearchOverlay -> MaterialTheme.colorScheme.surfaceContainerHigh
     AdvancedGlassRole.ThemeModeToggle -> MaterialTheme.colorScheme.surfaceVariant
     AdvancedGlassRole.InlineControl -> Color.Transparent
 }

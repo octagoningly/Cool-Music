@@ -48,7 +48,8 @@ internal fun canSampleAdvancedGlassBackdrop(
 ): Boolean {
     val roleEnabled = when (role) {
         AdvancedGlassRole.MiniPlayer,
-        AdvancedGlassRole.BottomNavigation -> controller.isBaseBlurEnabled
+        AdvancedGlassRole.BottomNavigation,
+        AdvancedGlassRole.ExploreSearchOverlay -> controller.isBaseBlurEnabled
         else -> controller.isEnabled && controller.advancedBlurQuality.supports(role)
     }
     return roleEnabled && glassDepth == 0 && advancedGlassTokens(role, false).samplesBackdrop

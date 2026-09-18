@@ -1090,67 +1090,45 @@ fun ExploreScreen(
                         focusManager.clearFocus()
                     }
                     val overlayDismissInteraction = remember { MutableInteractionSource() }
+                    // 与底部导航/迷你播放栏同款：整块覆盖搜索框以下区域
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                    ) {
-                        // 底层仍是探索内容，毛玻璃叠在上面
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable(
-                                    interactionSource = overlayDismissInteraction,
-                                    indication = null
-                                ) {
-                                    isSearchFieldFocused = false
-                                    focusManager.clearFocus()
-                                }
-                        ) {
-                            AdvancedGlassSurface(
-                                role = AdvancedGlassRole.ExploreSearchOverlay,
-                                modifier = Modifier.fillMaxSize(),
-                                fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.42f)
+                            .clickable(
+                                interactionSource = overlayDismissInteraction,
+                                indication = null
                             ) {
-                                Box(Modifier.fillMaxSize())
+                                isSearchFieldFocused = false
+                                focusManager.clearFocus()
                             }
-                        }
-
-                        // 搜索历史：独立毛玻璃面板
-                        Column(
-                            modifier = Modifier
-                                .widthIn(max = 1040.dp)
-                                .fillMaxWidth()
-                                .align(Alignment.TopCenter)
-                                .padding(
-                                    horizontal = searchPanelHorizontalPadding,
-                                    vertical = 12.dp
-                                )
+                    ) {
+                        AdvancedGlassSurface(
+                            role = AdvancedGlassRole.ExploreSearchOverlay,
+                            modifier = Modifier.fillMaxSize(),
+                            fallbackColor = MaterialTheme.colorScheme.background.copy(alpha = 0.92f),
+                            tintColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         ) {
-                            AdvancedGlassSurface(
-                                role = AdvancedGlassRole.ExploreSearchOverlay,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(20.dp),
-                                fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                                ) {
-                                    ExploreSearchHistoryRow(
-                                        history = visibleSearchHistory,
-                                        visible = shouldShowSearchHistory,
-                                        query = searchQuery,
-                                        onHistoryClick = { item -> submitExploreSearch(item) },
-                                        onClearHistory = {
-                                            lastRecordedSearchKeyword = null
-                                            pendingSearchHistoryRecord = null
-                                            scope.launch {
-                                                searchHistoryRepository.clear()
-                                            }
-                                        }
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(
+                                        horizontal = searchPanelHorizontalPadding,
+                                        vertical = 12.dp
                                     )
-                                }
+                            ) {
+                                ExploreSearchHistoryRow(
+                                    history = visibleSearchHistory,
+                                    visible = shouldShowSearchHistory,
+                                    query = searchQuery,
+                                    onHistoryClick = { item -> submitExploreSearch(item) },
+                                    onClearHistory = {
+                                        lastRecordedSearchKeyword = null
+                                        pendingSearchHistoryRecord = null
+                                        scope.launch {
+                                            searchHistoryRepository.clear()
+                                        }
+                                    }
+                                )
                             }
                         }
                     }

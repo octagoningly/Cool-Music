@@ -26,6 +26,12 @@ internal fun advancedGlassTokens(
             tintAlpha = 0.75f,
             edgeAlpha = 0.12f
         )
+        AdvancedGlassRole.ExploreSearchOverlay -> AdvancedGlassTokens(
+            // 对齐底部导航/迷你播放栏的实感，避免搜索层过透
+            blurRadiusDp = adjustableRadiusDp ?: 28f,
+            tintAlpha = 0.75f,
+            edgeAlpha = 0.12f
+        )
         AdvancedGlassRole.ScreenTopTab -> AdvancedGlassTokens(
             blurRadiusDp = adjustableRadiusDp ?: 22f,
             tintAlpha = if (isDarkTheme) 0.16f else 0.18f,
@@ -60,11 +66,6 @@ internal fun advancedGlassTokens(
             blurRadiusDp = adjustableRadiusDp ?: 18f,
             tintAlpha = if (isDarkTheme) 0.34f else 0.38f,
             edgeAlpha = 0.08f
-        )
-        AdvancedGlassRole.ExploreSearchOverlay -> AdvancedGlassTokens(
-            blurRadiusDp = adjustableRadiusDp ?: 32f,
-            tintAlpha = if (isDarkTheme) 0.40f else 0.46f,
-            edgeAlpha = 0.06f
         )
         AdvancedGlassRole.ThemeModeToggle -> AdvancedGlassTokens(
             blurRadiusDp = adjustableRadiusDp ?: 18f,

@@ -87,7 +87,8 @@ internal fun AdvancedGlassSurface(
     val resolvedTintColor = if (tintColor.isColorSpecified) tintColor else advancedGlassRoleColor(role)
     val edgeBaseColor = MaterialTheme.colorScheme.onSurface
     val requiresContentBackdrop = role == AdvancedGlassRole.MiniPlayer ||
-        role == AdvancedGlassRole.BottomNavigation
+        role == AdvancedGlassRole.BottomNavigation ||
+        role == AdvancedGlassRole.ExploreSearchOverlay
     val backdropsReady = availableBackdrops?.let { backdrops ->
         backdrops.background.positionInWindow.isSpecified &&
             (!requiresContentBackdrop || backdrops.content.positionInWindow.isSpecified)
@@ -266,7 +267,7 @@ private fun advancedGlassRoleColor(role: AdvancedGlassRole): Color = when (role)
     AdvancedGlassRole.PlaylistSheet,
     AdvancedGlassRole.SemanticCard -> MaterialTheme.colorScheme.surfaceContainerHigh
     AdvancedGlassRole.ExploreTag -> MaterialTheme.colorScheme.surface
-    AdvancedGlassRole.ExploreSearchOverlay -> MaterialTheme.colorScheme.surfaceContainerHigh
+    AdvancedGlassRole.ExploreSearchOverlay -> MaterialTheme.colorScheme.surfaceContainerHighest
     AdvancedGlassRole.ThemeModeToggle -> MaterialTheme.colorScheme.surfaceVariant
     AdvancedGlassRole.InlineControl -> Color.Transparent
 }

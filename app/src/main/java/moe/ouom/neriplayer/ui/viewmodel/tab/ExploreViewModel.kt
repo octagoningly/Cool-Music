@@ -776,6 +776,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         if (state.neteaseDiscoveryOpen) return
         NPLogger.d(TAG, "openNeteaseDiscovery: cachedPlaylists=${state.playlists.size}")
         _uiState.value = state.copy(neteaseDiscoveryOpen = true)
+        // 全屏二级页始终需要完整列表（首页可能只缓存了 1 张封面）
         if (state.playlists.size < 2 && !state.loading) {
             loadHighQuality(state.selectedTag)
         }

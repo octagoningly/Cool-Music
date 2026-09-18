@@ -61,6 +61,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -728,6 +729,11 @@ fun ExploreScreen(
         }
     )
 
+    val showNeteaseDiscoveryPage = ui.neteaseDiscoveryOpen &&
+        ui.selectedSearchSource == SearchSource.NETEASE &&
+        searchQuery.isBlank()
+
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         modifier = Modifier
             .fillMaxSize(),
@@ -1079,29 +1085,12 @@ fun ExploreScreen(
                 } else {
                     when (currentSource) {
                         SearchSource.NETEASE -> {
-                            if (ui.neteaseDiscoveryOpen && searchQuery.isBlank()) {
-                                NeteaseDiscoveryPage(
-                                    onBack = vm::closeNeteaseDiscovery,
-                                    ui = ui,
-                                    tagKeys = tagKeys,
-                                    tagLabels = tagLabels,
-                                    favoriteKeys = favoriteKeys,
-                                    vm = vm,
-                                    onPlay = onPlay,
-                                    tagChipSelectedAlpha = tagChipSelectedAlpha,
-                                    tagChipUnselectedAlpha = tagChipUnselectedAlpha,
-                                    tagChipBorderAlpha = tagChipBorderAlpha,
-                                    isTabletLayout = isTabletLayout,
-                                    gridState = gridState
-                                )
-                            } else {
-                                NeteaseFeaturedHomeContent(
-                                    ui = ui,
-                                    favoriteKeys = favoriteKeys,
-                                    onPlay = onPlay,
-                                    onDiscover = vm::openNeteaseDiscovery
-                                )
-                            }
+                            NeteaseFeaturedHomeContent(
+                                ui = ui,
+                                favoriteKeys = favoriteKeys,
+                                onPlay = onPlay,
+                                onDiscover = vm::openNeteaseDiscovery
+                            )
                         }
                         SearchSource.BILIBILI -> {
                             Box(Modifier.fillMaxSize(), Alignment.Center) {
@@ -1132,6 +1121,30 @@ fun ExploreScreen(
 
             }
         }
+    }
+
+    if (showNeteaseDiscoveryPage) {
+        BackHandler(enabled = true) { vm.closeNeteaseDiscovery() }
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            NeteaseDiscoveryPage(
+                onBack = vm::closeNeteaseDiscovery,
+                ui = ui,
+                tagKeys = tagKeys,
+                tagLabels = tagLabels,
+                favoriteKeys = favoriteKeys,
+                vm = vm,
+                onPlay = onPlay,
+                tagChipSelectedAlpha = tagChipSelectedAlpha,
+                tagChipUnselectedAlpha = tagChipUnselectedAlpha,
+                tagChipBorderAlpha = tagChipBorderAlpha,
+                isTabletLayout = isTabletLayout,
+                gridState = gridState
+            )
+        }
+    }
     }
 
     if (showPartsSheet && partsInfo != null) {
@@ -1795,6 +1808,7 @@ private fun NeteaseDiscoveryPage(
     val gridMinCellSize = if (isTabletLayout) 170.dp else 150.dp
     val gridSpacing = if (isTabletLayout) 16.dp else 12.dp
 
+    // 独立全屏二级页：不包含探索搜索框
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1803,6 +1817,7 @@ private fun NeteaseDiscoveryPage(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .windowInsetsPadding(TopAppBarDefaults.windowInsets)
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1814,7 +1829,7 @@ private fun NeteaseDiscoveryPage(
             }
             Text(
                 text = stringResource(R.string.explore_new_discovery),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(start = 4.dp)
             )
         }

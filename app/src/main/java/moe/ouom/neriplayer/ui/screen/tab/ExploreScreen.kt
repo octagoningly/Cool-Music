@@ -51,14 +51,17 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
@@ -107,6 +110,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledModalBottomSheet as ModalBottomSheet
+import androidx.compose.foundation.background
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
@@ -458,6 +462,21 @@ fun ExploreScreen(
     var previousSearchSource by remember { mutableStateOf(ui.selectedSearchSource) }
     var isSearchFieldFocused by remember { mutableStateOf(false) }
     val isSearchOverlayActive = isSearchFieldFocused && searchQuery.isBlank()
+    // 键盘收起后自动退出搜索层，无需再侧滑返回
+    val density = LocalDensity.current
+    val imeVisible = with(density) { WindowInsets.ime.getBottom(this) > 0 }
+    var wasImeVisibleWhileSearchActive by remember { mutableStateOf(false) }
+    LaunchedEffect(imeVisible, isSearchOverlayActive) {
+        if (imeVisible && isSearchOverlayActive) {
+            wasImeVisibleWhileSearchActive = true
+        } else if (!imeVisible && wasImeVisibleWhileSearchActive) {
+            wasImeVisibleWhileSearchActive = false
+            if (isSearchOverlayActive) {
+                isSearchFieldFocused = false
+                focusManager.clearFocus()
+            }
+        }
+    }
     val isExploreContentScrolled by remember(
         searchQuery,
         ui.selectedSearchSource,
@@ -1084,13 +1103,13 @@ fun ExploreScreen(
             }
 
                 if (isSearchOverlayActive) {
-                    // 侧滑返回只关闭搜索层，不退回首页
+                    // 侧滑/系统返回只关闭搜索层，不退回首页
                     BackHandler {
                         isSearchFieldFocused = false
                         focusManager.clearFocus()
                     }
                     val overlayDismissInteraction = remember { MutableInteractionSource() }
-                    // 与底部导航/迷你播放栏同款：整块覆盖搜索框以下区域
+                    // 整块覆盖搜索框以下区域；叠色对齐并加强底部导航实感
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -1105,31 +1124,40 @@ fun ExploreScreen(
                         AdvancedGlassSurface(
                             role = AdvancedGlassRole.ExploreSearchOverlay,
                             modifier = Modifier.fillMaxSize(),
-                            fallbackColor = MaterialTheme.colorScheme.background.copy(alpha = 0.92f),
+                            fallbackColor = MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
                             tintColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         ) {
-                            Column(
+                            // 玻璃之上再压一层实色，避免大面积过透
+                            Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(
-                                        horizontal = searchPanelHorizontalPadding,
-                                        vertical = 12.dp
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceContainerHighest
+                                            .copy(alpha = 0.62f)
                                     )
-                            ) {
-                                ExploreSearchHistoryRow(
-                                    history = visibleSearchHistory,
-                                    visible = shouldShowSearchHistory,
-                                    query = searchQuery,
-                                    onHistoryClick = { item -> submitExploreSearch(item) },
-                                    onClearHistory = {
-                                        lastRecordedSearchKeyword = null
-                                        pendingSearchHistoryRecord = null
-                                        scope.launch {
-                                            searchHistoryRepository.clear()
-                                        }
-                                    }
+                            )
+                        }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(
+                                    horizontal = searchPanelHorizontalPadding,
+                                    vertical = 12.dp
                                 )
-                            }
+                        ) {
+                            ExploreSearchHistoryRow(
+                                history = visibleSearchHistory,
+                                visible = shouldShowSearchHistory,
+                                query = searchQuery,
+                                onHistoryClick = { item -> submitExploreSearch(item) },
+                                onClearHistory = {
+                                    lastRecordedSearchKeyword = null
+                                    pendingSearchHistoryRecord = null
+                                    scope.launch {
+                                        searchHistoryRepository.clear()
+                                    }
+                                }
+                            )
                         }
                     }
                 }

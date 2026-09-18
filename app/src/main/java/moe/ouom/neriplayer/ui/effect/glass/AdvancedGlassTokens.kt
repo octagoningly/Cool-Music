@@ -27,10 +27,10 @@ internal fun advancedGlassTokens(
             edgeAlpha = 0.12f
         )
         AdvancedGlassRole.ExploreSearchOverlay -> AdvancedGlassTokens(
-            // 对齐底部导航/迷你播放栏的实感，避免搜索层过透
-            blurRadiusDp = adjustableRadiusDp ?: 28f,
-            tintAlpha = 0.75f,
-            edgeAlpha = 0.12f
+            // 比底部导航更实：更大模糊半径 + 更高叠色，避免大面积过透
+            blurRadiusDp = adjustableRadiusDp ?: 40f,
+            tintAlpha = 0.88f,
+            edgeAlpha = 0.14f
         )
         AdvancedGlassRole.ScreenTopTab -> AdvancedGlassTokens(
             blurRadiusDp = adjustableRadiusDp ?: 22f,

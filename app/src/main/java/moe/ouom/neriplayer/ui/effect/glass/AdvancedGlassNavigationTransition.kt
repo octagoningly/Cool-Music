@@ -28,23 +28,14 @@ internal const val ADVANCED_GLASS_NAVIGATION_DAMPING_RATIO =
     Spring.DampingRatioNoBouncy
 internal const val ADVANCED_GLASS_NAVIGATION_STIFFNESS =
     Spring.StiffnessMediumLow
-internal const val ADVANCED_GLASS_MAIN_TAB_EXIT_DURATION_MS = 70
-internal const val ADVANCED_GLASS_MAIN_TAB_ENTER_DURATION_MS = 330
+// 主 Tab 切换：更短、更跟手，降低双页合成时的掉帧感
+internal const val ADVANCED_GLASS_MAIN_TAB_EXIT_DURATION_MS = 45
+internal const val ADVANCED_GLASS_MAIN_TAB_ENTER_DURATION_MS = 200
 internal const val ADVANCED_GLASS_MAIN_TAB_TRANSITION_DURATION_MS =
     ADVANCED_GLASS_MAIN_TAB_EXIT_DURATION_MS +
         ADVANCED_GLASS_MAIN_TAB_ENTER_DURATION_MS
-internal val ADVANCED_GLASS_MAIN_TAB_EXIT_EASING = CubicBezierEasing(
-    0.4f,
-    0f,
-    0.2f,
-    1f
-)
-internal val ADVANCED_GLASS_MAIN_TAB_ENTER_EASING = CubicBezierEasing(
-    0.4f,
-    0f,
-    0.2f,
-    1f
-)
+internal val ADVANCED_GLASS_MAIN_TAB_EXIT_EASING = FastOutSlowInEasing
+internal val ADVANCED_GLASS_MAIN_TAB_ENTER_EASING = FastOutSlowInEasing
 
 internal fun advancedGlassNavigationSpringSpec(): FiniteAnimationSpec<IntOffset> = spring(
     dampingRatio = ADVANCED_GLASS_NAVIGATION_DAMPING_RATIO,

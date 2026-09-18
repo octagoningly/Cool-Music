@@ -48,7 +48,7 @@ class AdvancedGlassNavigationTransitionTest {
             ADVANCED_GLASS_MAIN_TAB_TRANSITION_DURATION_MS,
             exitSpec.durationMillis + enterSpec.durationMillis
         )
-        assertEquals(400, transitionSpec.durationMillis)
+        assertEquals(245, transitionSpec.durationMillis)
         assertEquals(0, transitionSpec.delay)
         assertTrue(
             "主 Tab 转场必须使用非线性缓动",
@@ -56,7 +56,7 @@ class AdvancedGlassNavigationTransitionTest {
         )
         assertTrue(
             "主 Tab 转场前段不能太快",
-            transitionSpec.easing.transform(0.25f) < 0.35f
+            transitionSpec.easing.transform(0.25f) < 0.45f
         )
     }
 

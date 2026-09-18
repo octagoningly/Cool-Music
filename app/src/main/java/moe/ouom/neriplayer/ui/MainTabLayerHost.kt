@@ -253,7 +253,8 @@ internal fun MainTabLayerHost(
         })
     }
     val saveableStateHolder = rememberSaveableStateHolder()
-    AdvancedGlassNavigationHandoff(enabled = visibleScenes.size > 1) {
+    // 主 Tab 切换时关闭玻璃 handoff，避免双页同时参与模糊导致 120Hz 掉帧
+    AdvancedGlassNavigationHandoff(enabled = false) {
         Box(
             modifier = modifier
                 .clipToBounds()
@@ -267,15 +268,10 @@ internal fun MainTabLayerHost(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .offset {
-                                IntOffset(
-                                    x = (
-                                        transitionState.offsetFractionFor(scene) * widthPx
-                                    ).roundToInt(),
-                                    y = 0
-                                )
+                            .graphicsLayer {
+                                // 用 GPU 位移，避免 layout offset 每帧重排
+                                translationX = transitionState.offsetFractionFor(scene) * widthPx
                             }
-                            .graphicsLayer()
                     ) {
                         CompositionLocalProvider(
                             LocalAdvancedGlassNavigationOwner provides scene.glassOwner,

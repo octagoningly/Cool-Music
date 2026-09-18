@@ -859,94 +859,47 @@ fun ExploreScreen(
                     }
                 }
 
-            if (isSearchOverlayActive) {
-                // 点搜索框：毛玻璃 + 搜索历史；提交搜索后关闭
-                val overlayDismissInteraction = remember { MutableInteractionSource() }
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable(
-                                interactionSource = overlayDismissInteraction,
-                                indication = null
-                            ) {
-                                isSearchFieldFocused = false
-                                focusManager.clearFocus()
-                            }
-                    ) {
-                        AdvancedGlassSurface(
-                            role = AdvancedGlassRole.ExploreSearchOverlay,
-                            modifier = Modifier.fillMaxSize(),
-                            fallbackColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.28f)
-                        ) {
-                            Box(Modifier.fillMaxSize())
-                        }
-                    }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal = searchPanelHorizontalPadding,
-                                vertical = 12.dp
-                            )
-                    ) {
-                        ExploreSearchHistoryRow(
-                            history = visibleSearchHistory,
-                            visible = shouldShowSearchHistory,
-                            query = searchQuery,
-                            onHistoryClick = { item -> submitExploreSearch(item) },
-                            onClearHistory = {
-                                lastRecordedSearchKeyword = null
-                                pendingSearchHistoryRecord = null
-                                scope.launch {
-                                    searchHistoryRepository.clear()
-                                }
-                            }
-                        )
-                    }
-                }
-            } else {
-            HorizontalPager(
-                state = pagerState,
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-            ) { page ->
-                val currentSource = orderedSearchSources[page]
-                if (searchQuery.isNotEmpty()) {
-                    if (shouldRenderExploreSearchResults(page, pagerState.currentPage)) {
-                        when {
-                            ui.searching -> {
-                                Box(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(bottom = miniPlayerHeight),
-                                    Alignment.Center
-                                ) { CircularProgressIndicator() }
-                            }
-                            ui.searchError != null -> {
-                                Box(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(bottom = miniPlayerHeight),
-                                    Alignment.Center
-                                ) {
-                                    Text(ui.searchError!!, color = MaterialTheme.colorScheme.error)
+            ) {
+                // 底层探索内容始终保留，供毛玻璃采样
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    val currentSource = orderedSearchSources[page]
+                    if (searchQuery.isNotEmpty()) {
+                        if (shouldRenderExploreSearchResults(page, pagerState.currentPage)) {
+                            when {
+                                ui.searching -> {
+                                    Box(
+                                        Modifier
+                                            .fillMaxSize()
+                                            .padding(bottom = miniPlayerHeight),
+                                        Alignment.Center
+                                    ) { CircularProgressIndicator() }
                                 }
-                            }
-                            ui.searchItems.isEmpty() -> {
-                                Box(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .padding(bottom = miniPlayerHeight),
-                                    Alignment.Center
-                                ) { Text(stringResource(R.string.search_no_result)) }
-                            }
-                            else -> {
+                                ui.searchError != null -> {
+                                    Box(
+                                        Modifier
+                                            .fillMaxSize()
+                                            .padding(bottom = miniPlayerHeight),
+                                        Alignment.Center
+                                    ) {
+                                        Text(ui.searchError!!, color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                                ui.searchItems.isEmpty() -> {
+                                    Box(
+                                        Modifier
+                                            .fillMaxSize()
+                                            .padding(bottom = miniPlayerHeight),
+                                        Alignment.Center
+                                    ) { Text(stringResource(R.string.search_no_result)) }
+                                }
+                                else -> {
                                 LazyColumn(
                                     state = searchListState,
                                     contentPadding = PaddingValues(
@@ -1129,6 +1082,79 @@ fun ExploreScreen(
                     }
                 }
             }
+
+                if (isSearchOverlayActive) {
+                    // 侧滑返回只关闭搜索层，不退回首页
+                    BackHandler {
+                        isSearchFieldFocused = false
+                        focusManager.clearFocus()
+                    }
+                    val overlayDismissInteraction = remember { MutableInteractionSource() }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
+                        // 底层仍是探索内容，毛玻璃叠在上面
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable(
+                                    interactionSource = overlayDismissInteraction,
+                                    indication = null
+                                ) {
+                                    isSearchFieldFocused = false
+                                    focusManager.clearFocus()
+                                }
+                        ) {
+                            AdvancedGlassSurface(
+                                role = AdvancedGlassRole.ExploreSearchOverlay,
+                                modifier = Modifier.fillMaxSize(),
+                                fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.42f)
+                            ) {
+                                Box(Modifier.fillMaxSize())
+                            }
+                        }
+
+                        // 搜索历史：独立毛玻璃面板
+                        Column(
+                            modifier = Modifier
+                                .widthIn(max = 1040.dp)
+                                .fillMaxWidth()
+                                .align(Alignment.TopCenter)
+                                .padding(
+                                    horizontal = searchPanelHorizontalPadding,
+                                    vertical = 12.dp
+                                )
+                        ) {
+                            AdvancedGlassSurface(
+                                role = AdvancedGlassRole.ExploreSearchOverlay,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                ) {
+                                    ExploreSearchHistoryRow(
+                                        history = visibleSearchHistory,
+                                        visible = shouldShowSearchHistory,
+                                        query = searchQuery,
+                                        onHistoryClick = { item -> submitExploreSearch(item) },
+                                        onClearHistory = {
+                                            lastRecordedSearchKeyword = null
+                                            pendingSearchHistoryRecord = null
+                                            scope.launch {
+                                                searchHistoryRepository.clear()
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

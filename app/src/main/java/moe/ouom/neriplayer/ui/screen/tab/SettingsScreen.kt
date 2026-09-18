@@ -1141,7 +1141,8 @@ fun SettingsScreen(
     }
 
     val isSettingsSplitLayout = currentWindowWidthDp() >= 840.dp
-    var activeSettingsPage by rememberSaveable {
+    // 二级页不使用 rememberSaveable：离开设置后不恢复，避免再进时先闪二级页
+    var activeSettingsPage by remember {
         mutableStateOf(if (isSettingsSplitLayout) SettingsPage.General else null)
     }
     fun refreshStorageDetails() {
@@ -1177,13 +1178,13 @@ fun SettingsScreen(
     }
     var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
     var settingsHighlightTargetId by rememberSaveable { mutableStateOf<String?>(null) }
-    // 从其他主 Tab 再次进入设置：回到一级页
+    // 离开设置 Tab 时已在后台重置；若组合仍存活则同步清掉二级页
     LaunchedEffect(settingsTabEntryTick) {
         if (settingsTabEntryTick <= 0) return@LaunchedEffect
         activeSettingsPage = if (isSettingsSplitLayout) SettingsPage.General else null
         settingsSearchQuery = ""
         settingsHighlightTargetId = null
-        listState.scrollToItem(0)
+        runCatching { listState.scrollToItem(0) }
     }
     var settingsHighlightPulse by rememberSaveable { mutableIntStateOf(0) }
     var settingsSearchRequestId by rememberSaveable { mutableIntStateOf(0) }

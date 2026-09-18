@@ -2412,11 +2412,14 @@ private fun NeriAppContent(
             var settingsTabEntryTick by remember { mutableIntStateOf(0) }
             fun navigateToMainTab(route: String) {
                 if (selectedMainTabRoute != route) {
+                    // 离开设置 Tab 时后台重置，下次进入直接是一级页
+                    if (
+                        selectedMainTabRoute == Destinations.Settings.route &&
+                        route != Destinations.Settings.route
+                    ) {
+                        settingsTabEntryTick++
+                    }
                     selectedMainTabRoute = route
-                }
-                // 从其他主 Tab 再次进入设置时，重置为设置一级页
-                if (route == Destinations.Settings.route) {
-                    settingsTabEntryTick++
                 }
                 mainTabTransitionState.request(route)
                 if (

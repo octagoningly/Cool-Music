@@ -460,23 +460,6 @@ fun ExploreScreen(
     val tagChipUnselectedAlpha = if (backgroundImageUri == null) 1f else 0.74f
     val tagChipBorderAlpha = if (backgroundImageUri == null) 1f else 0.58f
     var previousSearchSource by remember { mutableStateOf(ui.selectedSearchSource) }
-    var isSearchFieldFocused by remember { mutableStateOf(false) }
-    val isSearchOverlayActive = isSearchFieldFocused && searchQuery.isBlank()
-    // 键盘收起后自动退出搜索层，无需再侧滑返回
-    val density = LocalDensity.current
-    val imeVisible = with(density) { WindowInsets.ime.getBottom(this) > 0 }
-    var wasImeVisibleWhileSearchActive by remember { mutableStateOf(false) }
-    LaunchedEffect(imeVisible, isSearchOverlayActive) {
-        if (imeVisible && isSearchOverlayActive) {
-            wasImeVisibleWhileSearchActive = true
-        } else if (!imeVisible && wasImeVisibleWhileSearchActive) {
-            wasImeVisibleWhileSearchActive = false
-            if (isSearchOverlayActive) {
-                isSearchFieldFocused = false
-                focusManager.clearFocus()
-            }
-        }
-    }
     val isExploreContentScrolled by remember(
         searchQuery,
         ui.selectedSearchSource,
@@ -497,11 +480,6 @@ fun ExploreScreen(
             }
         }
     }
-    val shouldShowSearchHistory = shouldShowExploreSearchHistory(
-        history = visibleSearchHistory,
-        contentScrolled = isExploreContentScrolled,
-        searchOverlayActive = isSearchOverlayActive
-    )
     val searchTypeBarSource = exploreSearchTypeBarSource(
         selectedSearchSource = ui.selectedSearchSource,
         contentScrolled = isExploreContentScrolled
@@ -699,7 +677,6 @@ fun ExploreScreen(
             resolveExploreSearchKeyword(normalizedQuery, availableSearchHistory)
         }
         onSearchQueryChange(normalizedQuery)
-        isSearchFieldFocused = false
         focusManager.clearFocus()
         vm.search(keyword, displayQuery = normalizedQuery)
         queueExploreSearchRecord(normalizedQuery)
@@ -804,14 +781,9 @@ fun ExploreScreen(
                         }),
                         singleLine = true,
                         shape = ExploreSearchFieldShape,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                isSearchFieldFocused = focusState.isFocused
-                            }
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    if (ui.selectedSearchSource == SearchSource.NETEASE && !ui.isNeteaseLoggedIn &&
-                        !isSearchOverlayActive
+                    if (ui.selectedSearchSource == SearchSource.NETEASE && !ui.isNeteaseLoggedIn
                     ) {
                         Spacer(Modifier.height(6.dp))
                         Text(
@@ -820,8 +792,7 @@ fun ExploreScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    if (ui.selectedSearchSource == SearchSource.LINK_RECOGNITION &&
-                        !isSearchOverlayActive
+                    if (ui.selectedSearchSource == SearchSource.LINK_RECOGNITION
                     ) {
                         Spacer(Modifier.height(6.dp))
                         Text(
@@ -830,7 +801,6 @@ fun ExploreScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    if (!isSearchOverlayActive) {
                     Spacer(Modifier.height(8.dp))
                     AdvancedGlassSurface(
                         role = AdvancedGlassRole.ScreenTopTab,
@@ -875,7 +845,6 @@ fun ExploreScreen(
                         unselectedAlpha = tagChipUnselectedAlpha,
                         borderAlpha = tagChipBorderAlpha
                     )
-                    }
                 }
 
             Box(
@@ -883,7 +852,6 @@ fun ExploreScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                // 底层探索内容始终保留，供毛玻璃采样
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
@@ -1102,65 +1070,6 @@ fun ExploreScreen(
                 }
             }
 
-                if (isSearchOverlayActive) {
-                    // 侧滑/系统返回只关闭搜索层，不退回首页
-                    BackHandler {
-                        isSearchFieldFocused = false
-                        focusManager.clearFocus()
-                    }
-                    val overlayDismissInteraction = remember { MutableInteractionSource() }
-                    // 整块覆盖搜索框以下区域；叠色对齐并加强底部导航实感
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable(
-                                interactionSource = overlayDismissInteraction,
-                                indication = null
-                            ) {
-                                isSearchFieldFocused = false
-                                focusManager.clearFocus()
-                            }
-                    ) {
-                        AdvancedGlassSurface(
-                            role = AdvancedGlassRole.ExploreSearchOverlay,
-                            modifier = Modifier.fillMaxSize(),
-                            fallbackColor = MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
-                            tintColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                        ) {
-                            // 玻璃之上再压一层实色，避免大面积过透
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
-                                            .copy(alpha = 0.62f)
-                                    )
-                            )
-                        }
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(
-                                    horizontal = searchPanelHorizontalPadding,
-                                    vertical = 12.dp
-                                )
-                        ) {
-                            ExploreSearchHistoryRow(
-                                history = visibleSearchHistory,
-                                visible = shouldShowSearchHistory,
-                                query = searchQuery,
-                                onHistoryClick = { item -> submitExploreSearch(item) },
-                                onClearHistory = {
-                                    lastRecordedSearchKeyword = null
-                                    pendingSearchHistoryRecord = null
-                                    scope.launch {
-                                        searchHistoryRepository.clear()
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
             }
         }
     }

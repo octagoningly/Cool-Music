@@ -82,6 +82,25 @@ internal fun resolveMainTabLayerSceneOffsetFraction(
     }
 }
 
+/** 主 Tab 横向顺序，用于切换后把未展示的页停靠到屏外 */
+internal val MAIN_TAB_ROUTE_ORDER = listOf(
+    moe.ouom.neriplayer.navigation.Destinations.Home.route,
+    moe.ouom.neriplayer.navigation.Destinations.Explore.route,
+    moe.ouom.neriplayer.navigation.Destinations.Library.route,
+    moe.ouom.neriplayer.navigation.Destinations.Settings.route
+)
+
+/** 未展示主 Tab 停靠在屏外的偏移，避免与当前页叠在同一位置 */
+internal fun resolveMainTabParkedOffsetFraction(
+    route: String,
+    currentRoute: String
+): Float {
+    val routeIndex = MAIN_TAB_ROUTE_ORDER.indexOf(route)
+    val currentIndex = MAIN_TAB_ROUTE_ORDER.indexOf(currentRoute)
+    if (routeIndex < 0 || currentIndex < 0 || route == currentRoute) return 0f
+    return if (routeIndex < currentIndex) -1.05f else 1.05f
+}
+
 internal val LocalMainTabSceneRestored = staticCompositionLocalOf { false }
 
 internal fun shouldSuppressRestoredMainTabHostEntry(
@@ -248,9 +267,13 @@ internal fun MainTabLayerHost(
     val visibleScenes = transitionState.visibleScenes
     var widthPx by remember { mutableIntStateOf(0) }
     SideEffect {
-        onVisibleGlassOwnersChanged(visibleScenes.mapTo(linkedSetOf()) { scene ->
-            scene.glassOwner
-        })
+        // 只把接近屏幕中央的 Tab 注册给玻璃，停靠页不参与模糊
+        val activeOwners = visibleScenes
+            .filter { scene ->
+                kotlin.math.abs(transitionState.offsetFractionFor(scene)) < 0.5f
+            }
+            .mapTo(linkedSetOf()) { scene -> scene.glassOwner }
+        onVisibleGlassOwnersChanged(activeOwners)
     }
     val saveableStateHolder = rememberSaveableStateHolder()
     // 主 Tab 切换时关闭玻璃 handoff，避免双页同时参与模糊导致 120Hz 掉帧
@@ -269,8 +292,10 @@ internal fun MainTabLayerHost(
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
-                                // 用 GPU 位移，避免 layout offset 每帧重排
-                                translationX = transitionState.offsetFractionFor(scene) * widthPx
+                                // GPU 位移；停靠页 alpha=0，不参与绘制
+                                val fraction = transitionState.offsetFractionFor(scene)
+                                translationX = fraction * widthPx
+                                alpha = if (kotlin.math.abs(fraction) >= 0.99f) 0f else 1f
                             }
                     ) {
                         CompositionLocalProvider(
@@ -291,7 +316,7 @@ internal fun MainTabLayerHost(
                                 scene.transitionToken != 0L
                             ) {
                                 LaunchedEffect(scene.transitionToken) {
-                                    withFrameNanos { }
+                                    // 等一帧完成首合成，避免空页滑入；已常驻的 Tab 不会走这里
                                     withFrameNanos { }
                                     transitionState.onIncomingScenePrepared(
                                         scene.transitionToken
@@ -327,48 +352,85 @@ internal class MainTabLayerTransitionController(
     private var awaitingIncomingScenePreparation = false
     private var hasStartedTabAnimation = false
     private var queuedTransitionRequest: TransitionRequest? = null
+    private val retainedRoutes = mutableSetOf(initialRoute)
 
     val visibleScenes: List<MainTabLayerScene>
         get() {
             val fromRoute = fromRouteState
             if (!runningState || fromRoute == null || fromRoute == toRouteState) {
-                return listOf(
+                return retainedRoutes.map { route ->
                     MainTabLayerScene(
-                        route = toRouteState,
+                        route = route,
                         phase = MainTabLayerScenePhase.Settled,
-                        restored = targetSceneRestoredState,
-                        restorationToken = targetSceneRestorationToken
+                        restored = route == toRouteState && targetSceneRestoredState,
+                        restorationToken = if (route == toRouteState) {
+                            targetSceneRestorationToken
+                        } else {
+                            0L
+                        }
                     )
-                )
+                }
             }
-            return listOf(
-                MainTabLayerScene(
-                    route = fromRoute,
-                    phase = MainTabLayerScenePhase.Exiting,
-                    direction = directionState,
-                    restored = false
-                ),
-                MainTabLayerScene(
-                    route = toRouteState,
-                    phase = MainTabLayerScenePhase.Entering,
-                    direction = directionState,
-                    transitionToken = if (awaitingIncomingScenePreparation) {
-                        generation
-                    } else {
-                        0L
-                    },
-                    restored = targetSceneRestoredState,
-                    restorationToken = targetSceneRestorationToken
-                )
-            )
+            val scenes = ArrayList<MainTabLayerScene>(retainedRoutes.size)
+            retainedRoutes.forEach { route ->
+                when (route) {
+                    fromRoute -> scenes.add(
+                        MainTabLayerScene(
+                            route = route,
+                            phase = MainTabLayerScenePhase.Exiting,
+                            direction = directionState,
+                            restored = false
+                        )
+                    )
+                    toRouteState -> scenes.add(
+                        MainTabLayerScene(
+                            route = route,
+                            phase = MainTabLayerScenePhase.Entering,
+                            direction = directionState,
+                            transitionToken = if (awaitingIncomingScenePreparation) {
+                                generation
+                            } else {
+                                0L
+                            },
+                            restored = targetSceneRestoredState,
+                            restorationToken = targetSceneRestorationToken
+                        )
+                    )
+                    else -> scenes.add(
+                        MainTabLayerScene(
+                            route = route,
+                            phase = MainTabLayerScenePhase.Settled,
+                            restored = false
+                        )
+                    )
+                }
+            }
+            return scenes
         }
 
-    fun offsetFractionFor(scene: MainTabLayerScene): Float =
-        resolveMainTabLayerSceneOffsetFraction(
-            phase = scene.phase,
-            direction = scene.direction,
-            progress = progressState
-        )
+    fun offsetFractionFor(scene: MainTabLayerScene): Float {
+        val fromRoute = fromRouteState
+        if (!runningState || fromRoute == null || fromRoute == toRouteState) {
+            return if (scene.route == toRouteState) {
+                0f
+            } else {
+                resolveMainTabParkedOffsetFraction(scene.route, toRouteState)
+            }
+        }
+        return when (scene.route) {
+            fromRoute -> resolveMainTabLayerSceneOffsetFraction(
+                phase = MainTabLayerScenePhase.Exiting,
+                direction = directionState,
+                progress = progressState
+            )
+            toRouteState -> resolveMainTabLayerSceneOffsetFraction(
+                phase = MainTabLayerScenePhase.Entering,
+                direction = directionState,
+                progress = progressState
+            )
+            else -> resolveMainTabParkedOffsetFraction(scene.route, toRouteState)
+        }
+    }
 
     fun request(targetRoute: String, restored: Boolean = false) {
         if (!containerReady) {
@@ -453,13 +515,17 @@ internal class MainTabLayerTransitionController(
     private fun startTransition(next: TransitionStart) {
         val requestGeneration = ++generation
         transitionJob?.cancel()
+        // 已合成过的页直接动画；首次进入的页先等一帧合成，避免空页滑入
+        val incomingAlreadyComposed = retainedRoutes.contains(next.toRoute)
+        retainedRoutes.add(next.toRoute)
+        retainedRoutes.add(next.fromRoute)
         fromRouteState = next.fromRoute
         toRouteState = next.toRoute
         directionState = next.direction
         progressState = next.progress.coerceIn(0f, 1f)
         targetSceneRestoredState = next.restored
         targetSceneRestorationToken = requestGeneration
-        awaitingIncomingScenePreparation = !hasStartedTabAnimation
+        awaitingIncomingScenePreparation = !incomingAlreadyComposed
         runningState = true
         transitionJob = null
         if (!awaitingIncomingScenePreparation) {

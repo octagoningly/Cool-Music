@@ -116,6 +116,34 @@ class NeriAppMainTabTransitionPolicyTest {
     }
 
     @Test
+    fun `parked main tabs stay offscreen beside the current tab`() {
+        assertEquals(
+            -1.05f,
+            resolveMainTabParkedOffsetFraction(
+                route = Destinations.Home.route,
+                currentRoute = Destinations.Library.route
+            ),
+            0.001f
+        )
+        assertEquals(
+            1.05f,
+            resolveMainTabParkedOffsetFraction(
+                route = Destinations.Settings.route,
+                currentRoute = Destinations.Library.route
+            ),
+            0.001f
+        )
+        assertEquals(
+            0f,
+            resolveMainTabParkedOffsetFraction(
+                route = Destinations.Library.route,
+                currentRoute = Destinations.Library.route
+            ),
+            0.001f
+        )
+    }
+
+    @Test
     fun `new tab intent is dispatched before stale navigation catches up`() {
         assertTrue(
             shouldDispatchMainTabNavigation(

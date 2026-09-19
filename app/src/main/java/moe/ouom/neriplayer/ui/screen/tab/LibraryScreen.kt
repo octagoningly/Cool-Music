@@ -109,7 +109,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -120,6 +123,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1393,6 +1397,51 @@ private fun LocalPlaylistList(
         }
     )
 
+    // Keep auto-scrolling while dragging near list edges so the held playlist stays under the finger
+    val density = LocalDensity.current
+    LaunchedEffect(localSortMode, listState, reorderState) {
+        if (!localSortMode) return@LaunchedEffect
+        val scrollStepPx = with(density) { 28.dp.toPx() }
+        val edgeKeep = with(density) { 72.dp.toPx() }
+        val edgeInsetPx = with(density) { 16.dp.toPx() }
+        while (localSortMode) {
+            val draggingIndex = reorderState.draggingItemIndex
+            if (draggingIndex == null) {
+                delay(16L)
+                continue
+            }
+            val info = listState.layoutInfo
+            val visible = info.visibleItemsInfo
+            if (visible.isEmpty()) {
+                delay(16L)
+                continue
+            }
+            val draggingItem = visible.firstOrNull { it.index == draggingIndex }
+            val viewportEnd = info.viewportEndOffset - edgeInsetPx
+            val viewportStart = info.viewportStartOffset
+            when {
+                draggingItem != null &&
+                    draggingItem.offset + draggingItem.size >= viewportEnd - edgeKeep &&
+                    listState.canScrollForward -> {
+                    listState.scrollBy(scrollStepPx)
+                }
+                draggingItem == null && listState.canScrollForward -> {
+                    // dragged below visible range: keep scrolling so list moves up under finger
+                    listState.scrollBy(scrollStepPx)
+                }
+                draggingItem != null &&
+                    draggingItem.offset <= viewportStart + edgeKeep &&
+                    listState.canScrollBackward -> {
+                    listState.scrollBy(-scrollStepPx)
+                }
+                draggingItem == null && listState.canScrollBackward -> {
+                    listState.scrollBy(-scrollStepPx)
+                }
+            }
+            delay(16L)
+        }
+    }
+
     val displayedFavoritesPlaylist = favoritesPlaylist
         ?.takeIf { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
     val displayedLocalFilesPlaylist = localFilesPlaylist
@@ -1420,15 +1469,13 @@ private fun LocalPlaylistList(
             start = 8.dp,
             end = 8.dp,
             top = 8.dp,
-            bottom = if (localSortMode) {
-                88.dp + miniPlayerHeight
-            } else {
-                8.dp + miniPlayerHeight
-            }
+            bottom = if (localSortMode) 24.dp else 8.dp
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxSize()
+            // Shrink list viewport above mini player so drag auto-scroll stops in the visible area
+            .padding(bottom = miniPlayerHeight)
             .reorderable(reorderState)
     ) {
         val cardShape = RoundedCornerShape(12.dp)
@@ -2104,29 +2151,40 @@ private fun LocalLibraryHeaderContent(
             if (showLocalSort) {
                 HapticIconButton(
                     onClick = onToggleLocalSort,
-                    modifier = Modifier
-                        .padding(end = 4.dp)
-                        .size(40.dp)
+                    modifier = Modifier.padding(end = 2.dp)
                 ) {
-                    Icon(
-                        imageVector = if (localSortMode) {
-                            Icons.Filled.Check
-                        } else {
-                            Icons.AutoMirrored.Filled.Sort
-                        },
-                        contentDescription = stringResource(
-                            if (localSortMode) {
-                                R.string.action_done
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (localSortMode) {
+                                Icons.Filled.Check
                             } else {
-                                R.string.library_local_playlist_sort
+                                Icons.AutoMirrored.Filled.Sort
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = if (localSortMode) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
                             }
-                        ),
-                        tint = if (localSortMode) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        }
-                    )
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(
+                                if (localSortMode) R.string.action_done
+                                else R.string.library_local_playlist_sort
+                            ),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (localSortMode) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
+                        )
+                    }
                 }
             }
             if (showCreatePlaylist && !selectionMode && !localSortMode) {

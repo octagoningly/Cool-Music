@@ -144,9 +144,10 @@ fun AppleMusicPlayIcon(
         val w = size.width
         val h = size.height
         // 比例贴近 Apple Music：三角略偏高、厚实（播放/暂停整体约 1.2 倍）
-        val shapeW = w * 0.80f
+        val shapeW = w * 0.72f
         val shapeH = h * 0.92f
-        val left = (w - shapeW) / 2f
+        // 右向三角几何居中后视觉重心偏左；左留白大于右留白，使三角在圆角按钮内看起来居中
+        val left = w * 0.22f
         val top = (h - shapeH) / 2f
         val right = left + shapeW
         val bottom = top + shapeH

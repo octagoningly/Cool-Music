@@ -23,8 +23,15 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.about
  * Updated: 2026/3/23
  */
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -35,12 +42,23 @@ import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import moe.ouom.neriplayer.BuildConfig
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.ui.screen.tab.settings.component.settingsItemClickable
+import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialog
+import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialogContent
+import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextButton
 import moe.ouom.neriplayer.util.format.convertTimestampToDate
 
 internal fun LazyListScope.settingsAboutSection(
@@ -67,7 +85,8 @@ internal fun SettingsAboutContent(
     onOpenGitHubRepo: () -> Unit
 ) {
     SettingsAboutIntroItem()
-    SettingsOriginalAuthorItem(onOpenOriginalRepo = onOpenGitHubRepo)
+    SettingsOriginalAuthorItem()
+    SettingsAboutUpdateItem()
     SettingsBuildUuidItem(onCopyValue)
     SettingsVersionItem(
         devModeEnabled = devModeEnabled,
@@ -100,7 +119,9 @@ private fun SettingsAboutIntroItem() {
 }
 
 @Composable
-private fun SettingsOriginalAuthorItem(onOpenOriginalRepo: () -> Unit) {
+private fun SettingsOriginalAuthorItem() {
+    var showDetailDialog by remember { mutableStateOf(false) }
+
     ListItem(
         leadingContent = {
             Icon(
@@ -116,11 +137,75 @@ private fun SettingsOriginalAuthorItem(onOpenOriginalRepo: () -> Unit) {
             )
         },
         supportingContent = {
-            Text(stringResource(R.string.about_original_author_desc))
+            // 列表行保持固定高度的单行摘要；完整声明点开弹窗查看
+            Text(
+                text = stringResource(R.string.about_original_author_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         },
-        modifier = androidx.compose.ui.Modifier.settingsItemClickable(onClick = onOpenOriginalRepo),
+        trailingContent = {
+            Icon(
+                imageVector = Icons.Filled.ChevronRight,
+                contentDescription = stringResource(R.string.about_original_author_detail_hint),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        modifier = Modifier
+            .heightIn(min = 68.dp)
+            .settingsItemClickable { showDetailDialog = true },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
     )
+
+    if (showDetailDialog) {
+        MiuixSettingsDialog(
+            onDismissRequest = { showDetailDialog = false },
+            confirmButton = {
+                MiuixSettingsTextButton(onClick = { showDetailDialog = false }) {
+                    Text(stringResource(R.string.about_original_author_confirm))
+                }
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.about_original_author_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    MiuixSettingsDialogContent {
+                        Text(
+                            text = stringResource(R.string.about_original_author_desc),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.about_original_author_upstream_label),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = stringResource(R.string.about_original_author_upstream),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.about_original_author_license_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -142,7 +227,7 @@ private fun SettingsBuildUuidItem(onCopyValue: (String) -> Unit) {
             )
         },
         supportingContent = { Text(buildUuid) },
-        modifier = androidx.compose.ui.Modifier.settingsItemClickable {
+        modifier = Modifier.settingsItemClickable {
             onCopyValue(buildUuid)
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -177,7 +262,7 @@ private fun SettingsVersionItem(
             )
         },
         supportingContent = { Text(versionName) },
-        modifier = androidx.compose.ui.Modifier.settingsItemClickable {
+        modifier = Modifier.settingsItemClickable {
             onCopyValue(versionName)
             onVersionClick()
         },
@@ -204,7 +289,7 @@ private fun SettingsBuildTimeItem(onCopyValue: (String) -> Unit) {
             )
         },
         supportingContent = { Text(buildTime) },
-        modifier = androidx.compose.ui.Modifier.settingsItemClickable {
+        modifier = Modifier.settingsItemClickable {
             onCopyValue(buildTime)
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -222,8 +307,16 @@ private fun SettingsGitHubItem(onOpenGitHubRepo: () -> Unit) {
             )
         },
         headlineContent = { Text(stringResource(R.string.common_github)) },
-        supportingContent = { Text(stringResource(R.string.settings_github_repo_url)) },
-        modifier = androidx.compose.ui.Modifier.settingsItemClickable(onClick = onOpenGitHubRepo),
+        supportingContent = {
+            Text(
+                text = stringResource(R.string.settings_github_repo_url),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        modifier = Modifier
+            .heightIn(min = 68.dp)
+            .settingsItemClickable(onClick = onOpenGitHubRepo),
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
     )
 }

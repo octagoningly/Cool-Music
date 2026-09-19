@@ -1,16 +1,31 @@
 import org.gradle.api.Project
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
 object Common {
+    /**
+     * Minute-precision versionCode that fits in Android Int (max ~2.1e9).
+     *
+     * Raw yyMMddHHmm overflows (e.g. 2609191530 > Int.MAX_VALUE), so we pack:
+     * (year-2020)*100_000_000 + MM*1_000_000 + dd*10_000 + HH*100 + mm
+     * Example: 2026-09-19 15:30 → 609191530.
+     * Same-hour double releases no longer collide.
+     */
     fun getBuildVersionCode(): Int {
-        val appVerCode: Int by lazy {
-            val versionCode = SimpleDateFormat("yyMMddHH", Locale.ENGLISH).format(Date())
-            versionCode.toInt()
-        }
-        return appVerCode
+        val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Taipei"), Locale.ENGLISH)
+        val yearOffset = cal.get(Calendar.YEAR) - 2020
+        val month = cal.get(Calendar.MONTH) + 1
+        val day = cal.get(Calendar.DAY_OF_MONTH)
+        val hour = cal.get(Calendar.HOUR_OF_DAY)
+        val minute = cal.get(Calendar.MINUTE)
+        return yearOffset * 100_000_000 +
+            month * 1_000_000 +
+            day * 10_000 +
+            hour * 100 +
+            minute
     }
 
     private fun getCurrentDate(project: Project): String {

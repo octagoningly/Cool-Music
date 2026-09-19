@@ -66,11 +66,34 @@ object SystemLocalPlaylists {
             context
         )
         val others = playlists.filterNot { isSystemPlaylist(it, context) }
+        val hadFavorites = playlists.any { FavoritesPlaylist.isSystemPlaylist(it, context) }
 
-        return buildList {
-            add(favorites)
-            addAll(others)
-            add(localFiles)
+        // Keep 我喜欢的音乐 in its custom-sorted position when already present.
+        val body = if (hadFavorites) {
+            var favoritesInserted = false
+            buildList {
+                playlists.forEach { item ->
+                    when {
+                        FavoritesPlaylist.isSystemPlaylist(item, context) -> {
+                            if (!favoritesInserted) {
+                                add(favorites)
+                                favoritesInserted = true
+                            }
+                        }
+                        LocalFilesPlaylist.isSystemPlaylist(item, context) -> Unit
+                        isSystemPlaylist(item, context) -> Unit
+                        else -> add(item)
+                    }
+                }
+                if (!favoritesInserted) add(favorites)
+            }
+        } else {
+            buildList {
+                add(favorites)
+                addAll(others)
+            }
         }
+
+        return body + localFiles
     }
 }

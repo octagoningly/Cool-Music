@@ -42,14 +42,19 @@ class WebDavApiClient(
 
     companion object {
         private const val TAG = "WebDavApiClient"
-        private const val DEFAULT_REMOTE_FILE_NAME = "neriplayer-sync.json"
+        private const val DEFAULT_REMOTE_FILE_NAME = "coolmusic-sync.json"
+        private const val LEGACY_REMOTE_FILE_NAME = "neriplayer-sync.json"
 
         fun calculateFingerprint(content: ByteArray): String {
             val digest = MessageDigest.getInstance("SHA-256").digest(content)
             return digest.joinToString("") { "%02x".format(it) }
         }
 
-        fun buildRemoteFileUrl(serverUrl: String, basePath: String): String {
+        fun buildRemoteFileUrl(
+            serverUrl: String,
+            basePath: String,
+            fileName: String = DEFAULT_REMOTE_FILE_NAME,
+        ): String {
             val normalizedServerUrl = serverUrl.trim().trimEnd('/')
             val normalizedBasePath = basePath.trim().trim('/')
             val urlBuilder = normalizedServerUrl.toHttpUrl().newBuilder()
@@ -59,9 +64,12 @@ class WebDavApiClient(
                     .filter(String::isNotBlank)
                     .forEach(urlBuilder::addPathSegment)
             }
-            urlBuilder.addPathSegment(DEFAULT_REMOTE_FILE_NAME)
+            urlBuilder.addPathSegment(fileName)
             return urlBuilder.build().toString()
         }
+
+        fun buildLegacyRemoteFileUrl(serverUrl: String, basePath: String): String =
+            buildRemoteFileUrl(serverUrl, basePath, LEGACY_REMOTE_FILE_NAME)
     }
 
     data class ConcurrencyToken(

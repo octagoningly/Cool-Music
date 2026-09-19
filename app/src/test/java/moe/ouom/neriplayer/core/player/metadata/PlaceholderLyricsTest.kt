@@ -84,4 +84,16 @@ class PlaceholderLyricsTest {
         )
         assertFalse(isPlaceholderLyrics(lyric))
     }
+
+    @Test
+    fun `stored placeholder lyrics are not accepted for display`() {
+        assertFalse(shouldAcceptStoredLyricEntries(emptyList()))
+        assertFalse(shouldAcceptStoredLyricEntries(listOf(entry("暂无歌词"))))
+        assertFalse(shouldAcceptStoredLyricEntries(listOf(entry("纯音乐，请欣赏"))))
+        assertTrue(
+            shouldAcceptStoredLyricEntries(
+                listOf(entry("故事的小黄花"), entry("从出生那年就飘着"))
+            )
+        )
+    }
 }

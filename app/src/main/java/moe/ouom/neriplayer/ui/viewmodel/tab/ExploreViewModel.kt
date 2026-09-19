@@ -60,6 +60,8 @@ private const val TAG = "NERI-ExploreVM"
 private const val NETEASE_SEARCH_PAGE_SIZE = 30
 private const val YOUTUBE_MUSIC_SEARCH_LIMIT = 30
 private const val BILI_RESOURCE_TYPE_COLLECTION = 21
+private const val FEATURED_PLAYLIST_COUNT = 30
+private const val DISCOVERY_MIN_CACHED_PLAYLISTS = 20
 
 /**
  * Tag key to Chinese API category mapping
@@ -169,6 +171,8 @@ data class ExploreUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val playlists: List<PlaylistSummary> = emptyList(),
+    /** 探索首页精选封面候选池：冷启动拉一批，UI 随机固定展示一张（不轮播） */
+    val featuredPlaylists: List<PlaylistSummary> = emptyList(),
     val selectedTag: String = "tag_all",  // String resource key
     val neteaseDiscoveryOpen: Boolean = false,
     val searching: Boolean = false,
@@ -355,7 +359,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 // 每次都重新拉精品歌单会造成重复请求，并让列表反复进入 loading——观感就是「刷新很慢」。
                 // 已有数据时不再重复拉取；切换标签仍由界面显式触发 loadHighQuality。
                 val state = _uiState.value
-                if (state.playlists.isEmpty() && !state.loading && !state.neteaseDiscoveryOpen) {
+                if (
+                    state.featuredPlaylists.isEmpty() &&
+                    state.playlists.isEmpty() &&
+                    !state.loading &&
+                    !state.neteaseDiscoveryOpen
+                ) {
                     NPLogger.d(TAG, "cookieFlow updated, load featured playlist")
                     loadFeaturedPlaylist()
                 }
@@ -726,7 +735,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * 探索首页只拉一张精品歌单封面；完整网格等用户点「新发现」再拉。
+     * 探索首页精选：拉一小批精品歌单作候选，UI 随机固定一张，
+     * 避免每次冷启动进探索页都是同一张封面；完整网格等点「新发现」再拉。
      */
     fun loadFeaturedPlaylist() {
         val currentState = _uiState.value
@@ -745,14 +755,16 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         highQualityLoadJob = viewModelScope.launch {
             try {
                 val raw = withContext(Dispatchers.IO) {
-                    neteaseClient.getHighQualityPlaylists("全部", 1, 0L)
+                    neteaseClient.getHighQualityPlaylists("全部", FEATURED_PLAYLIST_COUNT, 0L)
                 }
-                val mapped = parsePlaylists(raw).take(1)
-                NPLogger.d(TAG, "loadFeaturedPlaylist success: count=${mapped.size}")
+                val pool = parsePlaylists(raw).take(FEATURED_PLAYLIST_COUNT)
+                // 冷启动随机定一张；首页只展示这一张，不做轮播
+                val mapped = listOfNotNull(pool.randomOrNull())
+                NPLogger.d(TAG, "loadFeaturedPlaylist success: pool=${pool.size} featured=${mapped.size}")
                 _uiState.value = _uiState.value.copy(
                     loading = false,
                     error = null,
-                    playlists = mapped,
+                    featuredPlaylists = mapped,
                     selectedTag = "tag_all"
                 )
             } catch (e: CancellationException) {
@@ -775,8 +787,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         if (state.neteaseDiscoveryOpen) return
         NPLogger.d(TAG, "openNeteaseDiscovery: cachedPlaylists=${state.playlists.size}")
         _uiState.value = state.copy(neteaseDiscoveryOpen = true)
-        // 全屏二级页始终需要完整列表（首页可能只缓存了 1 张封面）
-        if (state.playlists.size < 2 && !state.loading) {
+        // 二级页需要完整网格；首页 featured 池只是轮播子集
+        if (state.playlists.size < DISCOVERY_MIN_CACHED_PLAYLISTS && !state.loading) {
             loadHighQuality(state.selectedTag)
         }
     }
@@ -784,14 +796,17 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     /** 进入探索 Tab 时重置：始终停在首页，不残留「新发现」二级页 */
     fun resetToExploreHome() {
         val state = _uiState.value
-        if (!state.neteaseDiscoveryOpen && state.playlists.size <= 1) {
+        if (!state.neteaseDiscoveryOpen && state.featuredPlaylists.isNotEmpty()) {
             return
         }
         NPLogger.d(TAG, "resetToExploreHome: discoveryOpen=${state.neteaseDiscoveryOpen}")
         if (state.neteaseDiscoveryOpen) {
             closeNeteaseDiscovery()
         }
-        if (_uiState.value.playlists.isEmpty() && !_uiState.value.loading) {
+        if (
+            _uiState.value.featuredPlaylists.isEmpty() &&
+            !_uiState.value.loading
+        ) {
             loadFeaturedPlaylist()
         }
     }
@@ -800,14 +815,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val state = _uiState.value
         if (!state.neteaseDiscoveryOpen) return
         NPLogger.d(TAG, "closeNeteaseDiscovery")
-        _uiState.value = state.copy(
-            neteaseDiscoveryOpen = false,
-            playlists = if (state.playlists.isEmpty()) {
-                emptyList()
-            } else {
-                listOf(state.playlists.first())
-            }
-        )
+        // 首页轮播读 featuredPlaylists；playlists 可保留完整网格，下次进二级页免重复拉取
+        _uiState.value = state.copy(neteaseDiscoveryOpen = false)
     }
 
     private fun parsePlaylists(raw: String): List<PlaylistSummary> {

@@ -28,12 +28,12 @@
     <string name="home_netease_hot_playlists">Hot Playlists</string>
     <string name="home_netease_acg_playlists">ACG Playlists</string>
     <string name="home_loading">Loading recommendations for you…</string>
-    <string name="home_load_failed">Load failed: %s</string>
-    <string name="home_error_network">Network or server error: %s</string>
-    <string name="home_error_unknown">Parse or unknown error: %s</string>
+    <string name="home_load_failed">Network is weak. Content cannot load right now.</string>
+    <string name="home_error_network">Network is weak. Please try again later.</string>
+    <string name="home_error_unknown">Something went wrong loading. Try again later.</string>
     <string name="home_login_required">Sign in to enable</string>
     <string name="home_login_required_hint">Will auto-enable after sign-in</string>
-    <string name="home_retry_hint">Tap refresh in the upper right to retry~</string>
+    <string name="home_retry_hint">Pull to refresh or tap the refresh icon</string>
     <string name="home_play_count_format" formatted="false">%s · %d songs</string>
     <string name="home_unfavorite_playlist">Unfavorite</string>
     <string name="home_favorite_playlist">Favorite Playlist</string>
@@ -43,8 +43,8 @@
     <string name="home_title_brand_wave">NeriPlayer~</string>
     <string name="home_title_brand_call">Hey, NeriPlayer</string>
     <string name="home_all_cards_hidden">All home cards are hidden. Re-enable them in Settings.</string>
-    <string name="home_offline_no_continue">Offline mode only shows Continue Playing. Nothing is available yet.</string>
-    <string name="offline_mode_title">Offline Mode</string>
-    <string name="offline_mode_bottom_hint">Currently in offline mode</string>
+    <string name="home_offline_no_continue">Network is weak. Online content cannot load right now. It will refresh when the network recovers.</string>
+    <string name="offline_mode_title">Network unavailable</string>
+    <string name="offline_mode_bottom_hint">Network unavailable</string>
     <string name="home_show_more_sections">More</string>
 </resources>

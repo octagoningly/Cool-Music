@@ -47,6 +47,9 @@ AGENTS.md
 *.keystore
 /app/neri.jks
 *.idsig
+/dist/
+/dist/**
 /CoolMusic-signed-install.apk
 /CoolMusic-v*-signed*.apk
 /CoolMusic-v*.apk
+

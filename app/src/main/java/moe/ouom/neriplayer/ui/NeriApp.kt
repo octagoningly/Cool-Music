@@ -1323,24 +1323,6 @@ private fun NowPlayingAccentBackdrop(
 }
 
 @Composable
-private fun OfflineModeBottomBanner() {
-    Surface(
-        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.92f),
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        shape = RoundedCornerShape(14.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.offline_mode_bottom_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-        )
-    }
-}
-
-@Composable
 fun NeriApp(
     initialThemeSnapshot: ThemePreferenceSnapshot = ThemePreferenceSnapshot(),
     launcherShortcutRequestFlow: StateFlow<LauncherShortcutRequest?> =
@@ -3450,10 +3432,6 @@ private fun NeriAppContent(
                                             alpha = bottomBarVisibilityProgress
                                         }
                                 ) {
-                                    AnimatedVisibility(visible = offlineMode) {
-                                        OfflineModeBottomBanner()
-                                    }
-
                                     NeriBottomBar(
                                         modifier = Modifier.fillMaxWidth(),
                                         selectAlpha = selectAlpha,

@@ -2,5 +2,30 @@
 <resources>
     <string name="about_app_footer">Cool Music (based on NeriPlayer) - GPLv3</string>
     <string name="about_original_author_title">Original authors</string>
+    <string name="about_original_author_summary">NeriPlayer derivative under GPLv3 — tap for details</string>
+    <string name="about_original_author_detail_hint">View full statement</string>
     <string name="about_original_author_desc">This app is a derivative of NeriPlayer (github.com/cwuom/NeriPlayer), licensed under GPLv3. Original authors: NeriPlayer developers (cwuom). Cool Music is not affiliated with the original authors and comes with no warranty from them.</string>
+    <string name="about_original_author_upstream_label">Upstream project</string>
+    <string name="about_original_author_upstream">github.com/cwuom/NeriPlayer</string>
+    <string name="about_original_author_license_note">License: GNU GPL v3. When distributing this app, you must also provide the corresponding source code or a valid way to obtain it, and keep the original author and license notices.</string>
+    <string name="about_original_author_confirm">Got it</string>
+    <string name="about_check_update">Check for updates</string>
+    <string name="about_update_checking">Checking for updates…</string>
+    <string name="about_update_available">Update available</string>
+    <string name="about_update_available_fmt">New version: %1$s</string>
+    <string name="about_update_up_to_date">You are up to date</string>
+    <string name="about_update_up_to_date_hint">This is already the latest GitHub release.</string>
+    <string name="about_update_download_install">Download and install</string>
+    <string name="about_update_downloading_title">Downloading update</string>
+    <string name="about_update_downloading_fmt">Downloading %1$d%%</string>
+    <string name="about_update_downloading_unknown">Downloading…</string>
+    <string name="about_update_ready_install_title">Install update</string>
+    <string name="about_update_ready_install">Package ready</string>
+    <string name="about_update_ready_install_hint">The APK is ready. Confirm install in the system installer. In-place update keeps login and local data.</string>
+    <string name="about_update_install_now">Install now</string>
+    <string name="about_update_check_failed">Update check failed</string>
+    <string name="about_update_download_failed">Download failed</string>
+    <string name="about_update_install_failed">Unable to open installer</string>
+    <string name="about_update_open_releases">Open releases</string>
+    <string name="about_update_open_releases_hint">You can also download the latest APK from GitHub Releases and install over the current app.</string>
 </resources>

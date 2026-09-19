@@ -1103,7 +1103,19 @@ class WebDavSyncManager private constructor(context: Context) {
         apiClient: WebDavApiClient,
         remoteUrl: String
     ): Result<WebDavRemoteSnapshot?> {
-        val remoteResult = apiClient.getFileContentStrict(remoteUrl)
+        val primaryResult = apiClient.getFileContentStrict(remoteUrl)
+        val remoteResult = if (
+            primaryResult.isFailure &&
+            primaryResult.exceptionOrNull() is WebDavFileNotFoundException &&
+            remoteUrl.endsWith("coolmusic-sync.json")
+        ) {
+            // Keep reading pre-rebrand backups named neriplayer-sync.json
+            apiClient.getFileContentStrict(
+                remoteUrl.removeSuffix("coolmusic-sync.json") + "neriplayer-sync.json"
+            )
+        } else {
+            primaryResult
+        }
         if (remoteResult.isFailure) {
             val error = remoteResult.exceptionOrNull()
             return if (error is WebDavFileNotFoundException) {

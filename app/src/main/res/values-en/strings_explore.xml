@@ -27,7 +27,7 @@
     <string name="language_cantonese">Cantonese</string>
     <string name="explore_bili_desc">Discover more exciting videos on Bilibili</string>
     <string name="explore_new_discovery">New Discovery</string>
-    <string name="explore_offline_disabled">Explore requires a network connection and will be re-enabled automatically when the network is restored.</string>
+    <string name="explore_offline_disabled">Explore cannot load right now — the network may be weak. It will retry automatically when online.</string>
     <string name="explore_tag_netease">Netease</string>
     <string name="explore_tag_bilibili">Bilibili</string>
     <string name="explore_tag_youtube_music">YouTube Music</string>

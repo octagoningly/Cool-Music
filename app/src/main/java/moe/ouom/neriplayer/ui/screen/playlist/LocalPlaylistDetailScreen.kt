@@ -2075,25 +2075,14 @@ fun LocalPlaylistDetailScreen(
                                             modifier = Modifier.weight(1f),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            // 序号/复选框
-                                            Box(
-                                                Modifier.width(48.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                if (selectionMode) {
-                                                    Checkbox(
-                                                        checked = selectedKeysState.value.contains(song.stableKey()),
-                                                        onCheckedChange = { toggleSelect(song) }
-                                                    )
-                                                } else {
-                                                    Text(
-                                                        text = (revIndex + 1).toString(),
-                                                        style = MaterialTheme.typography.titleSmall,
-                                                        color = playlistModernListTertiaryContentColor(),
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Clip
-                                                    )
-                                                }
+                                            // 多选时显示复选框；普通列表不展示序号，封面略靠左时补边距
+                                            Spacer(Modifier.width(16.dp))
+                                            if (selectionMode) {
+                                                Checkbox(
+                                                    checked = selectedKeysState.value.contains(song.stableKey()),
+                                                    onCheckedChange = { toggleSelect(song) }
+                                                )
+                                                Spacer(Modifier.width(8.dp))
                                             }
 
                                             // 封面

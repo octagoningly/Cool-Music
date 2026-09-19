@@ -1134,23 +1134,13 @@ private fun YouTubeMusicSongRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier.width(48.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (selectionMode) {
-                androidx.compose.material3.Checkbox(
-                    checked = selected,
-                    onCheckedChange = { onToggleSelect() }
-                )
-            } else {
-                Text(
-                    text = index.toString(),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = playlistModernListTertiaryContentColor(),
-                    maxLines = 1
-                )
-            }
+        Spacer(Modifier.width(16.dp))
+        if (selectionMode) {
+            androidx.compose.material3.Checkbox(
+                checked = selected,
+                onCheckedChange = { onToggleSelect() }
+            )
+            Spacer(Modifier.width(8.dp))
         }
 
         val coverModel = rememberSongDisplayCoverUrl(song).takeUnless { it.isNullOrBlank() }
@@ -1191,10 +1181,7 @@ private fun YouTubeMusicSongRow(
                 color = playlistModernListPrimaryContentColor()
             )
             Text(
-                text = listOfNotNull(
-                    displayArtist.takeIf { it.isNotBlank() },
-                    song.album.takeIf { it.isNotBlank() }
-                ).joinToString(" · "),
+                text = displayArtist.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
                 color = playlistModernListSecondaryContentColor(),
                 maxLines = 1,

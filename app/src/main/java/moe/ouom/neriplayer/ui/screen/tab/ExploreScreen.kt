@@ -526,7 +526,13 @@ fun ExploreScreen(
     LaunchedEffect(isTabActive) {
         if (!isTabActive) return@LaunchedEffect
         vm.resetToExploreHome()
-        if (ui.playlists.isEmpty() && !ui.neteaseDiscoveryOpen) vm.loadFeaturedPlaylist()
+        if (
+            ui.featuredPlaylists.isEmpty() &&
+            ui.playlists.isEmpty() &&
+            !ui.neteaseDiscoveryOpen
+        ) {
+            vm.loadFeaturedPlaylist()
+        }
     }
 
     if (
@@ -583,7 +589,12 @@ fun ExploreScreen(
 
     // Initialize with default tag
     LaunchedEffect(Unit) {
-        if (ui.selectedTag == "tag_all" && ui.playlists.isEmpty()) {
+        // 首页精选走 featuredPlaylists；完整网格仅在「新发现」二级页需要
+        if (
+            ui.neteaseDiscoveryOpen &&
+            ui.selectedTag == "tag_all" &&
+            ui.playlists.isEmpty()
+        ) {
             vm.loadHighQuality("tag_all")
         }
     }
@@ -1743,6 +1754,10 @@ private fun NeteaseFeaturedHomeContent(
     onDiscover: () -> Unit
 ) {
     val miniPlayerHeight = LocalMiniPlayerHeight.current
+    // 冷启动由 VM 随机定一张；首页静止展示，不自动轮播
+    val featured = remember(ui.featuredPlaylists, ui.playlists) {
+        ui.featuredPlaylists.firstOrNull() ?: ui.playlists.firstOrNull()
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1751,7 +1766,6 @@ private fun NeteaseFeaturedHomeContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        val featured = ui.playlists.firstOrNull()
         when {
             featured != null -> {
                 Box(
@@ -2415,17 +2429,7 @@ internal fun SongRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.Center) {
-            Text(
-                text = index.toString(),
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-                textAlign = TextAlign.Center
-            )
-        }
-
+        Spacer(Modifier.width(16.dp))
         if (!coverUrl.isNullOrBlank()) {
             AsyncImage(
                 model = fastScrollableImageRequest(
@@ -2453,10 +2457,7 @@ internal fun SongRow(
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = listOfNotNull(
-                    song.displayArtist().takeIf { it.isNotBlank() },
-                    song.displayAlbum(context).takeIf { it.isNotBlank() }
-                ).joinToString(" · "),
+                text = song.displayArtist().orEmpty(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall,

@@ -2186,25 +2186,31 @@ class LocalPlaylistRepository private constructor(
         withContext(Dispatchers.IO) {
             commitPlaylistMutation {
                 val current = _playlists.value
-                val system = current.filter { SystemLocalPlaylists.isSystemPlaylist(it, context) }
-                val others = current.filterNot { SystemLocalPlaylists.isSystemPlaylist(it, context) }
-                if (others.size <= 1) return@commitPlaylistMutation
+                // Local files stay pinned last; favorites + user playlists are custom-sortable.
+                val localFiles = current.filter {
+                    LocalFilesPlaylist.isSystemPlaylist(it, context) &&
+                        !FavoritesPlaylist.isSystemPlaylist(it, context)
+                }
+                val sortable = current.filterNot {
+                    LocalFilesPlaylist.isSystemPlaylist(it, context) &&
+                        !FavoritesPlaylist.isSystemPlaylist(it, context)
+                }
+                if (sortable.size <= 1) return@commitPlaylistMutation
 
-                val byId = others.associateBy { it.id }
+                val byId = sortable.associateBy { it.id }
                 val ordered = newOrder.mapNotNull { byId[it] }.toMutableList()
-                others.forEach { playlist ->
+                sortable.forEach { playlist ->
                     if (ordered.none { it.id == playlist.id }) ordered += playlist
                 }
-                if (ordered.map(LocalPlaylist::id) == others.map(LocalPlaylist::id)) {
+                if (ordered.map(LocalPlaylist::id) == sortable.map(LocalPlaylist::id)) {
                     return@commitPlaylistMutation
                 }
 
                 val modifiedAt = System.currentTimeMillis()
                 val reordered = ordered.map { playlist ->
-                    // 歌单顺序属于全局状态，重排后统一刷新 modifiedAt，便于同步层感知顺序变化
                     playlist.copy(modifiedAt = modifiedAt)
                 }
-                publishLocked(reordered + system)
+                publishLocked(reordered + localFiles)
             }
         }
     }

@@ -711,6 +711,7 @@ fun HomeScreen(
                             }
                         } else {
                             if (showNeteaseRadar) {
+                                // 首页雷达主线：私人雷达 → 每日推荐 → 雷达歌单，「更多」在雷达歌单下面
                                 ui.radarSongSections
                                     .filter { it.source == NeteaseHomeSongSource.PERSONAL_RADAR }
                                     .forEach { sectionState ->
@@ -731,6 +732,37 @@ fun HomeScreen(
                                         offlineMode = offlineMode
                                     )
                                 }
+
+                                ui.radarSongSections
+                                    .filter {
+                                        it.source != NeteaseHomeSongSource.PERSONAL_RADAR &&
+                                            it.source != NeteaseHomeSongSource.PRIVATE_FM
+                                    }
+                                    .sortedBy { section ->
+                                        if (section.source == NeteaseHomeSongSource.DAILY_RECOMMEND) {
+                                            0
+                                        } else {
+                                            1
+                                        }
+                                    }
+                                    .forEach { sectionState ->
+                                        val sectionKey = homeNeteaseSongSectionKey(
+                                            group = "radar",
+                                            source = sectionState.source
+                                        )
+                                        addNeteaseSongSection(
+                                            sectionKey = sectionKey,
+                                            registerKey = ::registerGridItemKey,
+                                            sectionState = sectionState,
+                                            icon = neteaseSongSectionIcon(sectionState.source),
+                                            loadingText = homeLoadingText,
+                                            onSongClick = onSongClick,
+                                            favoriteSongs = favoriteSongs,
+                                            onFavoriteToggle = ::toggleHomeSongFavorite,
+                                            onShowSnackbar = showHomeSnackbar,
+                                            offlineMode = offlineMode
+                                        )
+                                    }
 
                                 val radarPlaylistState = ui.radarPlaylists
                                 item(
@@ -769,30 +801,6 @@ fun HomeScreen(
                                         )
                                     }
                                 }
-
-                                ui.radarSongSections
-                                    .filter {
-                                        it.source != NeteaseHomeSongSource.PERSONAL_RADAR &&
-                                            it.source != NeteaseHomeSongSource.PRIVATE_FM
-                                    }
-                                    .forEach { sectionState ->
-                                        val sectionKey = homeNeteaseSongSectionKey(
-                                            group = "radar",
-                                            source = sectionState.source
-                                        )
-                                        addNeteaseSongSection(
-                                            sectionKey = sectionKey,
-                                            registerKey = ::registerGridItemKey,
-                                            sectionState = sectionState,
-                                            icon = neteaseSongSectionIcon(sectionState.source),
-                                            loadingText = homeLoadingText,
-                                            onSongClick = onSongClick,
-                                            favoriteSongs = favoriteSongs,
-                                            onFavoriteToggle = ::toggleHomeSongFavorite,
-                                            onShowSnackbar = showHomeSnackbar,
-                                            offlineMode = offlineMode
-                                        )
-                                    }
                             }
 
                             if (!ui.homeMoreExpanded && (showNeteaseTrending || showRecommendedCard)) {
@@ -802,29 +810,6 @@ fun HomeScreen(
                                 ) {
                                     HomeShowMoreRow(onClick = vm::expandHomeMore)
                                 }
-                            }
-
-                            // 私人 FM 与榜单、推荐歌单一样收在「更多」后面
-                            if (ui.homeMoreExpanded) {
-                                ui.radarSongSections
-                                    .filter { it.source == NeteaseHomeSongSource.PRIVATE_FM }
-                                    .forEach { sectionState ->
-                                        addNeteaseSongSection(
-                                            sectionKey = homeNeteaseSongSectionKey(
-                                                group = "radar",
-                                                source = sectionState.source
-                                            ),
-                                            registerKey = ::registerGridItemKey,
-                                            sectionState = sectionState,
-                                            icon = neteaseSongSectionIcon(sectionState.source),
-                                            loadingText = homeLoadingText,
-                                            onSongClick = onSongClick,
-                                            favoriteSongs = favoriteSongs,
-                                            onFavoriteToggle = ::toggleHomeSongFavorite,
-                                            onShowSnackbar = showHomeSnackbar,
-                                            offlineMode = offlineMode
-                                        )
-                                    }
                             }
 
                             if (showNeteaseTrending && ui.homeMoreExpanded) {
@@ -846,6 +831,29 @@ fun HomeScreen(
                                         offlineMode = offlineMode
                                     )
                                 }
+                            }
+
+                            // 私人 FM 收在「更多」里，排在新歌榜（TOP_NEW）之后
+                            if (ui.homeMoreExpanded) {
+                                ui.radarSongSections
+                                    .filter { it.source == NeteaseHomeSongSource.PRIVATE_FM }
+                                    .forEach { sectionState ->
+                                        addNeteaseSongSection(
+                                            sectionKey = homeNeteaseSongSectionKey(
+                                                group = "radar",
+                                                source = sectionState.source
+                                            ),
+                                            registerKey = ::registerGridItemKey,
+                                            sectionState = sectionState,
+                                            icon = neteaseSongSectionIcon(sectionState.source),
+                                            loadingText = homeLoadingText,
+                                            onSongClick = onSongClick,
+                                            favoriteSongs = favoriteSongs,
+                                            onFavoriteToggle = ::toggleHomeSongFavorite,
+                                            onShowSnackbar = showHomeSnackbar,
+                                            offlineMode = offlineMode
+                                        )
+                                    }
                             }
 
                             if (showRecommendedCard && ui.homeMoreExpanded) {
@@ -922,7 +930,8 @@ private fun LazyGridScope.addNeteaseSongSection(
     favoriteSongs: List<SongItem>,
     onFavoriteToggle: (SongItem, Boolean) -> Unit,
     onShowSnackbar: (String) -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    showIndex: Boolean = false
 ) {
     item(
         key = registerKey("$sectionKey:header"),
@@ -950,7 +959,8 @@ private fun LazyGridScope.addNeteaseSongSection(
                 favoriteSongs = favoriteSongs,
                 onFavoriteToggle = onFavoriteToggle,
                 onShowSnackbar = onShowSnackbar,
-                offlineMode = offlineMode
+                offlineMode = offlineMode,
+                showIndex = showIndex
             )
         }
     }
@@ -1097,8 +1107,13 @@ private fun SectionErrorState(detail: String) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = detail,
-            color = MaterialTheme.colorScheme.error,
+            text = if (detail.isBlank()) {
+                stringResource(R.string.home_error_network)
+            } else {
+                // Prefer friendly network copy over raw exception dumps
+                stringResource(R.string.home_load_failed)
+            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium
         )
         Text(
@@ -1117,7 +1132,8 @@ private fun SongRowMini(
     isFavorite: Boolean,
     onFavoriteToggle: (SongItem, Boolean) -> Unit,
     onShowSnackbar: (String) -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    showIndex: Boolean = false
 ) {
     val context = LocalContext.current
     val composeResources = LocalResources.current
@@ -1133,14 +1149,18 @@ private fun SongRowMini(
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = index.toString(),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.width(28.dp),
-            maxLines = 1,
-            overflow = TextOverflow.Clip
-        )
+        // 序号列移除后封面略靠左，补少量左边距
+        Spacer(Modifier.width(16.dp))
+        if (showIndex) {
+            Text(
+                text = index.toString(),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.width(28.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Clip
+            )
+        }
 
         if (!coverUrl.isNullOrBlank()) {
             AsyncImage(
@@ -1174,10 +1194,7 @@ private fun SongRowMini(
                 style = MaterialTheme.typography.titleSmall
             )
             Text(
-                text = listOfNotNull(
-                    song.displayArtist().takeIf { it.isNotBlank() },
-                    song.displayAlbum(context).takeIf { it.isNotBlank() }
-                ).joinToString(" / "),
+                text = song.displayArtist().orEmpty(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall,
@@ -2139,7 +2156,8 @@ private fun ResponsiveSongPagerList(
     favoriteSongs: List<SongItem>,
     onFavoriteToggle: (SongItem, Boolean) -> Unit,
     onShowSnackbar: (String) -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    showIndex: Boolean = false
 ) {
     val widthDp = currentWindowWidthDp().value
     val columns = when {
@@ -2182,7 +2200,8 @@ private fun ResponsiveSongPagerList(
                                 isFavorite = favoriteSongs.any { it.sameIdentityAs(song) },
                                 onFavoriteToggle = onFavoriteToggle,
                                 onShowSnackbar = onShowSnackbar,
-                                offlineMode = offlineMode
+                                offlineMode = offlineMode,
+                                showIndex = showIndex
                             )
                         } else {
                             Spacer(Modifier.height(0.dp))

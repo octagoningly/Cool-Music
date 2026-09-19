@@ -2,7 +2,7 @@
 # Usage:
 #   .\scripts\sign-release.ps1
 #   .\scripts\sign-release.ps1 -InPath app\build\outputs\apk\release\NeriPlayer-xxx.apk
-#   .\scripts\sign-release.ps1 -InPath .\CoolMusic-v0.1.0-arm64-release.apk -OutPath .\CoolMusic-signed-install.apk
+#   .\scripts\sign-release.ps1 -InPath app\build\outputs\apk\release\NeriPlayer-xxx.apk -OutPath dist\apk\CoolMusic-latest-arm64-release.apk
 
 param(
     [string]$InPath = "",
@@ -14,9 +14,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent $PsscriptRoot
+$Root = Split-Path -Parent $PSScriptRoot
 if (-not $Keystore) { $Keystore = Join-Path $Root "app\neri.jks" }
 if (-not (Test-Path $Keystore)) { throw "Keystore not found: $Keystore" }
+$DistDir = Join-Path $Root "dist\apk"
 
 if (-not $StorePass) {
     $gradleProps = "C:\Users\lrq_0\.gradle\gradle.properties"
@@ -37,17 +38,15 @@ if (-not $KeyPass) { $KeyPass = $StorePass }
 
 if (-not $InPath) {
     $candidates = @(
-        (Join-Path $Root "CoolMusic-v0.1.0-arm64-release.apk"),
-        (Get-ChildItem (Join-Path $Root "app\build\outputs\apk\release\*.apk") -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName)
+        (Get-ChildItem (Join-Path $Root "app\build\outputs\apk\release\*.apk") -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName),
+        (Join-Path $DistDir "CoolMusic-latest-arm64-release.apk")
     ) | Where-Object { $_ -and (Test-Path $_) }
     if (-not $candidates) { throw "No release APK found. Pass -InPath." }
     $InPath = $candidates[0]
 }
 if (-not $OutPath) {
-    $dir = Split-Path -Parent $InPath
-    $name = [IO.Path]::GetFileNameWithoutExtension($InPath)
-    if ($name -notmatch 'signed') { $name = "$name-signed" }
-    $OutPath = Join-Path $dir "$name.apk"
+    if (-not (Test-Path $DistDir)) { New-Item -ItemType Directory -Path $DistDir -Force | Out-Null }
+    $OutPath = Join-Path $DistDir "CoolMusic-latest-arm64-release.apk"
 }
 
 $env:JAVA_HOME = "C:\Users\lrq_0\DevTools\jdk17\jdk17"

@@ -33,10 +33,16 @@
     <string name="library_tab_youtube_music">YouTube Music</string>
     <string name="library_tab_bilibili">Bilibili</string>
     <string name="library_tab_qqmusic">QQ Music</string>
+    <string name="library_tab_order_cd">Reorder tabs</string>
+    <string name="library_tab_order_title">Reorder library tabs</string>
+    <string name="library_tab_order_desc">Use the arrows to change the media library tab order. Changes apply immediately after saving.</string>
+    <string name="library_tab_order_move_up">Move up</string>
+    <string name="library_tab_order_move_down">Move down</string>
     <string name="library_create_playlist_default">New Playlist</string>
     <string name="library_name_reserved">This name is reserved for \"%s\", please choose another name~</string>
     <string name="library_name_exists">A playlist with this name already exists, please choose another name</string>
-    <string name="library_create_new">+ Create Playlist</string>
+    <string name="library_create_new">+ Create</string>
+    <string name="library_local_playlist_sort">Sort</string>
     <string name="library_qqmusic_coming">Coming Soon</string>
     <string name="library_netease_tab_playlists">Playlists</string>
     <string name="library_netease_tab_albums">Albums</string>

@@ -2,5 +2,30 @@
 <resources>
     <string name="about_app_footer">Cool Music (based on NeriPlayer) - GPLv3</string>
     <string name="about_original_author_title">原作者声明</string>
+    <string name="about_original_author_summary">基于 NeriPlayer 的 GPLv3 衍生版本，点击查看完整说明</string>
+    <string name="about_original_author_detail_hint">查看详细声明</string>
     <string name="about_original_author_desc">本应用为 NeriPlayer（github.com/cwuom/NeriPlayer）的衍生版本，遵循 GPLv3 开源。原作者：NeriPlayer developers（cwuom）。Cool Music 与原作者无关，不对原项目作任何担保。</string>
+    <string name="about_original_author_upstream_label">上游项目</string>
+    <string name="about_original_author_upstream">github.com/cwuom/NeriPlayer</string>
+    <string name="about_original_author_license_note">许可证：GNU GPL v3。分发本应用时须同时提供对应源码或有效获取方式，并保留原作者与许可证声明。</string>
+    <string name="about_original_author_confirm">知道了</string>
+    <string name="about_check_update">检查更新</string>
+    <string name="about_update_checking">正在检查更新…</string>
+    <string name="about_update_available">发现新版本</string>
+    <string name="about_update_available_fmt">新版本：%1$s</string>
+    <string name="about_update_up_to_date">已是最新版本</string>
+    <string name="about_update_up_to_date_hint">当前已是 GitHub 上发布的最新版本。</string>
+    <string name="about_update_download_install">下载并安装</string>
+    <string name="about_update_downloading_title">正在下载更新</string>
+    <string name="about_update_downloading_fmt">下载中 %1$d%%</string>
+    <string name="about_update_downloading_unknown">下载中…</string>
+    <string name="about_update_ready_install_title">安装更新</string>
+    <string name="about_update_ready_install">安装包已就绪</string>
+    <string name="about_update_ready_install_hint">安装包已下载完成。系统安装器会打开，请确认安装。覆盖安装会保留登录与本地数据。</string>
+    <string name="about_update_install_now">立即安装</string>
+    <string name="about_update_check_failed">检查更新失败</string>
+    <string name="about_update_download_failed">下载失败</string>
+    <string name="about_update_install_failed">无法打开安装器</string>
+    <string name="about_update_open_releases">打开发行页</string>
+    <string name="about_update_open_releases_hint">也可前往 GitHub Releases 手动下载最新安装包，覆盖安装即可。</string>
 </resources>

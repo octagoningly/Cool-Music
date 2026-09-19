@@ -35,9 +35,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -45,6 +48,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,6 +64,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.History
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
@@ -85,6 +92,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -101,8 +109,15 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -113,6 +128,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -186,6 +202,7 @@ private const val FAVORITE_CATEGORY_HOT = 2
 private const val LOCAL_CATEGORY_PLAYLIST = 0
 private const val LOCAL_CATEGORY_ARTIST = 1
 private const val LIBRARY_UI_PREFS = "library_ui_preferences"
+private const val KEY_LIBRARY_TAB_ORDER = "library_tab_order"
 private const val KEY_LOCAL_ARTIST_SORT_MODE = "local_artist_sort_mode"
 private val LibraryPrimaryTabShape = RoundedCornerShape(20.dp)
 private val LibrarySearchFieldShape = RoundedCornerShape(16.dp)
@@ -227,6 +244,18 @@ private fun persistLocalArtistSortMode(context: Context, sortMode: LocalArtistSo
         }
 }
 
+private fun readLibraryTabOrderStorage(context: Context): String? {
+    return context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
+        .getString(KEY_LIBRARY_TAB_ORDER, null)
+}
+
+private fun persistLibraryTabOrderStorage(context: Context, order: List<LibraryTab>) {
+    context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
+        .edit {
+            putString(KEY_LIBRARY_TAB_ORDER, serializeLibraryTabOrder(order))
+        }
+}
+
 @Composable
 private fun rememberHotPlaylists(): List<PlaybackStatsHotPlaylist>? {
     val hotPlaylists by produceState<List<PlaybackStatsHotPlaylist>?>(initialValue = null) {
@@ -253,11 +282,23 @@ private fun rememberHotPlaylists(): List<PlaybackStatsHotPlaylist>? {
     return hotPlaylists
 }
 
-internal fun libraryTabDisplayOrder(
+internal fun parseLibraryTabOrderStorage(storage: String?): List<String> {
+    if (storage.isNullOrBlank()) return emptyList()
+    return storage.split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+}
+
+internal fun serializeLibraryTabOrder(tabs: List<LibraryTab>): String {
+    return tabs.joinToString(separator = ",") { it.name }
+}
+
+internal fun resolveLibraryTabDisplayOrder(
     isInternational: Boolean,
-    youtubeEnabled: Boolean = true
+    youtubeEnabled: Boolean,
+    customOrderStorage: String?
 ): List<LibraryTab> {
-    val orderedTabs = if (isInternational && youtubeEnabled) {
+    val defaultOrder = if (isInternational && youtubeEnabled) {
         listOf(
             LibraryTab.LOCAL,
             LibraryTab.FAVORITE,
@@ -276,7 +317,34 @@ internal fun libraryTabDisplayOrder(
             LibraryTab.QQMUSIC
         )
     }
-    return if (youtubeEnabled) orderedTabs else orderedTabs - LibraryTab.YTMUSIC
+    val visibleDefaults = if (youtubeEnabled) {
+        defaultOrder
+    } else {
+        defaultOrder - LibraryTab.YTMUSIC
+    }
+    val customNames = parseLibraryTabOrderStorage(customOrderStorage)
+    if (customNames.isEmpty()) return visibleDefaults
+    val byName = LibraryTab.entries.associateBy { it.name }
+    val customVisible = customNames
+        .mapNotNull { byName[it] }
+        .map { it.asVisibleLibraryTab() }
+        .filter { it in visibleDefaults }
+        .distinct()
+    if (customVisible.isEmpty()) return visibleDefaults
+    val remaining = visibleDefaults.filterNot { it in customVisible }
+    return customVisible + remaining
+}
+
+internal fun libraryTabDisplayOrder(
+    isInternational: Boolean,
+    youtubeEnabled: Boolean = true,
+    customOrderStorage: String? = null
+): List<LibraryTab> {
+    return resolveLibraryTabDisplayOrder(
+        isInternational = isInternational,
+        youtubeEnabled = youtubeEnabled,
+        customOrderStorage = customOrderStorage
+    )
 }
 
 private fun LibraryTab.asVisibleLibraryTab(): LibraryTab {
@@ -328,8 +396,18 @@ fun LibraryScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     val youtubeEnabled by AppContainer.settingsRepo.youtubeEnabledFlow
         .collectAsStateWithLifecycle(initialValue = YouTubeFeatureGate.isEnabled())
-    val orderedTabs = remember(isInternational, youtubeEnabled) {
-        libraryTabDisplayOrder(isInternational, youtubeEnabled)
+    var libraryTabOrderStorage by remember {
+        mutableStateOf(readLibraryTabOrderStorage(context))
+    }
+    var showLibraryTabOrderEditor by remember { mutableStateOf(false) }
+    var pendingLibraryTabKey by remember { mutableStateOf<LibraryTab?>(null) }
+
+    val orderedTabs = remember(isInternational, youtubeEnabled, libraryTabOrderStorage) {
+        libraryTabDisplayOrder(
+            isInternational = isInternational,
+            youtubeEnabled = youtubeEnabled,
+            customOrderStorage = libraryTabOrderStorage
+        )
     }
     val initialPage = remember(orderedTabs, initialTab) {
         orderedTabs.indexOf(initialTab.asVisibleLibraryTab()).takeIf { it >= 0 } ?: 0
@@ -406,6 +484,15 @@ fun LibraryScreen(
         }
     }
 
+    LaunchedEffect(orderedTabs) {
+        val keep = pendingLibraryTabKey ?: return@LaunchedEffect
+        pendingLibraryTabKey = null
+        val target = orderedTabs.indexOf(keep.asVisibleLibraryTab()).takeIf { it >= 0 } ?: return@LaunchedEffect
+        if (pagerState.currentPage != target) {
+            pagerState.scrollToPage(target)
+        }
+    }
+
     LaunchedEffect(pagerState.currentPage, orderedTabs, initialTab) {
         val currentTab = orderedTabs.getOrNull(pagerState.currentPage) ?: return@LaunchedEffect
         if (currentTab != initialTab) {
@@ -413,14 +500,37 @@ fun LibraryScreen(
         }
     }
 
+    val currentLibraryTab = orderedTabs.getOrNull(pagerState.currentPage)
+    val libraryRefreshEnabled = currentLibraryTab.isRefreshable()
+
     Column(
         Modifier
             .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // 顶栏右侧：刷新 → 播放统计 → 最近播放（排序入口一并上移，放在刷新前）
         NeriTabLargeTitleTopBar(
             title = stringResource(R.string.library_title),
             actions = {
+                HapticIconButton(
+                    onClick = {
+                        when (currentLibraryTab) {
+                            LibraryTab.BILI -> vm.refreshBilibili()
+                            LibraryTab.YTMUSIC -> vm.refreshYouTubeMusicPlaylists()
+                            LibraryTab.NETEASE -> {
+                                vm.refreshNeteasePlaylists()
+                                vm.refreshNeteaseAlbums()
+                            }
+                            else -> Unit
+                        }
+                    },
+                    enabled = libraryRefreshEnabled
+                ) {
+                    Icon(
+                        Icons.Filled.Refresh,
+                        contentDescription = stringResource(R.string.action_refresh)
+                    )
+                }
                 HapticIconButton(onClick = onOpenStats) {
                     Icon(
                         Icons.Filled.BarChart,
@@ -433,6 +543,12 @@ fun LibraryScreen(
                         contentDescription = stringResource(R.string.library_recent_played)
                     )
                 }
+                HapticIconButton(onClick = { showLibraryTabOrderEditor = true }) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Sort,
+                        contentDescription = stringResource(R.string.library_tab_order_cd)
+                    )
+                }
             }
         )
 
@@ -443,31 +559,18 @@ fun LibraryScreen(
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             modifier = Modifier
-                .padding(horizontal = pageHorizontalPadding, vertical = 12.dp)
+                .padding(horizontal = pageHorizontalPadding, vertical = 4.dp)
                 .widthIn(max = 1180.dp)
                 .fillMaxWidth()
                 .weight(1f)
         ) {
             Column(Modifier.fillMaxSize()) {
-                val currentTab = orderedTabs.getOrNull(pagerState.currentPage)
                 LibraryMainTabs(
                     tabs = orderedTabs,
                     selectedTabIndex = pagerState.currentPage,
-                    refreshEnabled = currentTab.isRefreshable(),
                     onTabSelected = { index ->
                         scope.launch {
                             pagerState.animateScrollToPage(index)
-                        }
-                    },
-                    onRefresh = {
-                        when (currentTab) {
-                            LibraryTab.BILI -> vm.refreshBilibili()
-                            LibraryTab.YTMUSIC -> vm.refreshYouTubeMusicPlaylists()
-                            LibraryTab.NETEASE -> {
-                                vm.refreshNeteasePlaylists()
-                                vm.refreshNeteaseAlbums()
-                            }
-                            else -> Unit
                         }
                     }
                 )
@@ -554,15 +657,121 @@ fun LibraryScreen(
             }
         }
     }
+
+    if (showLibraryTabOrderEditor) {
+        LibraryTabOrderEditorDialog(
+            tabs = orderedTabs,
+            onDismiss = { showLibraryTabOrderEditor = false },
+            onConfirm = { newOrder ->
+                pendingLibraryTabKey = orderedTabs.getOrNull(pagerState.currentPage)
+                persistLibraryTabOrderStorage(context, newOrder)
+                libraryTabOrderStorage = serializeLibraryTabOrder(newOrder)
+                showLibraryTabOrderEditor = false
+            },
+            onReset = {
+                pendingLibraryTabKey = orderedTabs.getOrNull(pagerState.currentPage)
+                context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
+                    .edit { remove(KEY_LIBRARY_TAB_ORDER) }
+                libraryTabOrderStorage = null
+                showLibraryTabOrderEditor = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun LibraryTabOrderEditorDialog(
+    tabs: List<LibraryTab>,
+    onDismiss: () -> Unit,
+    onConfirm: (List<LibraryTab>) -> Unit,
+    onReset: () -> Unit
+) {
+    val draft = remember(tabs) { mutableStateListOf<LibraryTab>().apply { addAll(tabs) } }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.library_tab_order_title)) },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.library_tab_order_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                    itemsIndexed(draft) { index, tab ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.DragHandle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(tab.labelResId),
+                                modifier = Modifier.weight(1f)
+                            )
+                            HapticIconButton(
+                                onClick = {
+                                    if (index > 0) {
+                                        val item = draft.removeAt(index)
+                                        draft.add(index - 1, item)
+                                    }
+                                },
+                                enabled = index > 0
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.KeyboardArrowUp,
+                                    contentDescription = stringResource(R.string.library_tab_order_move_up)
+                                )
+                            }
+                            HapticIconButton(
+                                onClick = {
+                                    if (index < draft.lastIndex) {
+                                        val item = draft.removeAt(index)
+                                        draft.add(index + 1, item)
+                                    }
+                                },
+                                enabled = index < draft.lastIndex
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = stringResource(R.string.library_tab_order_move_down)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            HapticTextButton(onClick = { onConfirm(draft.toList()) }) {
+                Text(stringResource(R.string.action_confirm))
+            }
+        },
+        dismissButton = {
+            Row {
+                HapticTextButton(onClick = onReset) {
+                    Text(stringResource(R.string.action_reset))
+                }
+                HapticTextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        }
+    )
 }
 
 @Composable
 private fun LibraryMainTabs(
     tabs: List<LibraryTab>,
     selectedTabIndex: Int,
-    refreshEnabled: Boolean,
-    onTabSelected: (Int) -> Unit,
-    onRefresh: () -> Unit
+    onTabSelected: (Int) -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -573,7 +782,7 @@ private fun LibraryMainTabs(
         AdvancedGlassSurface(
             role = AdvancedGlassRole.ScreenTopTab,
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .clip(LibraryPrimaryTabShape),
             shape = LibraryPrimaryTabShape
         ) {
@@ -594,16 +803,6 @@ private fun LibraryMainTabs(
                     )
                 }
             }
-        }
-
-        HapticIconButton(
-            onClick = onRefresh,
-            enabled = refreshEnabled
-        ) {
-            Icon(
-                Icons.Filled.Refresh,
-                contentDescription = stringResource(R.string.action_refresh)
-            )
         }
     }
 }
@@ -1066,6 +1265,7 @@ private fun LocalPlaylistList(
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteSelectedConfirm by rememberSaveable { mutableStateOf(false) }
+    var localSortMode by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val defaultPlaylistName = composeResources.getString(R.string.library_create_playlist_default)
     val maxNameLength = LocalPlaylistRepository.MAX_PLAYLIST_NAME_LENGTH
@@ -1082,11 +1282,26 @@ private fun LocalPlaylistList(
         sortLocalArtists(filteredLocalArtists, localArtistSortMode)
     }
     val editablePlaylists = remember(playlists, context) {
-        playlists.filterNot { SystemLocalPlaylists.isSystemPlaylist(it, context) }
+        // Include 我喜欢的音乐 in custom sort; keep 本地文件 pinned outside.
+        playlists.filterNot {
+            LocalFilesPlaylist.isSystemPlaylist(it, context) &&
+                !FavoritesPlaylist.isSystemPlaylist(it, context)
+        }
     }
-    val reorderablePlaylists = remember(editablePlaylists) {
-        mutableStateListOf<LocalPlaylist>().apply {
-            addAll(editablePlaylists)
+    // Stable list identity: never recreate during drag (remember(editablePlaylists) caused flicker)
+    val reorderablePlaylists = remember { mutableStateListOf<LocalPlaylist>() }
+
+    LaunchedEffect(editablePlaylists, localSortMode) {
+        if (!localSortMode) {
+            reorderablePlaylists.clear()
+            reorderablePlaylists.addAll(editablePlaylists)
+        } else {
+            val currentIds = reorderablePlaylists.map { it.id }.toSet()
+            val editableIds = editablePlaylists.map { it.id }.toSet()
+            if (currentIds != editableIds) {
+                reorderablePlaylists.clear()
+                reorderablePlaylists.addAll(editablePlaylists)
+            }
         }
     }
 
@@ -1100,6 +1315,28 @@ private fun LocalPlaylistList(
         showDeleteSelectedConfirm = false
     }
 
+    fun exitSortMode() {
+        if (localSortMode) {
+            onReorder(reorderablePlaylists.map { it.id })
+            localSortMode = false
+        }
+    }
+
+    fun enterSortMode() {
+        selectionMode = false
+        selectedIds = emptySet()
+        localSortMode = true
+        reorderablePlaylists.clear()
+        reorderablePlaylists.addAll(editablePlaylists)
+    }
+
+    BackHandler(enabled = selectionMode || localSortMode) {
+        when {
+            selectionMode -> exitSelection()
+            localSortMode -> exitSortMode()
+        }
+    }
+
     fun toggleSelection(playlistId: Long) {
         selectedIds =
             if (selectedIds.contains(playlistId)) selectedIds - playlistId else selectedIds + playlistId
@@ -1109,8 +1346,6 @@ private fun LocalPlaylistList(
         if (selectedIds.isEmpty()) return
         showDeleteSelectedConfirm = true
     }
-
-    BackHandler(enabled = selectionMode) { exitSelection() }
 
     LaunchedEffect(editablePlaylists) {
         val validIds = editablePlaylists.map { it.id }.toSet()
@@ -1152,7 +1387,7 @@ private fun LocalPlaylistList(
     val reorderState = rememberReorderableLazyListState(
         listState = listState,
         onMove = { from: ItemPosition, to: ItemPosition ->
-            if (!selectionMode) return@rememberReorderableLazyListState
+            if (!localSortMode) return@rememberReorderableLazyListState
             val fromId = from.key as? Long ?: return@rememberReorderableLazyListState
             val toId = to.key as? Long ?: return@rememberReorderableLazyListState
             val fromIdx = reorderablePlaylists.indexOfFirst { it.id == fromId }
@@ -1162,21 +1397,59 @@ private fun LocalPlaylistList(
             }
         },
         canDragOver = { _, over ->
-            selectionMode && over.key is Long
+            localSortMode && over.key is Long
         },
         onDragEnd = { _, _ ->
-            if (selectionMode) {
+            if (localSortMode) {
                 onReorder(reorderablePlaylists.map { it.id })
             }
         }
     )
 
+    // Track finger Y in LazyList coordinates so auto-scroll keeps running when the
+    // held playlist is dragged toward the screen top (may leave visibleItemsInfo).
+    var dragPointerY by remember { mutableFloatStateOf(Float.NaN) }
+    val density = LocalDensity.current
+    LaunchedEffect(localSortMode, listState, reorderState) {
+        if (!localSortMode) return@LaunchedEffect
+        val scrollStepDownPx = with(density) { 22.dp.toPx() }
+        val scrollStepUpPx = with(density) { 16.dp.toPx() }
+        val edgePx = with(density) { 72.dp.toPx() }
+        while (localSortMode) {
+            // Read pointer/state each frame; do not key this effect on dragPointerY
+            val pointerY = dragPointerY
+            if (pointerY.isNaN() || reorderState.draggingItemIndex == null) {
+                delay(20L)
+                continue
+            }
+            val info = listState.layoutInfo
+            val viewportHeight =
+                (info.viewportEndOffset - info.viewportStartOffset).coerceAtLeast(1)
+            val viewportBottom = info.viewportStartOffset + viewportHeight
+            when {
+                pointerY <= info.viewportStartOffset + edgePx &&
+                    listState.canScrollBackward -> {
+                    listState.scrollBy(-scrollStepUpPx)
+                }
+                pointerY >= viewportBottom - edgePx &&
+                    listState.canScrollForward -> {
+                    listState.scrollBy(scrollStepDownPx)
+                }
+            }
+            delay(20L)
+        }
+    }
+
     val displayedFavoritesPlaylist = favoritesPlaylist
         ?.takeIf { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
+        ?.takeIf { false } // favorites now lives in the sortable playlist list
     val displayedLocalFilesPlaylist = localFilesPlaylist
         ?.takeIf { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
-    val displayedPlaylists = reorderablePlaylists
-        .filter { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
+    val displayedPlaylists = if (localSortMode) {
+        reorderablePlaylists.toList()
+    } else {
+        reorderablePlaylists.filter { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
+    }
     val hasPlaylistSearchMatches =
         displayedFavoritesPlaylist != null ||
             displayedPlaylists.isNotEmpty() ||
@@ -1195,11 +1468,31 @@ private fun LocalPlaylistList(
             start = 8.dp,
             end = 8.dp,
             top = 8.dp,
-            bottom = 8.dp + miniPlayerHeight
+            bottom = if (localSortMode) 24.dp else 8.dp
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxSize()
+            // Shrink list viewport above mini player so drag auto-scroll stops in the visible area
+            .padding(bottom = miniPlayerHeight)
+            .pointerInput(localSortMode) {
+                if (!localSortMode) return@pointerInput
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    dragPointerY = down.position.y
+                    var pressed = true
+                    while (pressed) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.pressed }
+                        if (change == null) {
+                            pressed = false
+                        } else {
+                            dragPointerY = change.position.y
+                        }
+                    }
+                    dragPointerY = Float.NaN
+                }
+            }
             .reorderable(reorderState)
     ) {
         val cardShape = RoundedCornerShape(12.dp)
@@ -1225,6 +1518,19 @@ private fun LocalPlaylistList(
                         exitSelection()
                         selectedLocalCategory = LOCAL_CATEGORY_ARTIST
                     }
+                },
+                showCreatePlaylist = selectedLocalCategory == LOCAL_CATEGORY_PLAYLIST &&
+                    !selectionMode &&
+                    !localSortMode &&
+                    localSearchQuery.isBlank(),
+                onCreatePlaylist = { showDialog = true },
+                showLocalSort = selectedLocalCategory == LOCAL_CATEGORY_PLAYLIST &&
+                    !selectionMode &&
+                    localSearchQuery.isBlank() &&
+                    editablePlaylists.size >= 2,
+                localSortMode = localSortMode,
+                onToggleLocalSort = {
+                    if (localSortMode) exitSortMode() else enterSortMode()
                 }
             )
         }
@@ -1343,25 +1649,7 @@ private fun LocalPlaylistList(
         }
         if (localSearchQuery.isBlank()) {
             item(key = "local_playlist_create") {
-            Card(
-                shape = cardShape,
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.Transparent
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .animateItem()
-                    .clip(cardShape)
-                    .clickable(enabled = !selectionMode) { showDialog = true }
-            ) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.library_create_new)) },
-                    colors = ListItemDefaults.colors(
-                        containerColor = Color.Transparent
-                    )
-                )
-            }
+                // 新建入口已上移到 header 右侧「+新建」
 
             if (showDialog) {
                 MiuixSettingsDialog(
@@ -1538,6 +1826,9 @@ private fun LocalPlaylistList(
                 val systemPlaylist = SystemLocalPlaylists.resolve(pl.id, pl.name, context)
                 val displayName = systemPlaylist?.currentName ?: pl.name
                 val isSystemPlaylist = systemPlaylist != null
+                val isFavoritesPlaylist = FavoritesPlaylist.isSystemPlaylist(pl, context)
+                val isLocalFilesPlaylist = LocalFilesPlaylist.isSystemPlaylist(pl, context)
+                val canCustomSort = !isLocalFilesPlaylist
                 val isSelected = selectionMode && selectedIds.contains(pl.id)
                 val rowContainerColor = if (isSelected) {
                     MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
@@ -1560,18 +1851,18 @@ private fun LocalPlaylistList(
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier
                         .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .animateItem()
+                        .then(if (localSortMode) Modifier else Modifier.animateItem())
                         .clip(cardShape)
                         .combinedClickable(
                             onClick = {
-                                if (selectionMode) {
-                                    toggleSelection(pl.id)
-                                } else {
-                                    onClick(pl)
+                                when {
+                                    localSortMode -> Unit
+                                    selectionMode -> toggleSelection(pl.id)
+                                    else -> onClick(pl)
                                 }
                             },
                             onLongClick = {
-                                if (!selectionMode && !isSystemPlaylist) {
+                                if (!selectionMode && !localSortMode && !isSystemPlaylist) {
                                     selectionMode = true
                                     selectedIds = setOf(pl.id)
                                 }
@@ -1636,7 +1927,7 @@ private fun LocalPlaylistList(
                             }
                         },
                         trailingContent = {
-                            if (selectionMode && !isSystemPlaylist) {
+                            if (localSortMode && canCustomSort) {
                                 Box(
                                     modifier = Modifier
                                         .detectReorder(reorderState)
@@ -1648,7 +1939,19 @@ private fun LocalPlaylistList(
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
-                            } else if (!selectionMode && !isSystemPlaylist) {
+                            } else if (selectionMode && !isSystemPlaylist) {
+                                Box(
+                                    modifier = Modifier
+                                        .detectReorder(reorderState)
+                                        .padding(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.DragHandle,
+                                        contentDescription = stringResource(R.string.common_drag_handle),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            } else if (!selectionMode && !localSortMode && !isSystemPlaylist) {
                                 Box {
                                     HapticIconButton(onClick = { showMenu = true }) {
                                         Icon(
@@ -1828,15 +2131,15 @@ private fun LocalLibraryHeaderContent(
     artistSortMode: LocalArtistSortMode,
     onArtistSortModeChange: (LocalArtistSortMode) -> Unit,
     onPlaylistSelected: () -> Unit,
-    onArtistSelected: () -> Unit
+    onArtistSelected: () -> Unit,
+    showCreatePlaylist: Boolean,
+    onCreatePlaylist: () -> Unit,
+    showLocalSort: Boolean = false,
+    localSortMode: Boolean = false,
+    onToggleLocalSort: () -> Unit = {}
 ) {
     Column(Modifier.fillMaxWidth()) {
-        LocalCategoryTabs(
-            selectedCategory = selectedLocalCategory,
-            onPlaylistSelected = onPlaylistSelected,
-            onArtistSelected = onArtistSelected
-        )
-        if (!selectionMode) {
+        if (!selectionMode && !localSortMode) {
             if (selectedLocalCategory == LOCAL_CATEGORY_ARTIST) {
                 LocalArtistSearchAndSortRow(
                     query = searchQuery,
@@ -1852,6 +2155,120 @@ private fun LocalLibraryHeaderContent(
                 )
             }
         }
+        // 歌单/歌手在左，排序与 +新建 靠右
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LocalLibraryCategoryChips(
+                selectedCategory = selectedLocalCategory,
+                onPlaylistSelected = onPlaylistSelected,
+                onArtistSelected = onArtistSelected
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            if (showLocalSort) {
+                // Text button keeps full two-character labels (排序 / 完成)
+                HapticTextButton(onClick = onToggleLocalSort) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (localSortMode) {
+                                Icons.Filled.Check
+                            } else {
+                                Icons.AutoMirrored.Filled.Sort
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = if (localSortMode) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(
+                                if (localSortMode) R.string.action_done
+                                else R.string.library_local_playlist_sort
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            color = if (localSortMode) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                }
+            }
+            if (showCreatePlaylist && !selectionMode && !localSortMode) {
+                HapticTextButton(
+                    onClick = onCreatePlaylist,
+                    modifier = Modifier.padding(start = 2.dp)
+                ) {
+                    Text(stringResource(R.string.library_create_new))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocalLibraryCategoryChips(
+    selectedCategory: Int,
+    onPlaylistSelected: () -> Unit,
+    onArtistSelected: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        LocalLibraryCategoryChip(
+            selected = selectedCategory == LOCAL_CATEGORY_PLAYLIST,
+            label = stringResource(R.string.library_favorite_tab_playlists),
+            icon = Icons.AutoMirrored.Filled.QueueMusic,
+            onClick = onPlaylistSelected
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        LocalLibraryCategoryChip(
+            selected = selectedCategory == LOCAL_CATEGORY_ARTIST,
+            label = stringResource(R.string.library_favorite_tab_artists),
+            icon = Icons.Filled.AccountCircle,
+            onClick = onArtistSelected
+        )
+    }
+}
+
+@Composable
+private fun LocalLibraryCategoryChip(
+    selected: Boolean,
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            color = contentColor,
+            style = MaterialTheme.typography.labelLarge
+        )
     }
 }
 
@@ -1950,61 +2367,6 @@ private fun LocalArtistSortMenuItem(
         },
         onClick = onClick
     )
-}
-
-@Composable
-private fun LocalCategoryTabs(
-    selectedCategory: Int,
-    onPlaylistSelected: () -> Unit,
-    onArtistSelected: () -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-    ) {
-        AdvancedGlassSurface(
-            role = AdvancedGlassRole.ScreenTopTab,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            fallbackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-            tintColor = MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            PrimaryTabRow(
-                selectedTabIndex = selectedCategory,
-                containerColor = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.primary
-            ) {
-                Tab(
-                    selected = selectedCategory == LOCAL_CATEGORY_PLAYLIST,
-                    onClick = onPlaylistSelected,
-                    text = { Text(stringResource(R.string.library_favorite_tab_playlists)) },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                            contentDescription = null
-                        )
-                    }
-                )
-                Tab(
-                    selected = selectedCategory == LOCAL_CATEGORY_ARTIST,
-                    onClick = onArtistSelected,
-                    text = { Text(stringResource(R.string.library_favorite_tab_artists)) },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Filled.AccountCircle,
-                            contentDescription = null
-                        )
-                    }
-                )
-            }
-        }
-    }
 }
 
 @Composable

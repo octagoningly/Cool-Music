@@ -43,3 +43,10 @@ AGENTS.md
 /ksp-annotations/build/
 /ksp-processor/build/
 /docs-private/
+*.jks
+*.keystore
+/app/neri.jks
+*.idsig
+/CoolMusic-signed-install.apk
+/CoolMusic-v*-signed*.apk
+/CoolMusic-v*.apk

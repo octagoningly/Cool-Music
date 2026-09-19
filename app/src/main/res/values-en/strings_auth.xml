@@ -68,12 +68,12 @@
     <string name="lx_source_manage_summary">Import and manage third-party sources</string>
     <string name="lx_source_manage_desc">Import LX Music sources; playback tries them first, then falls back to platform sources.</string>
     <string name="lx_source_prefer_first">Prefer online sources first</string>
-    <string name="lx_source_prefer_first_desc">When on, playback tries enabled online sources before platform APIs. Turn off to keep the list only.</string>
+    <string name="lx_source_prefer_first_desc">Try online sources first when playing</string>
     <string name="lx_source_status_success">Last resolve succeeded (%1$s)</string>
     <string name="lx_source_status_failure">Last resolve failed (%1$s): %2$s — fell back to platform sources</string>
     <string name="lx_source_probe_button">Check source channels</string>
     <string name="lx_source_probe_running">Checking…</string>
-    <string name="lx_source_probe_hint">Requests the same track on every platform to see which channels still work.</string>
+    <string name="lx_source_probe_hint">Check if platform channels work</string>
     <string name="lx_source_probe_ok">OK</string>
     <string name="lx_source_probe_failed">Failed</string>
     <string name="lx_source_platform_wy">NetEase</string>

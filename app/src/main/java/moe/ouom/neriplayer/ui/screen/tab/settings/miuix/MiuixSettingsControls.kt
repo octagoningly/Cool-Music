@@ -76,12 +76,15 @@ internal fun MiuixSettingsDialog(
     icon: @Composable (() -> Unit)? = null,
     title: @Composable (() -> Unit)? = null,
     text: @Composable (() -> Unit)? = null,
-    properties: DialogProperties = DialogProperties()
+    properties: DialogProperties = DialogProperties(
+        dismissOnBackPress = true,
+        dismissOnClickOutside = true
+    )
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
         confirmButton = confirmButton,
-        modifier = modifier.widthIn(max = 340.dp),
+        modifier = modifier.widthIn(max = 360.dp),
         dismissButton = dismissButton,
         icon = icon,
         title = title,

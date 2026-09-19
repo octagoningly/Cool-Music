@@ -92,18 +92,40 @@ class LxMusicSourceViewModel : ViewModel() {
         }
     }
 
-    /** 音源健康自检：用固定曲目探测各平台通道，结果显示在管理对话框里 */
+    /** 音源健康自检：优先用第一个可用 JS 音源探测各平台通道；多音源结果按平台合并去重 */
     fun probeChannels(context: Context) {
         val repo = repository ?: return
         if (_uiState.value.probing) return
         viewModelScope.launch {
             _uiState.update { it.copy(probing = true, channelProbes = emptyList()) }
             val sources = repo.getEnabledSources().filter { it.isJsSource }
-            val results = sources.flatMap { source ->
-                runCatching { probeLxSourceChannels(context.applicationContext, source) }
-                    .getOrElse { emptyList() }
+            val probed = buildList {
+                sources.forEach { source ->
+                    runCatching { probeLxSourceChannels(context.applicationContext, source) }
+                        .getOrNull()
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.let { addAll(it) }
+                }
             }
+            val results = probed
+                .groupBy { it.sourceId }
+                .map { (sourceId, list) ->
+                    // 同一平台多个音源的结果合并：任一可用即算可用
+                    list.firstOrNull { it.healthy } ?: list.first()
+                }
+                .sortedBy { probePlatformOrder(it.sourceId) }
             _uiState.update { it.copy(probing = false, channelProbes = results) }
+        }
+    }
+
+    private fun probePlatformOrder(sourceId: String): Int {
+        return when (sourceId.lowercase()) {
+            "wy" -> 0
+            "kw" -> 1
+            "kg" -> 2
+            "tx" -> 3
+            "mg" -> 4
+            else -> 9
         }
     }
 

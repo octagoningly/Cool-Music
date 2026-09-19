@@ -68,12 +68,12 @@
     <string name="lx_source_manage_summary">导入与管理第三方音源</string>
     <string name="lx_source_manage_desc">导入落雪音乐（LX Music）音源；播放时优先取流，失败后自动回退平台音源</string>
     <string name="lx_source_prefer_first">优先使用在线音源</string>
-    <string name="lx_source_prefer_first_desc">开启后播放时先尝试已启用的在线音源；关闭后仅保留导入列表</string>
+    <string name="lx_source_prefer_first_desc">开启后优先尝试在线音源</string>
     <string name="lx_source_status_success">最近一次解析成功（%1$s）</string>
     <string name="lx_source_status_failure">最近一次解析失败（%1$s）：%2$s，已回落平台音源</string>
     <string name="lx_source_probe_button">检测音源通道</string>
     <string name="lx_source_probe_running">正在检测…</string>
-    <string name="lx_source_probe_hint">用各平台都有的同一首歌试取流，看音源站哪些通道正常</string>
+    <string name="lx_source_probe_hint">检测各平台通道是否可用</string>
     <string name="lx_source_probe_ok">可用</string>
     <string name="lx_source_probe_failed">不可用</string>
     <string name="lx_source_platform_wy">网易云</string>

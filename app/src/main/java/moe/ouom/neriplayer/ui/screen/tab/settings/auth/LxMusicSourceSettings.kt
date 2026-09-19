@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -112,11 +114,14 @@ internal fun SettingsLxMusicSourceDialogs(
             },
             title = { Text(stringResource(R.string.lx_source_manage_title)) },
             text = {
+                val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
+                // 限制正文高度，保证底部「关闭/添加」始终可见可点
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(max = screenHeightDp * 0.55f)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // 1) 偏好开关（一句话）
                     Row(
@@ -132,7 +137,7 @@ internal fun SettingsLxMusicSourceDialogs(
                                 text = stringResource(R.string.lx_source_prefer_first_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 2,
+                                maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
@@ -244,14 +249,20 @@ internal fun SettingsLxMusicSourceDialogs(
             },
             title = { Text(stringResource(R.string.lx_source_import_title)) },
             text = {
+                val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = screenHeightDp * 0.45f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.lx_source_import_desc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                     MiuixSettingsTextField(
                         value = urlInput,
@@ -414,7 +425,7 @@ private fun LxSourceChannelProbeSection(
     if (!hasJsSource && results.isEmpty()) return
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -425,11 +436,11 @@ private fun LxSourceChannelProbeSection(
                 text = stringResource(R.string.lx_source_probe_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             if (probing) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(
@@ -449,27 +460,34 @@ private fun LxSourceChannelProbeSection(
             }
         }
         results.forEach { result ->
+            val detailText = if (result.healthy) {
+                stringResource(R.string.lx_source_probe_ok)
+            } else {
+                val raw = result.detail.orEmpty().ifBlank { "-" }
+                stringResource(R.string.lx_source_probe_failed) + " · " +
+                    raw.take(28) + if (raw.length > 28) "…" else ""
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = lxPlatformLabel(result.sourceId),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(0.3f)
                 )
                 Text(
-                    text = if (result.healthy) {
-                        stringResource(R.string.lx_source_probe_ok)
-                    } else {
-                        stringResource(R.string.lx_source_probe_failed) + " · " + result.detail
-                    },
+                    text = detailText,
                     style = MaterialTheme.typography.bodySmall,
                     color = if (result.healthy) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.error
-                    }
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(0.7f)
                 )
             }
         }
@@ -534,11 +552,9 @@ private fun LxSourceRow(
                 text = buildString {
                     append(kindLabel)
                     if (source.version.isNotBlank()) {
-                        append(" · v")
+                        append(" · ")
                         append(source.version)
                     }
-                    append(" · ")
-                    append(stringResource(R.string.lx_source_tap_to_view_url))
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

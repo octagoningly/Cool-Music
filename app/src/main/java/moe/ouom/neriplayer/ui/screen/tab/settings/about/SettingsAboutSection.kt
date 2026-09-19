@@ -67,6 +67,7 @@ internal fun SettingsAboutContent(
     onOpenGitHubRepo: () -> Unit
 ) {
     SettingsAboutIntroItem()
+    SettingsOriginalAuthorItem(onOpenOriginalRepo = onOpenGitHubRepo)
     SettingsBuildUuidItem(onCopyValue)
     SettingsVersionItem(
         devModeEnabled = devModeEnabled,
@@ -94,6 +95,30 @@ private fun SettingsAboutIntroItem() {
             )
         },
         supportingContent = { Text(stringResource(R.string.about_app_footer)) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+}
+
+@Composable
+private fun SettingsOriginalAuthorItem(onOpenOriginalRepo: () -> Unit) {
+    ListItem(
+        leadingContent = {
+            Icon(
+                imageVector = Icons.Outlined.Verified,
+                contentDescription = stringResource(R.string.about_original_author_title),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        headlineContent = {
+            Text(
+                text = stringResource(R.string.about_original_author_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+        },
+        supportingContent = {
+            Text(stringResource(R.string.about_original_author_desc))
+        },
+        modifier = androidx.compose.ui.Modifier.settingsItemClickable(onClick = onOpenOriginalRepo),
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
     )
 }

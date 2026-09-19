@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- About -->
-    <string name="about_app_footer">NeriPlayer • GPLv3 • 由你可爱地驱动</string>
+    <string name="about_app_footer">Cool Music (based on NeriPlayer) - GPLv3</string>
+    <string name="about_original_author_title">原作者声明</string>
+    <string name="about_original_author_desc">本应用为 NeriPlayer（github.com/cwuom/NeriPlayer）的衍生版本，遵循 GPLv3 开源。原作者：NeriPlayer developers（cwuom）。Cool Music 与原作者无关，不对原项目作任何担保。</string>
 </resources>

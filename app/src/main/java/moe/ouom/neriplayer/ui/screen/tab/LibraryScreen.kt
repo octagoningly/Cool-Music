@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -1225,7 +1226,11 @@ private fun LocalPlaylistList(
                         exitSelection()
                         selectedLocalCategory = LOCAL_CATEGORY_ARTIST
                     }
-                }
+                },
+                showCreatePlaylist = selectedLocalCategory == LOCAL_CATEGORY_PLAYLIST &&
+                    !selectionMode &&
+                    localSearchQuery.isBlank(),
+                onCreatePlaylist = { showDialog = true }
             )
         }
 
@@ -1343,25 +1348,7 @@ private fun LocalPlaylistList(
         }
         if (localSearchQuery.isBlank()) {
             item(key = "local_playlist_create") {
-            Card(
-                shape = cardShape,
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.Transparent
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .animateItem()
-                    .clip(cardShape)
-                    .clickable(enabled = !selectionMode) { showDialog = true }
-            ) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.library_create_new)) },
-                    colors = ListItemDefaults.colors(
-                        containerColor = Color.Transparent
-                    )
-                )
-            }
+                // 新建入口已上移到 header 右侧「+新建」
 
             if (showDialog) {
                 MiuixSettingsDialog(
@@ -1828,14 +1815,11 @@ private fun LocalLibraryHeaderContent(
     artistSortMode: LocalArtistSortMode,
     onArtistSortModeChange: (LocalArtistSortMode) -> Unit,
     onPlaylistSelected: () -> Unit,
-    onArtistSelected: () -> Unit
+    onArtistSelected: () -> Unit,
+    showCreatePlaylist: Boolean,
+    onCreatePlaylist: () -> Unit
 ) {
     Column(Modifier.fillMaxWidth()) {
-        LocalCategoryTabs(
-            selectedCategory = selectedLocalCategory,
-            onPlaylistSelected = onPlaylistSelected,
-            onArtistSelected = onArtistSelected
-        )
         if (!selectionMode) {
             if (selectedLocalCategory == LOCAL_CATEGORY_ARTIST) {
                 LocalArtistSearchAndSortRow(
@@ -1852,6 +1836,82 @@ private fun LocalLibraryHeaderContent(
                 )
             }
         }
+        // 歌单/歌手在左，+新建靠最右
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LocalLibraryCategoryChips(
+                selectedCategory = selectedLocalCategory,
+                onPlaylistSelected = onPlaylistSelected,
+                onArtistSelected = onArtistSelected
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            if (showCreatePlaylist && !selectionMode) {
+                HapticTextButton(onClick = onCreatePlaylist) {
+                    Text(stringResource(R.string.library_create_new))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocalLibraryCategoryChips(
+    selectedCategory: Int,
+    onPlaylistSelected: () -> Unit,
+    onArtistSelected: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        LocalLibraryCategoryChip(
+            selected = selectedCategory == LOCAL_CATEGORY_PLAYLIST,
+            label = stringResource(R.string.library_favorite_tab_playlists),
+            icon = Icons.AutoMirrored.Filled.QueueMusic,
+            onClick = onPlaylistSelected
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        LocalLibraryCategoryChip(
+            selected = selectedCategory == LOCAL_CATEGORY_ARTIST,
+            label = stringResource(R.string.library_favorite_tab_artists),
+            icon = Icons.Filled.AccountCircle,
+            onClick = onArtistSelected
+        )
+    }
+}
+
+@Composable
+private fun LocalLibraryCategoryChip(
+    selected: Boolean,
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            color = contentColor,
+            style = MaterialTheme.typography.labelLarge
+        )
     }
 }
 
@@ -1950,61 +2010,6 @@ private fun LocalArtistSortMenuItem(
         },
         onClick = onClick
     )
-}
-
-@Composable
-private fun LocalCategoryTabs(
-    selectedCategory: Int,
-    onPlaylistSelected: () -> Unit,
-    onArtistSelected: () -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-    ) {
-        AdvancedGlassSurface(
-            role = AdvancedGlassRole.ScreenTopTab,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            fallbackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-            tintColor = MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            PrimaryTabRow(
-                selectedTabIndex = selectedCategory,
-                containerColor = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.primary
-            ) {
-                Tab(
-                    selected = selectedCategory == LOCAL_CATEGORY_PLAYLIST,
-                    onClick = onPlaylistSelected,
-                    text = { Text(stringResource(R.string.library_favorite_tab_playlists)) },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                            contentDescription = null
-                        )
-                    }
-                )
-                Tab(
-                    selected = selectedCategory == LOCAL_CATEGORY_ARTIST,
-                    onClick = onArtistSelected,
-                    text = { Text(stringResource(R.string.library_favorite_tab_artists)) },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Filled.AccountCircle,
-                            contentDescription = null
-                        )
-                    }
-                )
-            }
-        }
-    }
 }
 
 @Composable

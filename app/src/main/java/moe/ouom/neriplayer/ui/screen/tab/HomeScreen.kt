@@ -1107,8 +1107,13 @@ private fun SectionErrorState(detail: String) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = detail,
-            color = MaterialTheme.colorScheme.error,
+            text = if (detail.isBlank()) {
+                stringResource(R.string.home_error_network)
+            } else {
+                // Prefer friendly network copy over raw exception dumps
+                stringResource(R.string.home_load_failed)
+            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium
         )
         Text(

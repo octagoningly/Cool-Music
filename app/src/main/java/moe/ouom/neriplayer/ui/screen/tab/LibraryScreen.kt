@@ -491,14 +491,37 @@ fun LibraryScreen(
         }
     }
 
+    val currentLibraryTab = orderedTabs.getOrNull(pagerState.currentPage)
+    val libraryRefreshEnabled = currentLibraryTab.isRefreshable()
+
     Column(
         Modifier
             .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // 顶栏右侧：刷新 → 播放统计 → 最近播放（排序入口一并上移，放在刷新前）
         NeriTabLargeTitleTopBar(
             title = stringResource(R.string.library_title),
             actions = {
+                HapticIconButton(
+                    onClick = {
+                        when (currentLibraryTab) {
+                            LibraryTab.BILI -> vm.refreshBilibili()
+                            LibraryTab.YTMUSIC -> vm.refreshYouTubeMusicPlaylists()
+                            LibraryTab.NETEASE -> {
+                                vm.refreshNeteasePlaylists()
+                                vm.refreshNeteaseAlbums()
+                            }
+                            else -> Unit
+                        }
+                    },
+                    enabled = libraryRefreshEnabled
+                ) {
+                    Icon(
+                        Icons.Filled.Refresh,
+                        contentDescription = stringResource(R.string.action_refresh)
+                    )
+                }
                 HapticIconButton(onClick = onOpenStats) {
                     Icon(
                         Icons.Filled.BarChart,
@@ -509,6 +532,12 @@ fun LibraryScreen(
                     Icon(
                         Icons.Outlined.History,
                         contentDescription = stringResource(R.string.library_recent_played)
+                    )
+                }
+                HapticIconButton(onClick = { showLibraryTabOrderEditor = true }) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Sort,
+                        contentDescription = stringResource(R.string.library_tab_order_cd)
                     )
                 }
             }
@@ -527,28 +556,14 @@ fun LibraryScreen(
                 .weight(1f)
         ) {
             Column(Modifier.fillMaxSize()) {
-                val currentTab = orderedTabs.getOrNull(pagerState.currentPage)
                 LibraryMainTabs(
                     tabs = orderedTabs,
                     selectedTabIndex = pagerState.currentPage,
-                    refreshEnabled = currentTab.isRefreshable(),
                     onTabSelected = { index ->
                         scope.launch {
                             pagerState.animateScrollToPage(index)
                         }
-                    },
-                    onRefresh = {
-                        when (currentTab) {
-                            LibraryTab.BILI -> vm.refreshBilibili()
-                            LibraryTab.YTMUSIC -> vm.refreshYouTubeMusicPlaylists()
-                            LibraryTab.NETEASE -> {
-                                vm.refreshNeteasePlaylists()
-                                vm.refreshNeteaseAlbums()
-                            }
-                            else -> Unit
-                        }
-                    },
-                    onEditTabOrder = { showLibraryTabOrderEditor = true }
+                    }
                 )
 
                 HorizontalPager(
@@ -747,10 +762,7 @@ private fun LibraryTabOrderEditorDialog(
 private fun LibraryMainTabs(
     tabs: List<LibraryTab>,
     selectedTabIndex: Int,
-    refreshEnabled: Boolean,
-    onTabSelected: (Int) -> Unit,
-    onRefresh: () -> Unit,
-    onEditTabOrder: () -> Unit
+    onTabSelected: (Int) -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -761,7 +773,7 @@ private fun LibraryMainTabs(
         AdvancedGlassSurface(
             role = AdvancedGlassRole.ScreenTopTab,
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .clip(LibraryPrimaryTabShape),
             shape = LibraryPrimaryTabShape
         ) {
@@ -782,23 +794,6 @@ private fun LibraryMainTabs(
                     )
                 }
             }
-        }
-
-        HapticIconButton(onClick = onEditTabOrder) {
-            Icon(
-                Icons.AutoMirrored.Filled.Sort,
-                contentDescription = stringResource(R.string.library_tab_order_cd)
-            )
-        }
-
-        HapticIconButton(
-            onClick = onRefresh,
-            enabled = refreshEnabled
-        ) {
-            Icon(
-                Icons.Filled.Refresh,
-                contentDescription = stringResource(R.string.action_refresh)
-            )
         }
     }
 }

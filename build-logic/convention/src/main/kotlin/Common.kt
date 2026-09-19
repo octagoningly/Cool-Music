@@ -10,7 +10,7 @@ object Common {
      * Minute-precision versionCode that fits in Android Int (max ~2.1e9).
      *
      * Raw yyMMddHHmm overflows (e.g. 2609191530 > Int.MAX_VALUE), so we pack:
-     * (year-2020)*100_000_00 + MM*1_000_00 + dd*10_000 + HH*100 + mm
+     * (year-2020)*100_000_000 + MM*1_000_000 + dd*10_000 + HH*100 + mm
      * Example: 2026-09-19 15:30 → 609191530.
      * Same-hour double releases no longer collide.
      */
@@ -21,8 +21,8 @@ object Common {
         val day = cal.get(Calendar.DAY_OF_MONTH)
         val hour = cal.get(Calendar.HOUR_OF_DAY)
         val minute = cal.get(Calendar.MINUTE)
-        return yearOffset * 100_000_00 +
-            month * 1_000_00 +
+        return yearOffset * 100_000_000 +
+            month * 1_000_000 +
             day * 10_000 +
             hour * 100 +
             minute

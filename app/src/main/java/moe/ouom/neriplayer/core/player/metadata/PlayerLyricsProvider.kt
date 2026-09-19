@@ -144,6 +144,11 @@ internal fun isPlaceholderLyrics(entries: List<LyricEntry>): Boolean {
     }
 }
 
+/** 本地/缓存里的歌词是否可直接展示；占位文案（暂无歌词等）应继续走远程/音源兜底 */
+internal fun shouldAcceptStoredLyricEntries(entries: List<LyricEntry>): Boolean {
+    return entries.isNotEmpty() && !isPlaceholderLyrics(entries)
+}
+
 private const val PLACEHOLDER_LYRIC_MAX_LINES = 2
 private const val PLACEHOLDER_LYRIC_MAX_LENGTH = 20
 
@@ -1004,7 +1009,14 @@ internal object PlayerLyricsProvider {
                             durationMs = song.durationMs,
                             logPrefix = "匹配歌词解析失败"
                         )?.let { entries ->
-                            return@withContext entries
+                            // 占位文案（暂无歌词等）不能当作有效歌词，否则音源兜底永远不执行
+                            if (shouldAcceptStoredLyricEntries(entries)) {
+                                return@withContext entries
+                            }
+                            NPLogger.w(
+                                "NERI-PlayerManager",
+                                "忽略占位/空歌词，继续在线匹配: song=${song.name}"
+                            )
                         }
                     }
                 }
@@ -1027,7 +1039,13 @@ internal object PlayerLyricsProvider {
                     if (entries.isEmpty()) {
                         return@withContext emptyList()
                     }
-                    return@withContext entries
+                    if (shouldAcceptStoredLyricEntries(entries)) {
+                        return@withContext entries
+                    }
+                    NPLogger.w(
+                        "NERI-PlayerManager",
+                        "忽略下载缓存中的占位歌词，继续在线匹配: song=${song.name}"
+                    )
                 }
             }
             if (song.isLocalSong()) {
@@ -1077,14 +1095,10 @@ internal object PlayerLyricsProvider {
     }
 
     /**
-     * 在线音源歌词兜底：用跨平台取流时命中的曲目 ID（没有则现搜）拉取 LRC。
-     * 只在配置了在线音源时生效，避免给没启用该功能的用户增加额外请求。
+     * 在线音源歌词兜底：网易云无歌词/仅「暂无歌词」时，用 QQ→酷狗公开歌词接口按曲名匹配 LRC。
+     * 参考落雪：主源拿不到歌词就切其他平台；此处不要求自定义音源已预热（接口本身公开）。
      */
     private suspend fun loadLxSourceLyrics(song: SongItem): List<LyricEntry> {
-        val repository = runCatching { AppContainer.lxMusicSourceRepository }.getOrNull()
-            ?: return emptyList()
-        if (repository.peekEnabledSources().isEmpty()) return emptyList()
-
         val fetched = runCatching { fetchLxSourceLyric(song) }.getOrElse { error ->
             if (error is CancellationException) throw error
             NPLogger.w("NERI-PlayerManager", "在线音源歌词同步失败: song=${song.name}, error=${error.message}")
@@ -1095,6 +1109,13 @@ internal object PlayerLyricsProvider {
             durationMs = song.durationMs,
             logPrefix = "在线音源歌词"
         ) ?: return emptyList()
+        if (!shouldAcceptStoredLyricEntries(entries)) {
+            NPLogger.w(
+                "NERI-PlayerManager",
+                "在线音源歌词仍为占位，忽略: song=${song.name}, platform=${fetched.sourceId}"
+            )
+            return emptyList()
+        }
         NPLogger.w(
             "NERI-PlayerManager",
             "在线音源歌词已同步: song=${song.name}, platform=${fetched.sourceId}, lines=${entries.size}"

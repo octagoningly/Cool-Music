@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_app_footer">Cool Music (based on NeriPlayer) - GPLv3</string>
+    <string name="about_original_author_title">Original authors</string>
+    <string name="about_original_author_desc">This app is a derivative of NeriPlayer (github.com/cwuom/NeriPlayer), licensed under GPLv3. Original authors: NeriPlayer developers (cwuom). Cool Music is not affiliated with the original authors and comes with no warranty from them.</string>
+</resources>

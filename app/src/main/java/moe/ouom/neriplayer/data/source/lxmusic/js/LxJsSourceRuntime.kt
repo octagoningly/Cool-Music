@@ -1,0 +1,525 @@
+package moe.ouom.neriplayer.data.source.lxmusic.js
+
+import android.content.Context
+import android.util.Base64
+import com.whl.quickjs.android.QuickJSLoader
+import com.whl.quickjs.wrapper.QuickJSContext
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import moe.ouom.neriplayer.core.logging.NPLogger
+import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
+
+/*
+ * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
+ * Copyright (C) 2025-2025 NeriPlayer developers
+ * https://github.com/cwuom/NeriPlayer
+ *
+ * This software is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this software.
+ * If not, see <https://www.gnu.org/licenses/>.
+ *
+ * File: moe.ouom.neriplayer.data.source.lxmusic.js/LxJsSourceRuntime
+ * Updated: 2026/3/23
+ */
+
+/**
+ * LX Music JS 音源运行时（对齐落雪 mobile 的 user-api 协议）。
+ * 使用 QuickJS 执行脚本，通过 native bridge 提供 lx.request / crypto / setTimeout。
+ */
+class LxJsSourceRuntime(
+    private val context: Context,
+    private val okHttpClient: OkHttpClient,
+    private val scriptId: String,
+    private val scriptName: String,
+    private val script: String,
+    private val scriptDescription: String = "",
+    private val scriptVersion: String = "",
+    private val scriptAuthor: String = "",
+    private val scriptHomepage: String = ""
+) {
+    private val key = UUID.randomUUID().toString()
+    private val executor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "LxJsSource-$scriptId").apply { isDaemon = true }
+    }
+    private val httpRequestClient = okHttpClient.newBuilder()
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    @Volatile
+    private var loaded = false
+
+    /** 保证同一个运行时的脚本只加载一次：预热与播放解析可能并发触发 load() */
+    private val loadLatch = java.util.concurrent.CountDownLatch(1)
+    private val loadStarted = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    private var jsContext: QuickJSContext? = null
+    private val pendingMusicUrl = ConcurrentHashMap<String, CompletableDeferred<String?>>()
+    private val pendingNativeRequests = ConcurrentHashMap<String, okhttp3.Call>()
+    private val timeoutHandler = android.os.Handler(context.mainLooper)
+
+    @Volatile
+    var supportedSources: Set<String> = emptySet()
+        private set
+
+    @Volatile
+    var supportedQualities: Set<String> = emptySet()
+        private set
+
+    /** 最近一次 musicUrl 失败原因（HTTP 状态码或脚本报错），供设置页显示 */
+    @Volatile
+    var lastFailureReason: String? = null
+        private set
+
+    fun clearLastFailure() {
+        lastFailureReason = null
+    }
+
+    fun isReady(): Boolean = loaded
+
+    /**
+     * 加载脚本（幂等、可并发调用）。
+     * 加载失败后不会重复加载，返回 false，调用方按音源不可用处理。
+     */
+    fun load(): Boolean {
+        if (loaded) return true
+        if (loadStarted.compareAndSet(false, true)) {
+            executor.execute {
+                val success = runCatching { loadInternal() }.getOrElse { error ->
+                    NPLogger.e(TAG, "Load LX JS source failed: ${error.message}", error)
+                    false
+                }
+                loaded = success
+                loadLatch.countDown()
+            }
+        }
+        val finished = loadLatch.await(8, TimeUnit.SECONDS)
+        if (!finished) {
+            NPLogger.w(TAG, "LX JS source load timed out: id=$scriptId")
+        }
+        return loaded
+    }
+
+    suspend fun getMusicUrl(
+        sourceId: String,
+        quality: String,
+        musicInfoJson: String,
+        timeoutMs: Long = 8_000L
+    ): String? = withContext(Dispatchers.IO) {
+        if (!loaded && !load()) return@withContext null
+        val requestKey = "request__${System.nanoTime()}"
+        val deferred = CompletableDeferred<String?>()
+        pendingMusicUrl[requestKey] = deferred
+        val payload = JSONObject().apply {
+            put("requestKey", requestKey)
+            put(
+                "data",
+                JSONObject().apply {
+                    put("source", sourceId)
+                    put("action", "musicUrl")
+                    put(
+                        "info",
+                        JSONObject().apply {
+                            put("type", quality)
+                            put("musicInfo", JSONObject(musicInfoJson))
+                        }
+                    )
+                }
+            )
+        }
+        executor.execute {
+            runCatching {
+                jsContext?.getGlobalObject()?.getJSFunction("__lx_native__")
+                    ?.call(key, "request", payload.toString())
+            }.onFailure {
+                NPLogger.w(TAG, "callJS request failed: ${it.message}")
+                pendingMusicUrl.remove(requestKey)?.complete(null)
+            }
+        }
+        val result = withTimeoutOrNull(timeoutMs) { deferred.await() }
+        if (result == null) {
+            pendingMusicUrl.remove(requestKey)
+            NPLogger.w(
+                TAG,
+                "LX JS musicUrl timed out after ${timeoutMs}ms: source=$sourceId quality=$quality"
+            )
+        }
+        result
+    }
+
+    fun destroy() {
+        executor.execute {
+            runCatching { jsContext?.destroy() }
+            jsContext = null
+            loaded = false
+        }
+        pendingMusicUrl.values.forEach { it.complete(null) }
+        pendingMusicUrl.clear()
+        pendingNativeRequests.clear()
+        executor.shutdown()
+    }
+
+    private fun loadInternal(): Boolean {
+        QuickJSLoader.init()
+        val ctx = QuickJSContext.create()
+        jsContext = ctx
+        ctx.setConsole(object : QuickJSContext.Console {
+            override fun log(info: String?) {
+                NPLogger.d(TAG, "JS[log] ${info.orEmpty().take(500)}")
+            }
+
+            override fun info(info: String?) {
+                NPLogger.i(TAG, "JS[info] ${info.orEmpty().take(500)}")
+            }
+
+            override fun warn(info: String?) {
+                NPLogger.w(TAG, "JS[warn] ${info.orEmpty().take(500)}")
+            }
+
+            override fun error(info: String?) {
+                NPLogger.e(TAG, "JS[error] ${info.orEmpty().take(500)}")
+            }
+        })
+        createEnvObj(ctx)
+        val preload = context.assets.open("script/user-api-preload.js")
+            .bufferedReader(StandardCharsets.UTF_8)
+            .use { it.readText() }
+        ctx.evaluate(preload)
+        ctx.getGlobalObject().getJSFunction("lx_setup")
+            .call(
+                key,
+                scriptId,
+                scriptName,
+                scriptDescription,
+                scriptVersion,
+                scriptAuthor,
+                scriptHomepage,
+                script
+            )
+        ctx.evaluate(script, "lx-source.js")
+        // 等待脚本 lx.send('inited') 回调
+        var waited = 0
+        while (waited < 1500 && supportedSources.isEmpty()) {
+            Thread.sleep(30)
+            waited += 30
+        }
+        NPLogger.d(
+            TAG,
+            "LX JS load done: sources=$supportedSources qualities=$supportedQualities waitedMs=$waited"
+        )
+        return true
+    }
+
+    private fun createEnvObj(ctx: QuickJSContext) {
+        // JSCallFunction.call(Object... args)
+        ctx.getGlobalObject().setProperty("__lx_native_call__") { args ->
+            val callKey = args.getOrNull(0) as? String ?: return@setProperty null
+            if (callKey != key) return@setProperty null
+            val action = args.getOrNull(1) as? String ?: return@setProperty null
+            val data = args.getOrNull(2) as? String
+            handleNativeCall(action, data)
+            null
+        }
+        ctx.getGlobalObject().setProperty("__lx_native_call__utils_str2b64") { args ->
+            val input = args.getOrNull(0) as? String ?: return@setProperty ""
+            String(Base64.encode(input.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP), StandardCharsets.UTF_8)
+        }
+        ctx.getGlobalObject().setProperty("__lx_native_call__utils_b642buf") { args ->
+            val input = args.getOrNull(0) as? String ?: return@setProperty ""
+            val bytes = Base64.decode(input.toByteArray(StandardCharsets.UTF_8), Base64.NO_WRAP)
+            bytes.joinToString(prefix = "[", postfix = "]") { (it.toInt() and 0xFF).toString() }
+        }
+        ctx.getGlobalObject().setProperty("__lx_native_call__utils_str2md5") { args ->
+            val input = args.getOrNull(0) as? String ?: return@setProperty ""
+            md5Hex(input)
+        }
+        ctx.getGlobalObject().setProperty("__lx_native_call__utils_aes_encrypt") { args ->
+            try {
+                val data = args.getOrNull(0) as? String ?: return@setProperty ""
+                val key = args.getOrNull(1) as? String ?: return@setProperty ""
+                val iv = args.getOrNull(2) as? String ?: return@setProperty ""
+                val mode = args.getOrNull(3) as? String ?: return@setProperty ""
+                aesEncrypt(data, key, iv, mode)
+            } catch (_: Exception) {
+                ""
+            }
+        }
+        ctx.getGlobalObject().setProperty("__lx_native_call__utils_rsa_encrypt") { args ->
+            try {
+                val dataB64 = args.getOrNull(0) as? String ?: return@setProperty ""
+                val publicKey = args.getOrNull(1) as? String ?: return@setProperty ""
+                val padding = args.getOrNull(2) as? String ?: "RSA/ECB/NoPadding"
+                rsaEncrypt(dataB64, publicKey, padding)
+            } catch (e: Exception) {
+                NPLogger.w(TAG, "RSA encrypt failed: ${e.message}")
+                ""
+            }
+        }
+        ctx.getGlobalObject().setProperty("__lx_native_call__set_timeout") { args ->
+            val id = args.getOrNull(0)
+            val delay = (args.getOrNull(1) as? Number)?.toLong() ?: 0L
+            timeoutHandler.postDelayed({
+                executor.execute {
+                    runCatching {
+                        jsContext?.getGlobalObject()?.getJSFunction("__lx_native__")
+                            ?.call(key, "__set_timeout__", id)
+                    }
+                }
+            }, delay)
+            null
+        }
+    }
+
+    private fun handleNativeCall(action: String, data: String?) {
+        when (action) {
+            "init" -> {
+                val json = JSONObject(data ?: "{}")
+                val info = json.optJSONObject("info")
+                val sources = info?.optJSONObject("sources")
+                val ids = mutableSetOf<String>()
+                val qualities = mutableSetOf<String>()
+                sources?.keys()?.forEach { sourceId ->
+                    ids += sourceId
+                    val qualitys = sources.optJSONObject(sourceId)?.optJSONArray("qualitys")
+                    if (qualitys != null) {
+                        for (i in 0 until qualitys.length()) {
+                            qualitys.optString(i).takeIf { it.isNotBlank() }?.let { qualities += it }
+                        }
+                    }
+                }
+                if (ids.isNotEmpty()) supportedSources = ids
+                if (qualities.isNotEmpty()) supportedQualities = qualities
+                NPLogger.d(TAG, "LX JS inited: sources=$ids qualities=$qualities")
+            }
+            "request" -> {
+                val json = JSONObject(data ?: return)
+                val requestKey = json.optString("requestKey")
+                val url = json.optString("url")
+                val options = json.optJSONObject("options") ?: JSONObject()
+                if (requestKey.isBlank() || url.isBlank()) return
+                val request = runCatching { buildHttpRequest(url, options) }.getOrNull() ?: return
+                NPLogger.d(
+                    TAG,
+                    "LX JS http req ${options.optString("method", "get")} ${url.take(120)}"
+                )
+                val call = httpRequestClient.newCall(request)
+                pendingNativeRequests[requestKey] = call
+                Thread {
+                    try {
+                        call.execute().use { resp ->
+                            val rawBody = resp.body.string()
+                            val headers = JSONObject()
+                            resp.headers.forEach { (name, value) ->
+                                headers.put(name, headers.optString(name, "") + value)
+                            }
+                            // 与落雪一致：能解析成 JSON 就传对象，否则保持字符串
+                            val parsedBody: Any = try {
+                                JSONObject(rawBody)
+                            } catch (_: Exception) {
+                                try {
+                                    org.json.JSONArray(rawBody)
+                                } catch (_: Exception) {
+                                    rawBody
+                                }
+                            }
+                            val response = JSONObject().apply {
+                                put("requestKey", requestKey)
+                                put("error", JSONObject.NULL)
+                                put(
+                                    "response",
+                                    JSONObject().apply {
+                                        put("statusCode", resp.code)
+                                        put("statusMessage", resp.message)
+                                        put("headers", headers)
+                                        put("body", parsedBody)
+                                    }
+                                )
+                            }
+                            if (resp.isSuccessful) {
+                                NPLogger.d(
+                                    TAG,
+                                    "LX JS http ${resp.code} ${url.take(80)} bodyLen=${rawBody.length}"
+                                )
+                            } else {
+                                lastFailureReason = "HTTP ${resp.code}"
+                                NPLogger.w(
+                                    TAG,
+                                    "LX JS http ${resp.code} ${url.take(120)} body=${rawBody.take(300)}"
+                                )
+                            }
+                            callJs("response", response.toString())
+                        }
+                    } catch (e: Exception) {
+                        val response = JSONObject().apply {
+                            put("requestKey", requestKey)
+                            put("error", e.message ?: "request failed")
+                            put("response", JSONObject.NULL)
+                        }
+                        callJs("response", response.toString())
+                    } finally {
+                        pendingNativeRequests.remove(requestKey)
+                    }
+                }.start()
+            }
+            "cancelRequest" -> {
+                val requestKey = data ?: return
+                pendingNativeRequests.remove(requestKey)?.let {
+                    runCatching { it.cancel() }
+                }
+            }
+            "response" -> {
+                val json = JSONObject(data ?: return)
+                val requestKey = json.optString("requestKey")
+                val status = json.optBoolean("status", false)
+                val result = json.optJSONObject("result")
+                val deferred = pendingMusicUrl.remove(requestKey) ?: return
+                val url = if (status) {
+                    result?.optJSONObject("data")?.optString("url")?.takeIf { it.startsWith("http") }
+                } else {
+                    null
+                }
+                if (status && url != null) {
+                    lastFailureReason = null
+                    NPLogger.d(TAG, "LX JS musicUrl ok url=${url.take(120)}")
+                } else {
+                    val errorMessage = json.optString("errorMessage").take(200)
+                    if (lastFailureReason == null && errorMessage.isNotBlank()) {
+                        lastFailureReason = errorMessage
+                    }
+                    NPLogger.w(
+                        TAG,
+                        "LX JS musicUrl failed: status=$status, " +
+                            "error=$errorMessage, url=${url?.take(120)}"
+                    )
+                }
+                deferred.complete(url)
+            }
+            "log" -> {
+                NPLogger.d(TAG, "LX JS log: ${data?.take(400)}")
+            }
+        }
+    }
+
+    private fun buildHttpRequest(url: String, options: JSONObject): Request {
+        val method = options.optString("method", "get").lowercase()
+        val headers = options.optJSONObject("headers") ?: JSONObject()
+        val builder = Request.Builder().url(url)
+        // 与落雪 mobile request.js 默认头保持一致
+        builder.header("Accept", "application/json")
+        builder.header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
+        )
+        headers.keys().forEach { name ->
+            builder.header(name, headers.optString(name))
+        }
+        val timeoutMs = options.optLong("timeout", 13_000L)
+        // timeout 由 client 统一控制，这里仅记录
+        if (method == "post") {
+            val form = options.optJSONObject("form")
+            val bodyObj = options.opt("body")
+            val requestBody = when {
+                form != null -> {
+                    val fb = FormBody.Builder()
+                    form.keys().forEach { key -> fb.add(key, form.optString(key)) }
+                    fb.build()
+                }
+                bodyObj is JSONObject ->
+                    bodyObj.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                bodyObj is String && bodyObj.isNotBlank() ->
+                    bodyObj.toRequestBody("application/json; charset=utf-8".toMediaType())
+                else -> ByteArray(0).toRequestBody(null)
+            }
+            builder.post(requestBody)
+        } else {
+            builder.get()
+        }
+        if (timeoutMs > 0) {
+            // no-op: client already has timeouts
+        }
+        return builder.build()
+    }
+
+    private fun callJs(action: String, data: String) {
+        executor.execute {
+            runCatching {
+                jsContext?.getGlobalObject()?.getJSFunction("__lx_native__")
+                    ?.call(key, action, data)
+            }.onFailure {
+                NPLogger.w(TAG, "callJs($action) failed: ${it.message}")
+            }
+        }
+    }
+
+    private fun md5Hex(input: String): String {
+        // 落雪原版：先 URLDecode 再 MD5（preload 侧会 encodeURIComponent）
+        val decoded = try {
+            java.net.URLDecoder.decode(input, "UTF-8")
+        } catch (_: Exception) {
+            input
+        }
+        val md = MessageDigest.getInstance("MD5")
+        val bytes = md.digest(decoded.toByteArray(StandardCharsets.UTF_8))
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun aesEncrypt(dataB64: String, keyB64: String, ivB64: String, mode: String): String {
+        // 与落雪 AES 保持一致：decode 用 DEFAULT，encode 用 NO_WRAP
+        val data = Base64.decode(dataB64, Base64.DEFAULT)
+        val key = Base64.decode(keyB64, Base64.DEFAULT)
+        val cipher = Cipher.getInstance(mode)
+        val secretKey = SecretKeySpec(key, "AES")
+        if (ivB64.isBlank() || mode.contains("ECB", ignoreCase = true)) {
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+        } else {
+            val iv = Base64.decode(ivB64, Base64.DEFAULT)
+            val finalIv = ByteArray(16)
+            System.arraycopy(iv, 0, finalIv, 0, minOf(iv.size, 16))
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, IvParameterSpec(finalIv))
+        }
+        return String(Base64.encode(cipher.doFinal(data), Base64.NO_WRAP), StandardCharsets.UTF_8)
+    }
+
+    private fun rsaEncrypt(dataB64: String, publicKey: String, padding: String): String {
+        val keyFactory = java.security.KeyFactory.getInstance("RSA")
+        val keySpec = java.security.spec.X509EncodedKeySpec(
+            Base64.decode(publicKey.trim().toByteArray(), Base64.DEFAULT)
+        )
+        val key = keyFactory.generatePublic(keySpec)
+        val cipher = Cipher.getInstance(padding)
+        cipher.init(Cipher.ENCRYPT_MODE, key)
+        val encrypted = cipher.doFinal(Base64.decode(dataB64, Base64.DEFAULT))
+        return String(Base64.encode(encrypted, Base64.NO_WRAP), StandardCharsets.UTF_8)
+    }
+
+    private companion object {
+        private const val TAG = "LxJsSourceRuntime"
+    }
+}

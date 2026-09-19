@@ -119,11 +119,17 @@ object GitHubAppUpdateChecker {
     }
 
     private fun parseVersionCodeFromAsset(assetName: String): Long? {
-        val matcher = Pattern.compile("(\\d{8})").matcher(assetName)
+        val matcher = Pattern.compile("(\\d{6,10})").matcher(assetName)
         var last: Long? = null
         while (matcher.find()) {
-            last = matcher.group(1)?.toLongOrNull() ?: last
+            val value = matcher.group(1)?.toLongOrNull() ?: continue
+            last = value
         }
-        return last?.takeIf { it in 20000000L..29999999L }
+        return last?.takeIf {
+            // legacy yyMMddHH
+            it in 20_000_000L..29_999_999L ||
+                // minute-packed: (year-2020)*1e8 + MM*1e6 + dd*1e4 + HH*100 + mm
+                it in 100_000_000L..2_099_999_999L
+        }
     }
 }

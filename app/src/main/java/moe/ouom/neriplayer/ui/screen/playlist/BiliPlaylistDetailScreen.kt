@@ -1208,23 +1208,12 @@ private fun VideoRow(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier.width(40.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (selectionMode) {
-                Checkbox(
-                    checked = selected,
-                    onCheckedChange = { onToggleSelect() }
-                )
-            } else {
-                Text(
-                    text = index.toString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = playlistModernListTertiaryContentColor(),
-                    textAlign = TextAlign.Center
-                )
-            }
+        if (selectionMode) {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = { onToggleSelect() }
+            )
+            Spacer(Modifier.width(8.dp))
         }
 
         AsyncImage(

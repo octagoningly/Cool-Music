@@ -51,9 +51,6 @@ internal fun ArtistSongRow(
     val context = LocalContext.current
     val coverUrl = rememberSongDisplayCoverUrl(song)
     val displayArtist = song.displayArtist().takeIf { it.isNotBlank() }
-    val displayAlbum = song.displayAlbum(context)
-        .replace("Netease", "")
-        .takeIf { it.isNotBlank() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -61,16 +58,6 @@ internal fun ArtistSongRow(
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.Center) {
-            Text(
-                text = index.toString(),
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-                overflow = TextOverflow.Clip
-            )
-        }
         AsyncImage(
             model = offlineCachedImageRequest(
                 context = context,
@@ -92,10 +79,15 @@ internal fun ArtistSongRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            ArtistSongSubtitle(
-                artist = displayArtist,
-                album = displayAlbum
-            )
+            if (displayArtist != null) {
+                Text(
+                    text = displayArtist,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
         Text(
             text = formatDuration(song.durationMs),

@@ -658,23 +658,18 @@ private fun RecentRowRich(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 序号 / 播放指示
-        Box(Modifier.width(40.dp), contentAlignment = Alignment.Center) {
-            if (selectionMode) {
-                Checkbox(
-                    checked = selected,
-                    onCheckedChange = { onToggleSelect() }
-                )
-            } else if (isCurrentSong) {
+        // 播放指示 / 多选；不展示序号，封面左移
+        if (selectionMode) {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = { onToggleSelect() }
+            )
+            Spacer(Modifier.width(8.dp))
+        } else if (isCurrentSong) {
+            Box(Modifier.width(40.dp), contentAlignment = Alignment.Center) {
                 PlayingIndicator(
                     color = MaterialTheme.colorScheme.primary,
                     animate = isPlaying
-                )
-            } else {
-                Text(
-                    text = index.toString(),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

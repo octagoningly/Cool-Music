@@ -1111,26 +1111,12 @@ private fun SongRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier.width(indexWidth),
-            contentAlignment = Alignment.Center
-        ) {
-            if (selectionMode) {
-                Checkbox(
-                    checked = selected,
-                    onCheckedChange = { onToggleSelect() }
-                )
-            } else {
-                Text(
-                    text = index.toString(),
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = playlistModernListTertiaryContentColor(),
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Clip,
-                    textAlign = TextAlign.Center
-                )
-            }
+        if (selectionMode) {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = { onToggleSelect() }
+            )
+            Spacer(Modifier.width(8.dp))
         }
 
         val itemContext = LocalContext.current
@@ -1168,10 +1154,7 @@ private fun SongRow(
                 color = playlistModernListPrimaryContentColor()
             )
             Text(
-                text = listOfNotNull(
-                    song.displayArtist().takeIf { it.isNotBlank() },
-                    (song.album.takeIf { it.isNotBlank() })?.replace("Netease", "") ?: ""
-                ).joinToString(" · "),
+                text = song.displayArtist().orEmpty(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall,

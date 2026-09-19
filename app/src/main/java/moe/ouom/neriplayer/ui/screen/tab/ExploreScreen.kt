@@ -2415,17 +2415,6 @@ internal fun SongRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.Center) {
-            Text(
-                text = index.toString(),
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-                textAlign = TextAlign.Center
-            )
-        }
-
         if (!coverUrl.isNullOrBlank()) {
             AsyncImage(
                 model = fastScrollableImageRequest(
@@ -2453,10 +2442,7 @@ internal fun SongRow(
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = listOfNotNull(
-                    song.displayArtist().takeIf { it.isNotBlank() },
-                    song.displayAlbum(context).takeIf { it.isNotBlank() }
-                ).joinToString(" · "),
+                text = song.displayArtist().orEmpty(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall,

@@ -1134,6 +1134,7 @@ private fun YouTubeMusicSongRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Spacer(Modifier.width(16.dp))
         if (selectionMode) {
             androidx.compose.material3.Checkbox(
                 checked = selected,

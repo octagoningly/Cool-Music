@@ -658,7 +658,8 @@ private fun RecentRowRich(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 播放指示 / 多选；不展示序号，封面左移
+        // 播放指示 / 多选；不展示序号，封面略靠左时补边距
+        Spacer(Modifier.width(16.dp))
         if (selectionMode) {
             Checkbox(
                 checked = selected,

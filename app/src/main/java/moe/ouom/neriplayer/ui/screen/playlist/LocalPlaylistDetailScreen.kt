@@ -2075,7 +2075,8 @@ fun LocalPlaylistDetailScreen(
                                             modifier = Modifier.weight(1f),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            // 多选时显示复选框；普通列表不展示序号，封面左移
+                                            // 多选时显示复选框；普通列表不展示序号，封面略靠左时补边距
+                                            Spacer(Modifier.width(16.dp))
                                             if (selectionMode) {
                                                 Checkbox(
                                                     checked = selectedKeysState.value.contains(song.stableKey()),

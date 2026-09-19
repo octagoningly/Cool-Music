@@ -2415,6 +2415,7 @@ internal fun SongRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Spacer(Modifier.width(16.dp))
         if (!coverUrl.isNullOrBlank()) {
             AsyncImage(
                 model = fastScrollableImageRequest(

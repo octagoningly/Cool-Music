@@ -1208,6 +1208,7 @@ private fun VideoRow(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Spacer(Modifier.width(16.dp))
         if (selectionMode) {
             Checkbox(
                 checked = selected,

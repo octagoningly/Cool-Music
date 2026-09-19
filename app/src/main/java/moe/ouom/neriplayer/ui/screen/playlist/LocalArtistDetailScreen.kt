@@ -772,6 +772,7 @@ private fun LocalArtistSongRow(
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Spacer(Modifier.width(16.dp))
         if (selectionMode) {
             Checkbox(
                 checked = selected,

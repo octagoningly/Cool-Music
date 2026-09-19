@@ -1111,6 +1111,7 @@ private fun SongRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Spacer(Modifier.width(16.dp))
         if (selectionMode) {
             Checkbox(
                 checked = selected,

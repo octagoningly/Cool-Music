@@ -58,6 +58,7 @@ internal fun ArtistSongRow(
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Spacer(Modifier.width(16.dp))
         AsyncImage(
             model = offlineCachedImageRequest(
                 context = context,

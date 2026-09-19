@@ -631,6 +631,7 @@ private fun CreatorPlayableRow(
             .padding(vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Spacer(Modifier.width(16.dp))
         Box(
             modifier = Modifier
                 .size(48.dp)

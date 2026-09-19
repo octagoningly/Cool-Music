@@ -1144,6 +1144,8 @@ private fun SongRowMini(
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // 序号列移除后封面略靠左，补少量左边距
+        Spacer(Modifier.width(16.dp))
         if (showIndex) {
             Text(
                 text = index.toString(),

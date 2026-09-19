@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.tab.settings.auth
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,7 +22,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,8 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxChannelProbeResult
 import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
@@ -63,7 +67,6 @@ import moe.ouom.neriplayer.ui.viewmodel.settings.LxMusicSourceViewModel
  * If not, see <https://www.gnu.org/licenses/>.
  *
  * File: moe.ouom.neriplayer.ui.screen.tab.settings.auth/LxMusicSourceSettings
- * Updated: 2026/3/23
  */
 
 @Composable
@@ -77,25 +80,30 @@ internal fun SettingsLxMusicSourceDialogs(
 ) {
     val context = LocalContext.current
     if (showManageDialog || showImportDialog) {
-        androidx.compose.runtime.LaunchedEffect(vm, context) {
+        LaunchedEffect(vm, context) {
             vm.initialize(context)
         }
     }
 
     if (showManageDialog) {
         val state by vm.uiState.collectAsStateWithLifecycleCompat()
+        var detailSource by remember { mutableStateOf<LxImportedSource?>(null) }
+
         MiuixSettingsDialog(
             onDismissRequest = {
                 vm.clearMessage()
                 onDismissManageDialog()
             },
             confirmButton = {
-                MiuixSettingsButton(onClick = onOpenImportDialog) {
+                MiuixSettingsButton(onClick = {
+                    vm.clearMessage()
+                    onOpenImportDialog()
+                }) {
                     Text(stringResource(R.string.lx_source_add))
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = {
+                TextButton(onClick = {
                     vm.clearMessage()
                     onDismissManageDialog()
                 }) {
@@ -108,25 +116,12 @@ internal fun SettingsLxMusicSourceDialogs(
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.lx_source_manage_desc),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    state.message?.let { message ->
-                        val mapped = mapLxSourceMessage(message)
-                        MiuixSettingsInlineMessage(
-                            message = mapped,
-                            isSuccess = !message.startsWith("import_failed") &&
-                                !message.startsWith("refresh_failed"),
-                            onClose = vm::clearMessage
-                        )
-                    }
+                    // 1) 偏好开关（一句话）
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -136,21 +131,44 @@ internal fun SettingsLxMusicSourceDialogs(
                             Text(
                                 text = stringResource(R.string.lx_source_prefer_first_desc),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
                         MiuixSettingsSwitch(
                             checked = state.preferCustomSource,
                             onCheckedChange = vm::setPreferCustomSource
                         )
                     }
-                    HorizontalDivider()
+
+                    state.message?.let { message ->
+                        val mapped = mapLxSourceMessage(message)
+                        MiuixSettingsInlineMessage(
+                            message = mapped,
+                            isSuccess = !message.startsWith("import_failed") &&
+                                !message.startsWith("refresh_failed"),
+                            onClose = vm::clearMessage
+                        )
+                    }
+
+                    // 2) 运行状态 / 通道检测（仅在有内容时出现）
                     LxSourceRuntimeStatusRow(status = state.runtimeStatus)
                     LxSourceChannelProbeSection(
                         probing = state.probing,
                         results = state.channelProbes,
                         hasJsSource = state.sources.any { it.isJsSource && it.enabled },
                         onProbe = { vm.probeChannels(context) }
+                    )
+
+                    HorizontalDivider()
+
+                    // 3) 音源列表
+                    Text(
+                        text = stringResource(R.string.lx_source_section_imported),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (state.sources.isEmpty()) {
                         Text(
@@ -167,18 +185,35 @@ internal fun SettingsLxMusicSourceDialogs(
                                     vm.setSourceEnabled(source.id, enabled)
                                 },
                                 onRefresh = { vm.refreshSource(source.id) },
-                                onRemove = { vm.removeSource(source.id) }
+                                onRemove = { vm.removeSource(source.id) },
+                                onClick = { detailSource = source }
                             )
                         }
                     }
                 }
             }
         )
+
+        detailSource?.let { source ->
+            LxSourceDetailDialog(
+                source = source,
+                onDismiss = { detailSource = null }
+            )
+        }
     }
 
     if (showImportDialog) {
         var urlInput by remember(showImportDialog) { mutableStateOf("") }
         val state by vm.uiState.collectAsStateWithLifecycleCompat()
+
+        // 导入成功/失败后清空输入框，方便直接粘贴下一条
+        LaunchedEffect(state.message) {
+            val message = state.message ?: return@LaunchedEffect
+            if (message.startsWith("import_ok") || message.startsWith("import_failed")) {
+                urlInput = ""
+            }
+        }
+
         MiuixSettingsDialog(
             onDismissRequest = {
                 vm.clearMessage()
@@ -187,7 +222,7 @@ internal fun SettingsLxMusicSourceDialogs(
             confirmButton = {
                 MiuixSettingsButton(
                     enabled = !state.importing && urlInput.isNotBlank(),
-                    onClick = { vm.importFromUrl(urlInput) }
+                    onClick = { vm.importFromUrl(urlInput.trim()) }
                 ) {
                     if (state.importing) {
                         CircularProgressIndicator(
@@ -200,7 +235,10 @@ internal fun SettingsLxMusicSourceDialogs(
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = onDismissImportDialog) {
+                TextButton(onClick = {
+                    vm.clearMessage()
+                    onDismissImportDialog()
+                }) {
                     Text(stringResource(R.string.lx_source_cancel))
                 }
             },
@@ -212,7 +250,8 @@ internal fun SettingsLxMusicSourceDialogs(
                 ) {
                     Text(
                         text = stringResource(R.string.lx_source_import_desc),
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MiuixSettingsTextField(
                         value = urlInput,
@@ -234,11 +273,109 @@ internal fun SettingsLxMusicSourceDialogs(
     }
 }
 
-/**
- * 显示在线音源最近一次解析结果。
- * 音源站服务端故障时（如网易云通道 502），这里会直接显示原因，
- * 避免「明明启用了音源却一直走平台音源」看起来像功能没生效。
- */
+@Composable
+private fun LxSourceDetailDialog(
+    source: LxImportedSource,
+    onDismiss: () -> Unit
+) {
+    MiuixSettingsDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            MiuixSettingsButton(onClick = onDismiss) {
+                Text(stringResource(R.string.lx_source_close))
+            }
+        },
+        title = { Text(source.name) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                DetailRow(
+                    label = stringResource(R.string.lx_source_url_dialog_title),
+                    value = source.url
+                )
+                if (source.description.isNotBlank()) {
+                    DetailRow(
+                        label = stringResource(R.string.lx_source_detail_desc),
+                        value = source.description
+                    )
+                }
+                if (source.author.isNotBlank()) {
+                    DetailRow(
+                        label = stringResource(R.string.lx_source_detail_author),
+                        value = source.author
+                    )
+                }
+                if (source.version.isNotBlank()) {
+                    DetailRow(
+                        label = stringResource(R.string.lx_source_detail_version),
+                        value = source.version
+                    )
+                }
+                DetailRow(
+                    label = stringResource(R.string.lx_source_detail_kind),
+                    value = stringResource(
+                        if (source.isJsSource) R.string.lx_source_kind_js
+                        else R.string.lx_source_kind_json
+                    )
+                )
+                if (source.searchApiUrl.isNotBlank()) {
+                    DetailRow(
+                        label = stringResource(R.string.lx_source_detail_search_api),
+                        value = source.searchApiUrl
+                    )
+                }
+                if (source.songUrlApiUrl.isNotBlank()) {
+                    DetailRow(
+                        label = stringResource(R.string.lx_source_detail_song_api),
+                        value = source.songUrlApiUrl
+                    )
+                }
+                if (source.lyricApiUrl.isNotBlank()) {
+                    DetailRow(
+                        label = stringResource(R.string.lx_source_detail_lyric_api),
+                        value = source.lyricApiUrl
+                    )
+                }
+                if (source.picApiUrl.isNotBlank()) {
+                    DetailRow(
+                        label = stringResource(R.string.lx_source_detail_pic_api),
+                        value = source.picApiUrl
+                    )
+                }
+                if (source.jsSourceIds.isNotEmpty()) {
+                    DetailRow(
+                        label = stringResource(R.string.lx_source_detail_platforms),
+                        value = source.jsSourceIds.joinToString(" / ")
+                    )
+                }
+                if (source.supportedQualities.isNotEmpty()) {
+                    DetailRow(
+                        label = stringResource(R.string.lx_source_detail_qualities),
+                        value = source.supportedQualities.joinToString(" / ")
+                    )
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+}
+
 @Composable
 private fun LxSourceRuntimeStatusRow(status: LxMusicSourceRepository.RuntimeStatus) {
     if (!status.hasActivity) return
@@ -284,28 +421,29 @@ private fun LxSourceChannelProbeSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.lx_source_probe_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = stringResource(R.string.lx_source_probe_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.width(8.dp))
             if (probing) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .padding(end = 6.dp),
+                        modifier = Modifier.size(14.dp),
                         strokeWidth = 2.dp
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = stringResource(R.string.lx_source_probe_running),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
             } else {
-                MiuixSettingsButton(onClick = onProbe) {
+                TextButton(onClick = onProbe) {
                     Text(stringResource(R.string.lx_source_probe_button))
                 }
             }
@@ -357,73 +495,90 @@ private fun LxSourceRow(
     refreshing: Boolean,
     onToggleEnabled: (Boolean) -> Unit,
     onRefresh: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onClick: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.CloudDownload,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 10.dp)
-            ) {
-                Text(
-                    text = source.name,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Text(
-                    text = buildString {
-                        append(source.url)
-                        if (source.version.isNotBlank()) {
-                            append(" · ")
-                            append(source.version)
-                        }
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2
-                )
-                source.lastError?.let { error ->
-                    Text(
-                        text = error,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-            if (refreshing) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp
-                )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.CloudDownload,
+            contentDescription = null,
+            modifier = Modifier.size(22.dp),
+            tint = if (source.enabled) {
+                MaterialTheme.colorScheme.primary
             } else {
-                IconButton(onClick = onRefresh) {
-                    Icon(
-                        imageVector = Icons.Outlined.Refresh,
-                        contentDescription = stringResource(R.string.lx_source_refresh)
-                    )
-                }
+                MaterialTheme.colorScheme.onSurfaceVariant
             }
-            IconButton(onClick = onRemove) {
-                Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = stringResource(R.string.lx_source_remove)
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 10.dp)
+        ) {
+            Text(
+                text = source.name,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            val kindLabel = stringResource(
+                if (source.isJsSource) R.string.lx_source_kind_js
+                else R.string.lx_source_kind_json
+            )
+            Text(
+                text = buildString {
+                    append(kindLabel)
+                    if (source.version.isNotBlank()) {
+                        append(" · v")
+                        append(source.version)
+                    }
+                    append(" · ")
+                    append(stringResource(R.string.lx_source_tap_to_view_url))
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            source.lastError?.let { error ->
+                Text(
+                    text = error,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-            MiuixSettingsSwitch(
-                checked = source.enabled,
-                onCheckedChange = onToggleEnabled
+        }
+        if (refreshing) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+        } else {
+            IconButton(onClick = onRefresh) {
+                Icon(
+                    imageVector = Icons.Outlined.Refresh,
+                    contentDescription = stringResource(R.string.lx_source_refresh)
+                )
+            }
+        }
+        IconButton(onClick = onRemove) {
+            Icon(
+                imageVector = Icons.Outlined.Delete,
+                contentDescription = stringResource(R.string.lx_source_remove)
             )
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        MiuixSettingsSwitch(
+            checked = source.enabled,
+            onCheckedChange = onToggleEnabled
+        )
     }
 }
 

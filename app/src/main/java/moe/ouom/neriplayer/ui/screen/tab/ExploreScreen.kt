@@ -76,6 +76,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -170,6 +171,7 @@ import moe.ouom.neriplayer.ui.util.shouldAllowCollapsingTopAppBar
 import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.ui.component.common.NeriTabLargeTitleTopBar
@@ -526,7 +528,13 @@ fun ExploreScreen(
     LaunchedEffect(isTabActive) {
         if (!isTabActive) return@LaunchedEffect
         vm.resetToExploreHome()
-        if (ui.playlists.isEmpty() && !ui.neteaseDiscoveryOpen) vm.loadFeaturedPlaylist()
+        if (
+            ui.featuredPlaylists.isEmpty() &&
+            ui.playlists.isEmpty() &&
+            !ui.neteaseDiscoveryOpen
+        ) {
+            vm.loadFeaturedPlaylist()
+        }
     }
 
     if (
@@ -583,7 +591,12 @@ fun ExploreScreen(
 
     // Initialize with default tag
     LaunchedEffect(Unit) {
-        if (ui.selectedTag == "tag_all" && ui.playlists.isEmpty()) {
+        // 首页精选走 featuredPlaylists；完整网格仅在「新发现」二级页需要
+        if (
+            ui.neteaseDiscoveryOpen &&
+            ui.selectedTag == "tag_all" &&
+            ui.playlists.isEmpty()
+        ) {
             vm.loadHighQuality("tag_all")
         }
     }
@@ -1743,6 +1756,11 @@ private fun NeteaseFeaturedHomeContent(
     onDiscover: () -> Unit
 ) {
     val miniPlayerHeight = LocalMiniPlayerHeight.current
+    val featuredList = remember(ui.featuredPlaylists, ui.playlists) {
+        ui.featuredPlaylists.ifEmpty {
+            listOfNotNull(ui.playlists.firstOrNull())
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1751,19 +1769,27 @@ private fun NeteaseFeaturedHomeContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        val featured = ui.playlists.firstOrNull()
         when {
-            featured != null -> {
+            featuredList.isNotEmpty() -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.78f)
                         .widthIn(max = 280.dp)
                 ) {
-                    PlaylistCard(
-                        playlist = featured,
-                        isFavorite = favoriteKeys.contains("netease:${featured.id}"),
-                        onClick = { onPlay(featured) }
-                    )
+                    if (featuredList.size > 1) {
+                        FeaturedPlaylistCarousel(
+                            playlists = featuredList,
+                            favoriteKeys = favoriteKeys,
+                            onPlay = onPlay
+                        )
+                    } else {
+                        val featured = featuredList.first()
+                        PlaylistCard(
+                            playlist = featured,
+                            isFavorite = favoriteKeys.contains("netease:${featured.id}"),
+                            onClick = { onPlay(featured) }
+                        )
+                    }
                 }
             }
             ui.loading -> {
@@ -1787,6 +1813,69 @@ private fun NeteaseFeaturedHomeContent(
         Spacer(Modifier.height(24.dp))
         Button(onClick = onDiscover) {
             Text(stringResource(R.string.explore_new_discovery))
+        }
+    }
+}
+
+/** 探索首页精选封面：可手动滑动，空闲时自动轮播 */
+@Composable
+private fun FeaturedPlaylistCarousel(
+    playlists: List<PlaylistSummary>,
+    favoriteKeys: Set<String>,
+    onPlay: (PlaylistSummary) -> Unit,
+    autoScrollIntervalMs: Long = 4_000L
+) {
+    val pagerState = rememberPagerState(pageCount = { playlists.size })
+
+    LaunchedEffect(pagerState, playlists) {
+        if (playlists.size <= 1) return@LaunchedEffect
+        while (isActive) {
+            delay(autoScrollIntervalMs)
+            // 用户拖动/惯性滚动时不打断
+            if (pagerState.isScrollInProgress) continue
+            val size = playlists.size
+            if (size <= 1) continue
+            val next = (pagerState.settledPage + 1) % size
+            if (next != pagerState.currentPage) {
+                pagerState.animateScrollToPage(next)
+            }
+        }
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        HorizontalPager(
+            state = pagerState,
+            userScrollEnabled = true,
+            key = { page -> playlists[page].id }
+        ) { page ->
+            val playlist = playlists[page]
+            PlaylistCard(
+                playlist = playlist,
+                isFavorite = favoriteKeys.contains("netease:${playlist.id}"),
+                onClick = { onPlay(playlist) }
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val selectedPage = pagerState.currentPage
+            repeat(playlists.size) { index ->
+                val selected = selectedPage == index
+                Box(
+                    Modifier
+                        .size(if (selected) 7.dp else 5.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                            }
+                        )
+                )
+            }
         }
     }
 }

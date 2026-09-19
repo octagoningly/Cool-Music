@@ -89,8 +89,8 @@
     <string name="webdav_username_placeholder">your-username</string>
     <string name="webdav_password_label">Password</string>
     <string name="webdav_base_path_label">Initial Path</string>
-    <string name="webdav_base_path_placeholder">backup/neriplayer</string>
-    <string name="webdav_remote_file_hint">The file will be saved as a file named neriplayer-sync.json and appended automatically.</string>
+    <string name="webdav_base_path_placeholder">backup/coolmusic</string>
+    <string name="webdav_remote_file_hint">The file will be saved as coolmusic-sync.json and appended automatically.</string>
     <string name="webdav_validate_and_save">Validate &amp; Save</string>
     <string name="webdav_validate_success">WebDAV configured successfully</string>
     <string name="webdav_validate_failed">WebDAV configuration failed: %s</string>

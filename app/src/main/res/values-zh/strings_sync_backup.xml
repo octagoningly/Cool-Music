@@ -89,8 +89,8 @@
     <string name="webdav_username_placeholder">your-username</string>
     <string name="webdav_password_label">密码</string>
     <string name="webdav_base_path_label">初始路径</string>
-    <string name="webdav_base_path_placeholder">backup/neriplayer</string>
-    <string name="webdav_remote_file_hint">文件将保存为名为 neriplayer-sync.json 的文件，程序会自动拼接到上面的目录下。</string>
+    <string name="webdav_base_path_placeholder">backup/coolmusic</string>
+    <string name="webdav_remote_file_hint">文件将保存为名为 coolmusic-sync.json 的文件，程序会自动拼接到上面的目录下。</string>
     <string name="webdav_validate_and_save">验证并保存</string>
     <string name="webdav_validate_success">WebDAV 配置成功</string>
     <string name="webdav_validate_failed">WebDAV 配置失败: %s</string>

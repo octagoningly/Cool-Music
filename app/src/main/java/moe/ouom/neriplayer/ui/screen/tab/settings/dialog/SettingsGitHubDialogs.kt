@@ -75,7 +75,7 @@ internal fun SettingsGitHubDialogs(
         val githubState by githubVm.uiState.collectAsStateWithLifecycleCompat()
         var githubToken by remember(showGitHubConfigDialog) { mutableStateOf("") }
         var githubRepoName by remember(showGitHubConfigDialog) {
-            mutableStateOf("neriplayer-backup")
+            mutableStateOf("cool-music-backup")
         }
         var useExistingRepo by remember(showGitHubConfigDialog) { mutableStateOf(false) }
         var existingRepoName by remember(showGitHubConfigDialog) { mutableStateOf("") }
@@ -130,7 +130,7 @@ internal fun SettingsGitHubDialogs(
                         onClick = {
                             val intent = Intent(
                                 Intent.ACTION_VIEW,
-                                "https://github.com/settings/tokens/new?scopes=repo&description=NeriPlayer%20Backup".toUri()
+                                "https://github.com/settings/tokens/new?scopes=repo&description=Cool%20Music%20Backup".toUri()
                             )
                             context.startActivity(intent)
                         }

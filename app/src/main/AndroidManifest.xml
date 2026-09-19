@@ -77,6 +77,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
+                    android:scheme="coolmusic"
+                    android:host="listen-together"
+                    android:pathPrefix="/join" />
+                <data
                     android:scheme="neriplayer"
                     android:host="listen-together"
                     android:pathPrefix="/join" />

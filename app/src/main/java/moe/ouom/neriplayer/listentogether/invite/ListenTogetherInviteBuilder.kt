@@ -7,7 +7,7 @@ import moe.ouom.neriplayer.listentogether.validation.requireValidListenTogetherN
 import moe.ouom.neriplayer.listentogether.validation.requireValidListenTogetherRoomId
 import java.util.UUID
 
-private const val LISTEN_TOGETHER_INVITE_SCHEME = "neriplayer"
+private const val LISTEN_TOGETHER_INVITE_SCHEME = "coolmusic"
 private const val LISTEN_TOGETHER_INVITE_HOST = "listen-together"
 internal const val LISTEN_TOGETHER_INVITE_JOIN_PATH = "join"
 

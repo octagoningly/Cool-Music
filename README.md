@@ -8,6 +8,7 @@
 
 - 仓库：<https://github.com/octagoningly/Cool-Music>
 - 上游项目：<https://github.com/cwuom/NeriPlayer>
+- 应用包名（applicationId）：`moe.ouom.coolmusic`（与上游 NeriPlayer 的 `moe.ouom.neriplayer` 独立，可共存安装）
 - 许可证：GPL-3.0（与上游一致，分发时须保留版权与许可证，并提供对应源码获取方式）
 - 声明：Cool Music 与原作者无关；详细能力以本仓库代码与 `更新记录.md` 为准
 

@@ -1397,37 +1397,35 @@ private fun LocalPlaylistList(
         }
     )
 
-    // Auto-scroll only when dragging toward the list bottom (down).
-    // Custom upward scroll fought the reorderable library and caused flicker.
+    // Edge auto-scroll while dragging. Only fires when the held item is visible near
+    // the list edge — never when it leaves the viewport (that caused flicker).
     val density = LocalDensity.current
     LaunchedEffect(localSortMode, listState, reorderState) {
         if (!localSortMode) return@LaunchedEffect
-        val scrollStepPx = with(density) { 22.dp.toPx() }
-        val edgeKeep = with(density) { 72.dp.toPx() }
-        val edgeInsetPx = with(density) { 16.dp.toPx() }
+        val scrollStepDownPx = with(density) { 22.dp.toPx() }
+        val scrollStepUpPx = with(density) { 14.dp.toPx() }
+        val edgeKeepPx = with(density) { 64.dp.toPx() }
+        val edgeInsetPx = with(density) { 12.dp.toPx() }
         while (localSortMode) {
             val draggingIndex = reorderState.draggingItemIndex
-            if (draggingIndex == null) {
-                delay(20L)
-                continue
-            }
             val info = listState.layoutInfo
-            val visible = info.visibleItemsInfo
-            if (visible.isEmpty()) {
+            val draggingItem = draggingIndex
+                ?.let { index -> info.visibleItemsInfo.firstOrNull { it.index == index } }
+            if (draggingItem == null) {
                 delay(20L)
                 continue
             }
-            if (!listState.canScrollForward) {
-                delay(20L)
-                continue
-            }
-            val draggingItem = visible.firstOrNull { it.index == draggingIndex }
             val viewportEnd = info.viewportEndOffset - edgeInsetPx
-            val nearBottomEdge = draggingItem != null &&
-                draggingItem.offset + draggingItem.size >= viewportEnd - edgeKeep
-            val belowVisible = draggingItem == null
-            if (nearBottomEdge || belowVisible) {
-                listState.scrollBy(scrollStepPx)
+            val viewportStart = info.viewportStartOffset
+            val itemBottom = draggingItem.offset + draggingItem.size
+            val itemTop = draggingItem.offset
+            when {
+                itemBottom >= viewportEnd - edgeKeepPx && listState.canScrollForward -> {
+                    listState.scrollBy(scrollStepDownPx)
+                }
+                itemTop <= viewportStart + edgeKeepPx && listState.canScrollBackward -> {
+                    listState.scrollBy(-scrollStepUpPx)
+                }
             }
             delay(20L)
         }

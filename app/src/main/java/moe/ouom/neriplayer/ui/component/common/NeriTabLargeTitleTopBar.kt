@@ -31,7 +31,7 @@ fun NeriTabLargeTitleTopBar(
         modifier = modifier
             .fillMaxWidth()
             .windowInsetsPadding(windowInsets)
-            .padding(start = 20.dp, end = 4.dp, top = 4.dp, bottom = 10.dp),
+            .padding(start = 20.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         androidx.compose.foundation.layout.Box(

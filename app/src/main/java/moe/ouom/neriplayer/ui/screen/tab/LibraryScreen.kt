@@ -1256,6 +1256,7 @@ private fun LocalPlaylistList(
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteSelectedConfirm by rememberSaveable { mutableStateOf(false) }
+    var localSortMode by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val defaultPlaylistName = composeResources.getString(R.string.library_create_playlist_default)
     val maxNameLength = LocalPlaylistRepository.MAX_PLAYLIST_NAME_LENGTH
@@ -1290,6 +1291,17 @@ private fun LocalPlaylistList(
         showDeleteSelectedConfirm = false
     }
 
+    fun exitSortMode() {
+        localSortMode = false
+    }
+
+    BackHandler(enabled = selectionMode || localSortMode) {
+        when {
+            selectionMode -> exitSelection()
+            localSortMode -> exitSortMode()
+        }
+    }
+
     fun toggleSelection(playlistId: Long) {
         selectedIds =
             if (selectedIds.contains(playlistId)) selectedIds - playlistId else selectedIds + playlistId
@@ -1299,8 +1311,6 @@ private fun LocalPlaylistList(
         if (selectedIds.isEmpty()) return
         showDeleteSelectedConfirm = true
     }
-
-    BackHandler(enabled = selectionMode) { exitSelection() }
 
     LaunchedEffect(editablePlaylists) {
         val validIds = editablePlaylists.map { it.id }.toSet()
@@ -1342,7 +1352,7 @@ private fun LocalPlaylistList(
     val reorderState = rememberReorderableLazyListState(
         listState = listState,
         onMove = { from: ItemPosition, to: ItemPosition ->
-            if (!selectionMode) return@rememberReorderableLazyListState
+            if (!localSortMode) return@rememberReorderableLazyListState
             val fromId = from.key as? Long ?: return@rememberReorderableLazyListState
             val toId = to.key as? Long ?: return@rememberReorderableLazyListState
             val fromIdx = reorderablePlaylists.indexOfFirst { it.id == fromId }
@@ -1352,10 +1362,10 @@ private fun LocalPlaylistList(
             }
         },
         canDragOver = { _, over ->
-            selectionMode && over.key is Long
+            localSortMode && over.key is Long
         },
         onDragEnd = { _, _ ->
-            if (selectionMode) {
+            if (localSortMode) {
                 onReorder(reorderablePlaylists.map { it.id })
             }
         }
@@ -1418,8 +1428,25 @@ private fun LocalPlaylistList(
                 },
                 showCreatePlaylist = selectedLocalCategory == LOCAL_CATEGORY_PLAYLIST &&
                     !selectionMode &&
+                    !localSortMode &&
                     localSearchQuery.isBlank(),
-                onCreatePlaylist = { showDialog = true }
+                onCreatePlaylist = { showDialog = true },
+                showLocalSort = selectedLocalCategory == LOCAL_CATEGORY_PLAYLIST &&
+                    !selectionMode &&
+                    localSearchQuery.isBlank() &&
+                    editablePlaylists.size >= 2,
+                localSortMode = localSortMode,
+                onToggleLocalSort = {
+                    selectionMode = false
+                    selectedIds = emptySet()
+                    localSortMode = !localSortMode
+                    if (!localSortMode) {
+                        onReorder(reorderablePlaylists.map { it.id })
+                    } else {
+                        reorderablePlaylists.clear()
+                        reorderablePlaylists.addAll(editablePlaylists)
+                    }
+                }
             )
         }
 
@@ -1740,14 +1767,14 @@ private fun LocalPlaylistList(
                         .clip(cardShape)
                         .combinedClickable(
                             onClick = {
-                                if (selectionMode) {
-                                    toggleSelection(pl.id)
-                                } else {
-                                    onClick(pl)
+                                when {
+                                    localSortMode -> Unit
+                                    selectionMode -> toggleSelection(pl.id)
+                                    else -> onClick(pl)
                                 }
                             },
                             onLongClick = {
-                                if (!selectionMode && !isSystemPlaylist) {
+                                if (!selectionMode && !localSortMode && !isSystemPlaylist) {
                                     selectionMode = true
                                     selectedIds = setOf(pl.id)
                                 }
@@ -1812,7 +1839,7 @@ private fun LocalPlaylistList(
                             }
                         },
                         trailingContent = {
-                            if (selectionMode && !isSystemPlaylist) {
+                            if (localSortMode && !isSystemPlaylist) {
                                 Box(
                                     modifier = Modifier
                                         .detectReorder(reorderState)
@@ -1824,7 +1851,19 @@ private fun LocalPlaylistList(
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
-                            } else if (!selectionMode && !isSystemPlaylist) {
+                            } else if (selectionMode && !isSystemPlaylist) {
+                                Box(
+                                    modifier = Modifier
+                                        .detectReorder(reorderState)
+                                        .padding(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.DragHandle,
+                                        contentDescription = stringResource(R.string.common_drag_handle),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            } else if (!selectionMode && !localSortMode && !isSystemPlaylist) {
                                 Box {
                                     HapticIconButton(onClick = { showMenu = true }) {
                                         Icon(
@@ -2006,10 +2045,13 @@ private fun LocalLibraryHeaderContent(
     onPlaylistSelected: () -> Unit,
     onArtistSelected: () -> Unit,
     showCreatePlaylist: Boolean,
-    onCreatePlaylist: () -> Unit
+    onCreatePlaylist: () -> Unit,
+    showLocalSort: Boolean = false,
+    localSortMode: Boolean = false,
+    onToggleLocalSort: () -> Unit = {}
 ) {
     Column(Modifier.fillMaxWidth()) {
-        if (!selectionMode) {
+        if (!selectionMode && !localSortMode) {
             if (selectedLocalCategory == LOCAL_CATEGORY_ARTIST) {
                 LocalArtistSearchAndSortRow(
                     query = searchQuery,
@@ -2025,7 +2067,7 @@ private fun LocalLibraryHeaderContent(
                 )
             }
         }
-        // 歌单/歌手在左，+新建靠最右
+        // 歌单/歌手在左，排序与 +新建 靠右
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2038,7 +2080,17 @@ private fun LocalLibraryHeaderContent(
                 onArtistSelected = onArtistSelected
             )
             Spacer(modifier = Modifier.weight(1f))
-            if (showCreatePlaylist && !selectionMode) {
+            if (showLocalSort) {
+                HapticTextButton(onClick = onToggleLocalSort) {
+                    Text(
+                        text = stringResource(
+                            if (localSortMode) R.string.action_done
+                            else R.string.library_local_playlist_sort
+                        )
+                    )
+                }
+            }
+            if (showCreatePlaylist && !selectionMode && !localSortMode) {
                 HapticTextButton(onClick = onCreatePlaylist) {
                     Text(stringResource(R.string.library_create_new))
                 }

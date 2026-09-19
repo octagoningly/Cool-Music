@@ -1401,7 +1401,7 @@ private fun LocalPlaylistList(
     val density = LocalDensity.current
     LaunchedEffect(localSortMode, listState, reorderState) {
         if (!localSortMode) return@LaunchedEffect
-        val scrollStepPx = with(density) { 28.dp.toPx() }
+        val scrollStepPx = with(density) { 22.dp.toPx() }
         val edgeKeep = with(density) { 72.dp.toPx() }
         val edgeInsetPx = with(density) { 16.dp.toPx() }
         while (localSortMode) {
@@ -1438,7 +1438,7 @@ private fun LocalPlaylistList(
                     listState.scrollBy(-scrollStepPx)
                 }
             }
-            delay(16L)
+            delay(20L)
         }
     }
 
@@ -2151,11 +2151,11 @@ private fun LocalLibraryHeaderContent(
             if (showLocalSort) {
                 HapticIconButton(
                     onClick = onToggleLocalSort,
-                    modifier = Modifier.padding(end = 2.dp)
+                    modifier = Modifier.padding(end = 0.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp)
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                     ) {
                         Icon(
                             imageVector = if (localSortMode) {
@@ -2164,31 +2164,36 @@ private fun LocalLibraryHeaderContent(
                                 Icons.AutoMirrored.Filled.Sort
                             },
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(18.dp),
                             tint = if (localSortMode) {
                                 MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.onSurface
+                                MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = stringResource(
                                 if (localSortMode) R.string.action_done
                                 else R.string.library_local_playlist_sort
                             ),
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            softWrap = false,
                             color = if (localSortMode) {
                                 MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.onSurface
+                                MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )
                     }
                 }
             }
             if (showCreatePlaylist && !selectionMode && !localSortMode) {
-                HapticTextButton(onClick = onCreatePlaylist) {
+                HapticTextButton(
+                    onClick = onCreatePlaylist,
+                    modifier = Modifier.padding(start = 2.dp)
+                ) {
                     Text(stringResource(R.string.library_create_new))
                 }
             }

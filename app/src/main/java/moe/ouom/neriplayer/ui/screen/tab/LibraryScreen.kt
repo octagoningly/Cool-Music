@@ -92,6 +92,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -108,9 +109,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.res.pluralStringResource
@@ -1397,34 +1402,34 @@ private fun LocalPlaylistList(
         }
     )
 
-    // Edge auto-scroll while dragging. Only fires when the held item is visible near
-    // the list edge — never when it leaves the viewport (that caused flicker).
+    // Track finger Y in LazyList coordinates so auto-scroll keeps running when the
+    // held playlist is dragged toward the screen top (may leave visibleItemsInfo).
+    var dragPointerY by remember { mutableFloatStateOf(Float.NaN) }
     val density = LocalDensity.current
     LaunchedEffect(localSortMode, listState, reorderState) {
         if (!localSortMode) return@LaunchedEffect
         val scrollStepDownPx = with(density) { 22.dp.toPx() }
-        val scrollStepUpPx = with(density) { 14.dp.toPx() }
-        val edgeKeepPx = with(density) { 64.dp.toPx() }
-        val edgeInsetPx = with(density) { 12.dp.toPx() }
+        val scrollStepUpPx = with(density) { 16.dp.toPx() }
+        val edgePx = with(density) { 72.dp.toPx() }
         while (localSortMode) {
-            val draggingIndex = reorderState.draggingItemIndex
-            val info = listState.layoutInfo
-            val draggingItem = draggingIndex
-                ?.let { index -> info.visibleItemsInfo.firstOrNull { it.index == index } }
-            if (draggingItem == null) {
+            // Read pointer/state each frame; do not key this effect on dragPointerY
+            val pointerY = dragPointerY
+            if (pointerY.isNaN() || reorderState.draggingItemIndex == null) {
                 delay(20L)
                 continue
             }
-            val viewportEnd = info.viewportEndOffset - edgeInsetPx
-            val viewportStart = info.viewportStartOffset
-            val itemBottom = draggingItem.offset + draggingItem.size
-            val itemTop = draggingItem.offset
+            val info = listState.layoutInfo
+            val viewportHeight =
+                (info.viewportEndOffset - info.viewportStartOffset).coerceAtLeast(1)
+            val viewportBottom = info.viewportStartOffset + viewportHeight
             when {
-                itemBottom >= viewportEnd - edgeKeepPx && listState.canScrollForward -> {
-                    listState.scrollBy(scrollStepDownPx)
-                }
-                itemTop <= viewportStart + edgeKeepPx && listState.canScrollBackward -> {
+                pointerY <= info.viewportStartOffset + edgePx &&
+                    listState.canScrollBackward -> {
                     listState.scrollBy(-scrollStepUpPx)
+                }
+                pointerY >= viewportBottom - edgePx &&
+                    listState.canScrollForward -> {
+                    listState.scrollBy(scrollStepDownPx)
                 }
             }
             delay(20L)
@@ -1465,6 +1470,24 @@ private fun LocalPlaylistList(
             .fillMaxSize()
             // Shrink list viewport above mini player so drag auto-scroll stops in the visible area
             .padding(bottom = miniPlayerHeight)
+            .pointerInput(localSortMode) {
+                if (!localSortMode) return@pointerInput
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    dragPointerY = down.position.y
+                    var pressed = true
+                    while (pressed) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.pressed }
+                        if (change == null) {
+                            pressed = false
+                        } else {
+                            dragPointerY = change.position.y
+                        }
+                    }
+                    dragPointerY = Float.NaN
+                }
+            }
             .reorderable(reorderState)
     ) {
         val cardShape = RoundedCornerShape(12.dp)

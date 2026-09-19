@@ -60,7 +60,7 @@ private const val TAG = "NERI-ExploreVM"
 private const val NETEASE_SEARCH_PAGE_SIZE = 30
 private const val YOUTUBE_MUSIC_SEARCH_LIMIT = 30
 private const val BILI_RESOURCE_TYPE_COLLECTION = 21
-private const val FEATURED_PLAYLIST_COUNT = 12
+private const val FEATURED_PLAYLIST_COUNT = 30
 private const val DISCOVERY_MIN_CACHED_PLAYLISTS = 20
 
 /**
@@ -171,7 +171,7 @@ data class ExploreUiState(
     val loading: Boolean = false,
     val error: String? = null,
     val playlists: List<PlaylistSummary> = emptyList(),
-    /** 探索首页精选封面池（轮播用）；完整网格仍放在 playlists */
+    /** 探索首页精选封面候选池：冷启动拉一批，UI 随机固定展示一张（不轮播） */
     val featuredPlaylists: List<PlaylistSummary> = emptyList(),
     val selectedTag: String = "tag_all",  // String resource key
     val neteaseDiscoveryOpen: Boolean = false,
@@ -735,7 +735,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
-     * 探索首页拉一小批精品歌单做封面轮播；完整网格等用户点「新发现」再拉。
+     * 探索首页精选：拉一小批精品歌单作候选，UI 随机固定一张，
+     * 避免每次冷启动进探索页都是同一张封面；完整网格等点「新发现」再拉。
      */
     fun loadFeaturedPlaylist() {
         val currentState = _uiState.value
@@ -756,9 +757,10 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 val raw = withContext(Dispatchers.IO) {
                     neteaseClient.getHighQualityPlaylists("全部", FEATURED_PLAYLIST_COUNT, 0L)
                 }
-                // shuffle：每次冷启动首页首张封面不必总是同一张
-                val mapped = parsePlaylists(raw).take(FEATURED_PLAYLIST_COUNT).shuffled()
-                NPLogger.d(TAG, "loadFeaturedPlaylist success: count=${mapped.size}")
+                val pool = parsePlaylists(raw).take(FEATURED_PLAYLIST_COUNT)
+                // 冷启动随机定一张；首页只展示这一张，不做轮播
+                val mapped = listOfNotNull(pool.randomOrNull())
+                NPLogger.d(TAG, "loadFeaturedPlaylist success: pool=${pool.size} featured=${mapped.size}")
                 _uiState.value = _uiState.value.copy(
                     loading = false,
                     error = null,

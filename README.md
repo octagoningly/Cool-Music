@@ -44,6 +44,10 @@ gradle.properties 或环境配置 KEYSTORE_FILE / KEYSTORE_PASSWORD / KEY_ALIAS 
 
 上游项目：<https://github.com/cwuom/NeriPlayer>
 
+## 源码仓库
+
+Cool Music 源码（本衍生版）：<https://github.com/octagoningly/Cool-Music>
+
 ## 隐私与数据
 
 - 本仓库 **不应** 包含：签名密钥（`.jks`）、`local.properties`、账号 Cookie/Token、设备日志等个人数据。

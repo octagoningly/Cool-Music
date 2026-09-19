@@ -812,7 +812,28 @@ fun HomeScreen(
                                 }
                             }
 
-                            // 私人 FM 与榜单、推荐歌单一样收在「更多」后面
+                            if (showNeteaseTrending && ui.homeMoreExpanded) {
+                                ui.trendingSongSections.forEach { sectionState ->
+                                    val sectionKey = homeNeteaseSongSectionKey(
+                                        group = "trending",
+                                        source = sectionState.source
+                                    )
+                                    addNeteaseSongSection(
+                                        sectionKey = sectionKey,
+                                        registerKey = ::registerGridItemKey,
+                                        sectionState = sectionState,
+                                        icon = neteaseSongSectionIcon(sectionState.source),
+                                        loadingText = homeLoadingText,
+                                        onSongClick = onSongClick,
+                                        favoriteSongs = favoriteSongs,
+                                        onFavoriteToggle = ::toggleHomeSongFavorite,
+                                        onShowSnackbar = showHomeSnackbar,
+                                        offlineMode = offlineMode
+                                    )
+                                }
+                            }
+
+                            // 私人 FM 收在「更多」里，排在新歌榜（TOP_NEW）之后
                             if (ui.homeMoreExpanded) {
                                 ui.radarSongSections
                                     .filter { it.source == NeteaseHomeSongSource.PRIVATE_FM }
@@ -833,27 +854,6 @@ fun HomeScreen(
                                             offlineMode = offlineMode
                                         )
                                     }
-                            }
-
-                            if (showNeteaseTrending && ui.homeMoreExpanded) {
-                                ui.trendingSongSections.forEach { sectionState ->
-                                    val sectionKey = homeNeteaseSongSectionKey(
-                                        group = "trending",
-                                        source = sectionState.source
-                                    )
-                                    addNeteaseSongSection(
-                                        sectionKey = sectionKey,
-                                        registerKey = ::registerGridItemKey,
-                                        sectionState = sectionState,
-                                        icon = neteaseSongSectionIcon(sectionState.source),
-                                        loadingText = homeLoadingText,
-                                        onSongClick = onSongClick,
-                                        favoriteSongs = favoriteSongs,
-                                        onFavoriteToggle = ::toggleHomeSongFavorite,
-                                        onShowSnackbar = showHomeSnackbar,
-                                        offlineMode = offlineMode
-                                    )
-                                }
                             }
 
                             if (showRecommendedCard && ui.homeMoreExpanded) {

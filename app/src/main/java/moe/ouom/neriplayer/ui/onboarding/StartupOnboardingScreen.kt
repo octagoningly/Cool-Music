@@ -233,7 +233,12 @@ fun StartupOnboardingScreen(
     val scope = rememberCoroutineScope()
     val repo = AppContainer.settingsRepo
 
-    val steps = remember { StartupStep.entries }
+    // 跳过初次设置第 5、6 步（播放控件 / 歌词页）；相关偏好仍可在设置中调整
+    val steps = remember {
+        StartupStep.entries.filterNot {
+            it == StartupStep.PlaybackControls || it == StartupStep.Lyrics
+        }
+    }
     var stepIndex by rememberSaveable { mutableIntStateOf(0) }
     val stepTransitionState = rememberStartupOnboardingLayerTransitionState(
         initialStepIndex = stepIndex

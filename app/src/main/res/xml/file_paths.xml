@@ -12,4 +12,7 @@
     <cache-path
         name="lyric_share_cards"
         path="lyric_share_cards/" />
+    <cache-path
+        name="app_updates"
+        path="app_updates/" />
 </paths>

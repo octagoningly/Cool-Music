@@ -2242,7 +2242,7 @@ fun SettingsScreen(
                             onOpenGitHubRepo = {
                                 val intent = Intent(
                                     Intent.ACTION_VIEW,
-                                    "https://github.com/cwuom/NeriPlayer".toUri()
+                                    "https://github.com/octagoningly/Cool-Music".toUri()
                                 )
                                 context.startActivity(intent)
                             }

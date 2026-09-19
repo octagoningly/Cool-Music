@@ -39,6 +39,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,6 +48,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,6 +64,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.History
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
@@ -187,6 +193,7 @@ private const val FAVORITE_CATEGORY_HOT = 2
 private const val LOCAL_CATEGORY_PLAYLIST = 0
 private const val LOCAL_CATEGORY_ARTIST = 1
 private const val LIBRARY_UI_PREFS = "library_ui_preferences"
+private const val KEY_LIBRARY_TAB_ORDER = "library_tab_order"
 private const val KEY_LOCAL_ARTIST_SORT_MODE = "local_artist_sort_mode"
 private val LibraryPrimaryTabShape = RoundedCornerShape(20.dp)
 private val LibrarySearchFieldShape = RoundedCornerShape(16.dp)
@@ -228,6 +235,18 @@ private fun persistLocalArtistSortMode(context: Context, sortMode: LocalArtistSo
         }
 }
 
+private fun readLibraryTabOrderStorage(context: Context): String? {
+    return context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
+        .getString(KEY_LIBRARY_TAB_ORDER, null)
+}
+
+private fun persistLibraryTabOrderStorage(context: Context, order: List<LibraryTab>) {
+    context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
+        .edit {
+            putString(KEY_LIBRARY_TAB_ORDER, serializeLibraryTabOrder(order))
+        }
+}
+
 @Composable
 private fun rememberHotPlaylists(): List<PlaybackStatsHotPlaylist>? {
     val hotPlaylists by produceState<List<PlaybackStatsHotPlaylist>?>(initialValue = null) {
@@ -254,11 +273,23 @@ private fun rememberHotPlaylists(): List<PlaybackStatsHotPlaylist>? {
     return hotPlaylists
 }
 
-internal fun libraryTabDisplayOrder(
+internal fun parseLibraryTabOrderStorage(storage: String?): List<String> {
+    if (storage.isNullOrBlank()) return emptyList()
+    return storage.split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+}
+
+internal fun serializeLibraryTabOrder(tabs: List<LibraryTab>): String {
+    return tabs.joinToString(separator = ",") { it.name }
+}
+
+internal fun resolveLibraryTabDisplayOrder(
     isInternational: Boolean,
-    youtubeEnabled: Boolean = true
+    youtubeEnabled: Boolean,
+    customOrderStorage: String?
 ): List<LibraryTab> {
-    val orderedTabs = if (isInternational && youtubeEnabled) {
+    val defaultOrder = if (isInternational && youtubeEnabled) {
         listOf(
             LibraryTab.LOCAL,
             LibraryTab.FAVORITE,
@@ -277,7 +308,34 @@ internal fun libraryTabDisplayOrder(
             LibraryTab.QQMUSIC
         )
     }
-    return if (youtubeEnabled) orderedTabs else orderedTabs - LibraryTab.YTMUSIC
+    val visibleDefaults = if (youtubeEnabled) {
+        defaultOrder
+    } else {
+        defaultOrder - LibraryTab.YTMUSIC
+    }
+    val customNames = parseLibraryTabOrderStorage(customOrderStorage)
+    if (customNames.isEmpty()) return visibleDefaults
+    val byName = LibraryTab.entries.associateBy { it.name }
+    val customVisible = customNames
+        .mapNotNull { byName[it] }
+        .map { it.asVisibleLibraryTab() }
+        .filter { it in visibleDefaults }
+        .distinct()
+    if (customVisible.isEmpty()) return visibleDefaults
+    val remaining = visibleDefaults.filterNot { it in customVisible }
+    return customVisible + remaining
+}
+
+internal fun libraryTabDisplayOrder(
+    isInternational: Boolean,
+    youtubeEnabled: Boolean = true,
+    customOrderStorage: String? = null
+): List<LibraryTab> {
+    return resolveLibraryTabDisplayOrder(
+        isInternational = isInternational,
+        youtubeEnabled = youtubeEnabled,
+        customOrderStorage = customOrderStorage
+    )
 }
 
 private fun LibraryTab.asVisibleLibraryTab(): LibraryTab {
@@ -329,8 +387,18 @@ fun LibraryScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     val youtubeEnabled by AppContainer.settingsRepo.youtubeEnabledFlow
         .collectAsStateWithLifecycle(initialValue = YouTubeFeatureGate.isEnabled())
-    val orderedTabs = remember(isInternational, youtubeEnabled) {
-        libraryTabDisplayOrder(isInternational, youtubeEnabled)
+    var libraryTabOrderStorage by remember {
+        mutableStateOf(readLibraryTabOrderStorage(context))
+    }
+    var showLibraryTabOrderEditor by remember { mutableStateOf(false) }
+    var pendingLibraryTabKey by remember { mutableStateOf<LibraryTab?>(null) }
+
+    val orderedTabs = remember(isInternational, youtubeEnabled, libraryTabOrderStorage) {
+        libraryTabDisplayOrder(
+            isInternational = isInternational,
+            youtubeEnabled = youtubeEnabled,
+            customOrderStorage = libraryTabOrderStorage
+        )
     }
     val initialPage = remember(orderedTabs, initialTab) {
         orderedTabs.indexOf(initialTab.asVisibleLibraryTab()).takeIf { it >= 0 } ?: 0
@@ -407,6 +475,15 @@ fun LibraryScreen(
         }
     }
 
+    LaunchedEffect(orderedTabs) {
+        val keep = pendingLibraryTabKey ?: return@LaunchedEffect
+        pendingLibraryTabKey = null
+        val target = orderedTabs.indexOf(keep.asVisibleLibraryTab()).takeIf { it >= 0 } ?: return@LaunchedEffect
+        if (pagerState.currentPage != target) {
+            pagerState.scrollToPage(target)
+        }
+    }
+
     LaunchedEffect(pagerState.currentPage, orderedTabs, initialTab) {
         val currentTab = orderedTabs.getOrNull(pagerState.currentPage) ?: return@LaunchedEffect
         if (currentTab != initialTab) {
@@ -444,7 +521,7 @@ fun LibraryScreen(
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             modifier = Modifier
-                .padding(horizontal = pageHorizontalPadding, vertical = 12.dp)
+                .padding(horizontal = pageHorizontalPadding, vertical = 4.dp)
                 .widthIn(max = 1180.dp)
                 .fillMaxWidth()
                 .weight(1f)
@@ -470,7 +547,8 @@ fun LibraryScreen(
                             }
                             else -> Unit
                         }
-                    }
+                    },
+                    onEditTabOrder = { showLibraryTabOrderEditor = true }
                 )
 
                 HorizontalPager(
@@ -555,6 +633,114 @@ fun LibraryScreen(
             }
         }
     }
+
+    if (showLibraryTabOrderEditor) {
+        LibraryTabOrderEditorDialog(
+            tabs = orderedTabs,
+            onDismiss = { showLibraryTabOrderEditor = false },
+            onConfirm = { newOrder ->
+                pendingLibraryTabKey = orderedTabs.getOrNull(pagerState.currentPage)
+                persistLibraryTabOrderStorage(context, newOrder)
+                libraryTabOrderStorage = serializeLibraryTabOrder(newOrder)
+                showLibraryTabOrderEditor = false
+            },
+            onReset = {
+                pendingLibraryTabKey = orderedTabs.getOrNull(pagerState.currentPage)
+                context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
+                    .edit { remove(KEY_LIBRARY_TAB_ORDER) }
+                libraryTabOrderStorage = null
+                showLibraryTabOrderEditor = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun LibraryTabOrderEditorDialog(
+    tabs: List<LibraryTab>,
+    onDismiss: () -> Unit,
+    onConfirm: (List<LibraryTab>) -> Unit,
+    onReset: () -> Unit
+) {
+    val draft = remember(tabs) { mutableStateListOf<LibraryTab>().apply { addAll(tabs) } }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.library_tab_order_title)) },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.library_tab_order_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                    itemsIndexed(draft) { index, tab ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.DragHandle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(tab.labelResId),
+                                modifier = Modifier.weight(1f)
+                            )
+                            HapticIconButton(
+                                onClick = {
+                                    if (index > 0) {
+                                        val item = draft.removeAt(index)
+                                        draft.add(index - 1, item)
+                                    }
+                                },
+                                enabled = index > 0
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.KeyboardArrowUp,
+                                    contentDescription = stringResource(R.string.library_tab_order_move_up)
+                                )
+                            }
+                            HapticIconButton(
+                                onClick = {
+                                    if (index < draft.lastIndex) {
+                                        val item = draft.removeAt(index)
+                                        draft.add(index + 1, item)
+                                    }
+                                },
+                                enabled = index < draft.lastIndex
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = stringResource(R.string.library_tab_order_move_down)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            HapticTextButton(onClick = { onConfirm(draft.toList()) }) {
+                Text(stringResource(R.string.action_confirm))
+            }
+        },
+        dismissButton = {
+            Row {
+                HapticTextButton(onClick = onReset) {
+                    Text(stringResource(R.string.action_reset))
+                }
+                HapticTextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        }
+    )
 }
 
 @Composable
@@ -563,7 +749,8 @@ private fun LibraryMainTabs(
     selectedTabIndex: Int,
     refreshEnabled: Boolean,
     onTabSelected: (Int) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onEditTabOrder: () -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -595,6 +782,13 @@ private fun LibraryMainTabs(
                     )
                 }
             }
+        }
+
+        HapticIconButton(onClick = onEditTabOrder) {
+            Icon(
+                Icons.AutoMirrored.Filled.Sort,
+                contentDescription = stringResource(R.string.library_tab_order_cd)
+            )
         }
 
         HapticIconButton(

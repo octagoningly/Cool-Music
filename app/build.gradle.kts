@@ -90,6 +90,14 @@ android {
     buildTypes {
         val releaseSigningConfig = signingConfigs.getByName("release")
 
+        // 本地有正式密钥时，debug 也用同一签名，便于直接覆盖安装手机上的 Release 包。
+        // GitHub Release 仍只允许上传 assembleRelease 产物，禁止传 debug APK。
+        debug {
+            if (releaseSigningReady) {
+                signingConfig = releaseSigningConfig
+            }
+        }
+
         release {
             isMinifyEnabled = true
             isShrinkResources = true

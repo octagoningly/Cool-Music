@@ -119,8 +119,8 @@ class DebugCookieImportReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val ACTION_IMPORT_AUTH = "moe.ouom.neriplayer.debug.IMPORT_AUTH"
-        const val ACTION_CLEAR_AUTH = "moe.ouom.neriplayer.debug.CLEAR_AUTH"
+        const val ACTION_IMPORT_AUTH = "moe.ouom.coolmusic.debug.IMPORT_AUTH"
+        const val ACTION_CLEAR_AUTH = "moe.ouom.coolmusic.debug.CLEAR_AUTH"
 
         const val EXTRA_PLATFORM = "platform"
         const val EXTRA_COOKIE = "cookie"

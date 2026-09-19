@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 public final class Issue339LyricsTestDocumentProvider extends ContentProvider {
-    public static final String AUTHORITY = "moe.ouom.neriplayer.test.issue339lyrics";
+    public static final String AUTHORITY = "moe.ouom.coolmusic.test.issue339lyrics";
     public static final String ROOT_ID = "root-issue339";
     public static final String MUSIC_ID = "opaque/folder-issue339";
     // document IDs are opaque provider values and may contain slash characters

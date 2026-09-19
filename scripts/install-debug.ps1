@@ -59,6 +59,6 @@ if (-not $SkipBuild) {
 
 Write-Host ""
 Write-Host "Done. Optional next steps:"
-Write-Host ("  Launch:  & '{0}' shell am start -n moe.ouom.neriplayer/.activity.MainActivity" -f $Adb)
+Write-Host ("  Launch:  & '{0}' shell am start -n moe.ouom.coolmusic/moe.ouom.neriplayer.activity.MainActivity" -f $Adb)
 Write-Host ("  Logs:    & '{0}' logcat -s NERI-LxMusicSource NERI-PlayerManager" -f $Adb)
-Write-Host ("  Uninstall: & '{0}' uninstall moe.ouom.neriplayer" -f $Adb)
+Write-Host ("  Uninstall: & '{0}' uninstall moe.ouom.coolmusic" -f $Adb)

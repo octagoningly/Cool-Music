@@ -9,10 +9,10 @@ import java.net.URI
 import java.net.URLDecoder
 
 private const val UTF_8_CHARSET_NAME = "UTF-8"
-private const val LISTEN_TOGETHER_INVITE_SCHEME = "neriplayer"
+private val LISTEN_TOGETHER_INVITE_SCHEMES = setOf("coolmusic", "neriplayer")
 private const val LISTEN_TOGETHER_INVITE_HOST = "listen-together"
 private val LISTEN_TOGETHER_INVITE_REGEX = Regex(
-    pattern = """neriplayer://listen-together/join\?[^\s]+""",
+    pattern = """(?:coolmusic|neriplayer)://listen-together/join\?[^\s]+""",
     option = RegexOption.IGNORE_CASE
 )
 
@@ -30,7 +30,7 @@ fun parseListenTogetherInvite(rawText: String?): ListenTogetherInvite? {
 
 private fun parseListenTogetherInviteInternal(rawText: String): ListenTogetherInvite? {
     val uri = runCatching { URI(rawText) }.getOrNull() ?: return null
-    if (!uri.scheme.equals(LISTEN_TOGETHER_INVITE_SCHEME, ignoreCase = true)) return null
+    if (!LISTEN_TOGETHER_INVITE_SCHEMES.any { uri.scheme.equals(it, ignoreCase = true) }) return null
     if (!uri.host.equals(LISTEN_TOGETHER_INVITE_HOST, ignoreCase = true)) return null
     val pathSegments = uri.path
         ?.split('/')

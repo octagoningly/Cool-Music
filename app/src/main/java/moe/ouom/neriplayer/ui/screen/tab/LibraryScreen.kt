@@ -2149,14 +2149,9 @@ private fun LocalLibraryHeaderContent(
             )
             Spacer(modifier = Modifier.weight(1f))
             if (showLocalSort) {
-                HapticIconButton(
-                    onClick = onToggleLocalSort,
-                    modifier = Modifier.padding(end = 0.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-                    ) {
+                // Text button keeps full two-character labels (排序 / 完成)
+                HapticTextButton(onClick = onToggleLocalSort) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = if (localSortMode) {
                                 Icons.Filled.Check
@@ -2171,15 +2166,14 @@ private fun LocalLibraryHeaderContent(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )
-                        Spacer(modifier = Modifier.width(3.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = stringResource(
                                 if (localSortMode) R.string.action_done
                                 else R.string.library_local_playlist_sort
                             ),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
-                            softWrap = false,
                             color = if (localSortMode) {
                                 MaterialTheme.colorScheme.primary
                             } else {

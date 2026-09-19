@@ -711,6 +711,7 @@ fun HomeScreen(
                             }
                         } else {
                             if (showNeteaseRadar) {
+                                // 首页雷达主线：私人雷达 → 每日推荐；雷达歌单移到页面最末尾
                                 ui.radarSongSections
                                     .filter { it.source == NeteaseHomeSongSource.PERSONAL_RADAR }
                                     .forEach { sectionState ->
@@ -728,52 +729,22 @@ fun HomeScreen(
                                         favoriteSongs = favoriteSongs,
                                         onFavoriteToggle = ::toggleHomeSongFavorite,
                                         onShowSnackbar = showHomeSnackbar,
-                                        offlineMode = offlineMode
+                                        offlineMode = offlineMode,
+                                        showIndex = false
                                     )
-                                }
-
-                                val radarPlaylistState = ui.radarPlaylists
-                                item(
-                                    key = registerGridItemKey(
-                                        HomeScrollKeyNeteaseRadarPlaylistsHeader
-                                    ),
-                                    span = { GridItemSpan(maxLineSpan) }
-                                ) {
-                                    SectionHeader(
-                                        icon = Icons.Outlined.Explore,
-                                        title = stringResource(R.string.home_netease_radar_playlists)
-                                    )
-                                }
-                                sectionContent(
-                                    section = radarPlaylistState,
-                                    loadingText = homeLoadingText,
-                                    errorDetail = radarPlaylistState.error,
-                                    keyPrefix = HomeScrollKeyNeteaseRadarPlaylists,
-                                    registerKey = ::registerGridItemKey
-                                ) {
-                                    item(
-                                        key = registerGridItemKey(HomeScrollKeyNeteaseRadarPlaylistsContent),
-                                        span = { GridItemSpan(maxLineSpan) }
-                                    ) {
-                                        RadarPlaylistStrip(
-                                            playlists = radarPlaylistState.items,
-                                            favoriteKeys = favoriteKeys,
-                                            listState = radarPlaylistListState,
-                                            onClick = onItemClick,
-                                            onShowSnackbar = { message ->
-                                                scope.launch {
-                                                    snackbarHostState.showNeriSnackbar(message)
-                                                }
-                                            },
-                                            offlineMode = offlineMode
-                                        )
-                                    }
                                 }
 
                                 ui.radarSongSections
                                     .filter {
                                         it.source != NeteaseHomeSongSource.PERSONAL_RADAR &&
                                             it.source != NeteaseHomeSongSource.PRIVATE_FM
+                                    }
+                                    .sortedBy { section ->
+                                        if (section.source == NeteaseHomeSongSource.DAILY_RECOMMEND) {
+                                            0
+                                        } else {
+                                            1
+                                        }
                                     }
                                     .forEach { sectionState ->
                                         val sectionKey = homeNeteaseSongSectionKey(
@@ -790,7 +761,9 @@ fun HomeScreen(
                                             favoriteSongs = favoriteSongs,
                                             onFavoriteToggle = ::toggleHomeSongFavorite,
                                             onShowSnackbar = showHomeSnackbar,
-                                            offlineMode = offlineMode
+                                            offlineMode = offlineMode,
+                                            showIndex = sectionState.source !=
+                                                NeteaseHomeSongSource.DAILY_RECOMMEND
                                         )
                                     }
                             }
@@ -866,6 +839,47 @@ fun HomeScreen(
                                     )
                                 }
                             }
+
+                            // 雷达歌单固定放在首页最末尾
+                            if (showNeteaseRadar) {
+                                val radarPlaylistState = ui.radarPlaylists
+                                item(
+                                    key = registerGridItemKey(
+                                        HomeScrollKeyNeteaseRadarPlaylistsHeader
+                                    ),
+                                    span = { GridItemSpan(maxLineSpan) }
+                                ) {
+                                    SectionHeader(
+                                        icon = Icons.Outlined.Explore,
+                                        title = stringResource(R.string.home_netease_radar_playlists)
+                                    )
+                                }
+                                sectionContent(
+                                    section = radarPlaylistState,
+                                    loadingText = homeLoadingText,
+                                    errorDetail = radarPlaylistState.error,
+                                    keyPrefix = HomeScrollKeyNeteaseRadarPlaylists,
+                                    registerKey = ::registerGridItemKey
+                                ) {
+                                    item(
+                                        key = registerGridItemKey(HomeScrollKeyNeteaseRadarPlaylistsContent),
+                                        span = { GridItemSpan(maxLineSpan) }
+                                    ) {
+                                        RadarPlaylistStrip(
+                                            playlists = radarPlaylistState.items,
+                                            favoriteKeys = favoriteKeys,
+                                            listState = radarPlaylistListState,
+                                            onClick = onItemClick,
+                                            onShowSnackbar = { message ->
+                                                scope.launch {
+                                                    snackbarHostState.showNeriSnackbar(message)
+                                                }
+                                            },
+                                            offlineMode = offlineMode
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -922,7 +936,8 @@ private fun LazyGridScope.addNeteaseSongSection(
     favoriteSongs: List<SongItem>,
     onFavoriteToggle: (SongItem, Boolean) -> Unit,
     onShowSnackbar: (String) -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    showIndex: Boolean = true
 ) {
     item(
         key = registerKey("$sectionKey:header"),
@@ -950,7 +965,8 @@ private fun LazyGridScope.addNeteaseSongSection(
                 favoriteSongs = favoriteSongs,
                 onFavoriteToggle = onFavoriteToggle,
                 onShowSnackbar = onShowSnackbar,
-                offlineMode = offlineMode
+                offlineMode = offlineMode,
+                showIndex = showIndex
             )
         }
     }
@@ -1117,7 +1133,8 @@ private fun SongRowMini(
     isFavorite: Boolean,
     onFavoriteToggle: (SongItem, Boolean) -> Unit,
     onShowSnackbar: (String) -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    showIndex: Boolean = true
 ) {
     val context = LocalContext.current
     val composeResources = LocalResources.current
@@ -1133,14 +1150,16 @@ private fun SongRowMini(
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = index.toString(),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.width(28.dp),
-            maxLines = 1,
-            overflow = TextOverflow.Clip
-        )
+        if (showIndex) {
+            Text(
+                text = index.toString(),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.width(28.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Clip
+            )
+        }
 
         if (!coverUrl.isNullOrBlank()) {
             AsyncImage(
@@ -2139,7 +2158,8 @@ private fun ResponsiveSongPagerList(
     favoriteSongs: List<SongItem>,
     onFavoriteToggle: (SongItem, Boolean) -> Unit,
     onShowSnackbar: (String) -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    showIndex: Boolean = true
 ) {
     val widthDp = currentWindowWidthDp().value
     val columns = when {
@@ -2182,7 +2202,8 @@ private fun ResponsiveSongPagerList(
                                 isFavorite = favoriteSongs.any { it.sameIdentityAs(song) },
                                 onFavoriteToggle = onFavoriteToggle,
                                 onShowSnackbar = onShowSnackbar,
-                                offlineMode = offlineMode
+                                offlineMode = offlineMode,
+                                showIndex = showIndex
                             )
                         } else {
                             Spacer(Modifier.height(0.dp))

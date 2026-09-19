@@ -489,7 +489,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshNeteaseHome() {
         if (offlineMode) return
 
-        // 首屏只加载「私人雷达 → 每日推荐 → 雷达歌单」这条主线。
+        // 首屏主线：私人雷达 → 每日推荐；雷达歌单数据仍预取，UI 固定排在页面最末尾。
         // 私人 FM、榜单与推荐歌单等次级板块收在「更多」按钮后面，等用户点开再加载：
         // 启动瞬间十几个请求同时返回会把解析、状态更新和列表构建全挤在同一帧里。
         refreshRadarSongs(NeteaseHomeRadarSongSources - NeteaseHomeSongSource.PRIVATE_FM)

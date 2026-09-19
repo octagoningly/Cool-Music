@@ -681,8 +681,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = currentState.copy(
             loading = true,
             error = null,
-            selectedTag = realCat,
-            neteaseDiscoveryOpen = true
+            selectedTag = realCat
         )
         NPLogger.d(
             TAG,
@@ -779,6 +778,21 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         // 全屏二级页始终需要完整列表（首页可能只缓存了 1 张封面）
         if (state.playlists.size < 2 && !state.loading) {
             loadHighQuality(state.selectedTag)
+        }
+    }
+
+    /** 进入探索 Tab 时重置：始终停在首页，不残留「新发现」二级页 */
+    fun resetToExploreHome() {
+        val state = _uiState.value
+        if (!state.neteaseDiscoveryOpen && state.playlists.size <= 1) {
+            return
+        }
+        NPLogger.d(TAG, "resetToExploreHome: discoveryOpen=${state.neteaseDiscoveryOpen}")
+        if (state.neteaseDiscoveryOpen) {
+            closeNeteaseDiscovery()
+        }
+        if (_uiState.value.playlists.isEmpty() && !_uiState.value.loading) {
+            loadFeaturedPlaylist()
         }
     }
 

@@ -357,6 +357,7 @@ fun ExploreScreen(
     searchScrollContextKey: String?,
     onSearchScrollContextKeyChange: (String?) -> Unit,
     offlineMode: Boolean = false,
+    isTabActive: Boolean = true,
     onPlay: (PlaylistSummary) -> Unit,
     onBiliPlaylistClick: (BiliPlaylist) -> Unit = {},
     onYouTubeMusicPlaylistClick: (YouTubeMusicPlaylist) -> Unit = {},
@@ -521,7 +522,10 @@ fun ExploreScreen(
         selectedParts = emptySet()
     }
 
-    LaunchedEffect(Unit) {
+    // 每次成为探索 Tab 时回到首页，避免残留「新发现」二级页
+    LaunchedEffect(isTabActive) {
+        if (!isTabActive) return@LaunchedEffect
+        vm.resetToExploreHome()
         if (ui.playlists.isEmpty() && !ui.neteaseDiscoveryOpen) vm.loadFeaturedPlaylist()
     }
 

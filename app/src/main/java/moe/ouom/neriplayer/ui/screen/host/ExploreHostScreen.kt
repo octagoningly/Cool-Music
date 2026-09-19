@@ -152,6 +152,7 @@ internal fun resolveExploreSelectedDetailBackTarget(
 @Composable
 fun ExploreHostScreen(
     offlineMode: Boolean = false,
+    isTabActive: Boolean = true,
     onSongClick: (List<SongItem>, Int) -> Unit = { _, _ -> },
     onSongClickWithSourceRoute: (List<SongItem>, Int, String?) -> Unit = { songs, index, _ ->
         onSongClick(songs, index)
@@ -354,6 +355,7 @@ fun ExploreHostScreen(
                                     searchScrollContextKey = it
                                 },
                                 offlineMode = offlineMode,
+                                isTabActive = isTabActive,
                                 onPlay = { pl ->
                                     captureExploreScrollPosition()
                                     AppContainer.launchBackgroundIo {

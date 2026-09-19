@@ -2802,6 +2802,7 @@ private fun NeriAppContent(
 
                     Destinations.Explore.route -> ExploreHostScreen(
                         offlineMode = offlineMode,
+                        isTabActive = selectedMainTabRoute == Destinations.Explore.route,
                         onSongClick = ::playSongsAndOpenNowPlaying,
                         onSongClickWithSourceRoute = ::playSongsAndOpenNowPlaying,
                         neteasePlaylistSourceRoute = ::neteasePlaylistSourceRoute,

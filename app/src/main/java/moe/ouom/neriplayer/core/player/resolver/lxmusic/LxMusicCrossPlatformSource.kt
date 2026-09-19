@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.core.player.resolver.lxmusic
+package moe.ouom.neriplayer.core.player.resolver.lxmusic
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -492,7 +492,7 @@ private fun parseLxKugouSingers(singers: org.json.JSONArray?): String {
     return names.joinToString("、")
 }
 
-/** 解析 QQ 音乐搜索响应 */
+/** 解析 QQ 音乐搜索响应（兼容 new_json=1 与旧字段） */
 internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
     if (body.isBlank()) return emptyList()
     return runCatching {
@@ -504,12 +504,16 @@ internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
         buildList {
             for (index in 0 until list.length()) {
                 val item = list.optJSONObject(index) ?: continue
-                val songMid = item.optString("mid").trim()
-                    .ifBlank { item.optString("songmid").trim() }
+                val songMid = sequenceOf("mid", "songmid", "strMediaMid")
+                    .map { key -> item.optString(key).trim() }
+                    .firstOrNull { it.isNotBlank() }
+                    .orEmpty()
                 if (songMid.isBlank()) continue
                 val title = decodeLxHtmlEntities(item.optString("title")).trim()
+                    .ifBlank { decodeLxHtmlEntities(item.optString("name")).trim() }
                     .ifBlank { decodeLxHtmlEntities(item.optString("songname")).trim() }
                 if (title.isBlank()) continue
+                val albumObj = item.optJSONObject("album")
                 add(
                     LxCrossPlatformHit(
                         sourceId = LX_QQ_PLATFORM_ID,
@@ -518,11 +522,11 @@ internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
                         artist = parseLxQqSingers(item.optJSONArray("singer")),
                         durationSec = item.optInt("interval", 0),
                         albumName = decodeLxHtmlEntities(
-                            item.optJSONObject("album")?.optString("name").orEmpty()
+                            albumObj?.optString("title")?.ifBlank { albumObj.optString("name") }
+                                ?: albumObj?.optString("name").orEmpty()
                         ).trim(),
-                        albumId = item.optJSONObject("album")
-                            ?.optLong("id", 0L)
-                            ?.takeIf { it > 0L }
+                        albumId = (albumObj?.optLong("id", 0L) ?: 0L)
+                            .takeIf { it > 0L }
                             ?.toString()
                             .orEmpty()
                     )

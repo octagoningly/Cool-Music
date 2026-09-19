@@ -1086,11 +1086,12 @@ internal object PlayerLyricsProvider {
 
                 else -> emptyList()
             }
-            if (resolvedPlatformLyrics.isNotEmpty()) {
+            // 平台/AMLL 的占位或空结果都不能挡住音源兜底
+            if (resolvedPlatformLyrics.isNotEmpty() && !isPlaceholderLyrics(resolvedPlatformLyrics)) {
                 return@withContext resolvedPlatformLyrics
             }
-            // 平台与 AMLL 都没有可用歌词时，从在线音源对应的平台同步一份
-            loadLxSourceLyrics(song)
+            // 平台与 AMLL 都没有可用歌词时，从 QQ→酷狗公开歌词接口同步一份
+            loadLxSourceLyrics(song).ifEmpty { resolvedPlatformLyrics }
         }
     }
 

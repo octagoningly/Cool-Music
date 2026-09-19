@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.core.player.resolver.lxmusic
+package moe.ouom.neriplayer.core.player.resolver.lxmusic
 
 import moe.ouom.neriplayer.data.model.SongItem
 import org.junit.Assert.assertEquals
@@ -231,6 +231,26 @@ class LxMusicCrossPlatformSourceTest {
         assertEquals(269, hits[0].durationSec)
         assertEquals("叶惠美", hits[0].albumName)
         assertEquals("8220", hits[0].albumId)
+    }
+
+    @Test
+    fun `parses qq new_json response with name and mid`() {
+        val body = """
+            {"code":0,"data":{"song":{"list":[
+              {"mid":"001Zi7Ly4ZtVQk","name":"星晴","interval":259,
+               "singer":[{"id":4558,"name":"周杰伦"}],
+               "album":{"id":8218,"mid":"000f01724fd7TH","title":"Jay","name":"Jay"}}
+            ]}}}
+        """.trimIndent()
+
+        val hits = parseLxQqSearchBody(body)
+
+        assertEquals(1, hits.size)
+        assertEquals("001Zi7Ly4ZtVQk", hits[0].songMid)
+        assertEquals("星晴", hits[0].name)
+        assertEquals("周杰伦", hits[0].artist)
+        assertEquals(259, hits[0].durationSec)
+        assertEquals("Jay", hits[0].albumName)
     }
 
     @Test

@@ -228,7 +228,9 @@ import moe.ouom.neriplayer.core.download.ManagedDownloadStorage
 import moe.ouom.neriplayer.core.download.shouldHideRemoteDownloadAction
 import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.core.player.download.AudioDownloadManager
+import moe.ouom.neriplayer.core.player.metadata.isPlaceholderLyrics
 import moe.ouom.neriplayer.core.player.metadata.resolveLocalFirstLyricText
+import moe.ouom.neriplayer.core.player.metadata.shouldAcceptStoredLyricEntries
 import moe.ouom.neriplayer.core.player.playback.BiliVideoSkipPlaybackController
 import moe.ouom.neriplayer.core.player.model.PlaybackAudioInfo
 import moe.ouom.neriplayer.core.player.model.PlaybackAudioSource
@@ -2398,12 +2400,24 @@ fun NowPlayingScreen(
                 }
                 !effectiveRawLyrics.isNullOrBlank() -> {
                     val parsedRawLyrics = parseNeteaseLyricsAuto(effectiveRawLyrics)
-                    if (parsedRawLyrics.hasWordTimedEntries() || song == null) {
+                    if (song == null) {
                         parsedRawLyrics
                     } else {
-                        PlayerManager.getLyrics(song)
-                            .takeIf { it.hasWordTimedEntries() }
-                            ?: parsedRawLyrics
+                        // 网易云可能缓存「暂无歌词」占位；音源 QQ/酷狗 LRC 是行级歌词，
+                        // 不能因为没有逐字时间轴就把占位文案当成最终结果。
+                        val remoteLyrics = runCatching { PlayerManager.getLyrics(song) }
+                            .getOrDefault(emptyList())
+                        val parsedUsable = shouldAcceptStoredLyricEntries(parsedRawLyrics)
+                        val remoteUsable = shouldAcceptStoredLyricEntries(remoteLyrics)
+                        when {
+                            parsedRawLyrics.hasWordTimedEntries() -> parsedRawLyrics
+                            remoteLyrics.hasWordTimedEntries() -> remoteLyrics
+                            isPlaceholderLyrics(parsedRawLyrics) && remoteUsable -> remoteLyrics
+                            parsedUsable && !remoteUsable -> parsedRawLyrics
+                            remoteUsable -> remoteLyrics
+                            parsedUsable -> parsedRawLyrics
+                            else -> remoteLyrics.ifEmpty { parsedRawLyrics }
+                        }
                     }
                 }
                 shouldDelayOnlineLyrics -> {

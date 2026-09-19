@@ -1275,9 +1275,20 @@ private fun LocalPlaylistList(
     val editablePlaylists = remember(playlists, context) {
         playlists.filterNot { SystemLocalPlaylists.isSystemPlaylist(it, context) }
     }
-    val reorderablePlaylists = remember(editablePlaylists) {
-        mutableStateListOf<LocalPlaylist>().apply {
-            addAll(editablePlaylists)
+    // Stable list identity: never recreate during drag (remember(editablePlaylists) caused flicker)
+    val reorderablePlaylists = remember { mutableStateListOf<LocalPlaylist>() }
+
+    LaunchedEffect(editablePlaylists, localSortMode) {
+        if (!localSortMode) {
+            reorderablePlaylists.clear()
+            reorderablePlaylists.addAll(editablePlaylists)
+        } else {
+            val currentIds = reorderablePlaylists.map { it.id }.toSet()
+            val editableIds = editablePlaylists.map { it.id }.toSet()
+            if (currentIds != editableIds) {
+                reorderablePlaylists.clear()
+                reorderablePlaylists.addAll(editablePlaylists)
+            }
         }
     }
 
@@ -1292,7 +1303,18 @@ private fun LocalPlaylistList(
     }
 
     fun exitSortMode() {
-        localSortMode = false
+        if (localSortMode) {
+            onReorder(reorderablePlaylists.map { it.id })
+            localSortMode = false
+        }
+    }
+
+    fun enterSortMode() {
+        selectionMode = false
+        selectedIds = emptySet()
+        localSortMode = true
+        reorderablePlaylists.clear()
+        reorderablePlaylists.addAll(editablePlaylists)
     }
 
     BackHandler(enabled = selectionMode || localSortMode) {
@@ -1375,8 +1397,11 @@ private fun LocalPlaylistList(
         ?.takeIf { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
     val displayedLocalFilesPlaylist = localFilesPlaylist
         ?.takeIf { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
-    val displayedPlaylists = reorderablePlaylists
-        .filter { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
+    val displayedPlaylists = if (localSortMode) {
+        reorderablePlaylists.toList()
+    } else {
+        reorderablePlaylists.filter { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
+    }
     val hasPlaylistSearchMatches =
         displayedFavoritesPlaylist != null ||
             displayedPlaylists.isNotEmpty() ||
@@ -1395,7 +1420,11 @@ private fun LocalPlaylistList(
             start = 8.dp,
             end = 8.dp,
             top = 8.dp,
-            bottom = 8.dp + miniPlayerHeight
+            bottom = if (localSortMode) {
+                88.dp + miniPlayerHeight
+            } else {
+                8.dp + miniPlayerHeight
+            }
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
@@ -1437,15 +1466,7 @@ private fun LocalPlaylistList(
                     editablePlaylists.size >= 2,
                 localSortMode = localSortMode,
                 onToggleLocalSort = {
-                    selectionMode = false
-                    selectedIds = emptySet()
-                    localSortMode = !localSortMode
-                    if (!localSortMode) {
-                        onReorder(reorderablePlaylists.map { it.id })
-                    } else {
-                        reorderablePlaylists.clear()
-                        reorderablePlaylists.addAll(editablePlaylists)
-                    }
+                    if (localSortMode) exitSortMode() else enterSortMode()
                 }
             )
         }
@@ -1763,7 +1784,7 @@ private fun LocalPlaylistList(
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier
                         .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .animateItem()
+                        .then(if (localSortMode) Modifier else Modifier.animateItem())
                         .clip(cardShape)
                         .combinedClickable(
                             onClick = {
@@ -2081,12 +2102,30 @@ private fun LocalLibraryHeaderContent(
             )
             Spacer(modifier = Modifier.weight(1f))
             if (showLocalSort) {
-                HapticTextButton(onClick = onToggleLocalSort) {
-                    Text(
-                        text = stringResource(
-                            if (localSortMode) R.string.action_done
-                            else R.string.library_local_playlist_sort
-                        )
+                HapticIconButton(
+                    onClick = onToggleLocalSort,
+                    modifier = Modifier
+                        .padding(end = 4.dp)
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = if (localSortMode) {
+                            Icons.Filled.Check
+                        } else {
+                            Icons.AutoMirrored.Filled.Sort
+                        },
+                        contentDescription = stringResource(
+                            if (localSortMode) {
+                                R.string.action_done
+                            } else {
+                                R.string.library_local_playlist_sort
+                            }
+                        ),
+                        tint = if (localSortMode) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
                     )
                 }
             }

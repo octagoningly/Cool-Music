@@ -42,7 +42,7 @@
     <string name="library_name_reserved">This name is reserved for \"%s\", please choose another name~</string>
     <string name="library_name_exists">A playlist with this name already exists, please choose another name</string>
     <string name="library_create_new">+ Create</string>
-    <string name="library_local_playlist_sort">Custom sort</string>
+    <string name="library_local_playlist_sort">Sort playlists</string>
     <string name="library_qqmusic_coming">Coming Soon</string>
     <string name="library_netease_tab_playlists">Playlists</string>
     <string name="library_netease_tab_albums">Albums</string>

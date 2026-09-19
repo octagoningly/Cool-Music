@@ -1282,7 +1282,11 @@ private fun LocalPlaylistList(
         sortLocalArtists(filteredLocalArtists, localArtistSortMode)
     }
     val editablePlaylists = remember(playlists, context) {
-        playlists.filterNot { SystemLocalPlaylists.isSystemPlaylist(it, context) }
+        // Include 我喜欢的音乐 in custom sort; keep 本地文件 pinned outside.
+        playlists.filterNot {
+            LocalFilesPlaylist.isSystemPlaylist(it, context) &&
+                !FavoritesPlaylist.isSystemPlaylist(it, context)
+        }
     }
     // Stable list identity: never recreate during drag (remember(editablePlaylists) caused flicker)
     val reorderablePlaylists = remember { mutableStateListOf<LocalPlaylist>() }
@@ -1438,6 +1442,7 @@ private fun LocalPlaylistList(
 
     val displayedFavoritesPlaylist = favoritesPlaylist
         ?.takeIf { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
+        ?.takeIf { false } // favorites now lives in the sortable playlist list
     val displayedLocalFilesPlaylist = localFilesPlaylist
         ?.takeIf { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
     val displayedPlaylists = if (localSortMode) {
@@ -1821,6 +1826,9 @@ private fun LocalPlaylistList(
                 val systemPlaylist = SystemLocalPlaylists.resolve(pl.id, pl.name, context)
                 val displayName = systemPlaylist?.currentName ?: pl.name
                 val isSystemPlaylist = systemPlaylist != null
+                val isFavoritesPlaylist = FavoritesPlaylist.isSystemPlaylist(pl, context)
+                val isLocalFilesPlaylist = LocalFilesPlaylist.isSystemPlaylist(pl, context)
+                val canCustomSort = !isLocalFilesPlaylist
                 val isSelected = selectionMode && selectedIds.contains(pl.id)
                 val rowContainerColor = if (isSelected) {
                     MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
@@ -1919,7 +1927,7 @@ private fun LocalPlaylistList(
                             }
                         },
                         trailingContent = {
-                            if (localSortMode && !isSystemPlaylist) {
+                            if (localSortMode && canCustomSort) {
                                 Box(
                                     modifier = Modifier
                                         .detectReorder(reorderState)

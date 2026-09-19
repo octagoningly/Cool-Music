@@ -489,9 +489,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshNeteaseHome() {
         if (offlineMode) return
 
-        // 首屏主线：私人雷达 → 每日推荐；雷达歌单数据仍预取，UI 固定排在页面最末尾。
-        // 私人 FM、榜单与推荐歌单等次级板块收在「更多」按钮后面，等用户点开再加载：
-        // 启动瞬间十几个请求同时返回会把解析、状态更新和列表构建全挤在同一帧里。
+        // 首屏主线：私人雷达 → 每日推荐 → 雷达歌单；私人 FM/榜单等收在「更多」后按需加载
         refreshRadarSongs(NeteaseHomeRadarSongSources - NeteaseHomeSongSource.PRIVATE_FM)
         refreshRadarPlaylists()
         if (homeMoreExpanded) {
@@ -615,18 +613,38 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             candidates = candidates,
             hasLogin = hasRecommendLogin
         )
+        // 子集刷新（如展开「更多」只拉私人 FM）不能清空已有雷达/每日推荐板块
         if (sources.isEmpty()) {
-            _uiState.update { state -> state.copy(radarSongSections = emptyList()) }
             return
         }
         NPLogger.d(TAG, "refreshRadarSongs start: sources=$sources")
-        radarSongsJob?.cancel()
+        // 全量刷新才取消旧任务；展开「更多」的子集刷新不要打断首屏雷达/每日推荐加载
+        if (candidates.containsAll(NeteaseHomeRadarSongSources)) {
+            radarSongsJob?.cancel()
+        }
         _uiState.update { state ->
+            val previousBySource = state.radarSongSections.associateBy { it.source }
+            val refreshingBySource = availableNeteaseHomeSongSources(
+                candidates = candidates,
+                hasLogin = hasRecommendLogin
+            ).map { source ->
+                val previous = previousBySource[source]?.section ?: HomeSectionState()
+                source to HomeNeteaseSongSectionState(
+                    source = source,
+                    section = previous.copy(loading = true, error = null)
+                )
+            }.toMap()
+            // 按雷达主线固定顺序合并：已有来源保留，仅覆盖本次刷新的来源
+            val merged = availableNeteaseHomeSongSources(
+                candidates = NeteaseHomeRadarSongSources,
+                hasLogin = hasRecommendLogin
+            ).map { source ->
+                refreshingBySource[source]
+                    ?: previousBySource[source]
+                    ?: HomeNeteaseSongSectionState(source = source)
+            }
             state.copy(
-                radarSongSections = buildSongSectionsForRefresh(
-                    current = state.radarSongSections,
-                    sources = candidates
-                ),
+                radarSongSections = merged,
                 hasLogin = hasRecommendLogin
             )
         }
@@ -637,12 +655,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 fetch = { source -> fetchSongSection("refreshRadarSongs", source) }
             ) { section ->
                 _uiState.update { state ->
-                    state.copy(
-                        radarSongSections = replaceSongSection(
-                            state.radarSongSections,
+                    val previousBySource = state.radarSongSections.associateBy { it.source }
+                    val merged = availableNeteaseHomeSongSources(
+                        candidates = NeteaseHomeRadarSongSources,
+                        hasLogin = hasRecommendLogin
+                    ).map { source ->
+                        if (source == section.source) {
                             section
-                        )
-                    )
+                        } else {
+                            previousBySource[source]
+                                ?: HomeNeteaseSongSectionState(source = source)
+                        }
+                    }
+                    state.copy(radarSongSections = merged)
                 }
             }
         }

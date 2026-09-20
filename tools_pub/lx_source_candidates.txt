@@ -29,7 +29,7 @@ https://github.com/guoyue2010/lxmusic-/blob/main/V260716/其他/西瓜聚合.js
 https://github.com/guoyue2010/lxmusic-/blob/main/V260716/其他/HUIBQ音源.js
 https://github.com/guoyue2010/lxmusic-/blob/main/V260716/其他/聚合API.js
 
-# pdone/lx-music-source 仓库 (8452 stars)
+# pdone/lx-music-source 仓库 (8999 stars)
 https://raw.githubusercontent.com/pdone/lx-music-source/main/sixyin/latest.js
 https://raw.githubusercontent.com/pdone/lx-music-source/main/huibq/latest.js
 https://raw.githubusercontent.com/pdone/lx-music-source/main/flower/latest.js
@@ -38,6 +38,20 @@ https://raw.githubusercontent.com/pdone/lx-music-source/main/ikun/latest.js
 https://raw.githubusercontent.com/pdone/lx-music-source/main/grass/latest.js
 https://raw.githubusercontent.com/pdone/lx-music-source/main/juhe/latest.js
 https://raw.githubusercontent.com/pdone/lx-music-source/main/qdy/latest.js
+
+# tfappstore/lx-music-source 仓库 (219 stars)
+https://raw.githubusercontent.com/tfappstore/lx-music-source/main/huibq/latest.js
+https://raw.githubusercontent.com/tfappstore/lx-music-source/main/changqing/latest.js
+https://raw.githubusercontent.com/tfappstore/lx-music-source/main/nianxin/latest.js
+https://raw.githubusercontent.com/tfappstore/lx-music-source/main/quandouyao/latest.js
+https://raw.githubusercontent.com/tfappstore/lx-music-source/main/yiyin/latest.js
+https://raw.githubusercontent.com/tfappstore/lx-music-source/main/xiazaiqi/latest.js
+https://raw.githubusercontent.com/tfappstore/lx-music-source/main/juhe/latest.js
+https://raw.githubusercontent.com/tfappstore/lx-music-source/main/lx/latest.js
+
+# cdyUuu/lx-music-xinghai-source 仓库 (123 stars)
+https://raw.githubusercontent.com/cdyUuu/lx-music-xinghai-source/main/xinghai-music-source.js
+https://raw.githubusercontent.com/cdyUuu/lx-music-xinghai-source/main/xinghai-music-sourcev2.3.12.js
 
 # gitee 音源
 https://gitee.com/wtown/lxmusic_yinyuan/raw/master/Huibq音源_v1.2.0.js

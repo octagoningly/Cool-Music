@@ -41,6 +41,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           LX_SOURCE_CANDIDATE_URLS: ${{ vars.LX_SOURCE_CANDIDATE_URLS }}
           LX_SOURCE_SEARCH_QUERIES: ${{ vars.LX_SOURCE_SEARCH_QUERIES }}
+          LX_SOURCE_REPOSITORY_SEARCH_QUERIES: ${{ vars.LX_SOURCE_REPOSITORY_SEARCH_QUERIES }}
         run: >-
           python tools_pub/lx_source_discovery.py
           --candidate-file tools_pub/lx_source_candidates.txt

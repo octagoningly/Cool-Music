@@ -26,6 +26,22 @@ DEFAULT_SEARCH_QUERIES = [
     '"lx.EVENT_NAMES.request" "musicUrl" extension:js',
     '"songUrl" "search" "supportedQualitys" extension:json',
 ]
+DEFAULT_REPOSITORY_SEARCH_QUERIES = [
+    '"LX Music" 音源 in:name,description,readme',
+    'lxmusic source in:name,description,readme',
+    '落雪 音源 in:name,description,readme',
+]
+SOURCE_PATH_HINTS = ("音源", "source", "lx", "music", "plugin")
+IGNORED_PATH_PARTS = {
+    ".github",
+    "node_modules",
+    "vendor",
+    "dist",
+    "build",
+    "test",
+    "tests",
+    "fixtures",
+}
 URL_RE = re.compile(r"https?://[^\s'\"<>)]{8,}")
 
 
@@ -34,12 +50,12 @@ class HttpClient:
         self.token = token
         self.timeout = timeout
 
-    def get_text(self, url: str, accept: str = "*/*") -> str:
+    def get_text(self, url: str, accept: str = "*/*", authenticated: bool = True) -> str:
         headers = {
             "Accept": accept,
             "User-Agent": USER_AGENT,
         }
-        if self.token and "api.github.com" in url:
+        if authenticated and self.token and "api.github.com" in url:
             headers["Authorization"] = f"Bearer {self.token}"
             headers["X-GitHub-Api-Version"] = "2022-11-28"
         request = urllib.request.Request(url, headers=headers)
@@ -49,8 +65,14 @@ class HttpClient:
                 raise ValueError("response too large")
             return data.decode("utf-8", errors="replace")
 
-    def get_json(self, url: str) -> Any:
-        return json.loads(self.get_text(url, accept="application/vnd.github+json"))
+    def get_json(self, url: str, authenticated: bool = True) -> Any:
+        return json.loads(
+            self.get_text(
+                url,
+                accept="application/vnd.github+json",
+                authenticated=authenticated,
+            )
+        )
 
 
 def utc_now_iso() -> str:
@@ -368,6 +390,136 @@ def github_search_candidates(http: HttpClient, max_files: int) -> set[str]:
             if looks_like_lx_js(body) or parse_json_definition(body):
                 candidates.add(download_url)
             candidates.update(extract_urls(body))
+    print(f"GitHub code search found {len(candidates)} candidate URLs from {files_seen} files")
+    return candidates
+
+
+def source_path_score(path: str, size: Any) -> int:
+    normalized = path.replace("\\", "/").strip("/")
+    lowered = normalized.lower()
+    parts = set(lowered.split("/"))
+    if parts & IGNORED_PATH_PARTS:
+        return -1
+    if not lowered.endswith((".js", ".json")):
+        return -1
+    if lowered.endswith(("package.json", "package-lock.json", "tsconfig.json")):
+        return -1
+    if isinstance(size, int) and (size <= 0 or size > MAX_BODY_BYTES):
+        return -1
+
+    filename = lowered.rsplit("/", 1)[-1]
+    score = 0
+    if "音源" in normalized:
+        score += 100
+    if "/sources/" in f"/{lowered}/" or lowered.startswith("sources/"):
+        score += 80
+    for hint in SOURCE_PATH_HINTS:
+        if hint in filename:
+            score += 30
+        elif hint in lowered:
+            score += 10
+    return score
+
+
+def github_repository_candidates(
+    http: HttpClient,
+    max_repositories: int,
+    max_files: int,
+) -> set[str]:
+    if max_repositories <= 0 or max_files <= 0:
+        return set()
+
+    queries_raw = os.environ.get("LX_SOURCE_REPOSITORY_SEARCH_QUERIES", "")
+    queries = (
+        [line.strip() for line in queries_raw.splitlines() if line.strip()]
+        or DEFAULT_REPOSITORY_SEARCH_QUERIES
+    )
+    current_repository = os.environ.get("GITHUB_REPOSITORY", "").lower()
+    repositories: list[dict[str, str]] = []
+    seen_repositories: set[str] = set()
+
+    for query in queries:
+        if len(repositories) >= max_repositories:
+            break
+        search_url = "https://api.github.com/search/repositories?" + urllib.parse.urlencode(
+            {
+                "q": query,
+                "sort": "updated",
+                "order": "desc",
+                "per_page": min(10, max_repositories - len(repositories)),
+            }
+        )
+        try:
+            # Installation tokens only see repositories installed for the app.
+            # Public repository search is deliberately unauthenticated here.
+            result = http.get_json(search_url, authenticated=False)
+        except Exception as error:
+            print(f"warning: public repository search failed for {query!r}: {error}", file=sys.stderr)
+            continue
+        for item in result.get("items", []):
+            full_name = str(item.get("full_name") or "").strip()
+            default_branch = str(item.get("default_branch") or "").strip()
+            repository_key = full_name.lower()
+            if (
+                not full_name
+                or not default_branch
+                or repository_key == current_repository
+                or repository_key in seen_repositories
+            ):
+                continue
+            repositories.append({"full_name": full_name, "default_branch": default_branch})
+            seen_repositories.add(repository_key)
+            if len(repositories) >= max_repositories:
+                break
+
+    candidates: set[str] = set()
+    files_seen = 0
+    for repository in repositories:
+        if files_seen >= max_files:
+            break
+        full_name = repository["full_name"]
+        branch = repository["default_branch"]
+        tree_url = (
+            f"https://api.github.com/repos/{urllib.parse.quote(full_name, safe='/')}/git/trees/"
+            f"{urllib.parse.quote(branch, safe='')}?recursive=1"
+        )
+        try:
+            tree = http.get_json(tree_url, authenticated=False)
+        except Exception as error:
+            print(f"warning: repository tree failed for {full_name}: {error}", file=sys.stderr)
+            continue
+
+        source_files = []
+        for item in tree.get("tree", []):
+            if item.get("type") != "blob":
+                continue
+            path = str(item.get("path") or "")
+            score = source_path_score(path, item.get("size"))
+            if score >= 0:
+                source_files.append((score, path))
+        source_files.sort(key=lambda value: (-value[0], value[1].lower()))
+
+        for _, path in source_files[:8]:
+            if files_seen >= max_files:
+                break
+            raw_url = (
+                f"https://raw.githubusercontent.com/{full_name}/"
+                f"{urllib.parse.quote(branch, safe='')}/"
+                f"{urllib.parse.quote(path, safe='/')}"
+            )
+            files_seen += 1
+            try:
+                body = http.get_text(raw_url)
+            except Exception:
+                continue
+            if looks_like_lx_js(body) or parse_json_definition(body):
+                candidates.add(raw_url)
+            candidates.update(extract_urls(body))
+
+    print(
+        f"public repository search found {len(candidates)} candidate URLs "
+        f"from {files_seen} files in {len(repositories)} repositories"
+    )
     return candidates
 
 
@@ -497,6 +649,8 @@ def main() -> int:
     parser.add_argument("--js-runner", default="tools_pub/lx_js_probe_runner.js")
     parser.add_argument("--max-candidates", type=int, default=80)
     parser.add_argument("--max-github-files", type=int, default=40)
+    parser.add_argument("--max-repositories", type=int, default=12)
+    parser.add_argument("--max-repository-files", type=int, default=30)
     parser.add_argument("--timeout", type=int, default=15)
     parser.add_argument("--js-timeout", type=int, default=35)
     parser.add_argument("--no-github-search", action="store_true")
@@ -518,12 +672,30 @@ def main() -> int:
     )
     node_binary = shutil.which("node")
 
-    candidates = set()
-    candidates.update(load_existing_candidates(output_path))
-    candidates.update(load_candidate_file(candidate_file))
-    candidates.update(load_env_candidates())
+    existing_candidates = load_existing_candidates(output_path)
+    file_candidates = load_candidate_file(candidate_file)
+    env_candidates = load_env_candidates()
+    candidates = existing_candidates | file_candidates | env_candidates
+    code_search_candidates: set[str] = set()
+    repository_candidates: set[str] = set()
     if not args.no_github_search:
-        candidates.update(github_search_candidates(http, args.max_github_files))
+        code_search_candidates = github_search_candidates(http, args.max_github_files)
+        repository_candidates = github_repository_candidates(
+            http,
+            max_repositories=args.max_repositories,
+            max_files=args.max_repository_files,
+        )
+        candidates.update(code_search_candidates)
+        candidates.update(repository_candidates)
+
+    print(
+        "candidate sources: "
+        f"existing={len(existing_candidates)} "
+        f"file={len(file_candidates)} "
+        f"env={len(env_candidates)} "
+        f"code_search={len(code_search_candidates)} "
+        f"repository_search={len(repository_candidates)}"
+    )
 
     ordered_candidates = sorted(candidates)[: max(args.max_candidates, 0)]
     print(f"validating {len(ordered_candidates)} candidate source URLs")

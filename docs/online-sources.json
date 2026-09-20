@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-20T10:46:07Z",
+  "generatedAt": "2026-09-20T15:29:17Z",
   "minimumHealthyChannels": 1,
   "probeSong": {
     "name": "晴天",
@@ -19,7 +19,7 @@
       "healthyChannels": [
         "kw"
       ],
-      "lastValidatedAt": "2026-09-20T10:44:36Z"
+      "lastValidatedAt": "2026-09-20T15:26:45Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -35,7 +35,23 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T10:45:24Z"
+      "lastValidatedAt": "2026-09-20T15:27:35Z"
+    },
+    {
+      "name": "👖裤佬SVIP音源",
+      "kind": "js",
+      "url": "https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/V260810/%E5%85%B6%E4%BB%96/(%E6%8E%A8%E8%8D%90)%E8%A3%A4%E4%BD%ACSVIP%E9%9F%B3%E6%BA%90%EF%BC%88%E9%85%B7%E7%8B%97%E6%8C%82%E4%BA%86%EF%BC%89.js",
+      "description": "🔗官网https://Jsnzkpg.github.io",
+      "author": "🐈‍⬛Github项目地址https://github.com/Jsnzkpg/Jsnzkpg",
+      "version": "✈️TG频道https://t.me/stymei",
+      "sourcePage": "",
+      "healthyChannels": [
+        "wy",
+        "kw",
+        "kg",
+        "tx"
+      ],
+      "lastValidatedAt": "2026-09-20T15:27:52Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -51,7 +67,23 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T10:45:39Z"
+      "lastValidatedAt": "2026-09-20T15:28:08Z"
+    },
+    {
+      "name": "👖裤佬SVIP音源",
+      "kind": "js",
+      "url": "https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/V260817/%E5%85%B6%E4%BB%96/(%E6%8E%A8%E8%8D%90)%E8%A3%A4%E4%BD%ACSVIP%E9%9F%B3%E6%BA%90%EF%BC%88%E9%85%B7%E7%8B%97%E6%8C%82%E4%BA%86%EF%BC%89.js",
+      "description": "🔗官网https://Jsnzkpg.github.io",
+      "author": "🐈‍⬛Github项目地址https://github.com/Jsnzkpg/Jsnzkpg",
+      "version": "✈️TG频道https://t.me/stymei",
+      "sourcePage": "",
+      "healthyChannels": [
+        "wy",
+        "kw",
+        "kg",
+        "tx"
+      ],
+      "lastValidatedAt": "2026-09-20T15:28:23Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -67,7 +99,23 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T10:45:53Z"
+      "lastValidatedAt": "2026-09-20T15:28:38Z"
+    },
+    {
+      "name": "👖裤佬SVIP音源",
+      "kind": "js",
+      "url": "https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/V260907/(%E6%8E%A8%E8%8D%90)%E8%A3%A4%E4%BD%ACSVIP%E9%9F%B3%E6%BA%90%EF%BC%88%E9%85%B7%E7%8B%97%E6%8C%82%E4%BA%86%EF%BC%89.js",
+      "description": "🔗官网https://Jsnzkpg.github.io",
+      "author": "🐈‍⬛Github项目地址https://github.com/Jsnzkpg/Jsnzkpg",
+      "version": "✈️TG频道https://t.me/stymei",
+      "sourcePage": "",
+      "healthyChannels": [
+        "wy",
+        "kw",
+        "kg",
+        "tx"
+      ],
+      "lastValidatedAt": "2026-09-20T15:28:53Z"
     }
   ]
 }

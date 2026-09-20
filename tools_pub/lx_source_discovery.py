@@ -610,67 +610,65 @@ def github_repository_candidates(
 
 
 def forum_search_candidates(http: HttpClient, max_files: int) -> set[str]:
-    """搜索LX Music论坛和Telegram群组分享的音源链接"""
+    """搜索LX Music社区分享的音源链接（论坛、博客、GitHub Issues等）"""
     if max_files <= 0:
         return set()
 
     candidates: set[str] = set()
     files_seen = 0
 
-    # LX Music官方论坛
-    forum_urls = [
-        "https://lxmusic.tonebay.cn/",
-        "https://www.lxmusic.com/",
-        "https://github.com/lyswhut/lx-music-desktop/issues",
+    # 已知的LX Music音源分享页面
+    source_pages = [
+        # GitHub仓库的README（包含在线导入链接）
+        "https://raw.githubusercontent.com/pdone/lx-music-source/main/README.md",
+        "https://raw.githubusercontent.com/wzh15802/lxmusic/main/README.md",
+        "https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/README.md",
+        # 博客文章
+        "https://blog.w1412.cn/index.php/archives/3",
+        "https://music.imwzh.com/",
     ]
 
-    for forum_url in forum_urls:
+    for page_url in source_pages:
         if files_seen >= max_files:
             break
         try:
-            body = http.get_text(forum_url, authenticated=False)
-            # 从论坛页面中提取GitHub链接
-            github_links = re.findall(
-                r'https?://github\.com/[^\s\'"<>)\]]+/blob/[^\s\'"<>)\]]+\.js',
-                body,
-            )
-            github_links.extend(
-                re.findall(
-                    r'https?://github\.com/[^\s\'"<>)\]]+/blob/[^\s\'"<>)\]]+\.json',
-                    body,
-                )
-            )
-            # 也提取raw.githubusercontent.com链接
+            body = http.get_text(page_url, authenticated=False)
+            # 从页面中提取raw.githubusercontent.com链接
             raw_links = re.findall(
                 r'https?://raw\.githubusercontent\.com/[^\s\'"<>)\]]+\.js',
                 body,
             )
-            raw_links.extend(
-                re.findall(
-                    r'https?://raw\.githubusercontent\.com/[^\s\'"<>)\]]+\.json',
-                    body,
-                )
+            # 也提取ghproxy加速链接
+            ghproxy_links = re.findall(
+                r'https?://ghproxy\.[^\s\'"<>)\]]+/https?://raw\.githubusercontent\.com/[^\s\'"<>)\]]+\.js',
+                body,
             )
+            # 转换ghproxy链接为原始链接
+            for link in ghproxy_links:
+                if "raw.githubusercontent.com" in link:
+                    raw_links.append(link.split("raw.githubusercontent.com")[1])
+                    raw_links[-1] = "https://raw.githubusercontent.com" + raw_links[-1]
 
-            all_links = set(github_links + raw_links)
-            for link in all_links:
+            for link in raw_links:
                 if files_seen >= max_files:
                     break
-                # 转换blob链接为raw链接
-                raw_url = link.replace("/blob/", "/raw/") if "/blob/" in link else link
+                # 清理URL（移除可能的尾部字符）
+                clean_url = link.rstrip('`\'"')
+                if not clean_url.startswith("http"):
+                    clean_url = "https://" + clean_url
                 try:
-                    content = http.get_text(raw_url, authenticated=False)
+                    content = http.get_text(clean_url, authenticated=False)
                     if looks_like_lx_js(content) or parse_json_definition(content):
-                        candidates.add(raw_url)
+                        candidates.add(clean_url)
                         files_seen += 1
                 except Exception:
                     continue
         except Exception as error:
-            print(f"warning: forum search failed for {forum_url}: {error}", file=sys.stderr)
+            print(f"warning: community search failed for {page_url}: {error}", file=sys.stderr)
             continue
 
     print(
-        f"forum search found {len(candidates)} candidate URLs "
+        f"community search found {len(candidates)} candidate URLs "
         f"from {files_seen} files"
     )
     return candidates
@@ -831,7 +829,7 @@ def main() -> int:
     candidates = existing_candidates | file_candidates | env_candidates
     code_search_candidates: set[str] = set()
     repository_candidates: set[str] = set()
-    forum_candidates: set[str] = set()
+    community_candidates: set[str] = set()
     if not args.no_github_search:
         code_search_candidates = github_search_candidates(http, args.max_github_files)
         repository_candidates = github_repository_candidates(
@@ -839,10 +837,10 @@ def main() -> int:
             max_repositories=args.max_repositories,
             max_files=args.max_repository_files,
         )
-        forum_candidates = forum_search_candidates(http, args.max_repository_files)
+        community_candidates = forum_search_candidates(http, args.max_repository_files)
         candidates.update(code_search_candidates)
         candidates.update(repository_candidates)
-        candidates.update(forum_candidates)
+        candidates.update(community_candidates)
 
     print(
         "candidate sources: "
@@ -851,7 +849,7 @@ def main() -> int:
         f"env={len(env_candidates)} "
         f"code_search={len(code_search_candidates)} "
         f"repository_search={len(repository_candidates)} "
-        f"forum_search={len(forum_candidates)}"
+        f"community_search={len(community_candidates)}"
     )
 
     ordered_candidates = sorted(candidates)[: max(args.max_candidates, 0)]

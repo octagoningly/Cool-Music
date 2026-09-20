@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-20T15:43:56Z",
+  "generatedAt": "2026-09-20T15:56:56Z",
   "minimumHealthyChannels": 1,
   "probeSong": {
     "name": "晴天",
@@ -19,7 +19,7 @@
       "healthyChannels": [
         "kw"
       ],
-      "lastValidatedAt": "2026-09-20T15:41:31Z"
+      "lastValidatedAt": "2026-09-20T15:54:11Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -35,7 +35,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T15:42:13Z"
+      "lastValidatedAt": "2026-09-20T15:55:15Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -51,7 +51,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T15:42:28Z"
+      "lastValidatedAt": "2026-09-20T15:55:33Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -67,7 +67,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T15:42:45Z"
+      "lastValidatedAt": "2026-09-20T15:55:48Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -83,7 +83,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T15:43:00Z"
+      "lastValidatedAt": "2026-09-20T15:56:03Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -99,7 +99,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T15:43:15Z"
+      "lastValidatedAt": "2026-09-20T15:56:19Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -115,7 +115,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T15:43:31Z"
+      "lastValidatedAt": "2026-09-20T15:56:33Z"
     }
   ]
 }

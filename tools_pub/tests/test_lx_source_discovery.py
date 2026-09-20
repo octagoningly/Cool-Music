@@ -70,6 +70,10 @@ class RepositoryDiscoveryTest(unittest.TestCase):
         self.assertLess(DISCOVERY.source_path_score("node_modules/lx/source.js", 200), 0)
         self.assertEqual(DISCOVERY.source_path_score("src/index.js", 200), 0)
         self.assertGreater(DISCOVERY.source_path_score("sources/星海音乐源.js", 200), 0)
+        self.assertGreater(
+            DISCOVERY.source_path_score("V260716/推荐/星海音源.js", 200),
+            DISCOVERY.source_path_score("V260620/其他/fish-music音源.js", 200),
+        )
 
     def test_normalize_url_encodes_unicode_github_blob_path(self):
         url = DISCOVERY.normalize_url(

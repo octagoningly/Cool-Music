@@ -438,6 +438,11 @@ def source_path_score(path: str, size: Any) -> int:
         score += 100
     if "/sources/" in f"/{lowered}/" or lowered.startswith("sources/"):
         score += 80
+    version_matches = re.findall(r"(?i)v(\d{6})", normalized)
+    if version_matches:
+        score += max(int(version) for version in version_matches)
+    if "推荐" in normalized:
+        score += 1_000_000
     for hint in SOURCE_PATH_HINTS:
         if hint in filename:
             score += 30

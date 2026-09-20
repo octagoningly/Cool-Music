@@ -168,11 +168,17 @@ def truncate_text(value: Any, limit: int) -> str:
 
 def looks_like_lx_js(body: str) -> bool:
     trimmed = body.lstrip()
+    # 跳过注释块
+    if trimmed.startswith("/*!") or trimmed.startswith("/**"):
+        end_comment = trimmed.find("*/")
+        if end_comment > 0:
+            trimmed = trimmed[end_comment + 2:].lstrip()
     return (
         trimmed.startswith(("const ", "let ", "var ", "async function", "module.exports"))
         or "exports.default" in trimmed
         or "lx.send" in trimmed
         or ("getMusicUrl" in trimmed and "function" in trimmed)
+        or "EVENT_NAMES" in trimmed
     )
 
 

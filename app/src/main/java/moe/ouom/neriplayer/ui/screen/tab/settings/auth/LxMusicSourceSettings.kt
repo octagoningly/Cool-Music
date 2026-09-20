@@ -418,9 +418,17 @@ private fun LxSourceRegistrySection(
     val scope = rememberCoroutineScope()
     var copyMessage by remember { mutableStateOf<String?>(null) }
     var copySucceeded by remember { mutableStateOf(true) }
+    // 清单默认收起；获取成功后自动展开，可随时收起，避免弹窗被撑满
+    var registryExpanded by remember { mutableStateOf(false) }
     val copiedText = stringResource(R.string.toast_copied)
     val copyTruncatedText = stringResource(R.string.toast_copy_truncated)
     val copyFailedText = stringResource(R.string.toast_copy_failed)
+
+    LaunchedEffect(entries.size) {
+        if (entries.isNotEmpty()) {
+            registryExpanded = true
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -428,8 +436,7 @@ private fun LxSourceRegistrySection(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -438,14 +445,31 @@ private fun LxSourceRegistrySection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = stringResource(R.string.lx_source_registry_desc),
+                    text = if (entries.isEmpty()) {
+                        stringResource(R.string.lx_source_registry_desc)
+                    } else {
+                        stringResource(R.string.lx_source_registry_count, entries.size)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            if (entries.isNotEmpty()) {
+                TextButton(onClick = { registryExpanded = !registryExpanded }) {
+                    Text(
+                        stringResource(
+                            if (registryExpanded) {
+                                R.string.lx_source_registry_collapse
+                            } else {
+                                R.string.lx_source_registry_expand
+                            }
+                        )
+                    )
+                }
+            }
             TextButton(
                 enabled = !fetching,
                 onClick = {
@@ -466,7 +490,7 @@ private fun LxSourceRegistrySection(
             }
         }
 
-        if (generatedAt.isNotBlank()) {
+        if (generatedAt.isNotBlank() && registryExpanded) {
             Text(
                 text = stringResource(R.string.lx_source_registry_generated_at, generatedAt),
                 style = MaterialTheme.typography.bodySmall,
@@ -484,29 +508,47 @@ private fun LxSourceRegistrySection(
             )
         }
 
-        entries.forEach { entry ->
-            LxRemoteSourceRow(
-                entry = entry,
-                importing = importing,
-                onCopy = { url ->
-                    scope.launch {
-                        val result = clipboard.copyPlainTextSafely(
-                            label = "LX Source URL",
-                            text = url
-                        )
-                        copySucceeded = result is ClipboardCopyResult.Copied
-                        copyMessage = when (result) {
-                            is ClipboardCopyResult.Copied -> if (result.wasTruncated) {
-                                copyTruncatedText
-                            } else {
-                                copiedText
+        if (registryExpanded && entries.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                entries.forEach { entry ->
+                    LxRemoteSourceRow(
+                        entry = entry,
+                        importing = importing,
+                        onCopy = { url ->
+                            scope.launch {
+                                val result = clipboard.copyPlainTextSafely(
+                                    label = "LX Source URL",
+                                    text = url
+                                )
+                                copySucceeded = result is ClipboardCopyResult.Copied
+                                copyMessage = when (result) {
+                                    is ClipboardCopyResult.Copied -> if (result.wasTruncated) {
+                                        copyTruncatedText
+                                    } else {
+                                        copiedText
+                                    }
+                                    ClipboardCopyResult.TransactionTooLarge -> copyFailedText
+                                }
                             }
-                            ClipboardCopyResult.TransactionTooLarge -> copyFailedText
-                        }
-                    }
-                },
-                onImport = onImport
-            )
+                        },
+                        onImport = onImport
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = { registryExpanded = false }) {
+                    Text(stringResource(R.string.lx_source_registry_collapse))
+                }
+            }
         }
     }
 }

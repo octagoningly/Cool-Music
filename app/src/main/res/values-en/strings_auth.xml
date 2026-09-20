@@ -88,6 +88,9 @@
     <string name="lx_source_registry_empty">No working sources in the list yet</string>
     <string name="lx_source_registry_failed">Could not fetch the list</string>
     <string name="lx_source_registry_failed_detail">Could not fetch the list: %s</string>
+    <string name="lx_source_registry_collapse">Collapse</string>
+    <string name="lx_source_registry_expand">Expand</string>
+    <string name="lx_source_registry_count">Fetched %d working sources</string>
     <string name="lx_source_platform_wy">NetEase</string>
     <string name="lx_source_platform_kw">Kuwo</string>
     <string name="lx_source_platform_kg">Kugou</string>

@@ -266,7 +266,7 @@ cd Cool-Music
 4. 按需开启**优先播放**，可用**通道自检**
 5. 播放时查看封面角标是否为「**在线音源**」
 
-每日清单只记录通过通道测试的音源配置地址与检测结果，不保存音频内容、账号凭据或 Cookie。维护者也可以在 `tools_pub/lx_source_candidates.txt` 或仓库变量 `LX_SOURCE_CANDIDATE_URLS` 中添加待验证地址。
+每日清单只记录通过通道测试的音源配置地址与检测结果，不保存音频内容、账号凭据或 Cookie。自动发现会同时使用 GitHub 代码搜索和无需额外令牌的公开仓库扫描；维护者也可以在 `tools_pub/lx_source_candidates.txt` 或仓库变量 `LX_SOURCE_CANDIDATE_URLS` 中添加待验证地址。
 
 ---
 

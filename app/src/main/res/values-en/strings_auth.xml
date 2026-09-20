@@ -91,6 +91,7 @@
     <string name="lx_source_registry_collapse">Collapse</string>
     <string name="lx_source_registry_expand">Expand</string>
     <string name="lx_source_registry_count">Fetched %d working sources</string>
+    <string name="lx_source_registry_view">View</string>
     <string name="lx_source_platform_wy">NetEase</string>
     <string name="lx_source_platform_kw">Kuwo</string>
     <string name="lx_source_platform_kg">Kugou</string>

@@ -91,6 +91,7 @@
     <string name="lx_source_registry_collapse">收起</string>
     <string name="lx_source_registry_expand">展开</string>
     <string name="lx_source_registry_count">已获取 %d 个可用音源</string>
+    <string name="lx_source_registry_view">查看</string>
     <string name="lx_source_platform_wy">网易云</string>
     <string name="lx_source_platform_kw">酷我</string>
     <string name="lx_source_platform_kg">酷狗</string>

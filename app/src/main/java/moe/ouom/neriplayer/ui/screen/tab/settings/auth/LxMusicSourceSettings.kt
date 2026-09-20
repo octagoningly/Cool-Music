@@ -98,6 +98,17 @@ internal fun SettingsLxMusicSourceDialogs(
     if (showManageDialog) {
         val state by vm.uiState.collectAsStateWithLifecycleCompat()
         var detailSource by remember { mutableStateOf<LxImportedSource?>(null) }
+        var showRegistryDialog by remember { mutableStateOf(false) }
+        var previousRegistryCount by remember { mutableStateOf(0) }
+
+        // 清单获取成功后弹独立窗展示，避免撑乱管理页
+        LaunchedEffect(state.registrySources.size, state.fetchingRegistry) {
+            val count = state.registrySources.size
+            if (!state.fetchingRegistry && count > 0 && previousRegistryCount == 0) {
+                showRegistryDialog = true
+            }
+            previousRegistryCount = count
+        }
 
         MiuixSettingsDialog(
             onDismissRequest = {
@@ -169,11 +180,9 @@ internal fun SettingsLxMusicSourceDialogs(
 
                     LxSourceRegistrySection(
                         fetching = state.fetchingRegistry,
-                        generatedAt = state.registryGeneratedAt,
-                        entries = state.registrySources,
-                        importing = state.importing,
+                        sourceCount = state.registrySources.size,
                         onFetch = vm::fetchRemoteSourceRegistry,
-                        onImport = vm::importFromUrl
+                        onOpenList = { showRegistryDialog = true }
                     )
 
                     // 2) 运行状态 / 通道检测（仅在有内容时出现）
@@ -221,6 +230,16 @@ internal fun SettingsLxMusicSourceDialogs(
             LxSourceDetailDialog(
                 source = source,
                 onDismiss = { detailSource = null }
+            )
+        }
+
+        if (showRegistryDialog) {
+            LxSourceRegistryDialog(
+                generatedAt = state.registryGeneratedAt,
+                entries = state.registrySources,
+                importing = state.importing,
+                onImport = vm::importFromUrl,
+                onDismiss = { showRegistryDialog = false }
             )
         }
     }
@@ -408,149 +427,141 @@ private fun DetailRow(label: String, value: String) {
 @Composable
 private fun LxSourceRegistrySection(
     fetching: Boolean,
+    sourceCount: Int,
+    onFetch: () -> Unit,
+    onOpenList: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.lx_source_registry_title),
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = if (sourceCount <= 0) {
+                    stringResource(R.string.lx_source_registry_desc)
+                } else {
+                    stringResource(R.string.lx_source_registry_count, sourceCount)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (sourceCount > 0) {
+            TextButton(onClick = onOpenList) {
+                Text(stringResource(R.string.lx_source_registry_view))
+            }
+        }
+        TextButton(
+            enabled = !fetching,
+            onClick = onFetch
+        ) {
+            if (fetching) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(stringResource(R.string.lx_source_registry_fetching))
+            } else {
+                Text(stringResource(R.string.lx_source_registry_fetch))
+            }
+        }
+    }
+}
+
+@Composable
+private fun LxSourceRegistryDialog(
     generatedAt: String,
     entries: List<LxRemoteSourceEntry>,
     importing: Boolean,
-    onFetch: () -> Unit,
-    onImport: (String) -> Unit
+    onImport: (String) -> Unit,
+    onDismiss: () -> Unit
 ) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var copyMessage by remember { mutableStateOf<String?>(null) }
     var copySucceeded by remember { mutableStateOf(true) }
-    // 清单默认收起；获取成功后自动展开，可随时收起，避免弹窗被撑满
-    var registryExpanded by remember { mutableStateOf(false) }
     val copiedText = stringResource(R.string.toast_copied)
     val copyTruncatedText = stringResource(R.string.toast_copy_truncated)
     val copyFailedText = stringResource(R.string.toast_copy_failed)
+    val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
 
-    LaunchedEffect(entries.size) {
-        if (entries.isNotEmpty()) {
-            registryExpanded = true
-        }
-    }
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.lx_source_registry_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = if (entries.isEmpty()) {
-                        stringResource(R.string.lx_source_registry_desc)
-                    } else {
-                        stringResource(R.string.lx_source_registry_count, entries.size)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+    MiuixSettingsDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            MiuixSettingsButton(onClick = onDismiss) {
+                Text(stringResource(R.string.lx_source_close))
             }
-            Spacer(modifier = Modifier.width(4.dp))
-            if (entries.isNotEmpty()) {
-                TextButton(onClick = { registryExpanded = !registryExpanded }) {
-                    Text(
-                        stringResource(
-                            if (registryExpanded) {
-                                R.string.lx_source_registry_collapse
-                            } else {
-                                R.string.lx_source_registry_expand
-                            }
-                        )
-                    )
-                }
-            }
-            TextButton(
-                enabled = !fetching,
-                onClick = {
-                    copyMessage = null
-                    onFetch()
-                }
-            ) {
-                if (fetching) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(14.dp),
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(R.string.lx_source_registry_fetching))
-                } else {
-                    Text(stringResource(R.string.lx_source_registry_fetch))
-                }
-            }
-        }
-
-        if (generatedAt.isNotBlank() && registryExpanded) {
-            Text(
-                text = stringResource(R.string.lx_source_registry_generated_at, generatedAt),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        copyMessage?.let { message ->
-            MiuixSettingsInlineMessage(
-                message = message,
-                isSuccess = copySucceeded,
-                onClose = { copyMessage = null }
-            )
-        }
-
-        if (registryExpanded && entries.isNotEmpty()) {
+        },
+        title = { Text(stringResource(R.string.lx_source_registry_title)) },
+        text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 220.dp)
+                    .heightIn(max = screenHeightDp * 0.58f)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                entries.forEach { entry ->
-                    LxRemoteSourceRow(
-                        entry = entry,
-                        importing = importing,
-                        onCopy = { url ->
-                            scope.launch {
-                                val result = clipboard.copyPlainTextSafely(
-                                    label = "LX Source URL",
-                                    text = url
-                                )
-                                copySucceeded = result is ClipboardCopyResult.Copied
-                                copyMessage = when (result) {
-                                    is ClipboardCopyResult.Copied -> if (result.wasTruncated) {
-                                        copyTruncatedText
-                                    } else {
-                                        copiedText
+                if (generatedAt.isNotBlank()) {
+                    Text(
+                        text = stringResource(
+                            R.string.lx_source_registry_generated_at,
+                            generatedAt
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (entries.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.lx_source_registry_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    entries.forEach { entry ->
+                        LxRemoteSourceRow(
+                            entry = entry,
+                            importing = importing,
+                            onCopy = { url ->
+                                scope.launch {
+                                    val result = clipboard.copyPlainTextSafely(
+                                        label = "LX Source URL",
+                                        text = url
+                                    )
+                                    copySucceeded = result is ClipboardCopyResult.Copied
+                                    copyMessage = when (result) {
+                                        is ClipboardCopyResult.Copied -> if (result.wasTruncated) {
+                                            copyTruncatedText
+                                        } else {
+                                            copiedText
+                                        }
+                                        ClipboardCopyResult.TransactionTooLarge -> copyFailedText
                                     }
-                                    ClipboardCopyResult.TransactionTooLarge -> copyFailedText
                                 }
-                            }
-                        },
-                        onImport = onImport
+                            },
+                            onImport = onImport
+                        )
+                    }
+                }
+                copyMessage?.let { message ->
+                    MiuixSettingsInlineMessage(
+                        message = message,
+                        isSuccess = copySucceeded,
+                        onClose = { copyMessage = null }
                     )
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = { registryExpanded = false }) {
-                    Text(stringResource(R.string.lx_source_registry_collapse))
-                }
-            }
         }
-    }
+    )
 }
 
 @Composable

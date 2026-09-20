@@ -317,13 +317,23 @@ def probe_js_source(
             env=probe_env,
         )
     if completed.returncode != 0:
+        reason = completed.stderr.strip().splitlines()[-1] if completed.stderr.strip() else "runner failed"
+        print(f"warning: JS probe runner failed: {reason[:300]}", file=sys.stderr)
         return []
     try:
         result = json.loads(completed.stdout.strip().splitlines()[-1])
     except Exception:
         return []
     channels = result.get("healthyChannels")
-    return [str(channel) for channel in channels] if isinstance(channels, list) else []
+    healthy = [str(channel) for channel in channels] if isinstance(channels, list) else []
+    if not healthy:
+        details = result.get("details")
+        print(
+            "JS probe returned no healthy channel: "
+            f"{json.dumps(details, ensure_ascii=False)[:500]}",
+            file=sys.stderr,
+        )
+    return healthy
 
 
 def extract_urls(text: str) -> set[str]:
@@ -670,7 +680,7 @@ def main() -> int:
     parser.add_argument("--max-repositories", type=int, default=12)
     parser.add_argument("--max-repository-files", type=int, default=30)
     parser.add_argument("--timeout", type=int, default=15)
-    parser.add_argument("--js-timeout", type=int, default=35)
+    parser.add_argument("--js-timeout", type=int, default=80)
     parser.add_argument("--no-github-search", action="store_true")
     parser.add_argument("--validate-only", help="Validate an existing registry file and exit.")
     args = parser.parse_args()

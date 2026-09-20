@@ -6,6 +6,14 @@ const vm = require('vm')
 
 const TARGETS = [
   {
+    sourceId: 'wy',
+    songMid: '186016',
+    name: '\u6674\u5929',
+    artist: '\u5468\u6770\u4f26',
+    durationSec: 269,
+    albumName: '\u53f6\u60e0\u7f8e',
+  },
+  {
     sourceId: 'kw',
     songMid: '228908',
     name: '\u6674\u5929',
@@ -154,6 +162,7 @@ async function main() {
   const key = `probe_${Date.now()}`
   let supportedSources = new Set()
   let supportedQualities = new Set()
+  let initCompleted = false
   let lastFailure = ''
   const pendingMusicUrl = new Map()
   const abortControllers = new Map()
@@ -242,6 +251,7 @@ async function main() {
     if (callKey !== key) return null
     if (action === 'init') {
       const payload = JSON.parse(data || '{}')
+      initCompleted = true
       const sources = payload.info && payload.info.sources ? payload.info.sources : {}
       supportedSources = new Set(Object.keys(sources))
       supportedQualities = new Set()
@@ -283,8 +293,20 @@ async function main() {
   vm.runInContext(script, context, { timeout: 3000, filename: 'lx-source.js' })
 
   const initStart = Date.now()
-  while (supportedSources.size === 0 && Date.now() - initStart < 2500) {
+  while (!initCompleted && Date.now() - initStart < 15000) {
     await wait(50)
+  }
+
+  if (!initCompleted || supportedSources.size === 0) {
+    console.log(JSON.stringify({
+      supportedSources: Array.from(supportedSources),
+      supportedQualities: Array.from(supportedQualities),
+      healthyChannels: [],
+      details: {
+        init: initCompleted ? 'source initialized without channels' : 'source initialization timed out',
+      },
+    }))
+    return
   }
 
   const quality = selectQuality(supportedQualities)
@@ -306,7 +328,8 @@ async function main() {
         },
       },
     })
-    const url = await withTimeout(promise, 9000)
+    const url = await withTimeout(promise, 12000)
+    if (!url) pendingMusicUrl.delete(requestKey)
     if (url) healthyChannels.push(hit.sourceId)
     details[hit.sourceId] = url || lastFailure || 'failed'
   }

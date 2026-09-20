@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-20T16:13:21Z",
+  "generatedAt": "2026-09-20T16:37:14Z",
   "minimumHealthyChannels": 1,
   "probeSong": {
     "name": "晴天",
@@ -8,6 +8,21 @@
     "album": "叶惠美"
   },
   "sources": [
+    {
+      "name": "幻音音源",
+      "kind": "js",
+      "url": "https://raw.githubusercontent.com/pdone/lx-music-source/main/huanyin/latest.js",
+      "description": "",
+      "author": "竹佀",
+      "version": "v3",
+      "sourcePage": "",
+      "healthyChannels": [
+        "wy",
+        "kw",
+        "tx"
+      ],
+      "lastValidatedAt": "2026-09-20T16:36:48Z"
+    },
     {
       "name": "西瓜聚合源",
       "kind": "js",
@@ -19,7 +34,7 @@
       "healthyChannels": [
         "kw"
       ],
-      "lastValidatedAt": "2026-09-20T16:10:58Z"
+      "lastValidatedAt": "2026-09-20T16:34:24Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -35,7 +50,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T16:11:48Z"
+      "lastValidatedAt": "2026-09-20T16:35:08Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -51,7 +66,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T16:12:03Z"
+      "lastValidatedAt": "2026-09-20T16:35:23Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -67,7 +82,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T16:12:18Z"
+      "lastValidatedAt": "2026-09-20T16:35:38Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -83,7 +98,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T16:12:33Z"
+      "lastValidatedAt": "2026-09-20T16:35:55Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -99,7 +114,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T16:12:49Z"
+      "lastValidatedAt": "2026-09-20T16:36:11Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -115,7 +130,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-20T16:13:04Z"
+      "lastValidatedAt": "2026-09-20T16:36:26Z"
     }
   ]
 }

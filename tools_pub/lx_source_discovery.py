@@ -596,104 +596,40 @@ def github_repository_candidates(
     return candidates
 
 
-def gitee_search_candidates(http: HttpClient, max_files: int) -> set[str]:
-    """搜索Gitee上的LX音源"""
-    if max_files <= 0:
-        return set()
-    
-    queries = [
-        "lx 音源",
-        "lxmusic",
-        "音乐源 lx",
-        "落雪 音源",
-        "聚合音源",
-    ]
-    
-    candidates: set[str] = set()
-    files_seen = 0
-    
-    for query in queries:
-        if files_seen >= max_files:
-            break
-        
-        search_url = "https://gitee.com/api/v5/search/repositories?" + urllib.parse.urlencode(
-            {"q": query, "sort": "stars_count", "order": "desc", "per_page": min(10, max_files - files_seen)}
-        )
-        
-        try:
-            result = http.get_json(search_url, authenticated=False)
-        except Exception as error:
-            print(f"warning: Gitee repository search failed for {query!r}: {error}", file=sys.stderr)
-            continue
-
-        if not isinstance(result, list):
-            print(f"warning: unexpected Gitee response format for {query!r}", file=sys.stderr)
-            continue
-
-        for item in result:
-            if files_seen >= max_files:
-                break
-            
-            full_name = str(item.get("full_name") or "").strip()
-            default_branch = str(item.get("default_branch") or "master").strip()
-            
-            if not full_name:
-                continue
-            
-            # 获取仓库文件树
-            tree_url = f"https://gitee.com/api/v5/repos/{full_name}/git/trees/{default_branch}?recursive=1"
-            try:
-                tree = http.get_json(tree_url, authenticated=False)
-            except Exception as error:
-                print(f"warning: Gitee repository tree failed for {full_name}: {error}", file=sys.stderr)
-                continue
-            
-            source_files = []
-            for tree_item in tree.get("tree", []):
-                if tree_item.get("type") != "blob":
-                    continue
-                path = str(tree_item.get("path") or "")
-                score = source_path_score(path, tree_item.get("size"))
-                if score > 0:
-                    source_files.append((score, path))
-            
-            source_files.sort(key=lambda value: (-value[0], value[1].lower()))
-            
-            for _, path in source_files[:12]:
-                if files_seen >= max_files:
-                    break
-                
-                raw_url = (
-                    f"https://gitee.com/{full_name}/raw/{default_branch}/"
-                    f"{urllib.parse.quote(path, safe='/')}"
-                )
-                files_seen += 1
-                
-                try:
-                    body = http.get_text(raw_url)
-                except Exception:
-                    continue
-                
-                if looks_like_lx_js(body) or parse_json_definition(body):
-                    candidates.add(raw_url)
-    
-    print(
-        f"Gitee search found {len(candidates)} candidate URLs "
-        f"from {files_seen} files"
-    )
-    return candidates
+def extract_urls_from_html(html: str) -> set[str]:
+    """从HTML中提取URL"""
+    urls = set()
+    # 匹配raw.githubusercontent.com链接
+    urls.update(re.findall(r'https?://raw\.githubusercontent\.com/[^\s\'"<>)\]]+\.js', html))
+    urls.update(re.findall(r'https?://raw\.githubusercontent\.com/[^\s\'"<>)\]]+\.json', html))
+    # 匹配GitHub blob链接（需要转换为raw链接）
+    for match in re.findall(r'https?://github\.com/[^\s\'"<>)\]]+/blob/[^\s\'"<>)\]]+\.js', html):
+        urls.add(match)
+    for match in re.findall(r'https?://github\.com/[^\s\'"<>)\]]+/blob/[^\s\'"<>)\]]+\.json', html):
+        urls.add(match)
+    return urls
 
 
-def gitlab_search_candidates(http: HttpClient, max_files: int) -> set[str]:
-    """搜索GitLab上的LX音源"""
+def github_blob_to_raw(url: str) -> str:
+    """将GitHub blob链接转换为raw链接"""
+    if "/blob/" in url:
+        return url.replace("/blob/", "/raw/")
+    return url
+
+
+def search_engine_candidates(http: HttpClient, max_files: int) -> set[str]:
+    """使用搜索引擎搜索LX音源"""
     if max_files <= 0:
         return set()
 
     queries = [
-        "lx music 音源",
-        "lxmusic",
-        "落雪音乐",
-        "music source lx",
+        "lx music 音源 js raw.githubusercontent.com",
+        "lxmusic 音源 json raw.githubusercontent.com",
+        "落雪音乐 音源 js",
+        "lx source js raw",
+        "音乐聚合 音源 js",
+        "getMusicUrl lx js",
+        "lx.send EVENT_NAMES js",
     ]
 
     candidates: set[str] = set()
@@ -703,72 +639,32 @@ def gitlab_search_candidates(http: HttpClient, max_files: int) -> set[str]:
         if files_seen >= max_files:
             break
 
-        search_url = "https://gitlab.com/api/v4/projects?" + urllib.parse.urlencode(
-            {"search": query, "order_by": "last_activity_at", "per_page": min(10, max_files - files_seen)}
-        )
-
+        # 使用DuckDuckGo搜索（不需要API key）
+        search_url = "https://html.duckduckgo.com/html/?" + urllib.parse.urlencode({"q": query})
         try:
-            result = http.get_json(search_url, authenticated=False)
-        except Exception as error:
-            print(f"warning: GitLab project search failed for {query!r}: {error}", file=sys.stderr)
-            continue
-
-        if not isinstance(result, list):
-            continue
-
-        for project in result:
-            if files_seen >= max_files:
-                break
-
-            project_id = project.get("id")
-            default_branch = str(project.get("default_branch") or "main").strip()
-            path_with_namespace = str(project.get("path_with_namespace") or "").strip()
-
-            if not project_id or not path_with_namespace:
-                continue
-
-            # 获取项目文件树
-            tree_url = f"https://gitlab.com/api/v4/projects/{project_id}/repository/tree?ref={default_branch}&recursive=true&per_page=100"
-            try:
-                tree = http.get_json(tree_url, authenticated=False)
-            except Exception as error:
-                print(f"warning: GitLab tree failed for {path_with_namespace}: {error}", file=sys.stderr)
-                continue
-
-            if not isinstance(tree, list):
-                continue
-
-            source_files = []
-            for item in tree:
-                if item.get("type") != "blob":
-                    continue
-                path = str(item.get("path") or "")
-                score = source_path_score(path, None)
-                if score > 0:
-                    source_files.append((score, path))
-
-            source_files.sort(key=lambda value: (-value[0], value[1].lower()))
-
-            for _, path in source_files[:12]:
+            body = http.get_text(search_url, authenticated=False)
+            # 从搜索结果中提取URL
+            found_urls = extract_urls_from_html(body)
+            for url in found_urls:
                 if files_seen >= max_files:
                     break
-
-                raw_url = (
-                    f"https://gitlab.com/{path_with_namespace}/-/raw/{default_branch}/"
-                    f"{urllib.parse.quote(path, safe='/')}"
-                )
-                files_seen += 1
-
-                try:
-                    body = http.get_text(raw_url)
-                except Exception:
-                    continue
-
-                if looks_like_lx_js(body) or parse_json_definition(body):
-                    candidates.add(raw_url)
+                # 转换blob链接为raw链接
+                raw_url = github_blob_to_raw(url)
+                # 只处理raw.githubusercontent.com链接
+                if "raw.githubusercontent.com" in raw_url and (raw_url.endswith(".js") or raw_url.endswith(".json")):
+                    try:
+                        content = http.get_text(raw_url, authenticated=False)
+                        if looks_like_lx_js(content) or parse_json_definition(content):
+                            candidates.add(raw_url)
+                            files_seen += 1
+                    except Exception:
+                        continue
+        except Exception as error:
+            print(f"warning: search engine failed for {query!r}: {error}", file=sys.stderr)
+            continue
 
     print(
-        f"GitLab search found {len(candidates)} candidate URLs "
+        f"search engine found {len(candidates)} candidate URLs "
         f"from {files_seen} files"
     )
     return candidates
@@ -929,8 +825,7 @@ def main() -> int:
     candidates = existing_candidates | file_candidates | env_candidates
     code_search_candidates: set[str] = set()
     repository_candidates: set[str] = set()
-    gitee_candidates: set[str] = set()
-    gitlab_candidates: set[str] = set()
+    search_engine_candidates_set: set[str] = set()
     if not args.no_github_search:
         code_search_candidates = github_search_candidates(http, args.max_github_files)
         repository_candidates = github_repository_candidates(
@@ -938,12 +833,10 @@ def main() -> int:
             max_repositories=args.max_repositories,
             max_files=args.max_repository_files,
         )
-        gitee_candidates = gitee_search_candidates(http, args.max_repository_files)
-        gitlab_candidates = gitlab_search_candidates(http, args.max_repository_files)
+        search_engine_candidates_set = search_engine_candidates(http, args.max_repository_files)
         candidates.update(code_search_candidates)
         candidates.update(repository_candidates)
-        candidates.update(gitee_candidates)
-        candidates.update(gitlab_candidates)
+        candidates.update(search_engine_candidates_set)
 
     print(
         "candidate sources: "
@@ -952,8 +845,7 @@ def main() -> int:
         f"env={len(env_candidates)} "
         f"code_search={len(code_search_candidates)} "
         f"repository_search={len(repository_candidates)} "
-        f"gitee_search={len(gitee_candidates)} "
-        f"gitlab_search={len(gitlab_candidates)}"
+        f"search_engine={len(search_engine_candidates_set)}"
     )
 
     ordered_candidates = sorted(candidates)[: max(args.max_candidates, 0)]

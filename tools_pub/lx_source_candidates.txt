@@ -7,6 +7,8 @@
 
 # Public fallback candidates. Every run still performs a real channel probe;
 # a URL is published only when at least one channel succeeds.
+
+# fly-fish76/lx-source 仓库
 https://github.com/fly-fish76/lx-source/blob/main/sources/gdstudio音乐源.js
 https://github.com/fly-fish76/lx-source/blob/main/sources/lx-玉宁熙-Pro.js
 https://github.com/fly-fish76/lx-source/blob/main/sources/六音音源.js
@@ -14,6 +16,8 @@ https://github.com/fly-fish76/lx-source/blob/main/sources/念心音源.js
 https://github.com/fly-fish76/lx-source/blob/main/sources/星澜聚合音源_StellarWave.js
 https://github.com/fly-fish76/lx-source/blob/main/sources/独家音源.js
 https://github.com/fly-fish76/lx-source/blob/main/sources/野花.js
+
+# guoyue2010/lxmusic- 仓库
 https://github.com/guoyue2010/lxmusic-/blob/main/V260716/推荐/【推荐】长青SVIP音源v1.2.0（全平台支持无损）.js
 https://github.com/guoyue2010/lxmusic-/blob/main/V260716/推荐/念心音源-V1.0.1.js
 https://github.com/guoyue2010/lxmusic-/blob/main/V260716/推荐/全豆要-聚合音源_v9.7_97特供版_DeepSeek优化并修复版本.js
@@ -24,3 +28,22 @@ https://github.com/guoyue2010/lxmusic-/blob/main/V260716/其他/hywV1.0.0.js
 https://github.com/guoyue2010/lxmusic-/blob/main/V260716/其他/西瓜聚合.js
 https://github.com/guoyue2010/lxmusic-/blob/main/V260716/其他/HUIBQ音源.js
 https://github.com/guoyue2010/lxmusic-/blob/main/V260716/其他/聚合API.js
+
+# pdone/lx-music-source 仓库 (8452 stars)
+https://raw.githubusercontent.com/pdone/lx-music-source/main/sixyin/latest.js
+https://raw.githubusercontent.com/pdone/lx-music-source/main/huibq/latest.js
+https://raw.githubusercontent.com/pdone/lx-music-source/main/flower/latest.js
+https://raw.githubusercontent.com/pdone/lx-music-source/main/lx/latest.js
+https://raw.githubusercontent.com/pdone/lx-music-source/main/ikun/latest.js
+https://raw.githubusercontent.com/pdone/lx-music-source/main/grass/latest.js
+https://raw.githubusercontent.com/pdone/lx-music-source/main/juhe/latest.js
+https://raw.githubusercontent.com/pdone/lx-music-source/main/qdy/latest.js
+
+# chao921125/source 仓库 (1352 stars)
+https://raw.githubusercontent.com/chao921125/source/main/lxmusic/sixyin-music-source-v1.2.1-encrypt.js
+
+# gitee 音源
+https://gitee.com/wtown/lxmusic_yinyuan/raw/master/Huibq音源_v1.2.0.js
+https://gitee.com/wtown/lxmusic_yinyuan/raw/master/野花音源.js
+https://gitee.com/wtown/lxmusic_yinyuan/raw/master/野草音源.js
+https://gitee.com/wtown/lxmusic_yinyuan/raw/master/ikun公益音源.js

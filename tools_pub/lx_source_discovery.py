@@ -22,18 +22,45 @@ MAX_BODY_BYTES = 2 * 1024 * 1024
 MAX_REGISTRY_SOURCES = 80
 ALLOWED_HEALTHY_CHANNELS = {"kw", "kg", "tx", "wy", "mg", "xm", "json"}
 DEFAULT_SEARCH_QUERIES = [
+    # 核心JS音源特征
     '"getMusicUrl" "lx.send" extension:js',
     '"lx.EVENT_NAMES.request" "musicUrl" extension:js',
+    '"lx.send" "request" "response" extension:js',
+    # JSON音源特征
     '"songUrl" "search" "supportedQualitys" extension:json',
+    '"searchApiUrl" "songUrlApiUrl" extension:json',
+    # 更宽泛的搜索
+    '"getMusicUrlCustom" extension:js',
+    'lx-music source extension:js',
+    'music-source extension:js',
+    '音乐源 extension:js',
+    '聚合音源 extension:js',
+    '音源 extension:json',
 ]
 DEFAULT_REPOSITORY_SEARCH_QUERIES = [
+    # 核心关键词
     '"LX Music" 音源 in:name,description,readme',
     'lxmusic source in:name,description,readme',
     '落雪 音源 in:name,description,readme',
+    # 扩展关键词
+    'lx-music-source in:name,description,readme',
+    'lx source in:name,description,readme',
+    '音乐聚合 in:name,description,readme',
+    '聚合音源 in:name,description,readme',
+    '无损音乐 in:name,description,readme',
+    'music source lx in:name,description,readme',
 ]
 DEFAULT_PUBLIC_SOURCE_REPOSITORIES = [
+    # 核心仓库
     ("fly-fish76/lx-source", "main"),
     ("guoyue2010/lxmusic-", "main"),
+    # 扩展仓库
+    ("chao921125/source", "main"),
+    ("sundys/lxmusiclist", "main"),
+    ("xing2kong/lxmusic-yinyuan", "main"),
+    ("LuoXiaohei-2025/LX-music-collection", "main"),
+    ("pdone/lx-music-source", "main"),
+    ("wzh15802/lxmusic", "main"),
 ]
 SOURCE_PATH_HINTS = ("音源", "source", "lx", "music", "plugin")
 IGNORED_PATH_PARTS = {
@@ -556,6 +583,90 @@ def github_repository_candidates(
     return candidates
 
 
+def gitee_search_candidates(http: HttpClient, max_files: int) -> set[str]:
+    """搜索Gitee上的LX音源"""
+    if max_files <= 0:
+        return set()
+    
+    queries = [
+        "lx 音源",
+        "lxmusic",
+        "音乐源 lx",
+        "落雪 音源",
+        "聚合音源",
+    ]
+    
+    candidates: set[str] = set()
+    files_seen = 0
+    
+    for query in queries:
+        if files_seen >= max_files:
+            break
+        
+        search_url = "https://gitee.com/api/v5/search/repositories?" + urllib.parse.urlencode(
+            {"q": query, "sort": "stars_count", "order": "desc", "per_page": min(10, max_files - files_seen)}
+        )
+        
+        try:
+            result = http.get_json(search_url, authenticated=False)
+        except Exception as error:
+            print(f"warning: Gitee repository search failed for {query!r}: {error}", file=sys.stderr)
+            continue
+        
+        for item in result.get("items", []):
+            if files_seen >= max_files:
+                break
+            
+            full_name = str(item.get("full_name") or "").strip()
+            default_branch = str(item.get("default_branch") or "master").strip()
+            
+            if not full_name:
+                continue
+            
+            # 获取仓库文件树
+            tree_url = f"https://gitee.com/api/v5/repos/{full_name}/git/trees/{default_branch}?recursive=1"
+            try:
+                tree = http.get_json(tree_url, authenticated=False)
+            except Exception as error:
+                print(f"warning: Gitee repository tree failed for {full_name}: {error}", file=sys.stderr)
+                continue
+            
+            source_files = []
+            for tree_item in tree.get("tree", []):
+                if tree_item.get("type") != "blob":
+                    continue
+                path = str(tree_item.get("path") or "")
+                score = source_path_score(path, tree_item.get("size"))
+                if score > 0:
+                    source_files.append((score, path))
+            
+            source_files.sort(key=lambda value: (-value[0], value[1].lower()))
+            
+            for _, path in source_files[:12]:
+                if files_seen >= max_files:
+                    break
+                
+                raw_url = (
+                    f"https://gitee.com/{full_name}/raw/{default_branch}/"
+                    f"{urllib.parse.quote(path, safe='/')}"
+                )
+                files_seen += 1
+                
+                try:
+                    body = http.get_text(raw_url)
+                except Exception:
+                    continue
+                
+                if looks_like_lx_js(body) or parse_json_definition(body):
+                    candidates.add(raw_url)
+    
+    print(
+        f"Gitee search found {len(candidates)} candidate URLs "
+        f"from {files_seen} files"
+    )
+    return candidates
+
+
 def validate_candidate(
     url: str,
     http: HttpClient,
@@ -711,6 +822,7 @@ def main() -> int:
     candidates = existing_candidates | file_candidates | env_candidates
     code_search_candidates: set[str] = set()
     repository_candidates: set[str] = set()
+    gitee_candidates: set[str] = set()
     if not args.no_github_search:
         code_search_candidates = github_search_candidates(http, args.max_github_files)
         repository_candidates = github_repository_candidates(
@@ -718,8 +830,10 @@ def main() -> int:
             max_repositories=args.max_repositories,
             max_files=args.max_repository_files,
         )
+        gitee_candidates = gitee_search_candidates(http, args.max_repository_files)
         candidates.update(code_search_candidates)
         candidates.update(repository_candidates)
+        candidates.update(gitee_candidates)
 
     print(
         "candidate sources: "
@@ -727,7 +841,8 @@ def main() -> int:
         f"file={len(file_candidates)} "
         f"env={len(env_candidates)} "
         f"code_search={len(code_search_candidates)} "
-        f"repository_search={len(repository_candidates)}"
+        f"repository_search={len(repository_candidates)} "
+        f"gitee_search={len(gitee_candidates)}"
     )
 
     ordered_candidates = sorted(candidates)[: max(args.max_candidates, 0)]

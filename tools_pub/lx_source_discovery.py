@@ -43,10 +43,10 @@ DEFAULT_SEARCH_QUERIES = [
     'music api extension:js',
 ]
 DEFAULT_REPOSITORY_SEARCH_QUERIES = [
-    # 核心关键词
-    '"LX Music" 音源 in:name,description,readme',
-    'lxmusic source in:name,description,readme',
-    '落雪 音源 in:name,description,readme',
+    # 核心查询
+    "lx-music-source",
+    "lxmusic",
+    "落雪音乐",
     # 扩展关键词
     'lx-music-source in:name,description,readme',
     'lx source in:name,description,readme',
@@ -58,6 +58,19 @@ DEFAULT_REPOSITORY_SEARCH_QUERIES = [
     '星海音源 in:name,description,readme',
     '六音音源 in:name,description,readme',
     '独家音源 in:name,description,readme',
+    # 新增查询 - 覆盖更多变体
+    'lxmusic source',
+    'lx music js',
+    '落雪 音源',
+    '音乐源 lx',
+    'getMusicUrl',
+    'lx.send',
+    'EVENT_NAMES',
+    'music-api',
+    'lx-music',
+    'lxmusic api',
+    'music source js',
+    'music json source',
 ]
 DEFAULT_PUBLIC_SOURCE_REPOSITORIES = [
     # 核心仓库
@@ -596,75 +609,68 @@ def github_repository_candidates(
     return candidates
 
 
-def extract_urls_from_html(html: str) -> set[str]:
-    """从HTML中提取URL"""
-    urls = set()
-    # 匹配raw.githubusercontent.com链接
-    urls.update(re.findall(r'https?://raw\.githubusercontent\.com/[^\s\'"<>)\]]+\.js', html))
-    urls.update(re.findall(r'https?://raw\.githubusercontent\.com/[^\s\'"<>)\]]+\.json', html))
-    # 匹配GitHub blob链接（需要转换为raw链接）
-    for match in re.findall(r'https?://github\.com/[^\s\'"<>)\]]+/blob/[^\s\'"<>)\]]+\.js', html):
-        urls.add(match)
-    for match in re.findall(r'https?://github\.com/[^\s\'"<>)\]]+/blob/[^\s\'"<>)\]]+\.json', html):
-        urls.add(match)
-    return urls
-
-
-def github_blob_to_raw(url: str) -> str:
-    """将GitHub blob链接转换为raw链接"""
-    if "/blob/" in url:
-        return url.replace("/blob/", "/raw/")
-    return url
-
-
-def search_engine_candidates(http: HttpClient, max_files: int) -> set[str]:
-    """使用搜索引擎搜索LX音源"""
+def forum_search_candidates(http: HttpClient, max_files: int) -> set[str]:
+    """搜索LX Music论坛和Telegram群组分享的音源链接"""
     if max_files <= 0:
         return set()
-
-    queries = [
-        "lx music 音源 js raw.githubusercontent.com",
-        "lxmusic 音源 json raw.githubusercontent.com",
-        "落雪音乐 音源 js",
-        "lx source js raw",
-        "音乐聚合 音源 js",
-        "getMusicUrl lx js",
-        "lx.send EVENT_NAMES js",
-    ]
 
     candidates: set[str] = set()
     files_seen = 0
 
-    for query in queries:
+    # LX Music官方论坛
+    forum_urls = [
+        "https://lxmusic.tonebay.cn/",
+        "https://www.lxmusic.com/",
+        "https://github.com/lyswhut/lx-music-desktop/issues",
+    ]
+
+    for forum_url in forum_urls:
         if files_seen >= max_files:
             break
-
-        # 使用DuckDuckGo搜索（不需要API key）
-        search_url = "https://html.duckduckgo.com/html/?" + urllib.parse.urlencode({"q": query})
         try:
-            body = http.get_text(search_url, authenticated=False)
-            # 从搜索结果中提取URL
-            found_urls = extract_urls_from_html(body)
-            for url in found_urls:
+            body = http.get_text(forum_url, authenticated=False)
+            # 从论坛页面中提取GitHub链接
+            github_links = re.findall(
+                r'https?://github\.com/[^\s\'"<>)\]]+/blob/[^\s\'"<>)\]]+\.js',
+                body,
+            )
+            github_links.extend(
+                re.findall(
+                    r'https?://github\.com/[^\s\'"<>)\]]+/blob/[^\s\'"<>)\]]+\.json',
+                    body,
+                )
+            )
+            # 也提取raw.githubusercontent.com链接
+            raw_links = re.findall(
+                r'https?://raw\.githubusercontent\.com/[^\s\'"<>)\]]+\.js',
+                body,
+            )
+            raw_links.extend(
+                re.findall(
+                    r'https?://raw\.githubusercontent\.com/[^\s\'"<>)\]]+\.json',
+                    body,
+                )
+            )
+
+            all_links = set(github_links + raw_links)
+            for link in all_links:
                 if files_seen >= max_files:
                     break
                 # 转换blob链接为raw链接
-                raw_url = github_blob_to_raw(url)
-                # 只处理raw.githubusercontent.com链接
-                if "raw.githubusercontent.com" in raw_url and (raw_url.endswith(".js") or raw_url.endswith(".json")):
-                    try:
-                        content = http.get_text(raw_url, authenticated=False)
-                        if looks_like_lx_js(content) or parse_json_definition(content):
-                            candidates.add(raw_url)
-                            files_seen += 1
-                    except Exception:
-                        continue
+                raw_url = link.replace("/blob/", "/raw/") if "/blob/" in link else link
+                try:
+                    content = http.get_text(raw_url, authenticated=False)
+                    if looks_like_lx_js(content) or parse_json_definition(content):
+                        candidates.add(raw_url)
+                        files_seen += 1
+                except Exception:
+                    continue
         except Exception as error:
-            print(f"warning: search engine failed for {query!r}: {error}", file=sys.stderr)
+            print(f"warning: forum search failed for {forum_url}: {error}", file=sys.stderr)
             continue
 
     print(
-        f"search engine found {len(candidates)} candidate URLs "
+        f"forum search found {len(candidates)} candidate URLs "
         f"from {files_seen} files"
     )
     return candidates
@@ -825,7 +831,7 @@ def main() -> int:
     candidates = existing_candidates | file_candidates | env_candidates
     code_search_candidates: set[str] = set()
     repository_candidates: set[str] = set()
-    search_engine_candidates_set: set[str] = set()
+    forum_candidates: set[str] = set()
     if not args.no_github_search:
         code_search_candidates = github_search_candidates(http, args.max_github_files)
         repository_candidates = github_repository_candidates(
@@ -833,10 +839,10 @@ def main() -> int:
             max_repositories=args.max_repositories,
             max_files=args.max_repository_files,
         )
-        search_engine_candidates_set = search_engine_candidates(http, args.max_repository_files)
+        forum_candidates = forum_search_candidates(http, args.max_repository_files)
         candidates.update(code_search_candidates)
         candidates.update(repository_candidates)
-        candidates.update(search_engine_candidates_set)
+        candidates.update(forum_candidates)
 
     print(
         "candidate sources: "
@@ -845,7 +851,7 @@ def main() -> int:
         f"env={len(env_candidates)} "
         f"code_search={len(code_search_candidates)} "
         f"repository_search={len(repository_candidates)} "
-        f"search_engine={len(search_engine_candidates_set)}"
+        f"forum_search={len(forum_candidates)}"
     )
 
     ordered_candidates = sorted(candidates)[: max(args.max_candidates, 0)]

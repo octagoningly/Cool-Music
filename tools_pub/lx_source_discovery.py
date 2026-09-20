@@ -55,7 +55,6 @@ DEFAULT_PUBLIC_SOURCE_REPOSITORIES = [
     ("fly-fish76/lx-source", "main"),
     ("guoyue2010/lxmusic-", "main"),
     # 扩展仓库
-    ("chao921125/source", "main"),
     ("sundys/lxmusiclist", "main"),
     ("xing2kong/lxmusic-yinyuan", "main"),
     ("LuoXiaohei-2025/LX-music-collection", "main"),
@@ -612,8 +611,12 @@ def gitee_search_candidates(http: HttpClient, max_files: int) -> set[str]:
         except Exception as error:
             print(f"warning: Gitee repository search failed for {query!r}: {error}", file=sys.stderr)
             continue
-        
-        for item in result.get("items", []):
+
+        if not isinstance(result, list):
+            print(f"warning: unexpected Gitee response format for {query!r}", file=sys.stderr)
+            continue
+
+        for item in result:
             if files_seen >= max_files:
                 break
             

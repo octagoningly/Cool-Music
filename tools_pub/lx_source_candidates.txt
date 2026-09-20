@@ -1,0 +1,6 @@
+# Optional seed URLs for LX Music source discovery.
+#
+# Put one HTTPS URL per line. The daily GitHub Action also revalidates URLs
+# already present in docs/online-sources.json and may discover public source
+# files through GitHub code search. Keep private tokens, cookies, and paid
+# service endpoints out of this file.

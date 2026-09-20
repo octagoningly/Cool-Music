@@ -15,7 +15,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -29,24 +31,30 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxChannelProbeResult
 import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
 import moe.ouom.neriplayer.data.source.lxmusic.LxMusicSourceRepository
+import moe.ouom.neriplayer.data.source.lxmusic.LxRemoteSourceEntry
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsInlineMessage
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsSwitch
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextField
 import moe.ouom.neriplayer.ui.screen.tab.settings.state.collectAsStateWithLifecycleCompat
+import moe.ouom.neriplayer.ui.util.ClipboardCopyResult
+import moe.ouom.neriplayer.ui.util.copyPlainTextSafely
 import moe.ouom.neriplayer.ui.viewmodel.settings.LxMusicSourceViewModel
 
 /*
@@ -153,10 +161,20 @@ internal fun SettingsLxMusicSourceDialogs(
                         MiuixSettingsInlineMessage(
                             message = mapped,
                             isSuccess = !message.startsWith("import_failed") &&
-                                !message.startsWith("refresh_failed"),
+                                !message.startsWith("refresh_failed") &&
+                                !message.startsWith("registry_failed"),
                             onClose = vm::clearMessage
                         )
                     }
+
+                    LxSourceRegistrySection(
+                        fetching = state.fetchingRegistry,
+                        generatedAt = state.registryGeneratedAt,
+                        entries = state.registrySources,
+                        importing = state.importing,
+                        onFetch = vm::fetchRemoteSourceRegistry,
+                        onImport = vm::importFromUrl
+                    )
 
                     // 2) 运行状态 / 通道检测（仅在有内容时出现）
                     LxSourceRuntimeStatusRow(status = state.runtimeStatus)
@@ -388,6 +406,202 @@ private fun DetailRow(label: String, value: String) {
 }
 
 @Composable
+private fun LxSourceRegistrySection(
+    fetching: Boolean,
+    generatedAt: String,
+    entries: List<LxRemoteSourceEntry>,
+    importing: Boolean,
+    onFetch: () -> Unit,
+    onImport: (String) -> Unit
+) {
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    var copyMessage by remember { mutableStateOf<String?>(null) }
+    var copySucceeded by remember { mutableStateOf(true) }
+    val copiedText = stringResource(R.string.toast_copied)
+    val copyTruncatedText = stringResource(R.string.toast_copy_truncated)
+    val copyFailedText = stringResource(R.string.toast_copy_failed)
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.lx_source_registry_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = stringResource(R.string.lx_source_registry_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            TextButton(
+                enabled = !fetching,
+                onClick = {
+                    copyMessage = null
+                    onFetch()
+                }
+            ) {
+                if (fetching) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(R.string.lx_source_registry_fetching))
+                } else {
+                    Text(stringResource(R.string.lx_source_registry_fetch))
+                }
+            }
+        }
+
+        if (generatedAt.isNotBlank()) {
+            Text(
+                text = stringResource(R.string.lx_source_registry_generated_at, generatedAt),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        copyMessage?.let { message ->
+            MiuixSettingsInlineMessage(
+                message = message,
+                isSuccess = copySucceeded,
+                onClose = { copyMessage = null }
+            )
+        }
+
+        entries.forEach { entry ->
+            LxRemoteSourceRow(
+                entry = entry,
+                importing = importing,
+                onCopy = { url ->
+                    scope.launch {
+                        val result = clipboard.copyPlainTextSafely(
+                            label = "LX Source URL",
+                            text = url
+                        )
+                        copySucceeded = result is ClipboardCopyResult.Copied
+                        copyMessage = when (result) {
+                            is ClipboardCopyResult.Copied -> if (result.wasTruncated) {
+                                copyTruncatedText
+                            } else {
+                                copiedText
+                            }
+                            ClipboardCopyResult.TransactionTooLarge -> copyFailedText
+                        }
+                    }
+                },
+                onImport = onImport
+            )
+        }
+    }
+}
+
+@Composable
+private fun LxRemoteSourceRow(
+    entry: LxRemoteSourceEntry,
+    importing: Boolean,
+    onCopy: (String) -> Unit,
+    onImport: (String) -> Unit
+) {
+    val platformLabels = mapOf(
+        "wy" to stringResource(R.string.lx_source_platform_wy),
+        "kw" to stringResource(R.string.lx_source_platform_kw),
+        "kg" to stringResource(R.string.lx_source_platform_kg),
+        "tx" to stringResource(R.string.lx_source_platform_tx),
+        "mg" to stringResource(R.string.lx_source_platform_mg)
+    )
+    val channelText = entry.healthyChannels.joinToString(" / ") { sourceId ->
+        platformLabels[sourceId.lowercase()] ?: sourceId
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Download,
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .size(20.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = entry.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(R.string.lx_source_registry_channels, channelText),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = entry.url,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = { onCopy(entry.url) }) {
+                Icon(
+                    imageVector = Icons.Outlined.ContentCopy,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(stringResource(R.string.lx_source_registry_copy))
+            }
+            TextButton(
+                enabled = !importing,
+                onClick = { onImport(entry.url) }
+            ) {
+                if (importing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(stringResource(R.string.lx_source_registry_import))
+            }
+        }
+    }
+}
+
+@Composable
 private fun LxSourceRuntimeStatusRow(status: LxMusicSourceRepository.RuntimeStatus) {
     if (!status.hasActivity) return
     val failed = status.lastAttemptFailed
@@ -496,15 +710,17 @@ private fun LxSourceChannelProbeSection(
 
 @Composable
 private fun lxPlatformLabel(sourceId: String): String {
-    return stringResource(
-        when (sourceId.lowercase()) {
-            "kw" -> R.string.lx_source_platform_kw
-            "kg" -> R.string.lx_source_platform_kg
-            "tx" -> R.string.lx_source_platform_tx
-            "mg" -> R.string.lx_source_platform_mg
-            else -> R.string.lx_source_platform_wy
-        }
-    )
+    return stringResource(lxPlatformLabelRes(sourceId))
+}
+
+private fun lxPlatformLabelRes(sourceId: String): Int {
+    return when (sourceId.lowercase()) {
+        "kw" -> R.string.lx_source_platform_kw
+        "kg" -> R.string.lx_source_platform_kg
+        "tx" -> R.string.lx_source_platform_tx
+        "mg" -> R.string.lx_source_platform_mg
+        else -> R.string.lx_source_platform_wy
+    }
 }
 
 @Composable
@@ -621,6 +837,20 @@ private fun mapLxSourceMessage(message: String): String {
             stringResource(R.string.lx_source_refresh_failed)
         message == "removed" ->
             stringResource(R.string.lx_source_removed)
+        message.startsWith("registry_ok") -> {
+            val count = message.substringAfter("registry_ok:", "").toIntOrNull() ?: 0
+            stringResource(R.string.lx_source_registry_success, count)
+        }
+        message == "registry_empty" ->
+            stringResource(R.string.lx_source_registry_empty)
+        message.startsWith("registry_failed") -> {
+            val reason = message.substringAfter("registry_failed:", "").trim()
+            if (reason.isNotBlank()) {
+                stringResource(R.string.lx_source_registry_failed_detail, reason)
+            } else {
+                stringResource(R.string.lx_source_registry_failed)
+            }
+        }
         else -> message
     }
 }

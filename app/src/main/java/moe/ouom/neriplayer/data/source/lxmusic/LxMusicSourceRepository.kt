@@ -144,6 +144,10 @@ class LxMusicSourceRepository(
         return preferCustomSourceFlow.first()
     }
 
+    suspend fun fetchRemoteSourceRegistry(): Result<LxRemoteSourceRegistry> {
+        return client.fetchRemoteSourceRegistry()
+    }
+
     suspend fun setPreferCustomSource(enabled: Boolean) {
         context.lxMusicSourceDataStore.edit { prefs ->
             prefs[LxMusicSourcePreferenceKeys.PREFER_CUSTOM_SOURCE] = enabled

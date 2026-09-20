@@ -35,6 +35,9 @@ import java.util.concurrent.TimeUnit
 
 class LxMusicSourceClient(private val okHttpClient: OkHttpClient) {
     companion object {
+        const val DEFAULT_REMOTE_REGISTRY_URL =
+            "https://raw.githubusercontent.com/octagoningly/Cool-Music/main/docs/online-sources.json"
+
         private const val TAG = "LxMusicSourceClient"
         private const val USER_AGENT = "NeriPlayer/1.0 (LX Music Source Client)"
         private const val MAX_BODY_BYTES = 2L * 1024L * 1024L
@@ -64,6 +67,17 @@ class LxMusicSourceClient(private val okHttpClient: OkHttpClient) {
     suspend fun fetchRawSourceBody(sourceUrl: String): Result<String> =
         withContext(Dispatchers.IO) {
             runCatching { executeGet(sourceUrl) }
+        }
+
+    /** 拉取 GitHub Actions 每日验证出的可用音源清单 */
+    suspend fun fetchRemoteSourceRegistry(
+        registryUrl: String = DEFAULT_REMOTE_REGISTRY_URL
+    ): Result<LxRemoteSourceRegistry> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val body = executeGet(registryUrl)
+                LxMusicSourceParser.parseRemoteSourceRegistry(body)
+            }
         }
 
     suspend fun search(

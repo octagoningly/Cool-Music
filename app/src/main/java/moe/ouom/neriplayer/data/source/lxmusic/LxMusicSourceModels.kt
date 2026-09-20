@@ -59,6 +59,27 @@ data class LxImportedSourceList(
     val sources: List<LxImportedSource> = emptyList()
 )
 
+/** GitHub 每日验证清单中的一个可导入音源 */
+data class LxRemoteSourceEntry(
+    val url: String,
+    val name: String,
+    val kind: String = "",
+    val description: String = "",
+    val author: String = "",
+    val version: String = "",
+    val sourcePage: String = "",
+    val healthyChannels: List<String> = emptyList(),
+    val lastValidatedAt: String = ""
+)
+
+/** GitHub 每日验证清单，供设置页“获取”按钮读取 */
+data class LxRemoteSourceRegistry(
+    val schemaVersion: Int = 1,
+    val generatedAt: String = "",
+    val minimumHealthyChannels: Int = 1,
+    val sources: List<LxRemoteSourceEntry> = emptyList()
+)
+
 data class LxSourceDefinition(
     val name: String,
     val description: String = "",

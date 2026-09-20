@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "",
+  "minimumHealthyChannels": 1,
+  "probeSong": {
+    "name": "晴天",
+    "artist": "周杰伦",
+    "album": "叶惠美"
+  },
+  "sources": []
+}

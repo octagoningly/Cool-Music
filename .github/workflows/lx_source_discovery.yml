@@ -1,0 +1,99 @@
+name: Daily LX Source Discovery
+
+on:
+  schedule:
+    # 04:17 Asia/Shanghai. GitHub Actions cron uses UTC.
+    - cron: "17 20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lx-source-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Discover and verify LX sources
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LX_SOURCE_CANDIDATE_URLS: ${{ vars.LX_SOURCE_CANDIDATE_URLS }}
+          LX_SOURCE_SEARCH_QUERIES: ${{ vars.LX_SOURCE_SEARCH_QUERIES }}
+        run: >-
+          python tools_pub/lx_source_discovery.py
+          --candidate-file tools_pub/lx_source_candidates.txt
+          --output docs/online-sources.json
+          --preload app/src/main/assets/script/user-api-preload.js
+          --js-runner tools_pub/lx_js_probe_runner.js
+
+      - name: Upload verified registry
+        uses: actions/upload-artifact@v4
+        with:
+          name: lx-source-registry
+          path: docs/online-sources.json
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: discover
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download verified registry
+        uses: actions/download-artifact@v4
+        with:
+          name: lx-source-registry
+          path: build/lx-source-registry
+
+      - name: Validate and install registry
+        run: |
+          python tools_pub/lx_source_discovery.py \
+            --validate-only build/lx-source-registry/online-sources.json
+          cp build/lx-source-registry/online-sources.json docs/online-sources.json
+
+      - name: Commit updated source registry
+        shell: bash
+        run: |
+          if git diff --quiet -- docs/online-sources.json; then
+            echo "No registry changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/online-sources.json
+          git commit -m "更新在线音源清单_1"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -225,6 +225,48 @@ object LxMusicSourceParser {
         }
     }
 
+    fun parseRemoteSourceRegistry(body: String): LxRemoteSourceRegistry {
+        return runCatching {
+            val root = JSONObject(body)
+            val sourcesArray = root.optJSONArray("sources") ?: JSONArray()
+            val sources = buildList {
+                for (index in 0 until sourcesArray.length()) {
+                    val item = sourcesArray.optJSONObject(index) ?: continue
+                    val url = item.optString("url").trim()
+                    if (!url.startsWith("http://", ignoreCase = true) &&
+                        !url.startsWith("https://", ignoreCase = true)
+                    ) {
+                        continue
+                    }
+                    val healthyChannels = parseStringArray(item.optJSONArray("healthyChannels"))
+                    if (healthyChannels.isEmpty()) continue
+                    add(
+                        LxRemoteSourceEntry(
+                            url = url,
+                            name = item.optString("name").trim().ifBlank { "LX Source" },
+                            kind = item.optString("kind").trim(),
+                            description = item.optString("description").trim(),
+                            author = item.optString("author").trim(),
+                            version = item.optString("version").trim(),
+                            sourcePage = item.optString("sourcePage").trim(),
+                            healthyChannels = healthyChannels,
+                            lastValidatedAt = item.optString("lastValidatedAt").trim()
+                        )
+                    )
+                }
+            }
+            LxRemoteSourceRegistry(
+                schemaVersion = root.optInt("schemaVersion", 1),
+                generatedAt = root.optString("generatedAt").trim(),
+                minimumHealthyChannels = root.optInt("minimumHealthyChannels", 1),
+                sources = sources
+            )
+        }.getOrElse {
+            NPLogger.w(TAG, "Failed to parse LX remote source registry: ${it.message}")
+            LxRemoteSourceRegistry()
+        }
+    }
+
     private fun extractApiUrl(api: JSONObject, key: String): String {
         val raw = api.opt(key) ?: return ""
         return when (raw) {
@@ -266,6 +308,15 @@ object LxMusicSourceParser {
             }
             is String -> listOf(raw.trim().lowercase()).filter { it.isNotBlank() }
             else -> emptyList()
+        }
+    }
+
+    private fun parseStringArray(raw: JSONArray?): List<String> {
+        if (raw == null) return emptyList()
+        return buildList {
+            for (index in 0 until raw.length()) {
+                raw.optString(index).trim().takeIf { it.isNotBlank() }?.let { add(it) }
+            }
         }
     }
 }

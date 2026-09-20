@@ -1,0 +1,552 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+from typing import Any
+
+
+USER_AGENT = "CoolMusic-LxSourceDiscovery/1.0"
+MAX_BODY_BYTES = 2 * 1024 * 1024
+MAX_REGISTRY_SOURCES = 80
+ALLOWED_HEALTHY_CHANNELS = {"kw", "kg", "tx", "wy", "mg", "xm", "json"}
+DEFAULT_SEARCH_QUERIES = [
+    '"getMusicUrl" "lx.send" extension:js',
+    '"lx.EVENT_NAMES.request" "musicUrl" extension:js',
+    '"songUrl" "search" "supportedQualitys" extension:json',
+]
+URL_RE = re.compile(r"https?://[^\s'\"<>)]{8,}")
+
+
+class HttpClient:
+    def __init__(self, token: str | None, timeout: int) -> None:
+        self.token = token
+        self.timeout = timeout
+
+    def get_text(self, url: str, accept: str = "*/*") -> str:
+        headers = {
+            "Accept": accept,
+            "User-Agent": USER_AGENT,
+        }
+        if self.token and "api.github.com" in url:
+            headers["Authorization"] = f"Bearer {self.token}"
+            headers["X-GitHub-Api-Version"] = "2022-11-28"
+        request = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            data = response.read(MAX_BODY_BYTES + 1)
+            if len(data) > MAX_BODY_BYTES:
+                raise ValueError("response too large")
+            return data.decode("utf-8", errors="replace")
+
+    def get_json(self, url: str) -> Any:
+        return json.loads(self.get_text(url, accept="application/vnd.github+json"))
+
+
+def utc_now_iso() -> str:
+    return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def normalize_url(url: str) -> str:
+    url = url.strip().rstrip(".,;]")
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        return ""
+    if parsed.netloc == "github.com":
+        parts = parsed.path.strip("/").split("/")
+        if len(parts) >= 5 and parts[2] == "blob":
+            owner, repo, _, branch = parts[:4]
+            path = "/".join(parts[4:])
+            return f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
+    return urllib.parse.urlunparse(parsed._replace(fragment=""))
+
+
+def truncate_text(value: Any, limit: int) -> str:
+    return str(value or "").strip()[:limit]
+
+
+def looks_like_lx_js(body: str) -> bool:
+    trimmed = body.lstrip()
+    return (
+        trimmed.startswith(("const ", "let ", "var ", "async function", "module.exports"))
+        or "exports.default" in trimmed
+        or "lx.send" in trimmed
+        or ("getMusicUrl" in trimmed and "function" in trimmed)
+    )
+
+
+def parse_js_metadata(script: str) -> dict[str, Any]:
+    header_match = re.search(r"/\*[\s\S]+?\*/", script)
+    header = header_match.group(0) if header_match else ""
+
+    def from_header(tag: str) -> str:
+        match = re.search(rf"^\s*\*\s*@{re.escape(tag)}\s+(.+)$", header, re.I | re.M)
+        return match.group(1).strip() if match else ""
+
+    def from_literal(*keys: str) -> str:
+        for key in keys:
+            match = re.search(rf"['\"]?{re.escape(key)}['\"]?\s*:\s*['\"]([^'\"]+)['\"]", script, re.I)
+            if match:
+                return match.group(1).strip()
+        return ""
+
+    source_ids = [source_id for source_id in ["kw", "kg", "tx", "wy", "mg"] if re.search(rf"\b{source_id}\b", script, re.I)]
+    return {
+        "name": from_header("name") or from_literal("name", "title") or "LX JS Source",
+        "description": from_header("description") or from_literal("description", "desc"),
+        "author": from_header("author") or from_literal("author"),
+        "version": from_header("version") or from_literal("version"),
+        "sourceIds": source_ids or ["kw", "kg", "tx", "wy", "mg"],
+    }
+
+
+def parse_json_definition(body: str) -> dict[str, Any] | None:
+    try:
+        root = json.loads(body)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(root, dict):
+        return None
+    api = root.get("api")
+    if not isinstance(api, dict):
+        return None
+
+    def api_url(key: str) -> str:
+        raw = api.get(key)
+        if isinstance(raw, str):
+            return raw.strip()
+        if isinstance(raw, dict):
+            return str(raw.get("url", "")).strip()
+        return ""
+
+    search_url = api_url("search")
+    song_url = api_url("songUrl") or api_url("url")
+    if not search_url or not song_url:
+        return None
+    if str(root.get("type", "music") or "music") != "music":
+        return None
+    qualities = root.get("supportedQualitys") or root.get("supportedQualities") or []
+    if isinstance(qualities, dict):
+        qualities = [key for key, enabled in qualities.items() if enabled]
+    elif isinstance(qualities, str):
+        qualities = [qualities]
+    elif not isinstance(qualities, list):
+        qualities = []
+    return {
+        "name": str(root.get("name") or "LX Source").strip(),
+        "description": str(root.get("description") or "").strip(),
+        "author": str(root.get("author") or "").strip(),
+        "version": str(root.get("version") or "").strip(),
+        "searchApiUrl": search_url,
+        "songUrlApiUrl": song_url,
+        "supportedQualities": [str(item).lower() for item in qualities if str(item).strip()],
+    }
+
+
+def build_api_url(base_url: str, params: dict[str, str]) -> str:
+    parsed = urllib.parse.urlsplit(base_url)
+    existing = {key.lower() for key, _ in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)}
+    query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    for key, value in params.items():
+        if key.lower() not in existing:
+            query.append((key, value))
+    return urllib.parse.urlunsplit(parsed._replace(query=urllib.parse.urlencode(query)))
+
+
+def parse_search_response(body: str) -> list[dict[str, Any]]:
+    try:
+        root = json.loads(body)
+    except json.JSONDecodeError:
+        return []
+    if isinstance(root, dict) and "code" in root and int(root.get("code") or 0) not in {0, 200}:
+        return []
+    data = None
+    if isinstance(root, dict):
+        raw_data = root.get("data")
+        if isinstance(raw_data, list):
+            data = raw_data
+        elif isinstance(raw_data, dict):
+            data = raw_data.get("list") or raw_data.get("songs") or raw_data.get("items")
+        data = data or root.get("list") or root.get("songs") or root.get("items") or root.get("result")
+    if not isinstance(data, list):
+        return []
+    items: list[dict[str, Any]] = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or item.get("title") or "").strip()
+        music_id = str(item.get("musicId") or item.get("id") or item.get("songmid") or "").strip()
+        if name and music_id:
+            items.append({"name": name, "musicId": music_id})
+    return items
+
+
+def parse_song_url_response(body: str) -> str:
+    try:
+        root = json.loads(body)
+    except json.JSONDecodeError:
+        return ""
+    if isinstance(root, dict) and "code" in root and int(root.get("code") or 0) not in {0, 200}:
+        return ""
+    url = ""
+    if isinstance(root, dict):
+        data = root.get("data")
+        if isinstance(data, dict):
+            url = str(data.get("url") or "").strip()
+        elif isinstance(data, str):
+            url = data.strip()
+        url = url or str(root.get("url") or "").strip()
+    return url if url.startswith(("http://", "https://")) else ""
+
+
+def probe_json_source(definition: dict[str, Any], http: HttpClient) -> list[str]:
+    qualities = definition.get("supportedQualities") or []
+    quality_order = [quality for quality in ["320k", "128k", "flac", "flac24bit"] if not qualities or quality in qualities]
+    for keyword in ["\u6674\u5929 \u5468\u6770\u4f26", "\u6674\u5929"]:
+        search_url = build_api_url(
+            definition["searchApiUrl"],
+            {
+                "keyword": keyword,
+                "search": keyword,
+                "key": keyword,
+                "limit": "8",
+                "count": "8",
+                "page": "1",
+                "pagesize": "8",
+            },
+        )
+        try:
+            items = parse_search_response(http.get_text(search_url))
+        except Exception:
+            continue
+        for item in items[:4]:
+            for quality in quality_order or ["128k"]:
+                song_url = build_api_url(
+                    definition["songUrlApiUrl"],
+                    {
+                        "id": item["musicId"],
+                        "musicId": item["musicId"],
+                        "quality": quality,
+                        "br": quality,
+                    },
+                )
+                try:
+                    if parse_song_url_response(http.get_text(song_url)):
+                        return ["json"]
+                except Exception:
+                    continue
+    return []
+
+
+def probe_js_source(
+    body: str,
+    preload_path: Path,
+    runner_path: Path,
+    node_binary: str | None,
+    timeout: int,
+) -> list[str]:
+    if not node_binary:
+        return []
+    with tempfile.TemporaryDirectory(prefix="lx-source-") as tmp_dir:
+        source_path = Path(tmp_dir) / "source.js"
+        source_path.write_text(body, encoding="utf-8")
+        probe_env = os.environ.copy()
+        for secret_name in ("GITHUB_TOKEN", "GH_TOKEN", "LX_SOURCE_CANDIDATE_URLS"):
+            probe_env.pop(secret_name, None)
+        completed = subprocess.run(
+            [
+                node_binary,
+                str(runner_path),
+                "--source-file",
+                str(source_path),
+                "--preload",
+                str(preload_path),
+            ],
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+            env=probe_env,
+        )
+    if completed.returncode != 0:
+        return []
+    try:
+        result = json.loads(completed.stdout.strip().splitlines()[-1])
+    except Exception:
+        return []
+    channels = result.get("healthyChannels")
+    return [str(channel) for channel in channels] if isinstance(channels, list) else []
+
+
+def extract_urls(text: str) -> set[str]:
+    return {normalized for raw in URL_RE.findall(text) if (normalized := normalize_url(raw))}
+
+
+def load_candidate_file(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    urls = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        normalized = normalize_url(line)
+        if normalized:
+            urls.add(normalized)
+    return urls
+
+
+def load_env_candidates() -> set[str]:
+    raw = os.environ.get("LX_SOURCE_CANDIDATE_URLS", "")
+    urls = set()
+    for part in re.split(r"[\n, ]+", raw):
+        normalized = normalize_url(part)
+        if normalized:
+            urls.add(normalized)
+    return urls
+
+
+def load_existing_candidates(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return set()
+    urls = set()
+    for item in data.get("sources", []):
+        if isinstance(item, dict):
+            normalized = normalize_url(str(item.get("url") or ""))
+            if normalized:
+                urls.add(normalized)
+    return urls
+
+
+def github_search_candidates(http: HttpClient, max_files: int) -> set[str]:
+    if not http.token or max_files <= 0:
+        return set()
+    queries_raw = os.environ.get("LX_SOURCE_SEARCH_QUERIES", "")
+    queries = [line.strip() for line in queries_raw.splitlines() if line.strip()] or DEFAULT_SEARCH_QUERIES
+    candidates: set[str] = set()
+    files_seen = 0
+    for query in queries:
+        if files_seen >= max_files:
+            break
+        search_url = "https://api.github.com/search/code?" + urllib.parse.urlencode(
+            {"q": query, "per_page": min(20, max_files - files_seen)}
+        )
+        try:
+            result = http.get_json(search_url)
+        except Exception as error:
+            print(f"warning: GitHub code search failed for {query!r}: {error}", file=sys.stderr)
+            continue
+        for item in result.get("items", []):
+            if files_seen >= max_files:
+                break
+            api_url = item.get("url")
+            if not api_url:
+                continue
+            try:
+                content_info = http.get_json(api_url)
+                download_url = normalize_url(str(content_info.get("download_url") or ""))
+                if not download_url:
+                    continue
+                files_seen += 1
+                body = http.get_text(download_url)
+            except Exception:
+                continue
+            if looks_like_lx_js(body) or parse_json_definition(body):
+                candidates.add(download_url)
+            candidates.update(extract_urls(body))
+    return candidates
+
+
+def validate_candidate(
+    url: str,
+    http: HttpClient,
+    preload_path: Path,
+    runner_path: Path,
+    node_binary: str | None,
+    js_timeout: int,
+) -> dict[str, Any] | None:
+    if urllib.parse.urlparse(url).scheme != "https":
+        print(f"skip {url}: registry candidates must use HTTPS", file=sys.stderr)
+        return None
+    try:
+        body = http.get_text(url)
+    except Exception as error:
+        print(f"skip {url}: fetch failed: {error}", file=sys.stderr)
+        return None
+
+    now = utc_now_iso()
+    if looks_like_lx_js(body):
+        meta = parse_js_metadata(body)
+        healthy = probe_js_source(body, preload_path, runner_path, node_binary, js_timeout)
+        kind = "js"
+    else:
+        definition = parse_json_definition(body)
+        if not definition:
+            return None
+        meta = definition
+        healthy = probe_json_source(definition, http)
+        kind = "json"
+
+    if not healthy:
+        print(f"skip {url}: no healthy channel", file=sys.stderr)
+        return None
+
+    healthy = list(dict.fromkeys(channel for channel in healthy if channel in ALLOWED_HEALTHY_CHANNELS))
+    if not healthy:
+        return None
+
+    return {
+        "name": truncate_text(meta.get("name") or "LX Source", 200),
+        "kind": kind,
+        "url": url,
+        "description": truncate_text(meta.get("description"), 500),
+        "author": truncate_text(meta.get("author"), 200),
+        "version": truncate_text(meta.get("version"), 80),
+        "sourcePage": "",
+        "healthyChannels": healthy,
+        "lastValidatedAt": now,
+    }
+
+
+def validate_registry_data(registry: Any) -> None:
+    if not isinstance(registry, dict):
+        raise ValueError("registry root must be an object")
+    if registry.get("schemaVersion") != 1:
+        raise ValueError("unsupported registry schemaVersion")
+    if registry.get("minimumHealthyChannels") != 1:
+        raise ValueError("minimumHealthyChannels must be 1")
+    sources = registry.get("sources")
+    if not isinstance(sources, list) or len(sources) > MAX_REGISTRY_SOURCES:
+        raise ValueError("sources must be a bounded array")
+    generated_at = registry.get("generatedAt")
+    if not isinstance(generated_at, str) or (sources and not generated_at):
+        raise ValueError("generatedAt is required when sources are present")
+    seen_urls: set[str] = set()
+    for index, item in enumerate(sources):
+        if not isinstance(item, dict):
+            raise ValueError(f"sources[{index}] must be an object")
+        url = item.get("url")
+        parsed = urllib.parse.urlparse(url if isinstance(url, str) else "")
+        if parsed.scheme != "https" or not parsed.netloc or len(url) > 2048:
+            raise ValueError(f"sources[{index}].url must be a valid HTTPS URL")
+        if url in seen_urls:
+            raise ValueError(f"duplicate source URL: {url}")
+        seen_urls.add(url)
+        if item.get("kind") not in {"js", "json"}:
+            raise ValueError(f"sources[{index}].kind is invalid")
+        if not isinstance(item.get("name"), str) or not item["name"] or len(item["name"]) > 200:
+            raise ValueError(f"sources[{index}].name is invalid")
+        channels = item.get("healthyChannels")
+        if (
+            not isinstance(channels, list)
+            or not channels
+            or len(channels) > len(ALLOWED_HEALTHY_CHANNELS)
+            or any(channel not in ALLOWED_HEALTHY_CHANNELS for channel in channels)
+        ):
+            raise ValueError(f"sources[{index}].healthyChannels is invalid")
+        for field, limit in (("description", 500), ("author", 200), ("version", 80)):
+            value = item.get(field, "")
+            if not isinstance(value, str) or len(value) > limit:
+                raise ValueError(f"sources[{index}].{field} is invalid")
+
+
+def validate_registry_file(path: Path) -> None:
+    if not path.is_file() or path.stat().st_size > MAX_BODY_BYTES:
+        raise ValueError("registry file is missing or too large")
+    validate_registry_data(json.loads(path.read_text(encoding="utf-8")))
+
+
+def write_registry(path: Path, sources: list[dict[str, Any]]) -> None:
+    registry = {
+        "schemaVersion": 1,
+        "generatedAt": utc_now_iso(),
+        "minimumHealthyChannels": 1,
+        "probeSong": {
+            "name": "\u6674\u5929",
+            "artist": "\u5468\u6770\u4f26",
+            "album": "\u53f6\u60e0\u7f8e",
+        },
+        "sources": sorted(sources, key=lambda item: (item["name"].lower(), item["url"])),
+    }
+    validate_registry_data(registry)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(registry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Discover and verify LX Music source URLs.")
+    parser.add_argument("--candidate-file", default="tools_pub/lx_source_candidates.txt")
+    parser.add_argument("--output", default="docs/online-sources.json")
+    parser.add_argument("--preload", default="app/src/main/assets/script/user-api-preload.js")
+    parser.add_argument("--js-runner", default="tools_pub/lx_js_probe_runner.js")
+    parser.add_argument("--max-candidates", type=int, default=80)
+    parser.add_argument("--max-github-files", type=int, default=40)
+    parser.add_argument("--timeout", type=int, default=15)
+    parser.add_argument("--js-timeout", type=int, default=35)
+    parser.add_argument("--no-github-search", action="store_true")
+    parser.add_argument("--validate-only", help="Validate an existing registry file and exit.")
+    args = parser.parse_args()
+
+    root = Path.cwd()
+    if args.validate_only:
+        validate_registry_file(root / args.validate_only)
+        print(f"registry is valid: {root / args.validate_only}")
+        return 0
+    output_path = root / args.output
+    candidate_file = root / args.candidate_file
+    preload_path = root / args.preload
+    runner_path = root / args.js_runner
+    http = HttpClient(
+        token=os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN"),
+        timeout=args.timeout,
+    )
+    node_binary = shutil.which("node")
+
+    candidates = set()
+    candidates.update(load_existing_candidates(output_path))
+    candidates.update(load_candidate_file(candidate_file))
+    candidates.update(load_env_candidates())
+    if not args.no_github_search:
+        candidates.update(github_search_candidates(http, args.max_github_files))
+
+    ordered_candidates = sorted(candidates)[: max(args.max_candidates, 0)]
+    print(f"validating {len(ordered_candidates)} candidate source URLs")
+    sources = []
+    seen = set()
+    for url in ordered_candidates:
+        entry = validate_candidate(
+            url=url,
+            http=http,
+            preload_path=preload_path,
+            runner_path=runner_path,
+            node_binary=node_binary,
+            js_timeout=args.js_timeout,
+        )
+        if not entry or entry["url"] in seen:
+            continue
+        sources.append(entry)
+        seen.add(entry["url"])
+
+    write_registry(output_path, sources)
+    print(f"wrote {len(sources)} verified sources to {output_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

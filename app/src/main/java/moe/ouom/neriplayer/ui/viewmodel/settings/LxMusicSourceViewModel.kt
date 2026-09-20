@@ -16,6 +16,7 @@ import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxChannelProbeResult
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.probeLxSourceChannels
 import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
 import moe.ouom.neriplayer.data.source.lxmusic.LxMusicSourceRepository
+import moe.ouom.neriplayer.data.source.lxmusic.LxRemoteSourceEntry
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -48,7 +49,10 @@ data class LxMusicSourceUiState(
     val message: String? = null,
     val runtimeStatus: LxMusicSourceRepository.RuntimeStatus = LxMusicSourceRepository.RuntimeStatus(),
     val probing: Boolean = false,
-    val channelProbes: List<LxChannelProbeResult> = emptyList()
+    val channelProbes: List<LxChannelProbeResult> = emptyList(),
+    val fetchingRegistry: Boolean = false,
+    val registryGeneratedAt: String = "",
+    val registrySources: List<LxRemoteSourceEntry> = emptyList()
 )
 
 sealed class LxMusicSourceEvent {
@@ -89,6 +93,35 @@ class LxMusicSourceViewModel : ViewModel() {
         val repo = repository ?: return
         viewModelScope.launch {
             repo.setPreferCustomSource(enabled)
+        }
+    }
+
+    fun fetchRemoteSourceRegistry() {
+        val repo = repository ?: return
+        if (_uiState.value.fetchingRegistry) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(fetchingRegistry = true, message = null) }
+            val result = repo.fetchRemoteSourceRegistry()
+            result.fold(
+                onSuccess = { registry ->
+                    _uiState.update {
+                        it.copy(
+                            fetchingRegistry = false,
+                            registryGeneratedAt = registry.generatedAt,
+                            registrySources = registry.sources
+                        )
+                    }
+                    if (registry.sources.isEmpty()) {
+                        emitMessage("registry_empty")
+                    } else {
+                        emitMessage("registry_ok:${registry.sources.size}")
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update { it.copy(fetchingRegistry = false) }
+                    emitMessage("registry_failed:${error.message ?: "registry_failed"}")
+                }
+            )
         }
     }
 

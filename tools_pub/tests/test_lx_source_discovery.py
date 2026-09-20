@@ -46,6 +46,14 @@ class FakeHttpClient:
 
 class RepositoryDiscoveryTest(unittest.TestCase):
     def test_public_repository_scan_finds_encoded_source_url(self):
+        original_repositories = DISCOVERY.DEFAULT_PUBLIC_SOURCE_REPOSITORIES
+        DISCOVERY.DEFAULT_PUBLIC_SOURCE_REPOSITORIES = []
+        self.addCleanup(
+            setattr,
+            DISCOVERY,
+            "DEFAULT_PUBLIC_SOURCE_REPOSITORIES",
+            original_repositories,
+        )
         candidates = DISCOVERY.github_repository_candidates(
             FakeHttpClient(),
             max_repositories=1,
@@ -60,7 +68,19 @@ class RepositoryDiscoveryTest(unittest.TestCase):
     def test_source_path_scoring_rejects_dependency_metadata(self):
         self.assertLess(DISCOVERY.source_path_score("package.json", 200), 0)
         self.assertLess(DISCOVERY.source_path_score("node_modules/lx/source.js", 200), 0)
+        self.assertEqual(DISCOVERY.source_path_score("src/index.js", 200), 0)
         self.assertGreater(DISCOVERY.source_path_score("sources/星海音乐源.js", 200), 0)
+
+    def test_normalize_url_encodes_unicode_github_blob_path(self):
+        url = DISCOVERY.normalize_url(
+            "https://github.com/owner/repo/blob/main/sources/星海 音源.js"
+        )
+
+        self.assertEqual(
+            "https://raw.githubusercontent.com/owner/repo/main/sources/"
+            "%E6%98%9F%E6%B5%B7%20%E9%9F%B3%E6%BA%90.js",
+            url,
+        )
 
 
 if __name__ == "__main__":

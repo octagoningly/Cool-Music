@@ -31,6 +31,10 @@ DEFAULT_REPOSITORY_SEARCH_QUERIES = [
     'lxmusic source in:name,description,readme',
     '落雪 音源 in:name,description,readme',
 ]
+DEFAULT_PUBLIC_SOURCE_REPOSITORIES = [
+    ("fly-fish76/lx-source", "main"),
+    ("guoyue2010/lxmusic-", "main"),
+]
 SOURCE_PATH_HINTS = ("音源", "source", "lx", "music", "plugin")
 IGNORED_PATH_PARTS = {
     ".github",
@@ -89,8 +93,20 @@ def normalize_url(url: str) -> str:
         if len(parts) >= 5 and parts[2] == "blob":
             owner, repo, _, branch = parts[:4]
             path = "/".join(parts[4:])
-            return f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-    return urllib.parse.urlunparse(parsed._replace(fragment=""))
+            parsed = urllib.parse.urlparse(
+                f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
+            )
+    encoded_path = urllib.parse.quote(
+        urllib.parse.unquote(parsed.path),
+        safe="/:@-._~!$&'()*+,;=",
+    )
+    encoded_query = urllib.parse.quote(
+        urllib.parse.unquote(parsed.query),
+        safe="=&?/:@-._~!$'()*+,;",
+    )
+    return urllib.parse.urlunparse(
+        parsed._replace(path=encoded_path, query=encoded_query, fragment="")
+    )
 
 
 def truncate_text(value: Any, limit: int) -> str:
@@ -389,7 +405,6 @@ def github_search_candidates(http: HttpClient, max_files: int) -> set[str]:
                 continue
             if looks_like_lx_js(body) or parse_json_definition(body):
                 candidates.add(download_url)
-            candidates.update(extract_urls(body))
     print(f"GitHub code search found {len(candidates)} candidate URLs from {files_seen} files")
     return candidates
 
@@ -435,8 +450,12 @@ def github_repository_candidates(
         or DEFAULT_REPOSITORY_SEARCH_QUERIES
     )
     current_repository = os.environ.get("GITHUB_REPOSITORY", "").lower()
-    repositories: list[dict[str, str]] = []
+    repositories: list[dict[str, str]] = [
+        {"full_name": full_name, "default_branch": default_branch}
+        for full_name, default_branch in DEFAULT_PUBLIC_SOURCE_REPOSITORIES[:max_repositories]
+    ]
     seen_repositories: set[str] = set()
+    seen_repositories.update(repository["full_name"].lower() for repository in repositories)
 
     for query in queries:
         if len(repositories) >= max_repositories:
@@ -495,11 +514,11 @@ def github_repository_candidates(
                 continue
             path = str(item.get("path") or "")
             score = source_path_score(path, item.get("size"))
-            if score >= 0:
+            if score > 0:
                 source_files.append((score, path))
         source_files.sort(key=lambda value: (-value[0], value[1].lower()))
 
-        for _, path in source_files[:8]:
+        for _, path in source_files[:12]:
             if files_seen >= max_files:
                 break
             raw_url = (
@@ -514,7 +533,6 @@ def github_repository_candidates(
                 continue
             if looks_like_lx_js(body) or parse_json_definition(body):
                 candidates.add(raw_url)
-            candidates.update(extract_urls(body))
 
     print(
         f"public repository search found {len(candidates)} candidate URLs "

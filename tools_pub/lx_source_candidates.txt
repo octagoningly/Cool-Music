@@ -4,3 +4,17 @@
 # already present in docs/online-sources.json and may discover public source
 # files through GitHub code search. Keep private tokens, cookies, and paid
 # service endpoints out of this file.
+
+# Public fallback candidates. Every run still performs a real channel probe;
+# a URL is published only when at least one channel succeeds.
+https://github.com/fly-fish76/lx-source/blob/main/sources/gdstudio音乐源.js
+https://github.com/fly-fish76/lx-source/blob/main/sources/lx-玉宁熙-Pro.js
+https://github.com/fly-fish76/lx-source/blob/main/sources/六音音源.js
+https://github.com/fly-fish76/lx-source/blob/main/sources/念心音源.js
+https://github.com/fly-fish76/lx-source/blob/main/sources/星澜聚合音源_StellarWave.js
+https://github.com/fly-fish76/lx-source/blob/main/sources/独家音源.js
+https://github.com/fly-fish76/lx-source/blob/main/sources/野花.js
+https://github.com/guoyue2010/lxmusic-/blob/main/V2603/优质-支持四平台FLAC/念心音源 v1.0.0.js
+https://github.com/guoyue2010/lxmusic-/blob/main/V2603/良好-支持至少两平台FLAC/星海音乐源 v2.2.8.js
+https://github.com/guoyue2010/lxmusic-/blob/main/V2603/良好-支持至少两平台FLAC/统一音乐源.js
+https://github.com/guoyue2010/lxmusic-/blob/main/V2603/良好-支持至少两平台FLAC/长青SVIP音源.js

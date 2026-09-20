@@ -1,11 +1,73 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-20T10:35:14Z",
+  "generatedAt": "2026-09-20T10:46:07Z",
   "minimumHealthyChannels": 1,
   "probeSong": {
     "name": "晴天",
     "artist": "周杰伦",
     "album": "叶惠美"
   },
-  "sources": []
+  "sources": [
+    {
+      "name": "西瓜聚合源",
+      "kind": "js",
+      "url": "https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/V260716/%E5%85%B6%E4%BB%96/%E8%A5%BF%E7%93%9C%E8%81%9A%E5%90%88.js",
+      "description": "聚合星海/溯音/CHKSZ/长青/念心/Huibq等10+API后端，多源自动回退",
+      "author": "整合自多个音源",
+      "version": "v1.40",
+      "sourcePage": "",
+      "healthyChannels": [
+        "kw"
+      ],
+      "lastValidatedAt": "2026-09-20T10:44:36Z"
+    },
+    {
+      "name": "👖裤佬SVIP音源",
+      "kind": "js",
+      "url": "https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/V260810/%E5%85%B6%E4%BB%96/%28%E6%8E%A8%E8%8D%90%29%E8%A3%A4%E4%BD%ACSVIP%E9%9F%B3%E6%BA%90%EF%BC%88%E9%85%B7%E7%8B%97%E6%8C%82%E4%BA%86%EF%BC%89.js",
+      "description": "🔗官网https://Jsnzkpg.github.io",
+      "author": "🐈‍⬛Github项目地址https://github.com/Jsnzkpg/Jsnzkpg",
+      "version": "✈️TG频道https://t.me/stymei",
+      "sourcePage": "",
+      "healthyChannels": [
+        "wy",
+        "kw",
+        "kg",
+        "tx"
+      ],
+      "lastValidatedAt": "2026-09-20T10:45:24Z"
+    },
+    {
+      "name": "👖裤佬SVIP音源",
+      "kind": "js",
+      "url": "https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/V260817/%E5%85%B6%E4%BB%96/%28%E6%8E%A8%E8%8D%90%29%E8%A3%A4%E4%BD%ACSVIP%E9%9F%B3%E6%BA%90%EF%BC%88%E9%85%B7%E7%8B%97%E6%8C%82%E4%BA%86%EF%BC%89.js",
+      "description": "🔗官网https://Jsnzkpg.github.io",
+      "author": "🐈‍⬛Github项目地址https://github.com/Jsnzkpg/Jsnzkpg",
+      "version": "✈️TG频道https://t.me/stymei",
+      "sourcePage": "",
+      "healthyChannels": [
+        "wy",
+        "kw",
+        "kg",
+        "tx"
+      ],
+      "lastValidatedAt": "2026-09-20T10:45:39Z"
+    },
+    {
+      "name": "👖裤佬SVIP音源",
+      "kind": "js",
+      "url": "https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/V260907/%28%E6%8E%A8%E8%8D%90%29%E8%A3%A4%E4%BD%ACSVIP%E9%9F%B3%E6%BA%90%EF%BC%88%E9%85%B7%E7%8B%97%E6%8C%82%E4%BA%86%EF%BC%89.js",
+      "description": "🔗官网https://Jsnzkpg.github.io",
+      "author": "🐈‍⬛Github项目地址https://github.com/Jsnzkpg/Jsnzkpg",
+      "version": "✈️TG频道https://t.me/stymei",
+      "sourcePage": "",
+      "healthyChannels": [
+        "wy",
+        "kw",
+        "kg",
+        "tx"
+      ],
+      "lastValidatedAt": "2026-09-20T10:45:53Z"
+    }
+  ]
 }

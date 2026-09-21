@@ -9,6 +9,16 @@ import org.junit.Test
 class PlayerManagerYouTubeWarmupTargetTest {
 
     @Test
+    fun `cached playlist entries do not start online YouTube warmup`() {
+        val cached = testSong(1L, "https://music.youtube.com/watch?v=cachedVideo")
+            .copy(cachedPlaybackKey = "ytmusic-cachedVideo-high")
+        val playlist = listOf(cached)
+
+        assertFalse(resolveYouTubeWarmupTargets(playlist, 0, "high").hasWork)
+        assertFalse(resolveYouTubeImmediatePlaybackWarmupTargets(playlist, 0, "high").hasWork)
+    }
+
+    @Test
     fun `resolveYouTubeWarmupTargets keeps current and next youtube ids`() {
         val targets = resolveYouTubeWarmupTargets(
             playlist = listOf(

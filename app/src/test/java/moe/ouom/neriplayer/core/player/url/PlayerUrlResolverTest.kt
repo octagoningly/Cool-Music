@@ -5,10 +5,19 @@ import moe.ouom.neriplayer.core.player.model.PlaybackAudioSource
 import moe.ouom.neriplayer.core.player.resolver.netease.NeteasePlaybackResponseParser
 import moe.ouom.neriplayer.data.platform.bili.BiliAudioStreamInfo
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlayerUrlResolverTest {
+
+    @Test
+    fun cachedPlaylistOnlyUsesCompleteSafeResources() {
+        assertTrue(shouldPlayCachedPlaylistEntry("lxjs-source-wy-123-flac", CachedResourceIntegrity(true, false, 100L), false))
+        assertFalse(shouldPlayCachedPlaylistEntry("lxjs-source-wy-123-flac", CachedResourceIntegrity(false, false, 50L), false))
+        assertFalse(shouldPlayCachedPlaylistEntry("lxjs-source-wy-123-flac", CachedResourceIntegrity(true, true, 100L), false))
+        assertFalse(shouldPlayCachedPlaylistEntry("lxjs-source-wy-123-flac", CachedResourceIntegrity(true, false, 100L), true))
+    }
 
     @Test
     fun buildYouTubeOfflineCacheAudioInfo_usesPreferredQualityAndSource() {

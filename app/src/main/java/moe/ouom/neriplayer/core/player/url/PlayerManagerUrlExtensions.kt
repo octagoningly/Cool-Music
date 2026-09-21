@@ -62,6 +62,7 @@ import moe.ouom.neriplayer.data.platform.bili.BiliAudioStreamInfo
 import moe.ouom.neriplayer.data.platform.bili.BiliVideoSkipTarget
 import moe.ouom.neriplayer.data.platform.youtube.extractYouTubeMusicVideoId
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.data.traffic.isOfflineModeNow
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.listentogether.mapping.MAX_LISTEN_TOGETHER_STREAM_URL_CANDIDATES
 import moe.ouom.neriplayer.listentogether.mapping.toListenTogetherTrackOrNull
@@ -207,6 +208,34 @@ internal suspend fun PlayerManager.resolveSongUrl(
             postPlayerEvent(PlayerEvent.ShowError(getLocalizedString(R.string.error_no_play_url)))
         }
         return SongUrlResult.Failure
+    }
+
+    song.cachedPlaybackKey?.let { cachedKey ->
+        if (shouldPlayCachedPlaylistEntry(
+                cachedKey,
+                inspectExoPlayerCache(cachedKey),
+                loadPlaybackCacheKeySafety(cachedKey)
+            )) {
+            val descriptor = cache?.readCachedPlaybackDescriptor(cachedKey)
+            val audioInfo = descriptor?.toPlaybackAudioInfo { getLocalizedString(it) }
+            NPLogger.d("NERI-PlayerManager", "缓存歌单直接播放: key=$cachedKey")
+            return SongUrlResult.Success(
+                url = "$OFFLINE_CACHE_URL_PREFIX$cachedKey",
+                audioInfo = audioInfo,
+                mimeType = audioInfo?.mimeType,
+                expectedContentLength = descriptor?.expectedContentLength,
+                representationIdentity = descriptor?.representationIdentity,
+                cacheKeyOverride = cachedKey,
+                durationMs = song.durationMs.takeIf { it > 0L }
+            )
+        }
+        if (application.isOfflineModeNow()) {
+            NPLogger.w("NERI-PlayerManager", "缓存歌单曲目未完整缓存，离线跳过在线音源重试: key=$cachedKey")
+            sideEffects.emitError {
+                postPlayerEvent(PlayerEvent.ShowError(getLocalizedString(R.string.error_no_play_url)))
+            }
+            return SongUrlResult.Failure
+        }
     }
 
     // 在线曲目优先尝试 LX 在线音源；失败再走缓存/平台链路
@@ -410,6 +439,12 @@ internal suspend fun PlayerManager.resolveSongUrl(
         resolvedResult
     }
 }
+
+internal fun shouldPlayCachedPlaylistEntry(
+    cacheKey: String?,
+    integrity: CachedResourceIntegrity,
+    unsafe: Boolean
+): Boolean = !cacheKey.isNullOrBlank() && integrity.isComplete && !integrity.requiresRepair && !unsafe
 
 private fun PlayerManager.prepareBiliPlaybackSkipsForResolvedPlayback(
     song: SongItem,

@@ -335,7 +335,9 @@ internal fun resolveYouTubeWarmupTargets(
     val prefetchVideoIds = buildList {
         var cursor = normalizedIndex
         while (size < warmupWindowSize && cursor < playlist.size) {
-            val videoId = extractYouTubeMusicVideoId(playlist[cursor].mediaUri)
+            val videoId = playlist[cursor]
+                .takeIf { it.cachedPlaybackKey == null }
+                ?.let { extractYouTubeMusicVideoId(it.mediaUri) }
             if (!videoId.isNullOrBlank() && !contains(videoId)) {
                 add(videoId)
             }
@@ -364,7 +366,9 @@ internal fun resolveYouTubeImmediatePlaybackWarmupTargets(
         )
     }
     val normalizedIndex = currentSongIndex.coerceIn(0, playlist.lastIndex)
-    val currentVideoId = extractYouTubeMusicVideoId(playlist[normalizedIndex].mediaUri)
+    val currentVideoId = playlist[normalizedIndex]
+        .takeIf { it.cachedPlaybackKey == null }
+        ?.let { extractYouTubeMusicVideoId(it.mediaUri) }
     val prefetchVideoIds = currentVideoId
         ?.takeIf { it.isNotBlank() }
         ?.let(::listOf)

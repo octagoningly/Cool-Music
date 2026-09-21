@@ -855,10 +855,12 @@ internal fun PlayerManager.playAtIndex(
     replacePlaybackDemandCacheKey(
         cacheKey = song
             .takeUnless { isLocalSong(it) || isDirectStreamUrl(it.streamUrl) }
-            ?.let(::computeCacheKey),
+            ?.let { it.cachedPlaybackKey ?: computeCacheKey(it) },
         reason = "play_at_index_request"
     )
-    kickoffYouTubePlaybackIntentWarmup(song, source = "play_at_index")
+    if (song.cachedPlaybackKey == null) {
+        kickoffYouTubePlaybackIntentWarmup(song, source = "play_at_index")
+    }
     cancelPendingPauseRequest()
     val previousSong = _currentSongFlow.value
     val retainCurrentAudioInfo = commandSource == PlaybackCommandSource.REMOTE_SYNC &&

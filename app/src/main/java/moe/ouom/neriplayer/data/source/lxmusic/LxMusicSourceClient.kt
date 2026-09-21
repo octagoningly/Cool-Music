@@ -75,7 +75,8 @@ class LxMusicSourceClient(private val okHttpClient: OkHttpClient) {
     ): Result<LxRemoteSourceRegistry> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val body = executeGet(registryUrl)
+                val cacheBustedUrl = "$registryUrl?t=${System.currentTimeMillis()}"
+                val body = executeGet(cacheBustedUrl)
                 LxMusicSourceParser.parseRemoteSourceRegistry(body)
             }
         }
@@ -140,6 +141,7 @@ class LxMusicSourceClient(private val okHttpClient: OkHttpClient) {
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", USER_AGENT)
+            .header("Cache-Control", "no-cache")
             .get()
             .build()
         return fetchClient.newCall(request).execute().use { response ->

@@ -129,6 +129,17 @@ internal fun mapNeteaseQualityToLxOrder(qualityKey: String?): List<String> {
     }
 }
 
+/** 将 LX 音质 key 反向映射为网易云音质 key，供播放页音质切换写入设置 */
+internal fun mapLxQualityToNeteaseKey(lxQuality: String): String? {
+    return when (lxQuality.trim().lowercase()) {
+        "flac24bit", "wav", "flac", "sq" -> "lossless"
+        "320k", "hq" -> "exhigh"
+        "aac" -> "higher"
+        "128k" -> "standard"
+        else -> null
+    }
+}
+
 internal fun normalizeLxQualityLabel(quality: String?): String {
     return when (quality?.trim()?.lowercase()) {
         "128k" -> "128K"

@@ -349,6 +349,7 @@ internal fun PlayerManager.initializeImpl(
         preferredQuality = initialPlaybackPreferences.audioQuality
         youtubePreferredQuality = initialPlaybackPreferences.youtubeAudioQuality
         biliPreferredQuality = initialPlaybackPreferences.biliAudioQuality
+        lxPreferredQuality = initialPlaybackPreferences.lxAudioQuality
         mobileDataFollowDefaultAudioQuality =
             initialPlaybackPreferences.mobileDataFollowDefaultAudioQuality
         mobileDataNeteaseAudioQuality =
@@ -1025,6 +1026,18 @@ internal fun PlayerManager.initializeImpl(
                     scheduleQualityRefresh(
                         source = PlaybackAudioSource.BILIBILI,
                         reason = "bili_quality_changed"
+                    )
+                }
+            }
+        }
+        ioScope.launch {
+            settingsRepo.lxAudioQualityFlow.collect { q ->
+                val previousQuality = lxPreferredQuality
+                lxPreferredQuality = q
+                if (previousQuality != q) {
+                    scheduleQualityRefresh(
+                        source = PlaybackAudioSource.CUSTOM_LX,
+                        reason = "lx_quality_changed"
                     )
                 }
             }

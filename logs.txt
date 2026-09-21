@@ -1,0 +1,225 @@
+﻿2026-09-20T15:19:05.7793407Z Current runner version: '2.337.0'
+2026-09-20T15:19:05.7827572Z ##[group]Runner Image Provisioner
+2026-09-20T15:19:05.7828843Z Hosted Compute Agent
+2026-09-20T15:19:05.7830107Z Version: 20260828.587
+2026-09-20T15:19:05.7831295Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-20T15:19:05.7832597Z Build Date: 2026-08-28T16:44:25Z
+2026-09-20T15:19:05.7833850Z Worker ID: {a4ca2451-2d71-4378-b66b-24649525e9af}
+2026-09-20T15:19:05.7835049Z Azure Region: eastus
+2026-09-20T15:19:05.7835943Z ##[endgroup]
+2026-09-20T15:19:05.7838814Z ##[group]Operating System
+2026-09-20T15:19:05.7840190Z Ubuntu
+2026-09-20T15:19:05.7841247Z 24.04.5
+2026-09-20T15:19:05.7842077Z LTS
+2026-09-20T15:19:05.7842858Z ##[endgroup]
+2026-09-20T15:19:05.7843907Z ##[group]Runner Image
+2026-09-20T15:19:05.7845014Z Image: ubuntu-24.04
+2026-09-20T15:19:05.7846006Z Version: 20260907.300.1
+2026-09-20T15:19:05.7848063Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-20T15:19:05.7851584Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+2026-09-20T15:19:05.7853281Z ##[endgroup]
+2026-09-20T15:19:05.7855365Z ##[group]GITHUB_TOKEN Permissions
+2026-09-20T15:19:05.7858305Z Contents: read
+2026-09-20T15:19:05.7859601Z Metadata: read
+2026-09-20T15:19:05.7860612Z ##[endgroup]
+2026-09-20T15:19:05.7863658Z Secret source: Actions
+2026-09-20T15:19:05.7865158Z Cache mode: write
+2026-09-20T15:19:05.7866707Z Prepare workflow directory
+2026-09-20T15:19:05.8335269Z Prepare all required actions
+2026-09-20T15:19:05.8406954Z Getting action download info
+2026-09-20T15:19:06.0492298Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-09-20T15:19:06.1791871Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-09-20T15:19:06.2584715Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-09-20T15:19:06.3478067Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-09-20T15:19:06.5771190Z Complete job name: discover
+2026-09-20T15:19:06.6575482Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:19:06.6584684Z ##[group]Run actions/checkout@v4
+2026-09-20T15:19:06.6585507Z with:
+2026-09-20T15:19:06.6585993Z   fetch-depth: 0
+2026-09-20T15:19:06.6586516Z   persist-credentials: false
+2026-09-20T15:19:06.6587121Z   repository: octagoningly/Cool-Music
+2026-09-20T15:19:06.6591277Z   token: ***
+2026-09-20T15:19:06.6591768Z   ssh-strict: true
+2026-09-20T15:19:06.6592247Z   ssh-user: git
+2026-09-20T15:19:06.6592700Z   clean: true
+2026-09-20T15:19:06.6593187Z   sparse-checkout-cone-mode: true
+2026-09-20T15:19:06.6593781Z   fetch-tags: false
+2026-09-20T15:19:06.6594261Z   show-progress: true
+2026-09-20T15:19:06.6594758Z   lfs: false
+2026-09-20T15:19:06.6595255Z   submodules: false
+2026-09-20T15:19:06.6595792Z   set-safe-directory: true
+2026-09-20T15:19:06.6596341Z   allow-unsafe-pr-checkout: false
+2026-09-20T15:19:06.6597216Z ##[endgroup]
+2026-09-20T15:19:06.7631699Z Syncing repository: octagoningly/Cool-Music
+2026-09-20T15:19:06.7635419Z ##[group]Getting Git version info
+2026-09-20T15:19:06.7636795Z Working directory is '/home/runner/work/Cool-Music/Cool-Music'
+2026-09-20T15:19:06.7638688Z [command]/usr/bin/git version
+2026-09-20T15:19:06.7757943Z git version 2.55.0
+2026-09-20T15:19:06.7786366Z ##[endgroup]
+2026-09-20T15:19:06.7818165Z Temporarily overriding HOME='/home/runner/work/_temp/729de293-46a2-4e53-ae6a-9ed8ffe7642d' before making global git config changes
+2026-09-20T15:19:06.7821329Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-20T15:19:06.7837248Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Cool-Music/Cool-Music
+2026-09-20T15:19:06.7886826Z Deleting the contents of '/home/runner/work/Cool-Music/Cool-Music'
+2026-09-20T15:19:06.7892864Z ##[group]Initializing the repository
+2026-09-20T15:19:06.7899578Z [command]/usr/bin/git init /home/runner/work/Cool-Music/Cool-Music
+2026-09-20T15:19:06.8035724Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-20T15:19:06.8037577Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-09-20T15:19:06.8041611Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-09-20T15:19:06.8043627Z hint: call:
+2026-09-20T15:19:06.8044591Z hint:
+2026-09-20T15:19:06.8047159Z hint: 	git config --global init.defaultBranch <name>
+2026-09-20T15:19:06.8049465Z hint:
+2026-09-20T15:19:06.8051877Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-20T15:19:06.8054313Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-20T15:19:06.8056382Z hint:
+2026-09-20T15:19:06.8057436Z hint: 	git branch -m <name>
+2026-09-20T15:19:06.8058259Z hint:
+2026-09-20T15:19:06.8059164Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-09-20T15:19:06.8061731Z Initialized empty Git repository in /home/runner/work/Cool-Music/Cool-Music/.git/
+2026-09-20T15:19:06.8072836Z [command]/usr/bin/git remote add origin https://github.com/octagoningly/Cool-Music
+2026-09-20T15:19:06.8124329Z ##[endgroup]
+2026-09-20T15:19:06.8126326Z ##[group]Disabling automatic garbage collection
+2026-09-20T15:19:06.8128026Z [command]/usr/bin/git config --local gc.auto 0
+2026-09-20T15:19:06.8191075Z ##[endgroup]
+2026-09-20T15:19:06.8193002Z ##[group]Setting up auth
+2026-09-20T15:19:06.8208457Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-20T15:19:06.8243023Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-20T15:19:06.8669530Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-20T15:19:06.8710582Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-20T15:19:06.8951555Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-20T15:19:06.8988304Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-20T15:19:06.9212300Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-20T15:19:06.9251817Z ##[endgroup]
+2026-09-20T15:19:06.9253164Z ##[group]Fetching the repository
+2026-09-20T15:19:06.9262854Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-09-20T15:19:08.7626499Z From https://github.com/octagoningly/Cool-Music
+2026-09-20T15:19:08.7629719Z  * [new branch]        codex/fix-lx-probe-initialization -> origin/codex/fix-lx-probe-initialization
+2026-09-20T15:19:08.7631725Z  * [new branch]        codex/fix-lx-source-candidates -> origin/codex/fix-lx-source-candidates
+2026-09-20T15:19:08.7633515Z  * [new branch]        codex/fix-lx-source-discovery -> origin/codex/fix-lx-source-discovery
+2026-09-20T15:19:08.7635312Z  * [new branch]        codex/online-source-registry -> origin/codex/online-source-registry
+2026-09-20T15:19:08.7637802Z  * [new branch]        codex/update-lx-source-seeds -> origin/codex/update-lx-source-seeds
+2026-09-20T15:19:08.7641414Z  * [new branch]        feat/coolmusic-package-id -> origin/feat/coolmusic-package-id
+2026-09-20T15:19:08.7643476Z  * [new branch]        fix/release-apk-signing -> origin/fix/release-apk-signing
+2026-09-20T15:19:08.7645389Z  * [new branch]        main                    -> origin/main
+2026-09-20T15:19:08.7647248Z  * [new branch]        一键更新功能      -> origin/一键更新功能
+2026-09-20T15:19:08.7648422Z  * [new tag]           v0.1.0                  -> v0.1.0
+2026-09-20T15:19:08.7649889Z  * [new tag]           v0.2.0                  -> v0.2.0
+2026-09-20T15:19:08.7652874Z [command]/usr/bin/git branch --list --remote origin/main
+2026-09-20T15:19:08.7669839Z   origin/main
+2026-09-20T15:19:08.7681865Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+2026-09-20T15:19:08.7710917Z 0c7954da9a7e81df0d007c6c24b5e8ce05470b82
+2026-09-20T15:19:08.7717162Z ##[endgroup]
+2026-09-20T15:19:08.7720127Z ##[group]Determining the checkout info
+2026-09-20T15:19:08.7722815Z ##[endgroup]
+2026-09-20T15:19:08.7724665Z [command]/usr/bin/git sparse-checkout disable
+2026-09-20T15:19:08.7778722Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-20T15:19:08.7811540Z ##[group]Checking out the ref
+2026-09-20T15:19:08.7814148Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-09-20T15:19:08.9435353Z Switched to a new branch 'main'
+2026-09-20T15:19:08.9438953Z branch 'main' set up to track 'origin/main'.
+2026-09-20T15:19:08.9454607Z ##[endgroup]
+2026-09-20T15:19:08.9500098Z [command]/usr/bin/git log -1 --format=%H
+2026-09-20T15:19:08.9527612Z 0c7954da9a7e81df0d007c6c24b5e8ce05470b82
+2026-09-20T15:19:08.9536894Z ##[group]Removing auth
+2026-09-20T15:19:08.9542029Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-20T15:19:08.9578215Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-20T15:19:08.9836224Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-20T15:19:08.9866396Z http.https://github.com/.extraheader
+2026-09-20T15:19:08.9876514Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-09-20T15:19:08.9913371Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-20T15:19:09.0146280Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-20T15:19:09.0178976Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-20T15:19:09.0399939Z ##[endgroup]
+2026-09-20T15:19:09.0723098Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:19:09.0725098Z ##[group]Run actions/setup-python@v5
+2026-09-20T15:19:09.0725452Z with:
+2026-09-20T15:19:09.0725733Z   python-version: 3.12
+2026-09-20T15:19:09.0726055Z   check-latest: false
+2026-09-20T15:19:09.0728703Z   token: ***
+2026-09-20T15:19:09.0729006Z   update-environment: true
+2026-09-20T15:19:09.0729594Z   allow-prereleases: false
+2026-09-20T15:19:09.0729929Z   freethreaded: false
+2026-09-20T15:19:09.0730225Z ##[endgroup]
+2026-09-20T15:19:09.2040685Z ##[group]Installed versions
+2026-09-20T15:19:09.2138912Z (node:2310) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-20T15:19:09.2140619Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-20T15:19:09.2141404Z Successfully set up CPython (3.12.14)
+2026-09-20T15:19:09.2142219Z ##[endgroup]
+2026-09-20T15:19:09.2349627Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:19:09.2351213Z ##[group]Run actions/setup-node@v4
+2026-09-20T15:19:09.2351476Z with:
+2026-09-20T15:19:09.2351666Z   node-version: 22
+2026-09-20T15:19:09.2351875Z   always-auth: false
+2026-09-20T15:19:09.2352090Z   check-latest: false
+2026-09-20T15:19:09.2354442Z   token: ***
+2026-09-20T15:19:09.2354645Z env:
+2026-09-20T15:19:09.2354908Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:19:09.2355368Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-20T15:19:09.2355811Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:19:09.2356236Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:19:09.2356621Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:19:09.2357015Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-20T15:19:09.2357338Z ##[endgroup]
+2026-09-20T15:19:09.3810884Z Found in cache @ /opt/hostedtoolcache/node/22.23.2/x64
+2026-09-20T15:19:09.3815674Z (node:2318) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-20T15:19:09.3816962Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-20T15:19:09.3819582Z ##[group]Environment details
+2026-09-20T15:19:09.7762959Z node: v22.23.2
+2026-09-20T15:19:09.7763717Z npm: 10.9.8
+2026-09-20T15:19:09.7764110Z yarn: 1.22.22
+2026-09-20T15:19:09.7765004Z ##[endgroup]
+2026-09-20T15:19:09.7896674Z ##[group]Run python tools_pub/lx_source_discovery.py --candidate-file tools_pub/lx_source_candidates.txt --output docs/online-sources.json --preload app/src/main/assets/script/user-api-preload.js --js-runner tools_pub/lx_js_probe_runner.js
+2026-09-20T15:19:09.7898474Z [36;1mpython tools_pub/lx_source_discovery.py --candidate-file tools_pub/lx_source_candidates.txt --output docs/online-sources.json --preload app/src/main/assets/script/user-api-preload.js --js-runner tools_pub/lx_js_probe_runner.js[0m
+2026-09-20T15:19:09.7951618Z shell: /usr/bin/bash -e {0}
+2026-09-20T15:19:09.7951882Z env:
+2026-09-20T15:19:09.7952157Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:19:09.7952614Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-20T15:19:09.7953069Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:19:09.7953492Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:19:09.7953909Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:19:09.7954308Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-20T15:19:09.7956842Z   GITHUB_TOKEN: ***
+2026-09-20T15:19:09.7957071Z   LX_SOURCE_CANDIDATE_URLS: 
+2026-09-20T15:19:09.7957311Z   LX_SOURCE_SEARCH_QUERIES: 
+2026-09-20T15:19:09.7957569Z   LX_SOURCE_REPOSITORY_SEARCH_QUERIES: 
+2026-09-20T15:19:09.7957839Z ##[endgroup]
+2026-09-20T15:19:22.1127793Z warning: GitHub code search failed for '音源 extension:json': HTTP Error 403: Forbidden
+2026-09-20T15:19:22.1258845Z warning: public repository search failed for '"LX Music" 音源 in:name,description,readme': HTTP Error 403: rate limit exceeded
+2026-09-20T15:19:22.1391949Z warning: public repository search failed for 'lxmusic source in:name,description,readme': HTTP Error 403: rate limit exceeded
+2026-09-20T15:19:22.1662744Z warning: public repository search failed for '落雪 音源 in:name,description,readme': HTTP Error 403: rate limit exceeded
+2026-09-20T15:19:22.1774967Z warning: public repository search failed for 'lx-music-source in:name,description,readme': HTTP Error 403: rate limit exceeded
+2026-09-20T15:19:22.1908380Z warning: public repository search failed for 'lx source in:name,description,readme': HTTP Error 403: rate limit exceeded
+2026-09-20T15:19:22.2025285Z warning: public repository search failed for '音乐聚合 in:name,description,readme': HTTP Error 403: rate limit exceeded
+2026-09-20T15:19:22.2152592Z warning: public repository search failed for '聚合音源 in:name,description,readme': HTTP Error 403: rate limit exceeded
+2026-09-20T15:19:22.2270313Z warning: public repository search failed for '无损音乐 in:name,description,readme': HTTP Error 403: rate limit exceeded
+2026-09-20T15:19:22.2388780Z warning: public repository search failed for 'music source lx in:name,description,readme': HTTP Error 403: rate limit exceeded
+2026-09-20T15:19:24.3397479Z warning: repository tree failed for chao921125/source: HTTP Error 404: Not Found
+2026-09-20T15:19:39.3808514Z Traceback (most recent call last):
+2026-09-20T15:19:39.3809929Z GitHub code search found 11 candidate URLs from 26 files
+2026-09-20T15:19:39.3811486Z   File "/home/runner/work/Cool-Music/Cool-Music/tools_pub/lx_source_discovery.py", line 872, in <module>
+2026-09-20T15:19:39.3813455Z public repository search found 9 candidate URLs from 30 files in 8 repositories
+2026-09-20T15:19:39.3814564Z     raise SystemExit(main())
+2026-09-20T15:19:39.3814996Z                      ^^^^^^
+2026-09-20T15:19:39.3815693Z   File "/home/runner/work/Cool-Music/Cool-Music/tools_pub/lx_source_discovery.py", line 833, in main
+2026-09-20T15:19:39.3816502Z     gitee_candidates = gitee_search_candidates(http, args.max_repository_files)
+2026-09-20T15:19:39.3817120Z                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-09-20T15:19:39.3818304Z   File "/home/runner/work/Cool-Music/Cool-Music/tools_pub/lx_source_discovery.py", line 616, in gitee_search_candidates
+2026-09-20T15:19:39.3820976Z     for item in result.get("items", []):
+2026-09-20T15:19:39.3821428Z                 ^^^^^^^^^^
+2026-09-20T15:19:39.3821877Z AttributeError: 'list' object has no attribute 'get'
+2026-09-20T15:19:39.3986751Z ##[error]Process completed with exit code 1.
+2026-09-20T15:19:39.4126694Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:19:39.4127972Z Post job cleanup.
+2026-09-20T15:19:39.4985807Z [command]/usr/bin/git version
+2026-09-20T15:19:39.5032640Z git version 2.55.0
+2026-09-20T15:19:39.5076557Z Temporarily overriding HOME='/home/runner/work/_temp/f755573d-2726-41d7-90ba-f02fa2556db5' before making global git config changes
+2026-09-20T15:19:39.5078227Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-20T15:19:39.5083393Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Cool-Music/Cool-Music
+2026-09-20T15:19:39.5122506Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-20T15:19:39.5158388Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-20T15:19:39.5448255Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-20T15:19:39.5485668Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-20T15:19:39.5753738Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-20T15:19:39.5788868Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-20T15:19:39.6178107Z Cleaning up orphan processes
+2026-09-20T15:19:39.6575838Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

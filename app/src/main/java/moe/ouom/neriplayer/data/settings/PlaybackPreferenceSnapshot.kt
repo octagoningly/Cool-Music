@@ -51,6 +51,7 @@ private const val PLAYBACK_SNAPSHOT_READY_KEY = "ready"
 private const val PLAYBACK_AUDIO_QUALITY_KEY = "audio_quality"
 private const val PLAYBACK_YOUTUBE_AUDIO_QUALITY_KEY = "youtube_audio_quality"
 private const val PLAYBACK_BILI_AUDIO_QUALITY_KEY = "bili_audio_quality"
+private const val PLAYBACK_LX_AUDIO_QUALITY_KEY = "lx_audio_quality"
 private const val PLAYBACK_MOBILE_DATA_DOWNGRADE_QUALITY_KEY = "mobile_data_downgrade_quality"
 private const val PLAYBACK_MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY_KEY =
     "mobile_data_follow_default_audio_quality"
@@ -106,6 +107,7 @@ data class PlaybackPreferenceSnapshot(
     val audioQuality: String = "exhigh",
     val youtubeAudioQuality: String = "high",
     val biliAudioQuality: String = "high",
+    val lxAudioQuality: String = "320k",
     val mobileDataFollowDefaultAudioQuality: Boolean = true,
     val mobileDataNeteaseAudioQuality: String = DEFAULT_MOBILE_DATA_NETEASE_AUDIO_QUALITY,
     val mobileDataYouTubeAudioQuality: String = DEFAULT_MOBILE_DATA_YOUTUBE_AUDIO_QUALITY,
@@ -163,6 +165,7 @@ data class PlaybackPreferenceSnapshot(
             audioQuality = audioQuality.trim().ifBlank { "exhigh" },
             youtubeAudioQuality = youtubeAudioQuality.trim().ifBlank { "high" },
             biliAudioQuality = biliAudioQuality.trim().ifBlank { "high" },
+            lxAudioQuality = lxAudioQuality.trim().ifBlank { "320k" },
             mobileDataNeteaseAudioQuality =
                 normalizeMobileDataNeteaseAudioQuality(mobileDataNeteaseAudioQuality),
             mobileDataYouTubeAudioQuality =
@@ -296,6 +299,7 @@ internal fun persistPlaybackPreferenceSnapshot(
                     normalizedSnapshot.youtubeAudioQuality
                 )
                 .putString(PLAYBACK_BILI_AUDIO_QUALITY_KEY, normalizedSnapshot.biliAudioQuality)
+                .putString(PLAYBACK_LX_AUDIO_QUALITY_KEY, normalizedSnapshot.lxAudioQuality)
                 .putBoolean(
                     PLAYBACK_MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY_KEY,
                     normalizedSnapshot.mobileDataFollowDefaultAudioQuality
@@ -411,6 +415,7 @@ internal fun Preferences.toPlaybackPreferenceSnapshot(): PlaybackPreferenceSnaps
         audioQuality = this[SettingsKeys.AUDIO_QUALITY] ?: "exhigh",
         youtubeAudioQuality = this[SettingsKeys.YOUTUBE_AUDIO_QUALITY] ?: "high",
         biliAudioQuality = this[SettingsKeys.BILI_AUDIO_QUALITY] ?: "high",
+        lxAudioQuality = this[SettingsKeys.LX_AUDIO_QUALITY] ?: "320k",
         mobileDataFollowDefaultAudioQuality =
             this[SettingsKeys.MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY]
                 ?: resolveLegacyMobileDataFollowDefaultAudioQuality(legacyMobileDataQuality)
@@ -534,6 +539,7 @@ private fun readCachedPlaybackPreferenceSnapshot(context: Context): PlaybackPref
         youtubeAudioQuality =
             prefs.getString(PLAYBACK_YOUTUBE_AUDIO_QUALITY_KEY, "high") ?: "high",
         biliAudioQuality = prefs.getString(PLAYBACK_BILI_AUDIO_QUALITY_KEY, "high") ?: "high",
+        lxAudioQuality = prefs.getString(PLAYBACK_LX_AUDIO_QUALITY_KEY, "320k") ?: "320k",
         mobileDataFollowDefaultAudioQuality = if (
             prefs.contains(PLAYBACK_MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY_KEY)
         ) {

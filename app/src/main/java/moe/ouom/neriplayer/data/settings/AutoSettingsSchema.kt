@@ -339,6 +339,19 @@ object AutoSettingsSchema {
         )
 
         @AutoSetting(
+            key = "lx_audio_quality",
+            type = SettingValueType.String,
+            defaultString = "320k",
+            order = 35,
+            ui = SettingUiType.Custom,
+            access = SettingAccessMode.KeyOnly
+        )
+        val lxAudioQuality = autoSetting(
+            titleRes = R.string.quality_lx_default,
+            iconRes = R.drawable.ic_netease_cloud_music
+        )
+
+        @AutoSetting(
             key = "mobile_data_follow_default_audio_quality",
             type = SettingValueType.Boolean,
             defaultBoolean = true,

@@ -29,6 +29,13 @@ internal fun PlayerManager.effectiveBiliQuality(): String {
     )
 }
 
+internal fun PlayerManager.effectiveLxQuality(): String {
+    return resolveTrafficAwareQuality(
+        source = PlaybackAudioSource.CUSTOM_LX,
+        defaultQuality = lxPreferredQuality
+    )
+}
+
 private fun PlayerManager.resolveTrafficAwareQuality(
     source: PlaybackAudioSource,
     defaultQuality: String
@@ -51,6 +58,7 @@ private fun PlayerManager.resolveTrafficAwareQuality(
             normalizeMobileDataYouTubeAudioQuality(mobileDataYouTubeAudioQuality)
         PlaybackAudioSource.BILIBILI ->
             normalizeMobileDataBiliAudioQuality(mobileDataBiliAudioQuality)
+        PlaybackAudioSource.CUSTOM_LX -> defaultQuality
         else -> defaultQuality
     }
 }

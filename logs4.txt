@@ -1,0 +1,290 @@
+﻿2026-09-20T15:52:31.9915334Z Current runner version: '2.337.0'
+2026-09-20T15:52:31.9949571Z ##[group]Runner Image Provisioner
+2026-09-20T15:52:31.9951225Z Hosted Compute Agent
+2026-09-20T15:52:31.9952356Z Version: 20260828.587
+2026-09-20T15:52:31.9953486Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-20T15:52:31.9955136Z Build Date: 2026-08-28T16:44:25Z
+2026-09-20T15:52:31.9956411Z Worker ID: {351905c8-844f-42ba-a38a-c5bc399d2f18}
+2026-09-20T15:52:31.9958084Z Azure Region: northcentralus
+2026-09-20T15:52:31.9959291Z ##[endgroup]
+2026-09-20T15:52:31.9961685Z ##[group]Operating System
+2026-09-20T15:52:31.9962997Z Ubuntu
+2026-09-20T15:52:31.9964019Z 24.04.5
+2026-09-20T15:52:31.9965018Z LTS
+2026-09-20T15:52:31.9965986Z ##[endgroup]
+2026-09-20T15:52:31.9966983Z ##[group]Runner Image
+2026-09-20T15:52:31.9968378Z Image: ubuntu-24.04
+2026-09-20T15:52:31.9969391Z Version: 20260907.300.1
+2026-09-20T15:52:31.9971632Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-20T15:52:31.9974559Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+2026-09-20T15:52:31.9976453Z ##[endgroup]
+2026-09-20T15:52:31.9978679Z ##[group]GITHUB_TOKEN Permissions
+2026-09-20T15:52:31.9981731Z Contents: read
+2026-09-20T15:52:31.9982848Z Metadata: read
+2026-09-20T15:52:31.9984435Z ##[endgroup]
+2026-09-20T15:52:31.9987875Z Secret source: Actions
+2026-09-20T15:52:31.9989645Z Cache mode: write
+2026-09-20T15:52:31.9991217Z Prepare workflow directory
+2026-09-20T15:52:32.0429411Z Prepare all required actions
+2026-09-20T15:52:32.0500268Z Getting action download info
+2026-09-20T15:52:32.3031185Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-09-20T15:52:32.4142629Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-09-20T15:52:32.4940307Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-09-20T15:52:32.5804119Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-09-20T15:52:32.8106702Z Complete job name: discover
+2026-09-20T15:52:32.8866513Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:52:32.8875491Z ##[group]Run actions/checkout@v4
+2026-09-20T15:52:32.8876231Z with:
+2026-09-20T15:52:32.8876659Z   fetch-depth: 0
+2026-09-20T15:52:32.8877398Z   persist-credentials: false
+2026-09-20T15:52:32.8877957Z   repository: octagoningly/Cool-Music
+2026-09-20T15:52:32.8881701Z   token: ***
+2026-09-20T15:52:32.8882137Z   ssh-strict: true
+2026-09-20T15:52:32.8882571Z   ssh-user: git
+2026-09-20T15:52:32.8882991Z   clean: true
+2026-09-20T15:52:32.8883440Z   sparse-checkout-cone-mode: true
+2026-09-20T15:52:32.8883985Z   fetch-tags: false
+2026-09-20T15:52:32.8884431Z   show-progress: true
+2026-09-20T15:52:32.8884891Z   lfs: false
+2026-09-20T15:52:32.8885357Z   submodules: false
+2026-09-20T15:52:32.8885813Z   set-safe-directory: true
+2026-09-20T15:52:32.8886324Z   allow-unsafe-pr-checkout: false
+2026-09-20T15:52:32.8887304Z ##[endgroup]
+2026-09-20T15:52:33.0002353Z Syncing repository: octagoningly/Cool-Music
+2026-09-20T15:52:33.0008673Z ##[group]Getting Git version info
+2026-09-20T15:52:33.0009557Z Working directory is '/home/runner/work/Cool-Music/Cool-Music'
+2026-09-20T15:52:33.0010882Z [command]/usr/bin/git version
+2026-09-20T15:52:33.0114046Z git version 2.55.0
+2026-09-20T15:52:33.0139258Z ##[endgroup]
+2026-09-20T15:52:33.0158473Z Temporarily overriding HOME='/home/runner/work/_temp/2d1a9075-2ff6-45e5-a93a-c57f7499aeff' before making global git config changes
+2026-09-20T15:52:33.0161083Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-20T15:52:33.0167515Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Cool-Music/Cool-Music
+2026-09-20T15:52:33.0230879Z Deleting the contents of '/home/runner/work/Cool-Music/Cool-Music'
+2026-09-20T15:52:33.0243568Z ##[group]Initializing the repository
+2026-09-20T15:52:33.0248723Z [command]/usr/bin/git init /home/runner/work/Cool-Music/Cool-Music
+2026-09-20T15:52:33.0397435Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-20T15:52:33.0399389Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-09-20T15:52:33.0405317Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-09-20T15:52:33.0407374Z hint: call:
+2026-09-20T15:52:33.0408572Z hint:
+2026-09-20T15:52:33.0409798Z hint: 	git config --global init.defaultBranch <name>
+2026-09-20T15:52:33.0411161Z hint:
+2026-09-20T15:52:33.0412501Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-20T15:52:33.0414339Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-20T15:52:33.0415857Z hint:
+2026-09-20T15:52:33.0416857Z hint: 	git branch -m <name>
+2026-09-20T15:52:33.0418303Z hint:
+2026-09-20T15:52:33.0419734Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-09-20T15:52:33.0422096Z Initialized empty Git repository in /home/runner/work/Cool-Music/Cool-Music/.git/
+2026-09-20T15:52:33.0425541Z [command]/usr/bin/git remote add origin https://github.com/octagoningly/Cool-Music
+2026-09-20T15:52:33.0476671Z ##[endgroup]
+2026-09-20T15:52:33.0478782Z ##[group]Disabling automatic garbage collection
+2026-09-20T15:52:33.0482348Z [command]/usr/bin/git config --local gc.auto 0
+2026-09-20T15:52:33.0522221Z ##[endgroup]
+2026-09-20T15:52:33.0524071Z ##[group]Setting up auth
+2026-09-20T15:52:33.0531516Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-20T15:52:33.0570947Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-20T15:52:33.1141364Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-20T15:52:33.1201527Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-20T15:52:33.1448784Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-20T15:52:33.1486848Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-20T15:52:33.1753957Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-20T15:52:33.1795199Z ##[endgroup]
+2026-09-20T15:52:33.1796627Z ##[group]Fetching the repository
+2026-09-20T15:52:33.1806779Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-09-20T15:52:35.2837741Z From https://github.com/octagoningly/Cool-Music
+2026-09-20T15:52:35.2848956Z  * [new branch]        codex/fix-lx-probe-initialization -> origin/codex/fix-lx-probe-initialization
+2026-09-20T15:52:35.2850404Z  * [new branch]        codex/fix-lx-source-candidates -> origin/codex/fix-lx-source-candidates
+2026-09-20T15:52:35.2851687Z  * [new branch]        codex/fix-lx-source-discovery -> origin/codex/fix-lx-source-discovery
+2026-09-20T15:52:35.2853168Z  * [new branch]        codex/online-source-registry -> origin/codex/online-source-registry
+2026-09-20T15:52:35.2854440Z  * [new branch]        codex/update-lx-source-seeds -> origin/codex/update-lx-source-seeds
+2026-09-20T15:52:35.2856394Z  * [new branch]        feat/coolmusic-package-id -> origin/feat/coolmusic-package-id
+2026-09-20T15:52:35.2858217Z  * [new branch]        fix/release-apk-signing -> origin/fix/release-apk-signing
+2026-09-20T15:52:35.2859728Z  * [new branch]        main                    -> origin/main
+2026-09-20T15:52:35.2861348Z  * [new branch]        一键更新功能      -> origin/一键更新功能
+2026-09-20T15:52:35.2862339Z  * [new tag]           v0.1.0                  -> v0.1.0
+2026-09-20T15:52:35.2863190Z  * [new tag]           v0.2.0                  -> v0.2.0
+2026-09-20T15:52:35.2870655Z [command]/usr/bin/git branch --list --remote origin/main
+2026-09-20T15:52:35.2893068Z   origin/main
+2026-09-20T15:52:35.2915238Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+2026-09-20T15:52:35.2936142Z 22fb827d72e551d291a6420579be83bcdcf41967
+2026-09-20T15:52:35.2942750Z ##[endgroup]
+2026-09-20T15:52:35.2944449Z ##[group]Determining the checkout info
+2026-09-20T15:52:35.2946415Z ##[endgroup]
+2026-09-20T15:52:35.2949652Z [command]/usr/bin/git sparse-checkout disable
+2026-09-20T15:52:35.3005767Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-20T15:52:35.3037681Z ##[group]Checking out the ref
+2026-09-20T15:52:35.3041017Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-09-20T15:52:35.4657062Z Switched to a new branch 'main'
+2026-09-20T15:52:35.4662255Z branch 'main' set up to track 'origin/main'.
+2026-09-20T15:52:35.4676971Z ##[endgroup]
+2026-09-20T15:52:35.4726092Z [command]/usr/bin/git log -1 --format=%H
+2026-09-20T15:52:35.4754061Z 22fb827d72e551d291a6420579be83bcdcf41967
+2026-09-20T15:52:35.4763403Z ##[group]Removing auth
+2026-09-20T15:52:35.4767763Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-20T15:52:35.4800983Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-20T15:52:35.5040419Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-20T15:52:35.5071439Z http.https://github.com/.extraheader
+2026-09-20T15:52:35.5081934Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-09-20T15:52:35.5116201Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-20T15:52:35.5347518Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-20T15:52:35.5379787Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-20T15:52:35.5602293Z ##[endgroup]
+2026-09-20T15:52:35.5997841Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:52:35.6003333Z ##[group]Run actions/setup-python@v5
+2026-09-20T15:52:35.6004090Z with:
+2026-09-20T15:52:35.6004578Z   python-version: 3.12
+2026-09-20T15:52:35.6005193Z   check-latest: false
+2026-09-20T15:52:35.6014088Z   token: ***
+2026-09-20T15:52:35.6014623Z   update-environment: true
+2026-09-20T15:52:35.6015297Z   allow-prereleases: false
+2026-09-20T15:52:35.6015964Z   freethreaded: false
+2026-09-20T15:52:35.6016531Z ##[endgroup]
+2026-09-20T15:52:35.7378908Z ##[group]Installed versions
+2026-09-20T15:52:35.7505219Z (node:2339) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-20T15:52:35.7508962Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-20T15:52:35.7511422Z Successfully set up CPython (3.12.14)
+2026-09-20T15:52:35.7514160Z ##[endgroup]
+2026-09-20T15:52:35.7848293Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:52:35.7856415Z ##[group]Run actions/setup-node@v4
+2026-09-20T15:52:35.7858927Z with:
+2026-09-20T15:52:35.7860352Z   node-version: 22
+2026-09-20T15:52:35.7861873Z   always-auth: false
+2026-09-20T15:52:35.7863459Z   check-latest: false
+2026-09-20T15:52:35.7875391Z   token: ***
+2026-09-20T15:52:35.7876311Z env:
+2026-09-20T15:52:35.7877657Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:52:35.7880052Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-20T15:52:35.7882302Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:52:35.7884070Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:52:35.7885767Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:52:35.7887726Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-20T15:52:35.7889169Z ##[endgroup]
+2026-09-20T15:52:35.9347989Z Found in cache @ /opt/hostedtoolcache/node/22.23.2/x64
+2026-09-20T15:52:35.9352567Z (node:2347) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-20T15:52:35.9355792Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-20T15:52:35.9358387Z ##[group]Environment details
+2026-09-20T15:52:36.3805772Z node: v22.23.2
+2026-09-20T15:52:36.3807706Z npm: 10.9.8
+2026-09-20T15:52:36.3809378Z yarn: 1.22.22
+2026-09-20T15:52:36.3813361Z ##[endgroup]
+2026-09-20T15:52:36.3998450Z ##[group]Run python tools_pub/lx_source_discovery.py --candidate-file tools_pub/lx_source_candidates.txt --output docs/online-sources.json --preload app/src/main/assets/script/user-api-preload.js --js-runner tools_pub/lx_js_probe_runner.js
+2026-09-20T15:52:36.4003880Z [36;1mpython tools_pub/lx_source_discovery.py --candidate-file tools_pub/lx_source_candidates.txt --output docs/online-sources.json --preload app/src/main/assets/script/user-api-preload.js --js-runner tools_pub/lx_js_probe_runner.js[0m
+2026-09-20T15:52:36.4061845Z shell: /usr/bin/bash -e {0}
+2026-09-20T15:52:36.4062830Z env:
+2026-09-20T15:52:36.4063846Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:52:36.4065424Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-20T15:52:36.4067003Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:52:36.4068742Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:52:36.4070263Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:52:36.4071741Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-20T15:52:36.4080104Z   GITHUB_TOKEN: ***
+2026-09-20T15:52:36.4081064Z   LX_SOURCE_CANDIDATE_URLS: 
+2026-09-20T15:52:36.4082058Z   LX_SOURCE_SEARCH_QUERIES: 
+2026-09-20T15:52:36.4083086Z   LX_SOURCE_REPOSITORY_SEARCH_QUERIES: 
+2026-09-20T15:52:36.4084128Z ##[endgroup]
+2026-09-20T15:52:46.9633271Z warning: GitHub code search failed for '音源 extension:json': HTTP Error 403: Forbidden
+2026-09-20T15:52:47.0348285Z warning: GitHub code search failed for 'lxmusic extension:js': HTTP Error 403: Forbidden
+2026-09-20T15:52:47.1156551Z warning: GitHub code search failed for '落雪音乐 extension:js': HTTP Error 403: Forbidden
+2026-09-20T15:52:47.1726035Z warning: GitHub code search failed for 'luoxue extension:js': HTTP Error 403: Forbidden
+2026-09-20T15:52:47.2294458Z warning: GitHub code search failed for 'music api extension:js': HTTP Error 403: Forbidden
+2026-09-20T15:53:12.3647561Z skip https://gitee.com/wtown/lxmusic_yinyuan/raw/master/ikun%E5%85%AC%E7%9B%8A%E9%9F%B3%E6%BA%90.js: fetch failed: HTTP Error 451: Unavailable For Legal Reasons
+2026-09-20T15:53:12.4473875Z warning: JS probe runner failed: Node.js v22.23.2
+2026-09-20T15:53:12.4475879Z skip https://raw.githubusercontent.com/ChangKaiChen/lx-music-api-server/258c2149b2887939da900a0a302eeb152619da76/app/script/lx-music-source.js: no healthy channel
+2026-09-20T15:53:28.3901462Z JS probe returned no healthy channel: {"wy": "请先登录用户面板申请公益卡，并携带卡密请求", "kw": "请先登录用户面板申请公益卡，并携带卡密请求", "kg": "请先登录用户面板申请公益卡，并携带卡密请求", "tx": "请先登录用户面板申请公益卡，并携带卡密请求"}
+2026-09-20T15:53:28.3905345Z skip https://raw.githubusercontent.com/LuoXiaohei-2025/LX-music-collection/main/Source%20of%20music/%E6%96%B0%E6%BE%9C%E9%9F%B3%E6%BA%90.js: no healthy channel
+2026-09-20T15:53:42.7923976Z JS probe returned no healthy channel: {"wy": "fetch failed", "kw": "fetch failed", "kg": "fetch failed", "tx": "fetch failed"}
+2026-09-20T15:53:42.7931351Z skip https://raw.githubusercontent.com/LuoXiaohei-2025/LX-music-collection/main/Source%20of%20music/%E8%90%BD%E9%9B%AA%E9%9F%B3%E4%B9%90%E9%9F%B3%E6%BA%90.js: no healthy channel
+2026-09-20T15:53:42.9183599Z warning: JS probe runner failed: Node.js v22.23.2
+2026-09-20T15:53:42.9185170Z skip https://raw.githubusercontent.com/LuoXiaohei-2025/LX-music-collection/main/Source%20of%20music/IKUN%E9%9F%B3%E6%BA%90.js: no healthy channel
+2026-09-20T15:53:55.2353774Z JS probe returned no healthy channel: {"wy": "unknow error", "kw": "unknow error", "kg": "unknow error", "tx": "unknow error"}
+2026-09-20T15:53:55.2355693Z skip https://raw.githubusercontent.com/LuoXiaohei-2025/LX-music-collection/main/Source%20of%20music/fish-music%E9%9F%B3%E6%BA%90.js: no healthy channel
+2026-09-20T15:53:55.3100011Z warning: JS probe runner failed: Node.js v22.23.2
+2026-09-20T15:53:55.3101125Z skip https://raw.githubusercontent.com/MeoProject/lx-music-api-server/6cf2c74cc7de4f3d05cc423699577457dc754be9/static/lx-source.js: no healthy channel
+2026-09-20T15:53:55.3579988Z warning: JS probe runner failed:     at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-09-20T15:53:55.3581600Z skip https://raw.githubusercontent.com/SunWu-null/z-music/08b5fb55811f7246033f6bd71afd9e98c5cab9d7/server/src/router/music-source.router.js: no healthy channel
+2026-09-20T15:54:10.8189488Z JS probe returned no healthy channel: {"wy": "Invalid search response", "kw": "Invalid search response", "kg": "Invalid search response", "tx": "Invalid search response"}
+2026-09-20T15:54:10.8192025Z skip https://raw.githubusercontent.com/fly-fish76/lx-source/main/sources/gdstudio%E9%9F%B3%E4%B9%90%E6%BA%90.js: no healthy channel
+2026-09-20T15:54:11.0187413Z warning: JS probe runner failed: Node.js v22.23.2
+2026-09-20T15:54:11.0189372Z skip https://raw.githubusercontent.com/fly-fish76/lx-source/main/sources/ikun%E9%9F%B3%E6%BA%90.js: no healthy channel
+2026-09-20T15:55:15.4837452Z warning: JS probe runner failed: Node.js v22.23.2
+2026-09-20T15:55:15.4838933Z skip https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/V260716/%E5%85%B6%E4%BB%96/hywV1.0.0.js: no healthy channel
+2026-09-20T15:56:48.1723591Z warning: JS probe runner failed:     at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-09-20T15:56:48.1725724Z skip https://raw.githubusercontent.com/jia070310/lemon-muisc/78a760dd078d7329d30f80c24cb78ca962ca4318/server/sourceManager.js: no healthy channel
+2026-09-20T15:56:48.2226760Z warning: JS probe runner failed:     at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-09-20T15:56:48.2228918Z skip https://raw.githubusercontent.com/lyswhut/lx-music-source/55eb9881dad6ca895505352f3a0a7d1dfa3444e0/webpack.config.js: no healthy channel
+2026-09-20T15:56:48.4288704Z warning: JS probe runner failed: Node.js v22.23.2
+2026-09-20T15:56:48.4289706Z skip https://raw.githubusercontent.com/pdone/lx-music-source/489a2e36ecb8b7c4a58ae45d8a1918c0c0591da1/ikun/22.js: no healthy channel
+2026-09-20T15:56:48.7388055Z warning: JS probe runner failed: Node.js v22.23.2
+2026-09-20T15:56:48.7389426Z skip https://raw.githubusercontent.com/pdone/lx-music-source/489a2e36ecb8b7c4a58ae45d8a1918c0c0591da1/ikun/6.js: no healthy channel
+2026-09-20T15:56:48.8343020Z warning: JS probe runner failed: Node.js v22.23.2
+2026-09-20T15:56:48.8344616Z skip https://raw.githubusercontent.com/pdone/lx-music-source/489a2e36ecb8b7c4a58ae45d8a1918c0c0591da1/ikun/latest.js: no healthy channel
+2026-09-20T15:56:52.0007827Z warning: JS probe runner failed:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-09-20T15:56:52.0009281Z skip https://raw.githubusercontent.com/pdone/lx-music-source/489a2e36ecb8b7c4a58ae45d8a1918c0c0591da1/lx/2.js: no healthy channel
+2026-09-20T15:56:55.1503787Z warning: JS probe runner failed:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+2026-09-20T15:56:55.1506109Z skip https://raw.githubusercontent.com/pdone/lx-music-source/489a2e36ecb8b7c4a58ae45d8a1918c0c0591da1/lx/3.js: no healthy channel
+2026-09-20T15:56:55.6287503Z warning: JS probe runner failed: Node.js v22.23.2
+2026-09-20T15:56:55.6288675Z skip https://raw.githubusercontent.com/pdone/lx-music-source/main/ikun/latest.js: no healthy channel
+2026-09-20T15:56:55.9846237Z warning: JS probe runner failed:     at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+2026-09-20T15:56:55.9848315Z skip https://raw.githubusercontent.com/redcatH/HollyMusic/bb7566535fc66e03e0d2b7016df6beb873228773/lx-env-simulator/index.js: no healthy channel
+2026-09-20T15:56:56.6020308Z GitHub code search found 11 candidate URLs from 26 files
+2026-09-20T15:56:56.6021657Z public repository search found 9 candidate URLs from 30 files in 12 repositories
+2026-09-20T15:56:56.6022790Z search engine found 0 candidate URLs from 0 files
+2026-09-20T15:56:56.6024103Z candidate sources: existing=4 file=39 env=0 code_search=11 repository_search=9 search_engine=0
+2026-09-20T15:56:56.6024898Z validating 61 candidate source URLs
+2026-09-20T15:56:56.6025920Z wrote 7 verified sources to /home/runner/work/Cool-Music/Cool-Music/docs/online-sources.json
+2026-09-20T15:56:56.6192256Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:56:56.6193555Z ##[group]Run actions/upload-artifact@v4
+2026-09-20T15:56:56.6193813Z with:
+2026-09-20T15:56:56.6194006Z   name: lx-source-registry
+2026-09-20T15:56:56.6194248Z   path: docs/online-sources.json
+2026-09-20T15:56:56.6194500Z   if-no-files-found: error
+2026-09-20T15:56:56.6194724Z   retention-days: 1
+2026-09-20T15:56:56.6194933Z   compression-level: 6
+2026-09-20T15:56:56.6195150Z   overwrite: false
+2026-09-20T15:56:56.6195359Z   include-hidden-files: false
+2026-09-20T15:56:56.6195585Z env:
+2026-09-20T15:56:56.6195834Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:56:56.6196293Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-09-20T15:56:56.6196713Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:56:56.6197314Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:56:56.6197794Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-09-20T15:56:56.6198193Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-09-20T15:56:56.6198512Z ##[endgroup]
+2026-09-20T15:56:56.7908871Z (node:2755) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-20T15:56:56.7910413Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-20T15:56:56.7957860Z With the provided path, there will be 1 file uploaded
+2026-09-20T15:56:56.7964418Z Artifact name is valid!
+2026-09-20T15:56:56.7965401Z Root directory input is valid!
+2026-09-20T15:56:57.0356265Z Beginning upload of artifact content to blob storage
+2026-09-20T15:56:57.0547354Z (node:2755) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-09-20T15:56:57.1562040Z Uploaded bytes 936
+2026-09-20T15:56:57.1916821Z Finished uploading artifact content to blob storage!
+2026-09-20T15:56:57.1918855Z SHA256 digest of uploaded artifact zip is aa2b104279cd1ec6c2bf39a612645128514c70c865231d402aad4198c9004c8d
+2026-09-20T15:56:57.1920317Z Finalizing artifact upload
+2026-09-20T15:56:57.3905391Z Artifact lx-source-registry.zip successfully finalized. Artifact ID 10608495631
+2026-09-20T15:56:57.3907931Z Artifact lx-source-registry has been successfully uploaded! Final size is 936 bytes. Artifact ID is 10608495631
+2026-09-20T15:56:57.3913625Z Artifact download URL: https://github.com/octagoningly/Cool-Music/actions/runs/35520931512/artifacts/10608495631
+2026-09-20T15:56:57.4103389Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:56:57.4104656Z Post job cleanup.
+2026-09-20T15:56:57.5362415Z (node:2768) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-20T15:56:57.5364374Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-20T15:56:57.5550446Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:56:57.5551714Z Post job cleanup.
+2026-09-20T15:56:57.6936718Z (node:2776) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-20T15:56:57.6938664Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-20T15:56:57.7116899Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-20T15:56:57.7119361Z Post job cleanup.
+2026-09-20T15:56:57.8024990Z [command]/usr/bin/git version
+2026-09-20T15:56:57.8074902Z git version 2.55.0
+2026-09-20T15:56:57.8115355Z Temporarily overriding HOME='/home/runner/work/_temp/37e10c9f-8073-43e7-bf74-867faced2743' before making global git config changes
+2026-09-20T15:56:57.8117312Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-20T15:56:57.8120936Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Cool-Music/Cool-Music
+2026-09-20T15:56:57.8162179Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-20T15:56:57.8198668Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-20T15:56:57.8457615Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-20T15:56:57.8500799Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-20T15:56:57.8766246Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-20T15:56:57.8806361Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-20T15:56:57.9214211Z Cleaning up orphan processes
+2026-09-20T15:56:57.9609905Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/setup-python@v5, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

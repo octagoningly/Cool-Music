@@ -511,10 +511,15 @@ private fun LxSourceRegistryDialog(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (generatedAt.isNotBlank()) {
+                    val displayTime = runCatching {
+                        val utcTime = java.time.Instant.parse(generatedAt)
+                        val localTime = utcTime.atZone(java.time.ZoneId.of("Asia/Shanghai"))
+                        localTime.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    }.getOrElse { generatedAt }
                     Text(
                         text = stringResource(
                             R.string.lx_source_registry_generated_at,
-                            generatedAt
+                            displayTime
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

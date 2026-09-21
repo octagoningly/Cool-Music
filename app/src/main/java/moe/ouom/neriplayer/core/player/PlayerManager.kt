@@ -151,6 +151,7 @@ import moe.ouom.neriplayer.core.player.playback.handleTrackEndedIfNeededImpl
 import moe.ouom.neriplayer.core.player.playback.nextImpl
 import moe.ouom.neriplayer.core.player.playback.pauseImpl
 import moe.ouom.neriplayer.core.player.quality.effectiveBiliQuality
+import moe.ouom.neriplayer.core.player.quality.effectiveLxQuality
 import moe.ouom.neriplayer.core.player.quality.effectiveNeteaseQuality
 import moe.ouom.neriplayer.core.player.quality.effectiveYouTubeQuality
 import moe.ouom.neriplayer.core.player.playback.PlaybackStatsSnapshot
@@ -381,6 +382,7 @@ object PlayerManager {
     internal var neteaseQualityRefreshJob: Job? = null
     internal var youtubeQualityRefreshJob: Job? = null
     internal var biliQualityRefreshJob: Job? = null
+    internal var customLxQualityRefreshJob: Job? = null
     internal var playbackStatsPersistJob: Job? = null
     internal val playbackStatsPersistLock = Any()
 
@@ -405,6 +407,11 @@ object PlayerManager {
             field = value
             publishPreferredQualityKeys()
         }
+    internal var lxPreferredQuality: String = "320k"
+        set(value) {
+            field = value
+            publishPreferredQualityKeys()
+        }
 
     private val _preferredQualityKeys = MutableStateFlow(PreferredQualityKeys())
 
@@ -421,7 +428,8 @@ object PlayerManager {
         _preferredQualityKeys.value = PreferredQualityKeys(
             netease = preferredQuality,
             youtube = youtubePreferredQuality,
-            bili = biliPreferredQuality
+            bili = biliPreferredQuality,
+            lx = lxPreferredQuality
         )
     }
     internal var mobileDataFollowDefaultAudioQuality = true
@@ -1794,8 +1802,8 @@ object PlayerManager {
                 PlaybackAudioSource.NETEASE -> settingsRepo.setAudioQuality(normalizedKey)
                 PlaybackAudioSource.BILIBILI -> settingsRepo.setBiliAudioQuality(normalizedKey)
                 PlaybackAudioSource.YOUTUBE_MUSIC -> settingsRepo.setYouTubeAudioQuality(normalizedKey)
-                PlaybackAudioSource.LOCAL,
-                PlaybackAudioSource.CUSTOM_LX -> Unit
+                PlaybackAudioSource.LOCAL -> Unit
+                PlaybackAudioSource.CUSTOM_LX -> settingsRepo.setLxAudioQuality(normalizedKey)
             }
         }
     }
@@ -2005,8 +2013,8 @@ object PlayerManager {
             PlaybackAudioSource.NETEASE -> ::neteaseQualityRefreshJob
             PlaybackAudioSource.YOUTUBE_MUSIC -> ::youtubeQualityRefreshJob
             PlaybackAudioSource.BILIBILI -> ::biliQualityRefreshJob
-            PlaybackAudioSource.LOCAL,
-            PlaybackAudioSource.CUSTOM_LX -> return
+            PlaybackAudioSource.CUSTOM_LX -> ::customLxQualityRefreshJob
+            PlaybackAudioSource.LOCAL -> return
         }
         targetJob.get()?.cancel()
         targetJob.set(
@@ -2391,7 +2399,10 @@ object PlayerManager {
         youtubeQualityOverride: String? = null,
         youtubePreferM4aOverride: Boolean? = null
     ): String {
+        val currentSource = _currentPlaybackAudioInfo.value?.source
         return when {
+            currentSource == PlaybackAudioSource.CUSTOM_LX ->
+                "lx-${song.id}-${effectiveLxQuality()}"
             isLocalSong(song) -> "local-${song.stableKey().hashCode()}"
             isYouTubeMusicTrack(song) -> {
                 val videoId = song.audioId ?: extractYouTubeMusicVideoId(song.mediaUri).orEmpty()

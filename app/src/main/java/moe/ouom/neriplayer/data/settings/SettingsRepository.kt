@@ -141,6 +141,9 @@ class SettingsRepository(private val context: Context) {
     val biliAudioQualityFlow: Flow<String> =
         dataStoreSettingFlow { it[SettingsKeys.BILI_AUDIO_QUALITY] ?: "high" }
 
+    val lxAudioQualityFlow: Flow<String> =
+        dataStoreSettingFlow { it[SettingsKeys.LX_AUDIO_QUALITY] ?: "320k" }
+
     val mobileDataFollowDefaultAudioQualityFlow: Flow<Boolean> =
         dataStoreSettingFlow { prefs ->
             prefs[SettingsKeys.MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY]
@@ -677,6 +680,11 @@ class SettingsRepository(private val context: Context) {
     suspend fun setBiliAudioQuality(value: String) {
         context.dataStore.edit { it[SettingsKeys.BILI_AUDIO_QUALITY] = value }
         updatePlaybackPreferenceSnapshot(context) { it.copy(biliAudioQuality = value) }
+    }
+
+    suspend fun setLxAudioQuality(value: String) {
+        context.dataStore.edit { it[SettingsKeys.LX_AUDIO_QUALITY] = value }
+        updatePlaybackPreferenceSnapshot(context) { it.copy(lxAudioQuality = value) }
     }
 
     suspend fun setMobileDataFollowDefaultAudioQuality(enabled: Boolean) {

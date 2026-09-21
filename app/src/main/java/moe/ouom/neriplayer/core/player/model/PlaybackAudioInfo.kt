@@ -132,7 +132,8 @@ fun inferYouTubeQualityKeyFromBitrate(bitrateKbps: Int?): String {
 data class PreferredQualityKeys(
     val netease: String = "exhigh",
     val youtube: String = "high",
-    val bili: String = "high"
+    val bili: String = "high",
+    val lx: String = "320k"
 )
 
 fun PreferredQualityKeys.forSource(source: PlaybackAudioSource): String? {
@@ -140,7 +141,7 @@ fun PreferredQualityKeys.forSource(source: PlaybackAudioSource): String? {
         PlaybackAudioSource.NETEASE -> netease
         PlaybackAudioSource.YOUTUBE_MUSIC -> youtube
         PlaybackAudioSource.BILIBILI -> bili
-        PlaybackAudioSource.LOCAL,
-        PlaybackAudioSource.CUSTOM_LX -> null
+        PlaybackAudioSource.CUSTOM_LX -> lx
+        PlaybackAudioSource.LOCAL -> null
     }
 }

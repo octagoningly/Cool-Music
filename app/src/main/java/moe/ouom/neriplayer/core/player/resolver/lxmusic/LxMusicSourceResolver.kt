@@ -11,6 +11,7 @@ import moe.ouom.neriplayer.core.player.model.PlaybackAudioSource
 import moe.ouom.neriplayer.core.player.model.PlaybackQualityOption
 import moe.ouom.neriplayer.core.player.model.SongUrlResult
 import moe.ouom.neriplayer.core.player.quality.effectiveNeteaseQuality
+import moe.ouom.neriplayer.core.player.quality.effectiveLxQuality
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.data.model.stableKey
 import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
@@ -20,6 +21,7 @@ import moe.ouom.neriplayer.data.source.lxmusic.inferLxMimeType
 import moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceEngine
 import moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceRuntime
 import moe.ouom.neriplayer.data.source.lxmusic.mapNeteaseQualityToLxOrder
+import moe.ouom.neriplayer.data.source.lxmusic.mapLxQualityToNeteaseKey
 import moe.ouom.neriplayer.data.source.lxmusic.normalizeLxQualityLabel
 import org.json.JSONArray
 import org.json.JSONObject
@@ -129,7 +131,8 @@ internal suspend fun PlayerManager.tryResolveLxMusicCustomSource(
     }
     LxAttemptGuard.record(songKey, nowMs)
 
-    val preferredNeteaseQuality = effectiveNeteaseQuality()
+    val preferredNeteaseQuality = effectiveLxQuality()
+        .let { mapLxQualityToNeteaseKey(it) ?: effectiveNeteaseQuality() }
     LxJsSourceEngine.clearFailureReasons()
     NPLogger.d(
         TAG,

@@ -1724,6 +1724,24 @@ object AutoSettingsSchema {
             iconRes = R.drawable.ic_bilibili
         )
 
+        @AutoSetting(order = 136)
+        val lxSourceCoverFallbackEnabled = autoSwitchSetting(
+            key = "lx_source_cover_fallback_enabled",
+            defaultValue = true,
+            titleRes = R.string.settings_lx_source_cover_fallback,
+            descriptionRes = R.string.settings_lx_source_cover_fallback_desc,
+            icon = AutoSettingIcon.Wallpaper
+        )
+
+        @AutoSetting(order = 139)
+        val lxSourceLyricsFallbackEnabled = autoSwitchSetting(
+            key = "lx_source_lyrics_fallback_enabled",
+            defaultValue = true,
+            titleRes = R.string.settings_lx_source_lyrics_fallback,
+            descriptionRes = R.string.settings_lx_source_lyrics_fallback_desc,
+            icon = AutoSettingIcon.Subtitles
+        )
+
         @AutoSetting(
             key = "netease_local_source_fallback",
             type = SettingValueType.Boolean,

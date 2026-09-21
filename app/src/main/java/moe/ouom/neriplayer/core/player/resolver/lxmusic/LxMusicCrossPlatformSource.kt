@@ -213,7 +213,12 @@ private fun JSONObject.toLxCrossPlatformHit(): LxCrossPlatformHit? {
         name = name,
         artist = decodeLxHtmlEntities(optString("ARTIST")).trim(),
         durationSec = optString("DURATION").trim().toIntOrNull() ?: 0,
-        albumName = decodeLxHtmlEntities(optString("ALBUM")).trim()
+        albumName = decodeLxHtmlEntities(optString("ALBUM")).trim(),
+        coverUrl = sequenceOf("PIC", "pic", "IMG", "img", "ALBUMPIC", "albumpic")
+            .map { key -> optString(key) }
+            .firstOrNull { it.isNotBlank() }
+            ?.let { normalizeLxCoverUrl(it) }
+            ?: normalizeLxCoverUrl(optString("DC_TARGETPIC"))
     )
 }
 
@@ -238,7 +243,11 @@ private fun parseLxKuwoSearchLoose(body: String): List<LxCrossPlatformHit> {
             name = name,
             artist = block.lxField("ARTIST")?.let(::decodeLxHtmlEntities).orEmpty().trim(),
             durationSec = block.lxField("DURATION")?.trim()?.toIntOrNull() ?: 0,
-            albumName = block.lxField("ALBUM")?.let(::decodeLxHtmlEntities).orEmpty().trim()
+            albumName = block.lxField("ALBUM")?.let(::decodeLxHtmlEntities).orEmpty().trim(),
+            coverUrl = listOf("PIC", "pic", "IMG", "img", "DC_TARGETPIC")
+                .mapNotNull { key -> block.lxField(key) }
+                .firstOrNull { it.isNotBlank() }
+                ?.let { normalizeLxCoverUrl(it) }
         )
     }.distinctBy { it.songMid }
 }
@@ -463,6 +472,14 @@ internal fun parseLxKugouSearchBody(body: String): List<LxCrossPlatformHit> {
                     item.optString("ResFileHash").takeIf { it.isNotBlank() }?.let { put("flac24bit", it) }
                 }
                 if (qualityHashes.isEmpty()) continue
+                val albumId = item.optString("AlbumID").trim()
+                val coverUrl = sequenceOf("Image", "image", "Pic", "pic", "AlbumCover", "albumCover")
+                    .map { key -> item.optString(key) }
+                    .firstOrNull { it.isNotBlank() }
+                    ?.let { raw ->
+                        normalizeLxCoverUrl(raw)
+                            ?: normalizeLxCoverUrl("//imge.kugou.com/softmusic/product/240/$raw.jpg")
+                    }
                 add(
                     LxCrossPlatformHit(
                         sourceId = LX_KUGOU_PLATFORM_ID,
@@ -472,8 +489,9 @@ internal fun parseLxKugouSearchBody(body: String): List<LxCrossPlatformHit> {
                         artist = parseLxKugouSingers(item.optJSONArray("Singers")),
                         durationSec = item.optString("Duration").trim().toIntOrNull() ?: 0,
                         albumName = decodeLxHtmlEntities(item.optString("AlbumName")).trim(),
-                        albumId = item.optString("AlbumID").trim(),
-                        qualityHashes = qualityHashes
+                        albumId = albumId,
+                        qualityHashes = qualityHashes,
+                        coverUrl = coverUrl
                     )
                 )
             }
@@ -519,6 +537,16 @@ internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
                     .ifBlank { decodeLxHtmlEntities(item.optString("songname")).trim() }
                 if (title.isBlank()) continue
                 val albumObj = item.optJSONObject("album")
+                val albumMid = sequenceOf("mid", "pmid")
+                    .map { key -> albumObj?.optString(key).orEmpty() }
+                    .firstOrNull { it.isNotBlank() }
+                    .orEmpty()
+                val albumCover = sequenceOf("pic", "picUrl", "cover")
+                    .map { key -> albumObj?.optString(key).orEmpty() }
+                    .firstOrNull { it.isNotBlank() }
+                    ?.let { normalizeLxCoverUrl(it) }
+                    ?: albumMid.takeIf { it.isNotBlank() }
+                        ?.let { "https://y.qq.com/music/photo_new/T002R300x300M000${it}.jpg" }
                 add(
                     LxCrossPlatformHit(
                         sourceId = LX_QQ_PLATFORM_ID,
@@ -534,6 +562,8 @@ internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
                             .takeIf { it > 0L }
                             ?.toString()
                             .orEmpty()
+                            .ifBlank { albumMid },
+                        coverUrl = albumCover
                     )
                 )
             }

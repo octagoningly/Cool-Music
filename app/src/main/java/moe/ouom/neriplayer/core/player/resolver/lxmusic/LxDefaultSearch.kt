@@ -20,6 +20,7 @@ internal data class LxDefaultSearchPage(
 
 internal suspend fun searchLxDefaultSongs(keyword: String, page: Int): LxDefaultSearchPage = coroutineScope {
     val platforms = LX_CROSS_PLATFORM_ORDER + LX_NETEASE_PLATFORM_ID
+    val useSourceCover = isLxSourceCoverFallbackEnabled()
     val results = platforms.map { platform ->
         async {
             try {
@@ -43,7 +44,9 @@ internal suspend fun searchLxDefaultSongs(keyword: String, page: Int): LxDefault
         }
     }.map { it.await() }
     LxDefaultSearchPage(
-        songs = results.flatten().distinctBy { "${it.sourceId}|${it.songMid}" }.map(::toLxSongItem),
+        songs = results.flatten()
+            .distinctBy { "${it.sourceId}|${it.songMid}" }
+            .map { hit -> toLxSongItem(hit, useSourceCover) },
         hasMore = results.any { it.size >= LX_DEFAULT_SEARCH_PAGE_SIZE }
     )
 }
@@ -63,7 +66,10 @@ private fun neteaseSearchHit(item: SongSearchInfo): LxCrossPlatformHit? {
     )
 }
 
-internal fun toLxSongItem(hit: LxCrossPlatformHit): SongItem {
+internal fun toLxSongItem(
+    hit: LxCrossPlatformHit,
+    useSourceCover: Boolean = true
+): SongItem {
     val platform = hit.sourceId
     require(platform in LX_CROSS_PLATFORM_ORDER || platform == LX_NETEASE_PLATFORM_ID)
     require(hit.songMid.isNotBlank())
@@ -72,6 +78,13 @@ internal fun toLxSongItem(hit: LxCrossPlatformHit): SongItem {
     } else {
         null
     } ?: ("$platform|${hit.songMid}".hashCode().toLong() and 0xffffffffL) + 1L
+    val coverUrl = if (platform == LX_NETEASE_PLATFORM_ID) {
+        normalizeLxCoverUrl(hit.coverUrl)
+    } else if (useSourceCover) {
+        lxSourceCoverUrlFromHit(hit)
+    } else {
+        null
+    }
     return SongItem(
         id = numericId,
         name = hit.name,
@@ -79,7 +92,8 @@ internal fun toLxSongItem(hit: LxCrossPlatformHit): SongItem {
         album = hit.albumName,
         albumId = hit.albumId.toLongOrNull() ?: 0L,
         durationMs = hit.durationSec.coerceAtLeast(0) * 1000L,
-        coverUrl = hit.coverUrl,
+        coverUrl = coverUrl,
+        originalCoverUrl = coverUrl,
         channelId = "$LX_SEARCH_CHANNEL_PREFIX$platform",
         audioId = hit.songMid,
         subAudioId = hit.qualityHashes.takeIf { it.isNotEmpty() }?.let { JSONObject(it).toString() }

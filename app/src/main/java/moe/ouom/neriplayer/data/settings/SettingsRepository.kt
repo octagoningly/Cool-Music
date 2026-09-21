@@ -527,6 +527,12 @@ class SettingsRepository(private val context: Context) {
     val neteaseAutoSourceSwitchFlow: Flow<Boolean> =
         dataStoreSettingFlow { it[SettingsKeys.NETEASE_AUTO_SOURCE_SWITCH] ?: false }
 
+    val lxSourceCoverFallbackEnabledFlow: Flow<Boolean> =
+        autoSettingsRepository.lxSourceCoverFallbackEnabledFlow
+
+    val lxSourceLyricsFallbackEnabledFlow: Flow<Boolean> =
+        autoSettingsRepository.lxSourceLyricsFallbackEnabledFlow
+
     val neteaseLocalSourceFallbackFlow: Flow<Boolean> =
         dataStoreSettingFlow { it[SettingsKeys.NETEASE_LOCAL_SOURCE_FALLBACK] ?: false }
 
@@ -1259,6 +1265,14 @@ class SettingsRepository(private val context: Context) {
         updatePlaybackPreferenceSnapshot(context) {
             it.copy(neteaseAutoSourceSwitch = enabled)
         }
+    }
+
+    suspend fun setLxSourceCoverFallbackEnabled(enabled: Boolean) {
+        autoSettingsRepository.setLxSourceCoverFallbackEnabled(enabled)
+    }
+
+    suspend fun setLxSourceLyricsFallbackEnabled(enabled: Boolean) {
+        autoSettingsRepository.setLxSourceLyricsFallbackEnabled(enabled)
     }
 
     suspend fun setNeteaseLocalSourceFallback(enabled: Boolean) {

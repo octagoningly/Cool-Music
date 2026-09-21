@@ -49,6 +49,7 @@ import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicClient
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.player.download.AudioDownloadManager
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.fetchLxSourceLyric
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.isLxSourceLyricsFallbackEnabled
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.lxNeteaseLyricsIdOrNull
 import moe.ouom.neriplayer.data.local.media.LocalMediaSupport
 import moe.ouom.neriplayer.data.local.media.isLocalSong
@@ -1081,6 +1082,13 @@ internal object PlayerLyricsProvider {
 
             val platformLyrics = when {
                 song.channelId?.startsWith("lx:") == true -> {
+                    val useSourceLyrics = isLxSourceLyricsFallbackEnabled()
+                    if (useSourceLyrics) {
+                        val fromSource = loadLxSourceLyrics(song)
+                        if (fromSource.isNotEmpty() && !isPlaceholderLyrics(fromSource)) {
+                            return@withContext fromSource
+                        }
+                    }
                     song.lxNeteaseLyricsIdOrNull()?.let { id ->
                         getNeteaseLyrics(id, neteaseClient, neteaseLyricsCache)
                     } ?: emptyList()
@@ -1113,7 +1121,11 @@ internal object PlayerLyricsProvider {
                 return@withContext resolvedPlatformLyrics
             }
             // 平台与 AMLL 都没有可用歌词时，从 QQ→酷狗公开歌词接口同步一份
-            loadLxSourceLyrics(song).ifEmpty { resolvedPlatformLyrics }
+            if (isLxSourceLyricsFallbackEnabled()) {
+                loadLxSourceLyrics(song).ifEmpty { resolvedPlatformLyrics }
+            } else {
+                resolvedPlatformLyrics
+            }
         }
     }
 

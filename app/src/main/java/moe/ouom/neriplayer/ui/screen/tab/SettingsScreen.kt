@@ -71,6 +71,7 @@ import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.ZoomInMap
@@ -1936,6 +1937,78 @@ fun SettingsScreen(
                             onHighlightFinished = onSettingsHighlightFinished,
                             onClick = {
                                 onNeteaseAutoSourceSwitchChange(!neteaseAutoSourceSwitch)
+                            }
+                        )
+                        val lxSourceCoverFallback by autoSettingsRepository
+                            .lxSourceCoverFallbackEnabledFlow
+                            .collectAsState(initial = true)
+                        val lxSourceLyricsFallback by autoSettingsRepository
+                            .lxSourceLyricsFallbackEnabledFlow
+                            .collectAsState(initial = true)
+                        AutoSettingsListItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.LX_SOURCE_COVER_FALLBACK_ENABLED
+                            ),
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Wallpaper,
+                                    contentDescription = stringResource(
+                                        R.string.settings_lx_source_cover_fallback
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            trailingContent = {
+                                MiuixSettingsSwitch(
+                                    checked = lxSourceCoverFallback,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            autoSettingsRepository.setLxSourceCoverFallbackEnabled(enabled)
+                                        }
+                                    }
+                                )
+                            },
+                            highlightTargetId = settingsHighlightTargetId,
+                            highlightPulse = settingsHighlightPulse,
+                            onHighlightFinished = onSettingsHighlightFinished,
+                            onClick = {
+                                scope.launch {
+                                    autoSettingsRepository.setLxSourceCoverFallbackEnabled(!lxSourceCoverFallback)
+                                }
+                            }
+                        )
+                        AutoSettingsListItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.LX_SOURCE_LYRICS_FALLBACK_ENABLED
+                            ),
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Subtitles,
+                                    contentDescription = stringResource(
+                                        R.string.settings_lx_source_lyrics_fallback
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            trailingContent = {
+                                MiuixSettingsSwitch(
+                                    checked = lxSourceLyricsFallback,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            autoSettingsRepository.setLxSourceLyricsFallbackEnabled(enabled)
+                                        }
+                                    }
+                                )
+                            },
+                            highlightTargetId = settingsHighlightTargetId,
+                            highlightPulse = settingsHighlightPulse,
+                            onHighlightFinished = onSettingsHighlightFinished,
+                            onClick = {
+                                scope.launch {
+                                    autoSettingsRepository.setLxSourceLyricsFallbackEnabled(!lxSourceLyricsFallback)
+                                }
                             }
                         )
                     }

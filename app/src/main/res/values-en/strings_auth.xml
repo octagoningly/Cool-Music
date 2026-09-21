@@ -62,6 +62,10 @@
     <string name="auth_cookie_empty">Cookie is empty</string>
     <string name="settings_netease_auto_source_switch">NetEase Auto Source Switch</string>
     <string name="settings_netease_auto_source_switch_desc">Off by default. When enabled, search Bilibili automatically when a NetEase song is unavailable or only returns a preview clip.</string>
+    <string name="settings_lx_source_cover_fallback">Source cover</string>
+    <string name="settings_lx_source_cover_fallback_desc">When a song has no cover, use the cover returned by the online music source</string>
+    <string name="settings_lx_source_lyrics_fallback">Source lyrics</string>
+    <string name="settings_lx_source_lyrics_fallback_desc">Prefer or fall back to online source lyrics; when off, source lyrics are not requested</string>
     <string name="settings_netease_local_source_fallback">Local Audio Fallback</string>
     <string name="settings_netease_local_source_fallback_desc">Off by default. When enabled, prefer a local audio file matched to the same song when a NetEase song is unavailable or only returns a preview clip.</string>
     <string name="lx_source_manage_title">Online Music Sources</string>

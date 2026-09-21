@@ -11,6 +11,13 @@
     <string name="cached_songs_no_results">No matching songs</string>
     <string name="cached_songs_complete">Fully cached</string>
     <string name="cached_songs_partial">Partially cached</string>
+    <string name="cached_songs_unrecognized">Not listed: %1$s across %2$d cache resources</string>
+    <string name="cached_songs_other_disk">Other files in cache folder: %1$s</string>
+    <string name="cached_songs_group_lx">Third-party source</string>
+    <string name="cached_songs_group_bili_fallback">Bilibili fallback</string>
+    <string name="cached_songs_group_shared">Shared listening stream</string>
+    <string name="cached_songs_group_url">Direct URL</string>
+    <string name="cached_songs_group_other">Other cache</string>
     <string name="local_files_manual_added">Manually Added</string>
     <string name="local_files_downloaded">Downloaded</string>
     <string name="local_files_delete_downloaded_title">Delete Downloaded Songs</string>

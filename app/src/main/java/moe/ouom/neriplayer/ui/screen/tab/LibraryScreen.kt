@@ -146,6 +146,7 @@ import moe.ouom.neriplayer.ui.viewmodel.tab.toBiliPlaylist
 import moe.ouom.neriplayer.data.local.playlist.system.FavoritesPlaylist
 import moe.ouom.neriplayer.data.local.playlist.system.LocalFilesPlaylist
 import moe.ouom.neriplayer.core.player.cache.cachedSongsSnapshot
+import moe.ouom.neriplayer.core.player.cache.CachedSongsSnapshot
 import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.data.local.playlist.model.LocalArtistSummary
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
@@ -1256,9 +1257,9 @@ private fun LocalPlaylistList(
     offlineMode: Boolean
 ) {
     val context = LocalContext.current
-    val cachedSongs by produceState(initialValue = emptyList<moe.ouom.neriplayer.core.player.cache.CachedSong>()) {
+    val cachedSnapshot by produceState(initialValue = CachedSongsSnapshot.Empty) {
         while (true) {
-            value = runCatching { PlayerManager.cachedSongsSnapshot() }.getOrDefault(emptyList())
+            value = runCatching { PlayerManager.cachedSongsSnapshot() }.getOrDefault(CachedSongsSnapshot.Empty)
             delay(5_000L)
         }
     }
@@ -2150,8 +2151,8 @@ private fun LocalPlaylistList(
                         supportingContent = {
                             Text(pluralStringResource(
                                 R.plurals.library_song_count,
-                                cachedSongs.size,
-                                cachedSongs.size
+                                cachedSnapshot.songs.size,
+                                cachedSnapshot.songs.size
                             ))
                         },
                         leadingContent = {

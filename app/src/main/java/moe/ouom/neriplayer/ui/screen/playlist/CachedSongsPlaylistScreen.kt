@@ -51,6 +51,8 @@ import kotlinx.coroutines.delay
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.core.player.cache.CachedSong
+import moe.ouom.neriplayer.core.player.cache.CachedSongsSnapshot
+import moe.ouom.neriplayer.core.player.cache.CachedUnrecognizedKind
 import moe.ouom.neriplayer.core.player.cache.cachedSongsSnapshot
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.data.model.displayArtist
@@ -70,12 +72,13 @@ fun CachedSongsPlaylistScreen(
     offlineMode: Boolean
 ) {
     val context = LocalContext.current
-    val cachedSongs by produceState(initialValue = emptyList<CachedSong>()) {
+    val snapshot by produceState(initialValue = CachedSongsSnapshot.Empty) {
         while (true) {
-            value = runCatching { PlayerManager.cachedSongsSnapshot() }.getOrDefault(emptyList())
+            value = runCatching { PlayerManager.cachedSongsSnapshot() }.getOrDefault(CachedSongsSnapshot.Empty)
             delay(3_000L)
         }
     }
+    val cachedSongs = snapshot.songs
     var query by remember { mutableStateOf("") }
     val visibleSongs = remember(cachedSongs, query) {
         if (query.isBlank()) cachedSongs else cachedSongs.filter {
@@ -118,6 +121,45 @@ fun CachedSongsPlaylistScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (snapshot.unrecognizedBytes > 0L) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.cached_songs_unrecognized,
+                                        formatFileSize(snapshot.unrecognizedBytes),
+                                        snapshot.unrecognizedResources
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                snapshot.unrecognizedGroups.entries
+                                    .sortedByDescending { it.value }
+                                    .forEach { (kind, bytes) ->
+                                        val label = when (kind) {
+                                            CachedUnrecognizedKind.LX -> R.string.cached_songs_group_lx
+                                            CachedUnrecognizedKind.BILI_FALLBACK -> R.string.cached_songs_group_bili_fallback
+                                            CachedUnrecognizedKind.SHARED_STREAM -> R.string.cached_songs_group_shared
+                                            CachedUnrecognizedKind.DIRECT_URL -> R.string.cached_songs_group_url
+                                            CachedUnrecognizedKind.OTHER -> R.string.cached_songs_group_other
+                                        }
+                                        Text(
+                                            text = "${stringResource(label)} · ${formatFileSize(bytes)}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                            }
+                        }
+                        if (snapshot.otherDiskBytes > 1024L * 1024L) {
+                            Text(
+                                text = stringResource(
+                                    R.string.cached_songs_other_disk,
+                                    formatFileSize(snapshot.otherDiskBytes)
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
                                 if (playbackSongs.isNotEmpty()) {

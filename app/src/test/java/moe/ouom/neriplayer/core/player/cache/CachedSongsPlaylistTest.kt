@@ -12,6 +12,9 @@ class CachedSongsPlaylistTest {
         assertEquals(123L, legacySongFromKey("netease-123-exhigh-fallback-v1")?.id)
         assertEquals(123L, legacySongFromKey("netease-preview-v1-123-standard")?.id)
         assertEquals(123L, legacySongFromKey("lx-123-lossless")?.id)
+        assertEquals(123L, legacySongFromKey("lxjs-source-9-wy-123-flac")?.id)
+        assertNull(legacySongFromKey("lxjs-source-9-kw-123-flac"))
+        assertNull(legacySongFromKey("lx-123-456-flac"))
     }
 
     @Test
@@ -33,5 +36,22 @@ class CachedSongsPlaylistTest {
     fun `unrelated keys do not become songs`() {
         assertNull(legacySongFromKey("local-123"))
         assertNull(legacySongFromKey("random-cache-key"))
+    }
+
+    @Test
+    fun `unmatched cache keys retain source categories`() {
+        assertEquals(CachedUnrecognizedKind.LX, unrecognizedCacheKind("lx-provider-999-flac"))
+        assertEquals(CachedUnrecognizedKind.BILI_FALLBACK, unrecognizedCacheKind("bili-auto-BV1-2-id-3"))
+        assertEquals(CachedUnrecognizedKind.DIRECT_URL, unrecognizedCacheKind("https://example.com/audio"))
+    }
+
+    @Test
+    fun `LX JS cache prefers a named history song over a placeholder`() {
+        val placeholder = legacySongFromKey("lxjs-source-wy-123-flac")!!
+        val named = placeholder.copy(name = "Real Song", artist = "Singer")
+        assertEquals(
+            "Real Song",
+            matchingKnownCachedSong("lxjs-source-wy-123-flac", listOf(placeholder, named))?.name
+        )
     }
 }

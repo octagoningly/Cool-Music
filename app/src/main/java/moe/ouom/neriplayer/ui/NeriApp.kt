@@ -2402,6 +2402,9 @@ private fun NeriAppContent(
                         settingsTabEntryTick++
                     }
                     selectedMainTabRoute = route
+                } else if (route == Destinations.Settings.route) {
+                    // 再次点击设置 Tab，回到一级页
+                    settingsTabEntryTick++
                 }
                 mainTabTransitionState.request(route)
                 if (

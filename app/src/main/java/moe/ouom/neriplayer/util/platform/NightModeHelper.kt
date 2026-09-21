@@ -40,9 +40,6 @@ object NightModeHelper {
             followSystemDark -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
             else -> AppCompatDelegate.MODE_NIGHT_NO
         }
-        if (AppCompatDelegate.getDefaultNightMode() == mode) {
-            return
-        }
         AppCompatDelegate.setDefaultNightMode(mode)
     }
 }

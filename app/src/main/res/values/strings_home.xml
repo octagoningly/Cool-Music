@@ -41,7 +41,7 @@
     <string name="continue_playing_remove">移除</string>
     <string name="home_title_brand_loud">Cool Music!!</string>
     <string name="home_title_brand_wave">Cool Music~</string>
-    <string name="home_title_brand_call">NeriPlayer</string>
+    <string name="home_title_brand_call">嘿, Cool Music</string>
     <string name="home_all_cards_hidden">首页卡片已全部隐藏，可在设置中重新开启。</string>
     <string name="home_offline_no_continue">网络不佳，推荐内容暂时无法加载。检查网络后会自动刷新。</string>
     <string name="offline_mode_title">网络不佳</string>

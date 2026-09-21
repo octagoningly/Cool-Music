@@ -11,6 +11,8 @@
     <string name="cached_songs_no_results">No matching songs</string>
     <string name="cached_songs_complete">Fully cached</string>
     <string name="cached_songs_partial">Partially cached</string>
+    <string name="cached_songs_offline_ready">Available offline: %1$d songs</string>
+    <string name="cached_songs_partial_offline">Only part of this song is cached; it cannot play offline</string>
     <string name="cached_songs_unrecognized">Not listed: %1$s across %2$d cache resources</string>
     <string name="cached_songs_other_disk">Other files in cache folder: %1$s</string>
     <string name="cached_songs_group_lx">Third-party source</string>

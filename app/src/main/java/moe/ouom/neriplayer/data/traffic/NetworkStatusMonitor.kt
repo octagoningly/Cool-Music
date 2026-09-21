@@ -12,6 +12,14 @@ fun Context.hasLikelyInternetAccess(): Boolean {
 
 fun Context.isOfflineModeNow(): Boolean = !hasLikelyInternetAccess()
 
+fun Context.hasValidatedDefaultInternetAccess(): Boolean = runCatching {
+    val connectivityManager = getSystemService(ConnectivityManager::class.java)
+        ?: return@runCatching false
+    val activeNetwork = connectivityManager.activeNetwork ?: return@runCatching false
+    connectivityManager.getNetworkCapabilities(activeNetwork)
+        ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+}.getOrDefault(false)
+
 fun Context.currentTrafficNetworkType(): TrafficNetworkType {
     val connectivityManager = getSystemService(ConnectivityManager::class.java)
         ?: return TrafficNetworkType.MOBILE

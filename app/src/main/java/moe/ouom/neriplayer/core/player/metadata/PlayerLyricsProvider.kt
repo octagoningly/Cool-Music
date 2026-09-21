@@ -49,6 +49,7 @@ import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicClient
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.player.download.AudioDownloadManager
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.fetchLxSourceLyric
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.lxNeteaseLyricsIdOrNull
 import moe.ouom.neriplayer.data.local.media.LocalMediaSupport
 import moe.ouom.neriplayer.data.local.media.isLocalSong
 import moe.ouom.neriplayer.data.model.stableKey
@@ -858,6 +859,14 @@ internal object PlayerLyricsProvider {
                 )
             }
 
+            if (song.channelId?.startsWith("lx:") == true) {
+                val lyricId = song.lxNeteaseLyricsIdOrNull()
+                return@withContext if (lyricId != null) {
+                    getNeteaseTranslatedLyrics(lyricId, neteaseClient, neteaseLyricsCache)
+                } else {
+                    emptyList()
+                }
+            }
             if (song.album.startsWith(biliSourceTag)) {
                 return@withContext when (song.matchedLyricSource) {
                     MusicPlatform.CLOUD_MUSIC -> {
@@ -927,6 +936,14 @@ internal object PlayerLyricsProvider {
                 return@withContext emptyList()
             }
 
+            if (song.channelId?.startsWith("lx:") == true) {
+                val lyricId = song.lxNeteaseLyricsIdOrNull()
+                return@withContext if (lyricId != null) {
+                    getNeteaseRomanizedLyrics(lyricId, neteaseClient, neteaseLyricsCache)
+                } else {
+                    emptyList()
+                }
+            }
             if (song.album.startsWith(biliSourceTag)) {
                 return@withContext when (song.matchedLyricSource) {
                     MusicPlatform.CLOUD_MUSIC -> {
@@ -1063,6 +1080,11 @@ internal object PlayerLyricsProvider {
             }
 
             val platformLyrics = when {
+                song.channelId?.startsWith("lx:") == true -> {
+                    song.lxNeteaseLyricsIdOrNull()?.let { id ->
+                        getNeteaseLyrics(id, neteaseClient, neteaseLyricsCache)
+                    } ?: emptyList()
+                }
                 song.album.startsWith(biliSourceTag) -> emptyList()
                 song.matchedLyricSource == MusicPlatform.QQ_MUSIC -> emptyList()
                 song.matchedLyricSource == MusicPlatform.CLOUD_MUSIC -> {

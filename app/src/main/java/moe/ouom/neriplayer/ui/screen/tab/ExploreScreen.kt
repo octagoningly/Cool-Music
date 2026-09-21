@@ -237,16 +237,18 @@ internal fun exploreSearchSourceDisplayOrder(
     youtubeEnabled: Boolean
 ): List<SearchSource> {
     return if (!youtubeEnabled) {
-        listOf(SearchSource.NETEASE, SearchSource.BILIBILI, SearchSource.LINK_RECOGNITION)
+        listOf(SearchSource.DEFAULT, SearchSource.NETEASE, SearchSource.BILIBILI, SearchSource.LINK_RECOGNITION)
     } else if (isInternational) {
         listOf(
             SearchSource.YOUTUBE_MUSIC,
+            SearchSource.DEFAULT,
             SearchSource.NETEASE,
             SearchSource.BILIBILI,
             SearchSource.LINK_RECOGNITION
         )
     } else {
         listOf(
+            SearchSource.DEFAULT,
             SearchSource.NETEASE,
             SearchSource.BILIBILI,
             SearchSource.YOUTUBE_MUSIC,
@@ -304,6 +306,7 @@ internal fun shouldShowBiliPartsPicker(song: SongItem): Boolean {
 @Composable
 private fun searchSourceLabel(source: SearchSource): String {
     return when (source) {
+        SearchSource.DEFAULT -> stringResource(R.string.explore_tab_default)
         SearchSource.YOUTUBE_MUSIC -> stringResource(R.string.explore_tab_youtube)
         SearchSource.NETEASE -> stringResource(R.string.platform_netease_short)
         SearchSource.BILIBILI -> stringResource(R.string.platform_bilibili)
@@ -1099,6 +1102,17 @@ fun ExploreScreen(
                     }
                 } else {
                     when (currentSource) {
+                        SearchSource.DEFAULT -> {
+                            NeteaseFeaturedHomeContent(
+                                ui = ui,
+                                favoriteKeys = favoriteKeys,
+                                onPlay = onPlay,
+                                onDiscover = {
+                                    vm.setSearchSource(SearchSource.NETEASE)
+                                    vm.openNeteaseDiscovery()
+                                }
+                            )
+                        }
                         SearchSource.NETEASE -> {
                             NeteaseFeaturedHomeContent(
                                 ui = ui,
@@ -2457,7 +2471,20 @@ internal fun SongRow(
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = song.displayArtist().orEmpty(),
+                text = buildString {
+                    append(song.displayArtist().orEmpty())
+                    val platformLabel = when (song.channelId) {
+                        "lx:kw" -> composeResources.getString(R.string.explore_lx_source_kw)
+                        "lx:kg" -> composeResources.getString(R.string.explore_lx_source_kg)
+                        "lx:tx" -> composeResources.getString(R.string.explore_lx_source_tx)
+                        "lx:wy" -> composeResources.getString(R.string.platform_netease_short)
+                        else -> null
+                    }
+                    if (platformLabel != null) {
+                        if (isNotEmpty()) append(" · ")
+                        append(platformLabel)
+                    }
+                },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall,

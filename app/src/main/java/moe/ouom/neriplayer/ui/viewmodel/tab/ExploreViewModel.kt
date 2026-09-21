@@ -45,6 +45,7 @@ import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager.biliClient
 import moe.ouom.neriplayer.core.player.PlayerManager.neteaseClient
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.searchLxDefaultSongs
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.SongItem
@@ -97,6 +98,7 @@ val TAG_TO_API_CATEGORY = mapOf(
 
 /** 定义搜索源 */
 enum class SearchSource {
+    DEFAULT,
     YOUTUBE_MUSIC,
     NETEASE,
     BILIBILI,
@@ -185,7 +187,7 @@ data class ExploreUiState(
     val searchPage: Int = 0,
     val searchKeyword: String = "",
     val searchDisplayQuery: String = "",
-    val selectedSearchSource: SearchSource = SearchSource.NETEASE,
+    val selectedSearchSource: SearchSource = SearchSource.DEFAULT,
     val selectedNeteaseSearchType: NeteaseExploreSearchType = NeteaseExploreSearchType.SONG,
     val selectedYouTubeMusicSearchType: YouTubeExploreSearchType = YouTubeExploreSearchType.SONG,
     val isNeteaseLoggedIn: Boolean = false,
@@ -478,6 +480,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             "search start: source=$source, request=$requestVersion, keyword=$apiKeyword, display=$matchQuery"
         )
         when (source) {
+            SearchSource.DEFAULT -> searchDefault(apiKeyword, matchQuery, requestVersion)
             SearchSource.NETEASE -> searchNetease(apiKeyword, matchQuery, requestVersion)
             SearchSource.BILIBILI -> searchBilibili(apiKeyword, matchQuery, requestVersion)
             SearchSource.YOUTUBE_MUSIC -> searchYouTubeMusic(apiKeyword, matchQuery, requestVersion)
@@ -519,6 +522,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
                 val result = when (source) {
+                    SearchSource.DEFAULT -> fetchDefaultSearchPage(keyword, matchQuery, nextPage)
                     SearchSource.NETEASE -> fetchNeteaseSearchPage(
                         keyword = keyword,
                         matchQuery = matchQuery,
@@ -563,6 +567,52 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         searchLoadingMore = false,
                         searchLoadMoreError = searchErrorMessage(source, e),
                         searchHasMore = true
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchDefaultSearchPage(
+        keyword: String,
+        matchQuery: String,
+        page: Int
+    ): ExploreSearchFetchResult {
+        val result = searchLxDefaultSongs(keyword, page)
+        return ExploreSearchFetchResult(
+            items = rankExploreSongSearchResults(matchQuery, result.songs)
+                .map(ExploreSearchResult::Song),
+            page = page,
+            hasMore = result.hasMore
+        )
+    }
+
+    private fun searchDefault(keyword: String, matchQuery: String, requestVersion: Long) {
+        searchJob = viewModelScope.launch {
+            try {
+                val result = fetchDefaultSearchPage(keyword, matchQuery, page = 1)
+                updateSearchStateIfCurrent(requestVersion, SearchSource.DEFAULT) {
+                    it.copy(
+                        searching = false,
+                        searchError = null,
+                        searchResults = result.songs,
+                        searchItems = result.items,
+                        searchPage = result.page,
+                        searchHasMore = result.hasMore
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                NPLogger.e(TAG, "default search failed: keyword=$keyword", error)
+                updateSearchStateIfCurrent(requestVersion, SearchSource.DEFAULT) {
+                    it.copy(
+                        searching = false,
+                        searchError = searchErrorMessage(SearchSource.DEFAULT, error),
+                        searchResults = emptyList(),
+                        searchItems = emptyList(),
+                        searchHasMore = false,
+                        searchPage = 0
                     )
                 }
             }
@@ -1511,6 +1561,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     private fun searchErrorMessage(source: SearchSource, error: Exception): String {
         val fallback = error.message ?: app.getString(R.string.github_sync_failed_message)
         return when (source) {
+            SearchSource.DEFAULT -> app.getString(R.string.error_search_failed, fallback)
             SearchSource.NETEASE -> app.getString(R.string.error_netease_search, fallback)
             SearchSource.BILIBILI -> app.getString(R.string.error_bilibili_search, fallback)
             SearchSource.YOUTUBE_MUSIC -> app.getString(R.string.error_youtube_search, fallback)

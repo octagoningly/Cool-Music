@@ -21,6 +21,7 @@ class ExploreScreenYouTubeGateTest {
         assertFalse(sources.contains(SearchSource.YOUTUBE_MUSIC))
         assertEquals(
             listOf(
+                SearchSource.DEFAULT,
                 SearchSource.NETEASE,
                 SearchSource.BILIBILI,
                 SearchSource.LINK_RECOGNITION

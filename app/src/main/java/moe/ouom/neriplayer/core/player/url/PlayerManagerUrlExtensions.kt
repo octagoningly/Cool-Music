@@ -251,6 +251,12 @@ internal suspend fun PlayerManager.resolveSongUrl(
                 preferredQualityKey = listenTogetherPreferredQualityKey(song)
             )
         }
+    if (song.channelId?.startsWith("lx:") == true) {
+        sideEffects.emitError {
+            postPlayerEvent(PlayerEvent.ShowError(getLocalizedString(R.string.error_no_play_url)))
+        }
+        return SongUrlResult.Failure
+    }
 
     val localResult = checkLocalCache(song, sideEffects)
     if (localResult != null) {

@@ -96,6 +96,7 @@ internal data class LxCrossPlatformHit(
     val durationSec: Int,
     val albumName: String,
     val albumId: String = "",
+    val coverUrl: String? = null,
     /**
      * 平台专有：酷狗按音质档位区分的文件 hash。
      * 音源站的酷狗通道实际按 hash 取流，缺了它只会拿到 502。
@@ -324,13 +325,14 @@ internal suspend fun fetchLxCrossPlatformHits(
     client: OkHttpClient,
     sourceId: String,
     keyword: String,
-    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT,
+    page: Int = 1
 ): List<LxCrossPlatformHit> {
     if (keyword.isBlank() || limit <= 0) return emptyList()
     return when (sourceId) {
-        LX_KUWO_PLATFORM_ID -> fetchLxKuwoHits(client, keyword, limit)
-        LX_KUGOU_PLATFORM_ID -> fetchLxKugouHits(client, keyword, limit)
-        LX_QQ_PLATFORM_ID -> fetchLxQqHits(client, keyword, limit)
+        LX_KUWO_PLATFORM_ID -> fetchLxKuwoHits(client, keyword, limit, page)
+        LX_KUGOU_PLATFORM_ID -> fetchLxKugouHits(client, keyword, limit, page)
+        LX_QQ_PLATFORM_ID -> fetchLxQqHits(client, keyword, limit, page)
         else -> emptyList()
     }
 }
@@ -339,7 +341,8 @@ internal suspend fun fetchLxCrossPlatformHits(
 internal suspend fun fetchLxKuwoHits(
     client: OkHttpClient,
     keyword: String,
-    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT,
+    page: Int = 1
 ): List<LxCrossPlatformHit> {
     val url = buildString {
         append("https://search.kuwo.cn/r.s?client=kt&uid=")
@@ -348,7 +351,7 @@ internal suspend fun fetchLxKuwoHits(
         append("&ft=music&cluster=0&strategy=2012&encoding=utf8&rformat=json&vermerge=1&mobi=1&issubtitle=1")
         append("&all=")
         append(java.net.URLEncoder.encode(keyword, "UTF-8"))
-        append("&pn=0&rn=")
+        append("&pn=${(page - 1).coerceAtLeast(0)}&rn=")
         append(limit)
     }
     val body = fetchText(
@@ -365,12 +368,13 @@ internal suspend fun fetchLxKuwoHits(
 internal suspend fun fetchLxKugouHits(
     client: OkHttpClient,
     keyword: String,
-    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT,
+    page: Int = 1
 ): List<LxCrossPlatformHit> {
     val url = buildString {
         append("https://songsearch.kugou.com/song_search_v2?keyword=")
         append(java.net.URLEncoder.encode(keyword, "UTF-8"))
-        append("&page=1&pagesize=")
+        append("&page=${page.coerceAtLeast(1)}&pagesize=")
         append(limit)
         append("&userid=0&clientver=&platform=WebFilter&filter=2&iscorrection=1&privilege_filter=0&area_code=1")
     }
@@ -388,14 +392,15 @@ internal suspend fun fetchLxKugouHits(
 internal suspend fun fetchLxQqHits(
     client: OkHttpClient,
     keyword: String,
-    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT,
+    page: Int = 1
 ): List<LxCrossPlatformHit> {
     val url = buildString {
         append("https://c.y.qq.com/soso/fcgi-bin/client_search_cp?w=")
         append(java.net.URLEncoder.encode(keyword, "UTF-8"))
         append("&format=json&n=")
         append(limit)
-        append("&p=1&cr=1&t=0&new_json=1")
+        append("&p=${page.coerceAtLeast(1)}&cr=1&t=0&new_json=1")
     }
     val body = fetchText(
         client = client,

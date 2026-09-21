@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.core.player.resolver.lxmusic
+package moe.ouom.neriplayer.core.player.resolver.lxmusic
 
 import android.os.SystemClock
 import kotlinx.coroutines.CancellationException

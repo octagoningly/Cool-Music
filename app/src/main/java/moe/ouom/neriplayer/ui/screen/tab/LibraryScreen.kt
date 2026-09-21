@@ -69,6 +69,7 @@ import androidx.compose.material.icons.outlined.Download
 import moe.ouom.neriplayer.data.local.playlist.importer.ExternalPlaylistImportResult
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.History
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
@@ -2410,11 +2411,16 @@ private fun LocalLibraryHeaderContent(
                 }
             }
             if (showCreatePlaylist && !selectionMode && !localSortMode) {
-                HapticTextButton(
+                HapticIconButton(
                     onClick = onCreatePlaylist,
                     modifier = Modifier.padding(start = 2.dp)
                 ) {
-                    Text(stringResource(R.string.library_create_new))
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = stringResource(R.string.library_create_new),
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

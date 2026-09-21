@@ -3,6 +3,14 @@
     <!-- Local Playlists & Files -->
     <string name="local_title">Local</string>
     <string name="local_files">Local Files</string>
+    <string name="cached_songs_playlist">Cached Songs</string>
+    <string name="cached_songs_play_all">Play all</string>
+    <string name="cached_songs_shuffle">Shuffle</string>
+    <string name="cached_songs_search">Search cached songs</string>
+    <string name="cached_songs_empty">No identifiable cached songs yet</string>
+    <string name="cached_songs_no_results">No matching songs</string>
+    <string name="cached_songs_complete">Fully cached</string>
+    <string name="cached_songs_partial">Partially cached</string>
     <string name="local_files_manual_added">Manually Added</string>
     <string name="local_files_downloaded">Downloaded</string>
     <string name="local_files_delete_downloaded_title">Delete Downloaded Songs</string>

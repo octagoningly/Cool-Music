@@ -61,6 +61,7 @@ import moe.ouom.neriplayer.ui.screen.artist.NeteaseArtistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.LocalArtistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.HotPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.LocalPlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.CachedSongsPlaylistScreen
 import moe.ouom.neriplayer.ui.screen.playlist.NeteaseAlbumDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.NeteasePlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
@@ -99,6 +100,8 @@ import moe.ouom.neriplayer.util.media.CoverArtColorCache
 sealed class LibrarySelectedItem : Parcelable {
     @Parcelize
     data class Local(val playlistId: Long) : LibrarySelectedItem()
+    @Parcelize
+    data object CachedSongs : LibrarySelectedItem()
     @Parcelize
     data class LocalArtist(val artistName: String) : LibrarySelectedItem()
     @Parcelize
@@ -447,6 +450,11 @@ fun LibraryHostScreen(
                                     )
                                 }
                             },
+                            onCachedPlaylistClick = {
+                                skipDetailCloseAnimation = false
+                                captureLibraryScrollPosition(LibraryScrollSource.Local)
+                                openLibrarySelectedItem(LibrarySelectedItem.CachedSongs)
+                            },
                             onLocalArtistClick = { artist ->
                                 skipDetailCloseAnimation = false
                                 captureLibraryScrollPosition(LibraryScrollSource.Local)
@@ -571,6 +579,14 @@ fun LibraryHostScreen(
                                         localPlaylistSourceRoute(current.playlistId)
                                     )
                                 },
+                                offlineMode = offlineMode
+                            )
+                        }
+
+                        LibrarySelectedItem.CachedSongs -> {
+                            CachedSongsPlaylistScreen(
+                                onBack = { closeSelectedDetail() },
+                                onSongClick = onSongClick,
                                 offlineMode = offlineMode
                             )
                         }
@@ -708,6 +724,7 @@ private val librarySelectedItemSaver = mapSaver<LibrarySelectedItem?>(
                 "type" to "local",
                 "playlistId" to item.playlistId
             )
+            LibrarySelectedItem.CachedSongs -> hashMapOf("type" to "cachedSongs")
             is LibrarySelectedItem.LocalArtist -> hashMapOf(
                 "type" to "localArtist",
                 "artistName" to item.artistName
@@ -749,6 +766,7 @@ private val librarySelectedItemSaver = mapSaver<LibrarySelectedItem?>(
         when (saved["type"] as? String) {
             null -> null
             "local" -> (saved["playlistId"] as? Number)?.toLong()?.let { LibrarySelectedItem.Local(it) }
+            "cachedSongs" -> LibrarySelectedItem.CachedSongs
             "localArtist" -> (saved["artistName"] as? String)
                 ?.takeIf { it.isNotBlank() }
                 ?.let { LibrarySelectedItem.LocalArtist(it) }

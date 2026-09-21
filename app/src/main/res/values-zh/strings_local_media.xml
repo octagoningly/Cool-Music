@@ -3,6 +3,14 @@
     <!-- Local Playlists & Files -->
     <string name="local_title">本地</string>
     <string name="local_files">本地文件</string>
+    <string name="cached_songs_playlist">已缓存歌曲</string>
+    <string name="cached_songs_play_all">播放全部</string>
+    <string name="cached_songs_shuffle">随机播放</string>
+    <string name="cached_songs_search">搜索缓存歌曲</string>
+    <string name="cached_songs_empty">暂无可识别的缓存歌曲</string>
+    <string name="cached_songs_no_results">没有匹配的歌曲</string>
+    <string name="cached_songs_complete">完整缓存</string>
+    <string name="cached_songs_partial">片段缓存</string>
     <string name="local_files_manual_added">手动添加</string>
     <string name="local_files_downloaded">已下载</string>
     <string name="local_files_delete_downloaded_title">删除已下载歌曲</string>

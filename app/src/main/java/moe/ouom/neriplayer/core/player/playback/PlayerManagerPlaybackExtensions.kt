@@ -1019,6 +1019,7 @@ internal fun PlayerManager.playAtIndex(
                         audioInfo = selectedAudioInfo,
                         expectedContentLength = selectedExpectedContentLength,
                         representationIdentity = selectedRepresentationIdentity,
+                        song = song,
                         shouldApplyMutation = {
                             shouldApplyResolvedMediaSideEffects(
                                 requestGeneration = requestToken,

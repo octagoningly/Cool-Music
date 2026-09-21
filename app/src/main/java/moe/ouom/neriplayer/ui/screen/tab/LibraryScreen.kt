@@ -145,6 +145,8 @@ import moe.ouom.neriplayer.data.playlist.favorite.FavoritePlaylistRepository
 import moe.ouom.neriplayer.ui.viewmodel.tab.toBiliPlaylist
 import moe.ouom.neriplayer.data.local.playlist.system.FavoritesPlaylist
 import moe.ouom.neriplayer.data.local.playlist.system.LocalFilesPlaylist
+import moe.ouom.neriplayer.core.player.cache.cachedSongsSnapshot
+import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.data.local.playlist.model.LocalArtistSummary
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
@@ -374,6 +376,7 @@ fun LibraryScreen(
     qqMusicListState: LazyListState,
     topAppBarState: TopAppBarState,
     onLocalPlaylistClick: (LocalPlaylist) -> Unit = {},
+    onCachedPlaylistClick: () -> Unit = {},
     onLocalArtistClick: (LocalArtistSummary) -> Unit = {},
     onHotPlaylistClick: (PlaybackStatsPeriod) -> Unit = {},
     onNeteasePlaylistClick: (PlaylistSummary) -> Unit = {},
@@ -589,6 +592,7 @@ fun LibraryScreen(
                                 vm.createLocalPlaylist(finalName)
                             },
                             onClick = onLocalPlaylistClick,
+                            onCachedPlaylistClick = onCachedPlaylistClick,
                             onArtistClick = onLocalArtistClick,
                             onRename = { playlistId, newName ->
                                 vm.renameLocalPlaylist(playlistId, newName)
@@ -1244,6 +1248,7 @@ private fun LocalPlaylistList(
     listState: LazyListState,
     onCreate: (String) -> Unit,
     onClick: (LocalPlaylist) -> Unit,
+    onCachedPlaylistClick: () -> Unit,
     onArtistClick: (LocalArtistSummary) -> Unit,
     onRename: (Long, String) -> Unit = { _, _ -> },
     onDelete: (List<Long>) -> Unit = {},
@@ -1251,6 +1256,12 @@ private fun LocalPlaylistList(
     offlineMode: Boolean
 ) {
     val context = LocalContext.current
+    val cachedSongs by produceState(initialValue = emptyList<moe.ouom.neriplayer.core.player.cache.CachedSong>()) {
+        while (true) {
+            value = runCatching { PlayerManager.cachedSongsSnapshot() }.getOrDefault(emptyList())
+            delay(5_000L)
+        }
+    }
     val composeResources = LocalResources.current
     var selectedLocalCategory by rememberSaveable {
         mutableIntStateOf(LOCAL_CATEGORY_PLAYLIST)
@@ -1453,7 +1464,9 @@ private fun LocalPlaylistList(
     val hasPlaylistSearchMatches =
         displayedFavoritesPlaylist != null ||
             displayedPlaylists.isNotEmpty() ||
-            displayedLocalFilesPlaylist != null
+            displayedLocalFilesPlaylist != null ||
+            composeResources.getString(R.string.cached_songs_playlist)
+                .contains(localSearchQuery, ignoreCase = true)
     val windowWidthDp = currentWindowWidthDp()
     val localArtistColumnCount = remember(windowWidthDp) {
         ((windowWidthDp.value - 16f + 10f) / 130f).toInt().coerceAtLeast(1)
@@ -2114,6 +2127,41 @@ private fun LocalPlaylistList(
                                 }
                             }
                         }
+                    )
+                }
+            }
+        }
+        if (composeResources.getString(R.string.cached_songs_playlist)
+                .contains(localSearchQuery, ignoreCase = true)) {
+            item(key = "local_playlist_cached_songs") {
+                Card(
+                    shape = cardShape,
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .clip(cardShape)
+                        .combinedClickable(onClick = {
+                            if (!selectionMode && !localSortMode) onCachedPlaylistClick()
+                        })
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.cached_songs_playlist)) },
+                        supportingContent = {
+                            Text(pluralStringResource(
+                                R.plurals.library_song_count,
+                                cachedSongs.size,
+                                cachedSongs.size
+                            ))
+                        },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                                contentDescription = null,
+                                modifier = Modifier.size(56.dp)
+                            )
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
             }

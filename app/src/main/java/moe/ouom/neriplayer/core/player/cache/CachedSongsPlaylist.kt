@@ -8,6 +8,7 @@ import androidx.media3.datasource.cache.ContentMetadataMutations
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.core.player.PlayerManager
+import moe.ouom.neriplayer.core.player.url.inspectCachedResourceSpans
 import moe.ouom.neriplayer.data.history.PlayHistoryRepository
 import moe.ouom.neriplayer.data.history.toSongItem
 import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
@@ -19,6 +20,7 @@ import moe.ouom.neriplayer.data.platform.youtube.stableYouTubeMusicId
 import moe.ouom.neriplayer.data.platform.youtube.youtubeMusicThumbnailUrl
 import org.json.JSONObject
 import java.io.File
+import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 private const val SONG_METADATA_KEY = "${ContentMetadata.KEY_CUSTOM_PREFIX}neriplayer_cached_song"
@@ -133,6 +135,12 @@ private val simpleLxKey = Regex("^lx-([0-9]+)-[^-]+$")
 private val lxJsNeteaseKey = Regex("^lxjs-.+-wy-([0-9]+)-[^-]+$")
 private val biliKey = Regex("^bili-([0-9]+)(?:-([0-9]+))?-[^-]+$")
 private val listenTogetherKey = Regex("^listen-together-stream-([0-9a-f]{24})-[0-9a-f]{24}$")
+private val otherLxJsKey = Regex("^lxjs-.+-(qq|kw|kg|mg|tx)-(.+)-([^-]+)$")
+private val autoBiliKey = Regex("^bili-auto-(BV[A-Za-z0-9]+)-([0-9]+)-.+$")
+
+private fun placeholderId(key: String): Long = ByteBuffer.wrap(
+    MessageDigest.getInstance("SHA-256").digest(key.toByteArray(Charsets.UTF_8))
+).long and Long.MAX_VALUE
 
 internal fun legacySongFromKey(key: String): SongItem? {
     (neteaseKey.find(key) ?: simpleLxKey.matchEntire(key) ?: lxJsNeteaseKey.matchEntire(key))
@@ -150,6 +158,21 @@ internal fun legacySongFromKey(key: String): SongItem? {
             album = if (cid == null) "Bilibili" else "Bilibili|$cid",
             albumId = 0L, durationMs = 0L, coverUrl = null,
             channelId = "bilibili", audioId = aid.toString(), subAudioId = cid?.toString()
+        )
+    }
+    otherLxJsKey.matchEntire(key)?.let { match ->
+        val platform = match.groupValues[1].uppercase()
+        val songMid = match.groupValues[2]
+        return SongItem(
+            id = placeholderId(key), name = "ID $songMid", artist = "LX $platform",
+            album = "LX Cache", albumId = 0L, durationMs = 0L, coverUrl = null
+        )
+    }
+    autoBiliKey.matchEntire(key)?.let { match ->
+        val bvid = match.groupValues[1]
+        return SongItem(
+            id = placeholderId(key), name = "ID $bvid", artist = "Bilibili",
+            album = "Bilibili Cache", albumId = 0L, durationMs = 0L, coverUrl = null
         )
     }
     if (key.startsWith("ytmusic-")) {
@@ -218,16 +241,27 @@ suspend fun PlayerManager.cachedSongsSnapshot(): CachedSongsSnapshot = withConte
             ?: legacySong
             ?: listenTogetherKey.matchEntire(key)?.groupValues?.getOrNull(1)
                 ?.let(knownSongsByHash::get)
-        if (song == null) {
+        val expectedLength = ContentMetadata.getContentLength(mediaCache.getContentMetadata(key))
+        val complete = inspectCachedResourceSpans(spans, expectedLength).isComplete
+        if (song == null || (metadataSong == null && knownSong == null &&
+                (otherLxJsKey.matches(key) || autoBiliKey.matches(key)) && !complete)) {
             recordUnrecognized(key, bytes)
             continue
         }
-        val expectedLength = ContentMetadata.getContentLength(mediaCache.getContentMetadata(key))
-        val complete = expectedLength > 0L && mediaCache.isCached(key, 0L, expectedLength)
         val identity = song.stableKey()
         val previous = bySong[identity]
+        val preferredKey = if (previous?.complete == true && !complete) {
+            previous.song.cachedPlaybackKey
+        } else {
+            key
+        }
+        val preferredSong = if (previous != null && !previous.song.name.startsWith("ID ")) {
+            previous.song
+        } else {
+            song
+        }
         bySong[identity] = CachedSong(
-            song = if (previous == null || previous.song.name.startsWith("ID ")) song else previous.song,
+            song = preferredSong.copy(cachedPlaybackKey = preferredKey),
             bytes = (previous?.bytes ?: 0L) + bytes,
             complete = (previous?.complete == true) || complete,
             lastTouched = maxOf(previous?.lastTouched ?: 0L, spans.maxOf { it.lastTouchTimestamp })

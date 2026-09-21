@@ -13,7 +13,7 @@ class CachedSongsPlaylistTest {
         assertEquals(123L, legacySongFromKey("netease-preview-v1-123-standard")?.id)
         assertEquals(123L, legacySongFromKey("lx-123-lossless")?.id)
         assertEquals(123L, legacySongFromKey("lxjs-source-9-wy-123-flac")?.id)
-        assertNull(legacySongFromKey("lxjs-source-9-kw-123-flac"))
+        assertEquals("ID 123", legacySongFromKey("lxjs-source-9-kw-123-flac")?.name)
         assertNull(legacySongFromKey("lx-123-456-flac"))
     }
 
@@ -30,6 +30,16 @@ class CachedSongsPlaylistTest {
         val song = legacySongFromKey("ytmusic-ab-cd123-high-stable-m4a")
         assertEquals("ab-cd123", extractYouTubeMusicVideoId(song?.mediaUri))
         assertEquals("ab-cd123", song?.audioId)
+    }
+
+    @Test
+    fun `old LX and Bili fallback keys can be listed without fabricating a song match`() {
+        val lx = legacySongFromKey("lxjs-source-9-qq-ABC123-flac")!!
+        val bili = legacySongFromKey("bili-auto-BV1ABC123-456-id-3")!!
+        assertEquals("ID ABC123", lx.name)
+        assertEquals("LX QQ", lx.artist)
+        assertEquals("ID BV1ABC123", bili.name)
+        assertEquals("Bilibili Cache", bili.album)
     }
 
     @Test

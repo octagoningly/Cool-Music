@@ -65,6 +65,8 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.outlined.Download
+import moe.ouom.neriplayer.data.local.playlist.importer.ExternalPlaylistImportResult
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Bolt
@@ -99,6 +101,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -591,6 +594,9 @@ fun LibraryScreen(
                             onCreate = { name ->
                                 val finalName = name.trim().ifBlank { defaultPlaylistName }
                                 vm.createLocalPlaylist(finalName)
+                            },
+                            onImportExternalPlaylist = { rawLink ->
+                                vm.importExternalPlaylist(rawLink)
                             },
                             onClick = onLocalPlaylistClick,
                             onCachedPlaylistClick = onCachedPlaylistClick,
@@ -1251,6 +1257,7 @@ private fun LocalPlaylistList(
     onClick: (LocalPlaylist) -> Unit,
     onCachedPlaylistClick: () -> Unit,
     onArtistClick: (LocalArtistSummary) -> Unit,
+    onImportExternalPlaylist: suspend (String) -> ExternalPlaylistImportResult,
     onRename: (Long, String) -> Unit = { _, _ -> },
     onDelete: (List<Long>) -> Unit = {},
     onReorder: (List<Long>) -> Unit = {},
@@ -1278,7 +1285,13 @@ private fun LocalPlaylistList(
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteSelectedConfirm by rememberSaveable { mutableStateOf(false) }
     var localSortMode by rememberSaveable { mutableStateOf(false) }
+    var showImportDialog by rememberSaveable { mutableStateOf(false) }
+    var importLink by rememberSaveable { mutableStateOf("") }
+    var importError by rememberSaveable { mutableStateOf<String?>(null) }
+    var importLoading by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    val importScope = rememberCoroutineScope()
+    val onImportExternalPlaylistState = rememberUpdatedState(onImportExternalPlaylist)
     val defaultPlaylistName = composeResources.getString(R.string.library_create_playlist_default)
     val maxNameLength = LocalPlaylistRepository.MAX_PLAYLIST_NAME_LENGTH
     val autoShowKeyboard by AppContainer.settingsRepo.autoShowKeyboardFlow.collectAsStateWithLifecycle(
@@ -1538,6 +1551,23 @@ private fun LocalPlaylistList(
                     !localSortMode &&
                     localSearchQuery.isBlank(),
                 onCreatePlaylist = { showDialog = true },
+                showImport = selectedLocalCategory == LOCAL_CATEGORY_PLAYLIST &&
+                    !selectionMode &&
+                    !localSortMode &&
+                    localSearchQuery.isBlank(),
+                onImportPlaylist = {
+                    importError = null
+                    if (importLink.isBlank()) {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                        val clip = clipboard?.primaryClip
+                        val pasted = (0 until (clip?.itemCount ?: 0))
+                            .mapNotNull { index -> clip?.getItemAt(index)?.coerceToText(context)?.toString() }
+                            .firstOrNull { it.isNotBlank() }
+                            .orEmpty()
+                        if (pasted.isNotBlank()) importLink = pasted
+                    }
+                    showImportDialog = true
+                },
                 showLocalSort = selectedLocalCategory == LOCAL_CATEGORY_PLAYLIST &&
                     !selectionMode &&
                     localSearchQuery.isBlank() &&
@@ -1710,6 +1740,112 @@ private fun LocalPlaylistList(
                                 showDialog = false
                                 newName = ""
                                 nameError = null
+                            }
+                        ) { Text(stringResource(R.string.action_cancel)) }
+                    }
+                )
+            }
+
+            if (showImportDialog) {
+                MiuixSettingsDialog(
+                    onDismissRequest = {
+                        if (!importLoading) {
+                            showImportDialog = false
+                            importError = null
+                        }
+                    },
+                    title = { Text(stringResource(R.string.library_import_playlist_dialog_title)) },
+                    text = {
+                        MiuixSettingsDialogContent(verticalSpacing = 12.dp) {
+                            MiuixSettingsTextField(
+                                value = importLink,
+                                onValueChange = {
+                                    importLink = it
+                                    if (importError != null) importError = null
+                                },
+                                placeholder = {
+                                    Text(stringResource(R.string.library_import_playlist_hint))
+                                },
+                                singleLine = true,
+                                enabled = !importLoading,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = stringResource(R.string.library_import_playlist_supported),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (importLoading) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.library_import_playlist_loading),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            importError?.let { message ->
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        MiuixSettingsButton(
+                            enabled = !importLoading && importLink.isNotBlank(),
+                            onClick = {
+                                val raw = importLink.trim()
+                                if (raw.isBlank() || importLoading) return@MiuixSettingsButton
+                                importLoading = true
+                                importError = null
+                                importScope.launch {
+                                    val result = try {
+                                        onImportExternalPlaylistState.value(raw)
+                                    } catch (error: Exception) {
+                                        importLoading = false
+                                        importError = error.message
+                                            ?: composeResources.getString(R.string.error_network)
+                                        return@launch
+                                    }
+                                    importLoading = false
+                                    when (result) {
+                                        is ExternalPlaylistImportResult.Success -> {
+                                            showImportDialog = false
+                                            importLink = ""
+                                            importError = null
+                                            AppFeedback.show(
+                                                context = context,
+                                                message = composeResources.getString(
+                                                    R.string.library_import_playlist_success
+                                                )
+                                            )
+                                        }
+                                        is ExternalPlaylistImportResult.Failure -> {
+                                            importError = result.message
+                                        }
+                                    }
+                                }
+                            }
+                        ) {
+                            Text(stringResource(R.string.library_import_playlist))
+                        }
+                    },
+                    dismissButton = {
+                        MiuixSettingsTextButton(
+                            enabled = !importLoading,
+                            onClick = {
+                                showImportDialog = false
+                                importError = null
                             }
                         ) { Text(stringResource(R.string.action_cancel)) }
                     }
@@ -2183,6 +2319,8 @@ private fun LocalLibraryHeaderContent(
     onArtistSelected: () -> Unit,
     showCreatePlaylist: Boolean,
     onCreatePlaylist: () -> Unit,
+    showImport: Boolean = false,
+    onImportPlaylist: () -> Unit = {},
     showLocalSort: Boolean = false,
     localSortMode: Boolean = false,
     onToggleLocalSort: () -> Unit = {}
@@ -2217,6 +2355,25 @@ private fun LocalLibraryHeaderContent(
                 onArtistSelected = onArtistSelected
             )
             Spacer(modifier = Modifier.weight(1f))
+            if (showImport) {
+                HapticTextButton(onClick = onImportPlaylist) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.Download,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.library_import_playlist),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
             if (showLocalSort) {
                 // Text button keeps full two-character labels (排序 / 完成)
                 HapticTextButton(onClick = onToggleLocalSort) {

@@ -368,6 +368,13 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         launchPlaylistMutation("createLocalPlaylist") { localRepo.createPlaylist(name) }
     }
 
+    suspend fun importExternalPlaylist(rawLink: String): moe.ouom.neriplayer.data.local.playlist.importer.ExternalPlaylistImportResult {
+        val service = moe.ouom.neriplayer.data.local.playlist.importer.ExternalPlaylistImportService(
+            context = getApplication()
+        )
+        return service.importFromText(rawLink)
+    }
+
     fun addSongToFavorites(song: SongItem) {
         launchPlaylistMutation("addSongToFavorites") { localRepo.addToFavorites(song) }
     }

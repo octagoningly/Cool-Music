@@ -50,7 +50,7 @@ Cool Music 是基于开源项目 **[NeriPlayer](https://github.com/cwuom/NeriPla
 | 查找代码入口、模块结构 | 第六节 · 模块与代码入口 |
 | 功能演进流水（每次改了什么） | [`更新记录.md`](./更新记录.md) |
 | 发行签名、`versionCode`、ADB 约定 | [`开发规则.md`](./开发规则.md) |
-| 下载最新安装包 | [Releases · `v0.2.0`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.0) |
+| 下载最新安装包 | [Releases · `v0.2.1`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.1) |
 | 阅读上游完整文档 | [NeriPlayer README](https://github.com/cwuom/NeriPlayer/blob/master/README.md) |
 
 ```text
@@ -77,7 +77,8 @@ Cool Music（本仓库结构速览）
 | 匹配与回落 | 按**歌名 / 歌手 / 时长**打分，过滤伴奏 / 翻唱等；修复 `songmid` 错配与失败回落顺序 |
 | 跨平台兜底 | 主通道不可用时按 **酷我 → 酷狗 → QQ** 等搜原版取流（如网易云故障时用酷我 ID） |
 | 通道自检 | 设置内检查**脚本 / API** 是否可用 |
-| 每日验证清单 | GitHub Actions 每天搜索并验证候选音源，只保留至少一个通道可用的地址；App 内可获取、复制或直接导入 |
+| **自动验证与发现** | GitHub Actions **每天**自动搜索并验证候选音源地址，只保留至少一个通道可用的配置；App 内设置页可**一键获取、复制或直接导入**通过验证的音源 |
+| 每日验证清单 | 支持**收起展开**与独立弹窗展示；优先验证**最新批次与推荐候选**；修复 JS 探测初始化过早导致可用通道误判 |
 | 导入体验 | 失败可**清空**、可**查看完整地址**；优化过高弹窗与重复探测 |
 | 脚本环境 | QuickJS 补齐 `console`、**MD5** 等，便于通过常见 API 校验；播放热路径优化 |
 
@@ -220,7 +221,7 @@ Cool Music（本仓库结构速览）
 
 ### 5.1 下载安装
 
-1. 打开 [Releases](https://github.com/octagoningly/Cool-Music/releases)，下载最新 `CoolMusic-*-arm64*.apk`（当前示例：[`v0.2.0`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.0)）。
+1. 打开 [Releases](https://github.com/octagoningly/Cool-Music/releases)，下载最新 `CoolMusic-*-arm64*.apk`（当前示例：[`v0.2.1`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.1)）。
 2. 使用**同一签名覆盖安装**即可，**无需卸载**（保留登录与本地数据）。
 3. 也可在应用内：`设置 → 关于 → 检查更新`。
 
@@ -261,12 +262,12 @@ cd Cool-Music
 ### 5.3 在线音源快速上手
 
 1. `设置 → 第三方平台登录 → 在线音乐源`
-2. 点击「**获取**」读取 GitHub 每日验证清单，可查看、复制或直接导入地址
+2. 点击「**获取**」读取 GitHub 每日验证清单，可查看、复制或直接导入通过自动验证的音源地址
 3. 也可以手动导入 **LX JSON / JS** 与你的服务地址
 4. 按需开启**优先播放**，可用**通道自检**
 5. 播放时查看封面角标是否为「**在线音源**」
 
-每日清单只记录通过通道测试的音源配置地址与检测结果，不保存音频内容、账号凭据或 Cookie。自动发现会同时使用 GitHub 代码搜索和无需额外令牌的公开仓库扫描；维护者也可以在 `tools_pub/lx_source_candidates.txt` 或仓库变量 `LX_SOURCE_CANDIDATE_URLS` 中添加待验证地址。
+每日清单由 GitHub Actions **每天自动搜索并验证**，只记录通过通道测试的音源配置地址与检测结果，不保存音频内容、账号凭据或 Cookie。App 内设置页可一键获取最新验证结果，优先推荐最新批次的可用地址。自动发现会同时使用 GitHub 代码搜索和无需额外令牌的公开仓库扫描；维护者也可以在 `tools_pub/lx_source_candidates.txt` 或仓库变量 `LX_SOURCE_CANDIDATE_URLS` 中添加待验证地址。
 
 ---
 
@@ -311,4 +312,4 @@ cd Cool-Music
 |------|------|
 | Cool Music（本衍生版） | <https://github.com/octagoningly/Cool-Music> |
 | NeriPlayer（上游） | <https://github.com/cwuom/NeriPlayer> |
-| 最新发行 | [v0.2.0](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.0) |
+| 最新发行 | [v0.2.1](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.1) |

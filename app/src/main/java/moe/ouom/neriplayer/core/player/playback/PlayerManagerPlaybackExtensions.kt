@@ -27,6 +27,7 @@ import moe.ouom.neriplayer.core.player.lyrics.isExternalBluetoothLyricCadenceAct
 import moe.ouom.neriplayer.core.player.lyrics.updateExternalBluetoothLyricLine
 import moe.ouom.neriplayer.core.player.model.PlayerEvent
 import moe.ouom.neriplayer.core.player.model.SongUrlResult
+import moe.ouom.neriplayer.data.traffic.hasValidatedDefaultInternetAccess
 import moe.ouom.neriplayer.core.player.model.resolvePlayerQueueRestoreOrder
 import moe.ouom.neriplayer.core.player.model.resolvePlayerRepeatAllShuffleOrder
 import moe.ouom.neriplayer.core.player.model.resolvePlayerSequentialShuffleOrder
@@ -1159,6 +1160,14 @@ internal fun PlayerManager.playAtIndex(
                         positionMs = resolvedResumePositionMs,
                         shouldResumePlayback = true
                     )
+                    return@launch
+                }
+                if (song.cachedPlaybackKey != null &&
+                    !application.hasValidatedDefaultInternetAccess()) {
+                    clearPlaybackDemandCacheKey(reason = "offline_partial_cache")
+                    withContext(Dispatchers.Main) {
+                        stopPlaybackPreservingQueue(clearMediaUrl = true)
+                    }
                     return@launch
                 }
                 clearPlaybackDemandCacheKey(reason = "play_at_index_failure")

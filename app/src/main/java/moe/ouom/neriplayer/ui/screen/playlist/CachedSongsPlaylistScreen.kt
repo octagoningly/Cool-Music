@@ -59,7 +59,9 @@ import moe.ouom.neriplayer.data.model.displayArtist
 import moe.ouom.neriplayer.data.model.displayCoverUrl
 import moe.ouom.neriplayer.data.model.displayName
 import moe.ouom.neriplayer.data.model.stableKey
+import moe.ouom.neriplayer.data.traffic.hasValidatedDefaultInternetAccess
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
+import moe.ouom.neriplayer.ui.feedback.AppFeedback
 import moe.ouom.neriplayer.util.format.formatFileSize
 import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
 import kotlin.random.Random
@@ -87,6 +89,13 @@ fun CachedSongsPlaylistScreen(
         }
     }
     val playbackSongs = remember(cachedSongs) { cachedSongs.map(CachedSong::song) }
+    val completeSongs = remember(cachedSongs) {
+        cachedSongs.filter(CachedSong::complete).map(CachedSong::song)
+    }
+    val offlineNow = offlineMode || !context.hasValidatedDefaultInternetAccess()
+    val partialOfflineMessage = stringResource(R.string.cached_songs_partial_offline)
+    fun playableSongsNow(): List<SongItem> =
+        if (offlineMode || !context.hasValidatedDefaultInternetAccess()) completeSongs else playbackSongs
 
     Surface(Modifier.fillMaxSize(), color = androidx.compose.ui.graphics.Color.Transparent) {
         Scaffold(
@@ -119,6 +128,11 @@ fun CachedSongsPlaylistScreen(
                             text = "${pluralStringResource(R.plurals.library_song_count, cachedSongs.size, cachedSongs.size)} · " +
                                 formatFileSize(cachedSongs.sumOf(CachedSong::bytes)),
                             style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = stringResource(R.string.cached_songs_offline_ready, completeSongs.size),
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (snapshot.unrecognizedBytes > 0L) {
@@ -162,22 +176,24 @@ fun CachedSongsPlaylistScreen(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
-                                if (playbackSongs.isNotEmpty()) {
+                                val playableSongs = playableSongsNow()
+                                if (playableSongs.isNotEmpty()) {
                                     PlayerManager.setShuffle(false)
-                                    onSongClick(playbackSongs, 0)
+                                    onSongClick(playableSongs, 0)
                                 }
-                            }, enabled = playbackSongs.isNotEmpty()) {
+                            }, enabled = if (offlineNow) completeSongs.isNotEmpty() else playbackSongs.isNotEmpty()) {
                                 Icon(Icons.Filled.PlayArrow, contentDescription = null)
                                 Text(stringResource(R.string.cached_songs_play_all))
                             }
                             IconButton(
                                 onClick = {
-                                    if (playbackSongs.isNotEmpty()) {
+                                    val playableSongs = playableSongsNow()
+                                    if (playableSongs.isNotEmpty()) {
                                         PlayerManager.setShuffle(true)
-                                        onSongClick(playbackSongs, Random.nextInt(playbackSongs.size))
+                                        onSongClick(playableSongs, Random.nextInt(playableSongs.size))
                                     }
                                 },
-                                enabled = playbackSongs.isNotEmpty()
+                                enabled = if (offlineNow) completeSongs.isNotEmpty() else playbackSongs.isNotEmpty()
                             ) {
                                 Icon(Icons.Filled.Shuffle, contentDescription = stringResource(R.string.cached_songs_shuffle))
                             }
@@ -208,8 +224,14 @@ fun CachedSongsPlaylistScreen(
                     val cover = song.displayCoverUrl()
                     ListItem(
                         modifier = Modifier.clickable {
-                            val index = playbackSongs.indexOfFirst { it.stableKey() == song.stableKey() }
-                            if (index >= 0) onSongClick(playbackSongs, index)
+                            if (!entry.complete &&
+                                (offlineMode || !context.hasValidatedDefaultInternetAccess())) {
+                                AppFeedback.showToast(context, partialOfflineMessage)
+                            } else {
+                                val playableSongs = playableSongsNow()
+                                val index = playableSongs.indexOfFirst { it.stableKey() == song.stableKey() }
+                                if (index >= 0) onSongClick(playableSongs, index)
+                            }
                         },
                         headlineContent = {
                             Text(song.displayName(), maxLines = 1, overflow = TextOverflow.Ellipsis)

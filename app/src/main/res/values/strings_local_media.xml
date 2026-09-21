@@ -11,6 +11,8 @@
     <string name="cached_songs_no_results">没有匹配的歌曲</string>
     <string name="cached_songs_complete">完整缓存</string>
     <string name="cached_songs_partial">片段缓存</string>
+    <string name="cached_songs_offline_ready">可离线播放：%1$d 首</string>
+    <string name="cached_songs_partial_offline">此歌只有片段缓存，离线无法播放</string>
     <string name="cached_songs_unrecognized">未列入歌单：%1$s，%2$d 份缓存</string>
     <string name="cached_songs_other_disk">缓存目录其他文件：%1$s</string>
     <string name="cached_songs_group_lx">第三方音源</string>

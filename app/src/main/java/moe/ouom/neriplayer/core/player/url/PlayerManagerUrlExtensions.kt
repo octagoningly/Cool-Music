@@ -1179,6 +1179,7 @@ private suspend fun PlayerManager.applyResolvedMediaItem(
         audioInfo = selectedAudioInfo,
         expectedContentLength = selectedExpectedContentLength,
         representationIdentity = selectedRepresentationIdentity,
+        song = song,
         shouldApplyMutation = { gate.runMutation {} }
     )
     if (!gate.runMutation {}) return false

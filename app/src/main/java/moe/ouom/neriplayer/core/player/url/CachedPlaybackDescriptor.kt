@@ -10,9 +10,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager
+import moe.ouom.neriplayer.core.player.cache.writeCachedSong
 import moe.ouom.neriplayer.core.player.model.PlaybackAudioInfo
 import moe.ouom.neriplayer.core.player.model.PlaybackAudioSource
 import moe.ouom.neriplayer.core.player.model.PlaybackQualityOption
+import moe.ouom.neriplayer.data.model.SongItem
 import org.json.JSONArray
 import org.json.JSONObject
 import java.lang.ref.WeakReference
@@ -423,6 +425,7 @@ internal suspend fun PlayerManager.synchronizeCachedPlaybackDescriptor(
     audioInfo: PlaybackAudioInfo?,
     expectedContentLength: Long?,
     representationIdentity: String?,
+    song: SongItem? = null,
     shouldApplyMutation: () -> Boolean = { true }
 ): CachedPlaybackDescriptorSynchronizationResult = withContext(Dispatchers.IO) {
     if (cacheKey.isBlank()) {
@@ -436,7 +439,12 @@ internal suspend fun PlayerManager.synchronizeCachedPlaybackDescriptor(
     loadPersistedPlaybackCacheKeySafety(mediaCache, cacheKey)
     val remoteAudioInfo = audioInfo
         ?.takeUnless { it.source == PlaybackAudioSource.LOCAL }
-        ?: return@withContext CachedPlaybackDescriptorSynchronizationResult.NO_METADATA
+        ?: run {
+            if (song != null && shouldApplyMutation()) {
+                runCatching { mediaCache.writeCachedSong(cacheKey, song) }
+            }
+            return@withContext CachedPlaybackDescriptorSynchronizationResult.NO_METADATA
+        }
     val descriptor = cachedPlaybackDescriptorFromAudioInfo(
         audioInfo = remoteAudioInfo,
         expectedContentLength = expectedContentLength,
@@ -512,6 +520,12 @@ internal suspend fun PlayerManager.synchronizeCachedPlaybackDescriptor(
             return@runCatching CachedPlaybackDescriptorSynchronizationResult.SKIPPED
         }
         mediaCache.writeCachedPlaybackDescriptor(cacheKey, descriptor)
+        if (song != null) {
+            runCatching { mediaCache.writeCachedSong(cacheKey, song) }
+                .onFailure { error ->
+                    NPLogger.w("NERI-PlayerManager", "保存缓存歌曲信息失败: key=$cacheKey, error=${error.message}")
+                }
+        }
         if (cache !== mediaCache) {
             return@runCatching CachedPlaybackDescriptorSynchronizationResult.SKIPPED
         }

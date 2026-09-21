@@ -423,6 +423,7 @@ private suspend fun PlayerManager.applyPlaybackCandidate(
         audioInfo = selectedAudioInfo,
         expectedContentLength = candidate.expectedContentLength,
         representationIdentity = candidate.representationIdentity,
+        song = song,
         shouldApplyMutation = { requestToken == playbackRequestToken }
     )
     if (requestToken != playbackRequestToken) return

@@ -150,6 +150,7 @@ private suspend fun PlayerManager.prefetchGenericTrackMedia(
         audioInfo = result.audioInfo,
         expectedContentLength = result.expectedContentLength,
         representationIdentity = result.representationIdentity,
+        song = song,
         shouldApplyMutation = { !playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey) }
     )
     if (!descriptorResult.allowsCustomCacheKey()) {

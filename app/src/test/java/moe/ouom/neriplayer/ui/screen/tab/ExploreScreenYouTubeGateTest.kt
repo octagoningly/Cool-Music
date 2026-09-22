@@ -1,6 +1,7 @@
 package moe.ouom.neriplayer.ui.screen.tab
 
 import androidx.compose.ui.unit.dp
+import moe.ouom.neriplayer.ui.viewmodel.tab.DefaultExploreSearchType
 import moe.ouom.neriplayer.ui.viewmodel.tab.NeteaseExploreSearchType
 import moe.ouom.neriplayer.ui.viewmodel.tab.SearchSource
 import moe.ouom.neriplayer.ui.viewmodel.tab.YouTubeExploreSearchType
@@ -119,6 +120,26 @@ class ExploreScreenYouTubeGateTest {
         assertEquals("YOUTUBE_MUSIC|SONG|demo", songs)
         assertEquals("YOUTUBE_MUSIC|CREATOR|demo", creators)
         assertTrue(shouldResetExploreSearchScroll(songs, creators))
+    }
+
+    @Test
+    fun `default search type contributes to scroll context`() {
+        val songs = exploreSearchScrollContextKey(
+            keyword = "demo",
+            source = SearchSource.DEFAULT,
+            neteaseSearchType = NeteaseExploreSearchType.SONG,
+            defaultSearchType = DefaultExploreSearchType.SONG
+        )
+        val artists = exploreSearchScrollContextKey(
+            keyword = "demo",
+            source = SearchSource.DEFAULT,
+            neteaseSearchType = NeteaseExploreSearchType.SONG,
+            defaultSearchType = DefaultExploreSearchType.ARTIST
+        )
+
+        assertEquals("DEFAULT|SONG|demo", songs)
+        assertEquals("DEFAULT|ARTIST|demo", artists)
+        assertTrue(shouldResetExploreSearchScroll(songs, artists))
     }
 
     @Test

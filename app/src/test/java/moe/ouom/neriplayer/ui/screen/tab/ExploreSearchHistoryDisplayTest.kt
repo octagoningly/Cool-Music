@@ -92,6 +92,24 @@ class ExploreSearchHistoryDisplayTest {
     }
 
     @Test
+    fun `default online search type bar is visible for the online source`() {
+        assertEquals(
+            SearchSource.DEFAULT,
+            exploreSearchTypeBarSource(
+                selectedSearchSource = SearchSource.DEFAULT,
+                contentScrolled = false
+            )
+        )
+        assertEquals(
+            SearchSource.DEFAULT,
+            exploreSearchTypeBarSource(
+                selectedSearchSource = SearchSource.DEFAULT,
+                contentScrolled = true
+            )
+        )
+    }
+
+    @Test
     fun `youtube search type bar follows the selected source and stays when scrolled`() {
         assertTrue(
             shouldShowExploreYouTubeSearchTypeBar(
@@ -150,6 +168,13 @@ class ExploreSearchHistoryDisplayTest {
             exploreSearchTypeBarSource(
                 selectedSearchSource = SearchSource.BILIBILI,
                 contentScrolled = false
+            )
+        )
+        assertEquals(
+            SearchSource.DEFAULT,
+            exploreSearchTypeBarSource(
+                selectedSearchSource = SearchSource.DEFAULT,
+                contentScrolled = true
             )
         )
         assertEquals(

@@ -111,6 +111,20 @@ enum class NeteaseExploreSearchType(val apiType: Int) {
     ARTIST(apiType = 100)
 }
 
+enum class DefaultExploreSearchType {
+    SONG,
+    ARTIST,
+    PLAYLIST
+}
+
+private fun DefaultExploreSearchType.toNeteaseSearchType(): NeteaseExploreSearchType {
+    return when (this) {
+        DefaultExploreSearchType.SONG -> NeteaseExploreSearchType.SONG
+        DefaultExploreSearchType.PLAYLIST -> NeteaseExploreSearchType.PLAYLIST
+        DefaultExploreSearchType.ARTIST -> NeteaseExploreSearchType.ARTIST
+    }
+}
+
 enum class YouTubeExploreSearchType(
     val filter: YouTubeMusicSearchFilter?
 ) {
@@ -188,6 +202,7 @@ data class ExploreUiState(
     val searchKeyword: String = "",
     val searchDisplayQuery: String = "",
     val selectedSearchSource: SearchSource = SearchSource.DEFAULT,
+    val selectedDefaultSearchType: DefaultExploreSearchType = DefaultExploreSearchType.SONG,
     val selectedNeteaseSearchType: NeteaseExploreSearchType = NeteaseExploreSearchType.SONG,
     val selectedYouTubeMusicSearchType: YouTubeExploreSearchType = YouTubeExploreSearchType.SONG,
     val isNeteaseLoggedIn: Boolean = false,
@@ -405,6 +420,27 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    fun setDefaultSearchType(type: DefaultExploreSearchType) {
+        if (type == _uiState.value.selectedDefaultSearchType) return
+        NPLogger.d(TAG, "setDefaultSearchType: ${_uiState.value.selectedDefaultSearchType} -> $type")
+        searchJob?.cancel()
+        searchMoreJob?.cancel()
+        invalidateSearchRequest()
+        _uiState.value = _uiState.value.copy(
+            selectedDefaultSearchType = type,
+            searching = false,
+            searchError = null,
+            searchResults = emptyList(),
+            searchItems = emptyList(),
+            searchHasMore = false,
+            searchLoadingMore = false,
+            searchLoadMoreError = null,
+            searchPage = 0,
+            searchKeyword = "",
+            searchDisplayQuery = ""
+        )
+    }
+
     fun setNeteaseSearchType(type: NeteaseExploreSearchType) {
         if (type == _uiState.value.selectedNeteaseSearchType) return
         NPLogger.d(TAG, "setNeteaseSearchType: ${_uiState.value.selectedNeteaseSearchType} -> $type")
@@ -505,6 +541,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             return
         }
 
+        val defaultType = state.selectedDefaultSearchType
         val neteaseType = state.selectedNeteaseSearchType
         val keyword = state.searchKeyword
         val matchQuery = state.searchDisplayQuery.ifBlank { keyword }
@@ -513,7 +550,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = state.copy(searchLoadingMore = true, searchLoadMoreError = null)
         NPLogger.d(
             TAG,
-            "search load more: source=$source, request=$requestVersion, keyword=$keyword, page=$nextPage, type=$neteaseType"
+            "search load more: source=$source, request=$requestVersion, keyword=$keyword, page=$nextPage, defaultType=$defaultType, neteaseType=$neteaseType"
         )
         searchMoreJob = viewModelScope.launch {
             try {
@@ -522,7 +559,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
                 val result = when (source) {
-                    SearchSource.DEFAULT -> fetchDefaultSearchPage(keyword, matchQuery, nextPage)
+                    SearchSource.DEFAULT -> fetchDefaultSearchPage(
+                        keyword = keyword,
+                        matchQuery = matchQuery,
+                        page = nextPage,
+                        type = defaultType
+                    )
                     SearchSource.NETEASE -> fetchNeteaseSearchPage(
                         keyword = keyword,
                         matchQuery = matchQuery,
@@ -576,8 +618,19 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     private suspend fun fetchDefaultSearchPage(
         keyword: String,
         matchQuery: String,
-        page: Int
+        page: Int,
+        type: DefaultExploreSearchType
     ): ExploreSearchFetchResult {
+        if (type != DefaultExploreSearchType.SONG) {
+            return fetchNeteaseSearchPage(
+                keyword = keyword,
+                matchQuery = matchQuery,
+                page = page,
+                type = type.toNeteaseSearchType(),
+                usePersistedCookies = false,
+                retryWithPersistedCookies = true
+            )
+        }
         val result = searchLxDefaultSongs(keyword, page)
         return ExploreSearchFetchResult(
             items = rankExploreSongSearchResults(matchQuery, result.songs)
@@ -588,9 +641,10 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun searchDefault(keyword: String, matchQuery: String, requestVersion: Long) {
+        val type = _uiState.value.selectedDefaultSearchType
         searchJob = viewModelScope.launch {
             try {
-                val result = fetchDefaultSearchPage(keyword, matchQuery, page = 1)
+                val result = fetchDefaultSearchPage(keyword, matchQuery, page = 1, type = type)
                 updateSearchStateIfCurrent(requestVersion, SearchSource.DEFAULT) {
                     it.copy(
                         searching = false,
@@ -604,7 +658,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                NPLogger.e(TAG, "default search failed: keyword=$keyword", error)
+                NPLogger.e(TAG, "default search failed: keyword=$keyword, type=$type", error)
                 updateSearchStateIfCurrent(requestVersion, SearchSource.DEFAULT) {
                     it.copy(
                         searching = false,
@@ -1374,17 +1428,36 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         keyword: String,
         matchQuery: String,
         page: Int,
-        type: NeteaseExploreSearchType
+        type: NeteaseExploreSearchType,
+        usePersistedCookies: Boolean = true,
+        retryWithPersistedCookies: Boolean = false
     ): ExploreSearchFetchResult {
         val offset = (page - 1).coerceAtLeast(0) * NETEASE_SEARCH_PAGE_SIZE
-        val raw = withContext(Dispatchers.IO) {
-            neteaseClient.searchSongs(
+        suspend fun requestSearch(persistedCookies: Boolean): String {
+            return neteaseClient.searchSongsCancellable(
                 keyword = keyword,
                 limit = NETEASE_SEARCH_PAGE_SIZE,
                 offset = offset,
                 type = type.apiType,
-                usePersistedCookies = true
+                usePersistedCookies = persistedCookies
             )
+        }
+        var usedPersistedCookies = usePersistedCookies
+        var raw = try {
+            requestSearch(usePersistedCookies)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            if (!retryWithPersistedCookies || usePersistedCookies) throw error
+            usedPersistedCookies = true
+            requestSearch(persistedCookies = true)
+        }
+        if (
+            retryWithPersistedCookies &&
+            !usedPersistedCookies &&
+            runCatching { JSONObject(raw).optInt("code", -1) }.getOrDefault(-1) != 200
+        ) {
+            raw = requestSearch(persistedCookies = true)
         }
         val parsed = parseNeteaseSearchResults(raw, type)
         val items = if (type == NeteaseExploreSearchType.SONG) {

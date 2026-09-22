@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import moe.ouom.neriplayer.testutil.assumeComposeHostAvailable
+import moe.ouom.neriplayer.ui.viewmodel.tab.DefaultExploreSearchType
 import moe.ouom.neriplayer.ui.viewmodel.tab.NeteaseExploreSearchType
 import moe.ouom.neriplayer.ui.viewmodel.tab.SearchSource
 import moe.ouom.neriplayer.ui.viewmodel.tab.YouTubeExploreSearchType
@@ -44,8 +45,10 @@ class ExploreSearchTypeBarTransitionTest {
                     Box(Modifier.width(600.dp)) {
                         ExploreSearchTypeBar(
                             source = source.value,
+                            selectedDefaultSearchType = DefaultExploreSearchType.SONG,
                             selectedNeteaseSearchType = NeteaseExploreSearchType.SONG,
                             selectedYouTubeSearchType = YouTubeExploreSearchType.SONG,
+                            onDefaultSearchTypeClick = {},
                             onNeteaseSearchTypeClick = {},
                             onYouTubeSearchTypeClick = {},
                             selectedAlpha = 1f,

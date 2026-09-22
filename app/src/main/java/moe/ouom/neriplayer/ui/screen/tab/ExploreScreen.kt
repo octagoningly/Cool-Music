@@ -204,6 +204,7 @@ import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
 import moe.ouom.neriplayer.ui.feedback.NeriSnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.ui.viewmodel.tab.DefaultExploreSearchType
 import moe.ouom.neriplayer.ui.viewmodel.tab.ExploreSearchResult
 import moe.ouom.neriplayer.ui.viewmodel.tab.ExploreUiState
 import moe.ouom.neriplayer.ui.viewmodel.tab.ExploreViewModel
@@ -271,11 +272,13 @@ internal fun exploreSearchScrollContextKey(
     keyword: String,
     source: SearchSource,
     neteaseSearchType: NeteaseExploreSearchType,
+    defaultSearchType: DefaultExploreSearchType = DefaultExploreSearchType.SONG,
     youtubeSearchType: YouTubeExploreSearchType = YouTubeExploreSearchType.SONG
 ): String? {
     val normalizedKeyword = keyword.trim()
     if (normalizedKeyword.isBlank()) return null
     val sourceType = when (source) {
+        SearchSource.DEFAULT -> defaultSearchType.name
         SearchSource.NETEASE -> neteaseSearchType.name
         SearchSource.YOUTUBE_MUSIC -> youtubeSearchType.name
         else -> "-"
@@ -311,6 +314,15 @@ private fun searchSourceLabel(source: SearchSource): String {
         SearchSource.NETEASE -> stringResource(R.string.platform_netease_short)
         SearchSource.BILIBILI -> stringResource(R.string.platform_bilibili)
         SearchSource.LINK_RECOGNITION -> stringResource(R.string.explore_tab_links)
+    }
+}
+
+@Composable
+private fun defaultSearchTypeLabel(type: DefaultExploreSearchType): String {
+    return when (type) {
+        DefaultExploreSearchType.SONG -> stringResource(R.string.explore_search_type_song)
+        DefaultExploreSearchType.PLAYLIST -> stringResource(R.string.explore_search_type_playlist)
+        DefaultExploreSearchType.ARTIST -> stringResource(R.string.explore_search_type_artist)
     }
 }
 
@@ -634,6 +646,7 @@ fun ExploreScreen(
         effectiveSearchKeyword,
         searchHistoryEnabled,
         ui.selectedSearchSource,
+        ui.selectedDefaultSearchType,
         ui.selectedNeteaseSearchType,
         ui.selectedYouTubeMusicSearchType
     ) {
@@ -663,12 +676,14 @@ fun ExploreScreen(
     val currentSearchScrollContextKey = remember(
         effectiveSearchKeyword,
         ui.selectedSearchSource,
+        ui.selectedDefaultSearchType,
         ui.selectedNeteaseSearchType,
         ui.selectedYouTubeMusicSearchType
     ) {
         exploreSearchScrollContextKey(
             keyword = effectiveSearchKeyword,
             source = ui.selectedSearchSource,
+            defaultSearchType = ui.selectedDefaultSearchType,
             neteaseSearchType = ui.selectedNeteaseSearchType,
             youtubeSearchType = ui.selectedYouTubeMusicSearchType
         )
@@ -695,6 +710,7 @@ fun ExploreScreen(
         shouldLoadMoreSearch,
         ui.searchItems.size,
         ui.selectedSearchSource,
+        ui.selectedDefaultSearchType,
         ui.selectedNeteaseSearchType,
         ui.selectedYouTubeMusicSearchType
     ) {
@@ -852,8 +868,10 @@ fun ExploreScreen(
                     ) {
                         ExploreSearchTypeBar(
                             source = searchTypeBarSource,
+                            selectedDefaultSearchType = ui.selectedDefaultSearchType,
                             selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
                             selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                            onDefaultSearchTypeClick = vm::setDefaultSearchType,
                             onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
                             onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
                             selectedAlpha = tagChipSelectedAlpha,
@@ -1582,7 +1600,9 @@ internal fun exploreSearchTypeBarSource(
     // 上滑时仍保留类型图标栏，避免筛选入口在滚动中消失
     @Suppress("UNUSED_PARAMETER")
     return selectedSearchSource.takeIf {
-        it == SearchSource.NETEASE || it == SearchSource.YOUTUBE_MUSIC
+        it == SearchSource.DEFAULT ||
+            it == SearchSource.NETEASE ||
+            it == SearchSource.YOUTUBE_MUSIC
     }
 }
 
@@ -1599,8 +1619,10 @@ internal fun isExploreSearchTypeBarSourceSwap(
 @Composable
 internal fun ExploreSearchTypeBar(
     source: SearchSource?,
+    selectedDefaultSearchType: DefaultExploreSearchType,
     selectedNeteaseSearchType: NeteaseExploreSearchType,
     selectedYouTubeSearchType: YouTubeExploreSearchType,
+    onDefaultSearchTypeClick: (DefaultExploreSearchType) -> Unit,
     onNeteaseSearchTypeClick: (NeteaseExploreSearchType) -> Unit,
     onYouTubeSearchTypeClick: (YouTubeExploreSearchType) -> Unit,
     selectedAlpha: Float,
@@ -1689,6 +1711,30 @@ internal fun ExploreSearchTypeBar(
         label = "explore_search_type_bar"
     ) { displayedSource ->
         when (displayedSource) {
+            SearchSource.DEFAULT -> {
+                LazyRow(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .testTag(EXPLORE_DEFAULT_SEARCH_TYPE_BAR_TAG),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(DefaultExploreSearchType.entries) { _, type ->
+                        ExploreTagChip(
+                            label = defaultSearchTypeLabel(type),
+                            selected = selectedDefaultSearchType == type,
+                            onClick = {
+                                if (source == displayedSource) {
+                                    onDefaultSearchTypeClick(type)
+                                }
+                            },
+                            selectedAlpha = selectedAlpha,
+                            unselectedAlpha = unselectedAlpha,
+                            borderAlpha = borderAlpha
+                        )
+                    }
+                }
+            }
+
             SearchSource.NETEASE -> {
                 LazyRow(
                     modifier = Modifier
@@ -1748,6 +1794,7 @@ internal fun ExploreSearchTypeBar(
 
 private const val EXPLORE_HISTORY_DISPLAY_LIMIT = 15
 private val EXPLORE_SEARCH_TYPE_BAR_SOURCES = setOf(
+    SearchSource.DEFAULT,
     SearchSource.NETEASE,
     SearchSource.YOUTUBE_MUSIC
 )
@@ -1756,6 +1803,7 @@ private const val EXPLORE_SEARCH_TYPE_BAR_EXIT_DURATION_MS = 140
 private const val EXPLORE_SEARCH_TYPE_BAR_SIZE_DURATION_MS = 220
 private const val EXPLORE_SEARCH_TYPE_BAR_SLIDE_DIVISOR = 5
 internal const val EXPLORE_SEARCH_TYPE_BAR_CONTAINER_TAG = "explore_search_type_bar"
+internal const val EXPLORE_DEFAULT_SEARCH_TYPE_BAR_TAG = "explore_default_search_type_bar"
 internal const val EXPLORE_NETEASE_SEARCH_TYPE_BAR_TAG = "explore_netease_search_type_bar"
 internal const val EXPLORE_YOUTUBE_SEARCH_TYPE_BAR_TAG = "explore_youtube_search_type_bar"
 

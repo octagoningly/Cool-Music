@@ -71,10 +71,10 @@
 
 ## 协作约定
 
-1. **在工作分支上改**；同步 GitHub：`main` 拉最新 → 工作分支 rebase → 冲突优先两边都保留；签名 / applicationId / versionCode 冲突必须人工确认
-2. 提交信息：`修复xx功能_n` / `新增xx功能_n`
-3. 每完成一项任务，根目录 [`更新记录.md`](./更新记录.md) 追加：`lrq--简短说明--YYYY-MM-DD`（新条目可置顶）
-4. **禁止提交**：`*.jks`、`*.keystore`、密码、Token、Cookie、`logs*.txt`、`__pycache__`、`dist/` 安装包
+1. **在工作分支上改**；同步 GitHub 以 [`开发规则.md`](./开发规则.md) §6 为准（rebase 优先，禁止 force-push `main`，冲突优先两边都保留；签名 / applicationId / versionCode 冲突必须人工确认）
+2. 提交信息：`修复xx功能_n` / `新增xx功能_n`（全仓统一）
+3. 每完成一项任务，更新根目录 [`更新记录.md`](./更新记录.md)：新条目**插在 `# 更新记录` 正下方**（新在上），格式 `lrq--简短说明--YYYY-MM-DD`
+4. **禁止提交**：`*.jks`、`*.keystore`、密码、Token、Cookie、完整配置备份、`logs*.txt`、`__pycache__`、`*.pyc`、`dist/` 安装包、IDE 本地配置、缓存/临时构建产物；签名口令只放 `~/.gradle/gradle.properties` 或 GitHub Secrets
 5. Debug APK **禁止**上传 GitHub Release；正式发版只用 `assembleRelease` 签名包
 
 ## 文档地图

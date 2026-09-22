@@ -52,7 +52,7 @@ Cool Music 是基于开源项目 **[NeriPlayer](https://github.com/cwuom/NeriPla
 | 查找代码入口、模块结构 | 第六节 · 模块与代码入口 |
 | 功能演进流水（每次改了什么） | [`更新记录.md`](./更新记录.md) |
 | 发行签名、`versionCode`、ADB 约定 | [`开发规则.md`](./开发规则.md) |
-| 下载最新安装包 | [Releases · `v0.2.2`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.2) |
+| 下载最新安装包 | [Releases · 最新](https://github.com/octagoningly/Cool-Music/releases/latest) |
 | 阅读上游完整文档 | [NeriPlayer README](https://github.com/cwuom/NeriPlayer/blob/master/README.md) |
 
 ```text
@@ -154,7 +154,7 @@ Cool Music（本仓库结构速览）
 | `versionCode` | **分钟级**编码；Release 正文须写 `versionCode=数字` |
 | 签名 | 固定 `app/neri.jks`；修复 vivo「无签名 / 软件包无效」 |
 | debug 签名 | 密钥就绪时 debug **复用 release 签名**，便于 ADB 覆盖安装 |
-| 安装包 | 本地 `dist/apk/`；对外以 GitHub Release 为准（如 [`v0.2.0`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.0)） |
+| 安装包 | 本地 `dist/apk/`；对外以 GitHub Release 为准（[最新 Release](https://github.com/octagoningly/Cool-Music/releases/latest)） |
 | CI | 已**移除** PR 上的重型 Android / Native CI 工作流 |
 | 同步品牌 | GitHub / WebDAV 默认仓库与文件名改为 Cool Music，**兼容旧备份** |
 | 调试 | `scripts/install-debug.ps1` 一键 ADB 安装；约定见 [`开发规则.md`](./开发规则.md) |
@@ -235,7 +235,7 @@ Cool Music（本仓库结构速览）
 
 ### 5.1 下载安装
 
-1. 打开 [Releases](https://github.com/octagoningly/Cool-Music/releases)，下载最新 `CoolMusic-*-arm64*.apk`（当前示例：[`v0.2.2`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.2)）。
+1. 打开 [Releases](https://github.com/octagoningly/Cool-Music/releases/latest)，下载最新 `CoolMusic-*-arm64*.apk`。
 2. 使用**同一签名覆盖安装**即可，**无需卸载**（保留登录与本地数据）。
 3. 也可在应用内：`设置 → 关于 → 检查更新`。
 
@@ -319,7 +319,7 @@ cd Cool-Music
 
 - 分发 APK 须同时提供源码或有效获取方式，并保留版权与许可证信息
 - 许可见 [`LICENSE`](./LICENSE)
-- 提交信息风格：`修复xx功能_n` / `新增xx功能_n`；完成后更新 [`更新记录.md`](./更新记录.md)
+- 提交信息风格：`修复xx功能_n` / `新增xx功能_n`（全仓统一，不用 Conventional Commits）；完成后将新条目插入 [`更新记录.md`](./更新记录.md) 标题下方（新在上）
 
 ---
 
@@ -329,4 +329,4 @@ cd Cool-Music
 |------|------|
 | Cool Music（本衍生版） | <https://github.com/octagoningly/Cool-Music> |
 | NeriPlayer（上游） | <https://github.com/cwuom/NeriPlayer> |
-| 最新发行 | [v0.2.2](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.2) |
+| 最新发行 | [Releases · 最新](https://github.com/octagoningly/Cool-Music/releases/latest) |

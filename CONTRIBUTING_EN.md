@@ -932,12 +932,14 @@ PRs should include:
 
 Do not commit:
 
-- APKs, signing files, or local IDE config
-- Caches, logs, or temporary build outputs
-- Auth cookies, tokens, full config backups, or personal data
+- APK / `dist/` installers, keystores (`*.jks` / `*.keystore`), IDE-local config
+- Caches, logs (including `logs*.txt`), temp build outputs, `__pycache__` / `*.pyc` / `*.idsig`
+- Auth cookies, tokens, passwords, full config backups, personal data
+- Keep signing passwords only in `~/.gradle/gradle.properties` or GitHub Secrets — never in repository files
 
-Commit messages should follow Conventional Commits when possible, for example:
-`feat: ...`, `fix: ...`, or `docs: ...`.
+Commit messages in this repository use (aligned with [`开发规则.md`](./开发规则.md) §6):
+`修复xx功能_n` / `新增xx功能_n` (example: `修复缓存歌曲漏列问题_1`).
+Do not use Conventional Commits (`feat:` / `fix:` / etc.).
 
 ---
 

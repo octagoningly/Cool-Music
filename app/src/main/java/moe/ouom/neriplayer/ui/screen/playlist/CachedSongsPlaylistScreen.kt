@@ -301,14 +301,15 @@ fun CachedSongsPlaylistScreen(
                                     expanded = artistMenuExpanded,
                                     onDismissRequest = { artistMenuExpanded = false },
                                     shape = RoundedCornerShape(20.dp),
-                                    modifier = Modifier.widthIn(min = 168.dp, max = 280.dp)
+                                    modifier = Modifier.widthIn(max = 240.dp)
                                 ) {
                                     DropdownMenuItem(
                                         text = {
                                             Text(
                                                 stringResource(R.string.cached_songs_filter_all_artists),
-                                                modifier = Modifier.fillMaxWidth(),
-                                                textAlign = TextAlign.Center
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                style = MaterialTheme.typography.bodyLarge
                                             )
                                         },
                                         onClick = {
@@ -323,8 +324,7 @@ fun CachedSongsPlaylistScreen(
                                                     artist,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    textAlign = TextAlign.Center
+                                                    style = MaterialTheme.typography.bodyLarge
                                                 )
                                             },
                                             onClick = {

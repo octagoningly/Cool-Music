@@ -120,6 +120,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.ui.component.common.NeriTabLargeTitleTopBar
+import moe.ouom.neriplayer.ui.component.playlist.AddSongToPlaylistSheet
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.download.GlobalDownloadManager
 import moe.ouom.neriplayer.core.download.toPlaybackSongItem
@@ -1124,6 +1125,7 @@ private fun SectionErrorState(detail: String) {
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun SongRowMini(
     index: Int,
@@ -1141,6 +1143,7 @@ private fun SongRowMini(
     val scope = rememberCoroutineScope()
     val coverUrl = rememberSongDisplayCoverUrl(song)
     var showMenu by remember { mutableStateOf(false) }
+    var showAddToPlaylistSheet by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1245,6 +1248,19 @@ private fun SongRowMini(
                     }
                 )
                 DropdownMenuItem(
+                    text = { Text(stringResource(R.string.playlist_add_to)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
+                            contentDescription = null
+                        )
+                    },
+                    onClick = {
+                        showMenu = false
+                        showAddToPlaylistSheet = true
+                    }
+                )
+                DropdownMenuItem(
                     text = {
                         Text(
                             stringResource(
@@ -1292,6 +1308,12 @@ private fun SongRowMini(
                     }
                 )
             }
+        }
+        if (showAddToPlaylistSheet) {
+            AddSongToPlaylistSheet(
+                song = song,
+                onDismissRequest = { showAddToPlaylistSheet = false }
+            )
         }
     }
 }
@@ -1341,6 +1363,7 @@ private fun RadarPlaylistCard(
     val scope = rememberCoroutineScope()
     val favoriteRepo = remember(context) { FavoritePlaylistRepository.getInstance(context) }
     var showMenu by remember { mutableStateOf(false) }
+    var showAddToPlaylistSheet by remember { mutableStateOf(false) }
     val unfavoritedText = stringResource(R.string.home_unfavorited)
     val favoriteSuccessText = stringResource(R.string.favorite_success)
 
@@ -1476,6 +1499,7 @@ fun PlaylistCard(
     val scope = rememberCoroutineScope()
     val favoriteRepo = remember(context) { FavoritePlaylistRepository.getInstance(context) }
     var showMenu by remember { mutableStateOf(false) }
+    var showAddToPlaylistSheet by remember { mutableStateOf(false) }
 
     val unfavoritedText = stringResource(R.string.home_unfavorited)
     val favoriteSuccessText = stringResource(R.string.favorite_success)
@@ -1585,6 +1609,7 @@ private fun YtMusicPlaylistCard(
         playlist.favoriteId()
     }
     var showMenu by remember { mutableStateOf(false) }
+    var showAddToPlaylistSheet by remember { mutableStateOf(false) }
     val unfavoritedText = stringResource(R.string.home_unfavorited)
     val favoriteSuccessText = stringResource(R.string.favorite_success)
 
@@ -1695,6 +1720,7 @@ private fun YtMusicHomeItemCard(
         playlist?.favoriteId()
     }
     var showMenu by remember { mutableStateOf(false) }
+    var showAddToPlaylistSheet by remember { mutableStateOf(false) }
     val unfavoritedText = stringResource(R.string.home_unfavorited)
     val favoriteSuccessText = stringResource(R.string.favorite_success)
 
@@ -2067,6 +2093,7 @@ private fun ContinueCard(
     val configuration = LocalConfiguration.current
     val view = androidx.compose.ui.platform.LocalView.current
     var showMenu by remember { mutableStateOf(false) }
+    var showAddToPlaylistSheet by remember { mutableStateOf(false) }
     val displayName = remember(entry.id, entry.name, entry.source, configuration) {
         SystemLocalPlaylists.resolve(entry.id, entry.name, context)?.currentName ?: entry.name
     }

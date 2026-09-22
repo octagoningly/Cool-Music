@@ -197,6 +197,7 @@ import moe.ouom.neriplayer.data.model.stableKey
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.playlist.favorite.FavoritePlaylistRepository
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
+import moe.ouom.neriplayer.ui.component.playlist.AddSongToPlaylistSheet
 import moe.ouom.neriplayer.ui.component.playlist.PlaylistExportSheet
 import moe.ouom.neriplayer.ui.component.playlist.showPlaylistBatchExportAddedResult
 import moe.ouom.neriplayer.ui.component.playlist.showPlaylistBatchExportCreatedResult
@@ -234,6 +235,8 @@ private const val SEARCH_INPUT_DEBOUNCE_MS = 300L
 private val ExplorePrimaryTabShape = RoundedCornerShape(20.dp)
 private val ExplorePillShape = RoundedCornerShape(999.dp)
 private val ExploreSearchFieldShape = RoundedCornerShape(16.dp)
+private val ExploreTypeChipShape = RoundedCornerShape(18.dp)
+private val ExploreTypeChipSize = 44.dp
 
 internal fun exploreSearchSourceDisplayOrder(
     isInternational: Boolean,
@@ -881,6 +884,34 @@ fun ExploreScreen(
                     Spacer(Modifier.height(8.dp))
                     var sourceMenuExpanded by remember { mutableStateOf(false) }
                     val currentSearchSource = ui.selectedSearchSource
+                    val activeListState = when {
+                        searchQuery.isNotEmpty() -> searchListState
+                        ui.selectedSearchSource == SearchSource.NETEASE -> gridState
+                        ui.selectedSearchSource == SearchSource.YOUTUBE_MUSIC -> youtubeGridState
+                        else -> searchListState
+                    }
+                    val showTypeFilterLayer by remember(activeListState) {
+                        derivedStateOf {
+                            when {
+                                ui.selectedSearchSource == SearchSource.NETEASE ->
+                                    gridState.firstVisibleItemIndex == 0 &&
+                                        gridState.firstVisibleItemScrollOffset < 48
+                                ui.selectedSearchSource == SearchSource.YOUTUBE_MUSIC ->
+                                    youtubeGridState.firstVisibleItemIndex == 0 &&
+                                        youtubeGridState.firstVisibleItemScrollOffset < 48
+                                else ->
+                                    searchListState.firstVisibleItemIndex == 0 &&
+                                        searchListState.firstVisibleItemScrollOffset < 48
+                            }
+                        }
+                    }
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showTypeFilterLayer,
+                        enter = androidx.compose.animation.expandVertically() +
+                            androidx.compose.animation.fadeIn(),
+                        exit = androidx.compose.animation.shrinkVertically() +
+                            androidx.compose.animation.fadeOut(),
+                    ) {
                     // 第一行：左侧搜索类型（歌曲/歌单/歌手），右侧搜索源按钮 —— 整组水平居中
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -953,6 +984,7 @@ fun ExploreScreen(
                                 }
                             }
                         }
+                    }
                     }
 
                     // 类型标签行仅在「新发现」二级页展示（见 NeteaseDiscoveryPage）
@@ -2154,11 +2186,24 @@ private fun ExploreTagChip(
         },
         contentColor = contentColor,
         border = BorderStroke(1.dp, borderColor),
+        shape = if (showLabel) ExplorePillShape else ExploreTypeChipShape,
         onClick = onClick
     ) {
+        if (!showLabel && icon != null) {
+            Box(
+                modifier = Modifier.size(ExploreTypeChipSize),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        } else {
         Row(
             modifier = Modifier
-                .height(32.dp)
+                .height(36.dp)
                 .padding(horizontal = if (showLabel) 14.dp else 12.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
@@ -2167,7 +2212,7 @@ private fun ExploreTagChip(
                 Icon(
                     imageVector = icon,
                     contentDescription = if (showLabel) null else label,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
                 if (showLabel) {
                     Spacer(Modifier.width(6.dp))
@@ -2182,6 +2227,7 @@ private fun ExploreTagChip(
                 )
             }
         }
+        }
     }
 }
 
@@ -2192,6 +2238,7 @@ internal fun ExploreGlassPillSurface(
     contentColor: Color,
     onClick: () -> Unit,
     border: BorderStroke? = null,
+    shape: androidx.compose.ui.graphics.Shape = ExplorePillShape,
     content: @Composable () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -2207,15 +2254,15 @@ internal fun ExploreGlassPillSurface(
     ) {
         AdvancedGlassSurface(
             role = AdvancedGlassRole.ExploreTag,
-            shape = ExplorePillShape,
+            shape = shape,
             fallbackColor = fallbackColor,
             tintColor = tintColor
         ) {
             Surface(
                 modifier = Modifier
-                    .clip(ExplorePillShape)
+                    .clip(shape)
                     .indication(interactionSource, ripple()),
-                shape = ExplorePillShape,
+                shape = shape,
                 color = Color.Transparent,
                 contentColor = contentColor,
                 border = border,
@@ -2526,6 +2573,7 @@ private fun SearchLoadMoreErrorRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SongRow(
     index: Int,
@@ -2547,6 +2595,7 @@ internal fun SongRow(
     val scope = rememberCoroutineScope()
     val coverUrl = rememberSongDisplayCoverUrl(song)
     var showMoreMenu by remember { mutableStateOf(false) }
+    var showAddToPlaylistSheet by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -2657,6 +2706,20 @@ internal fun SongRow(
                     }
                 )
                 DropdownMenuItem(
+                    text = { Text(stringResource(R.string.playlist_add_to)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.QueueMusic,
+                            contentDescription = null
+                        )
+                    },
+                    onClick = {
+                        context.performHapticFeedback()
+                        showMoreMenu = false
+                        showAddToPlaylistSheet = true
+                    }
+                )
+                DropdownMenuItem(
                     text = {
                         Text(
                             if (isFavorite) {
@@ -2728,6 +2791,12 @@ internal fun SongRow(
                     }
                 )
             }
+        }
+        if (showAddToPlaylistSheet) {
+            AddSongToPlaylistSheet(
+                song = song,
+                onDismissRequest = { showAddToPlaylistSheet = false }
+            )
         }
     }
 }

@@ -108,7 +108,10 @@ fun NeriBottomBar(
                             text = label,
                             maxLines = 1,
                             softWrap = false,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge,
                         )
                     },
                     alwaysShowLabel = alwaysShowLabel,

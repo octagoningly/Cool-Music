@@ -1269,7 +1269,10 @@ fun SettingsScreen(
         ) {
             Text(
                 text = stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.headlineLarge
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                )
             )
             ThemeModeActionButton(
                 isDarkTheme = isDarkTheme,

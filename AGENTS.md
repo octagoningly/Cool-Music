@@ -46,6 +46,7 @@
 - 日志 tag 前缀：`NERI-` / `[NeriPlayer]`
 - 签名凭据只放 `~/.gradle/gradle.properties`（`KEYSTORE_*`），**禁止写入仓库文件**（含 `local.properties`）
 - 本地 APK 统一放 `dist/apk/`（已 gitignore），对外只走 GitHub Release
+- **JDK**：命令行与 IDE 的 **Gradle JDK 均用 17**（Temurin 17）。项目要求 Java/Kotlin 17；若 IDE 默认更高版本（如 25），会在 `buildSrc` 报 `Inconsistent JVM-target`。设置：`File → Settings → Build → Gradle → Gradle JDK = 17`
 
 ## 模块地图（改哪里）
 

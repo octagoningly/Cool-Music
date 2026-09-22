@@ -1949,6 +1949,31 @@ fun SettingsScreen(
                                 onNeteaseAutoSourceSwitchChange(!neteaseAutoSourceSwitch)
                             }
                         )
+                    }
+                }
+
+                SettingsPage.OnlineListening -> {
+                    miuixSettingsSectionCardItem(key = "${selectedPage.name}:content") {
+                        MiuixSettingsSectionIntro(
+                            title = stringResource(R.string.settings_online_source_section),
+                            description = stringResource(R.string.settings_online_listening_desc)
+                        )
+                        ListItem(
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Outlined.CloudDownload,
+                                    contentDescription = stringResource(R.string.lx_source_manage_title),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            headlineContent = { Text(stringResource(R.string.lx_source_manage_title)) },
+                            supportingContent = { Text(stringResource(R.string.lx_source_manage_summary)) },
+                            modifier = Modifier.settingsItemClickable(
+                                onClick = { showLxSourceManageDialog = true }
+                            ),
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
                         val lxSourceCoverFallback by autoSettingsRepository
                             .lxSourceCoverFallbackEnabledFlow
                             .collectAsState(initial = true)
@@ -1957,7 +1982,7 @@ fun SettingsScreen(
                             .collectAsState(initial = true)
                         val lxOnlineSearchEnginesRaw by autoSettingsRepository
                             .lxOnlineSearchEnginesFlow
-                            .collectAsState(initial = "tx,kg,kw,wy")
+                            .collectAsState(initial = "tx")
                         var showLxEnginePicker by remember { mutableStateOf(false) }
                         AutoSettingsListItem(
                             setting = AutoSettingsMetadata.requireSetting(
@@ -4465,23 +4490,6 @@ private fun SettingsLoginExpandedContent(
                         onOpenNeteaseSheet()
                     }
                 }
-            ),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
-
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = Icons.Outlined.CloudDownload,
-                    contentDescription = stringResource(R.string.lx_source_manage_title),
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            headlineContent = { Text(stringResource(R.string.lx_source_manage_title)) },
-            supportingContent = { Text(stringResource(R.string.lx_source_manage_summary)) },
-            modifier = Modifier.settingsItemClickable(
-                onClick = { onOpenLxSourceDialog() }
             ),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )

@@ -8,6 +8,9 @@
     <string name="settings_search_result_context">%1$s · %2$s</string>
     <string name="settings_general">General</string>
     <string name="settings_general_desc">Language, haptics, and global behavior</string>
+    <string name="settings_online_listening">Online listening</string>
+    <string name="settings_online_listening_desc">Online music sources, cover/lyrics, and search</string>
+    <string name="settings_online_source_section">Online sources</string>
     <string name="settings_accounts_desc">Manage NetEase, Bilibili, and YouTube sign-in states</string>
     <string name="settings_personalization">Personalization</string>
     <string name="settings_network">Network</string>

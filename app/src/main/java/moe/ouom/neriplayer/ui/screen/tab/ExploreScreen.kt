@@ -2471,20 +2471,7 @@ internal fun SongRow(
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = buildString {
-                    append(song.displayArtist().orEmpty())
-                    val platformLabel = when (song.channelId) {
-                        "lx:kw" -> composeResources.getString(R.string.explore_lx_source_kw)
-                        "lx:kg" -> composeResources.getString(R.string.explore_lx_source_kg)
-                        "lx:tx" -> composeResources.getString(R.string.explore_lx_source_tx)
-                        "lx:wy" -> composeResources.getString(R.string.platform_netease_short)
-                        else -> null
-                    }
-                    if (platformLabel != null) {
-                        if (isNotEmpty()) append(" · ")
-                        append(platformLabel)
-                    }
-                },
+                text = song.displayArtist().orEmpty(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall,

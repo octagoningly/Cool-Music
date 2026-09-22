@@ -1736,7 +1736,7 @@ object AutoSettingsSchema {
         @AutoSetting(order = 137)
         val lxOnlineSearchEngines = autoStringSetting(
             key = "lx_online_search_engines",
-            defaultValue = "tx,kg,kw,wy",
+            defaultValue = "tx",
             titleRes = R.string.settings_lx_online_search_engines,
             descriptionRes = R.string.settings_lx_online_search_engines_desc,
             icon = AutoSettingIcon.Public

@@ -25,13 +25,16 @@ internal val LX_ONLINE_SEARCH_PLATFORM_ORDER = listOf(
     LX_NETEASE_PLATFORM_ID
 )
 
+/** 默认只开 QQ，兼顾准确曲库与专辑封面 */
+internal val LX_ONLINE_SEARCH_DEFAULT_ENGINES: Set<String> = setOf(LX_QQ_PLATFORM_ID)
+
 internal fun parseLxOnlineSearchEngines(raw: String?): Set<String> {
     val tokens = raw?.split(',', ';', ' ')
         ?.map { it.trim().lowercase() }
         ?.filter { it.isNotBlank() }
         ?: emptyList()
     val known = tokens.filter { it in LX_ONLINE_SEARCH_PLATFORM_ORDER }.toSet()
-    return known.ifEmpty { LX_ONLINE_SEARCH_PLATFORM_ORDER.toSet() }
+    return known.ifEmpty { LX_ONLINE_SEARCH_DEFAULT_ENGINES }
 }
 
 internal fun encodeLxOnlineSearchEngines(ids: Set<String>): String {
@@ -44,7 +47,7 @@ internal suspend fun lxOnlineSearchEngines(): Set<String> {
             parseLxOnlineSearchEngines(
                 AppContainer.settingsRepo.lxOnlineSearchEnginesFlow.first()
             )
-        }.getOrDefault(LX_ONLINE_SEARCH_PLATFORM_ORDER.toSet())
+        }.getOrDefault(LX_ONLINE_SEARCH_DEFAULT_ENGINES)
     }
 }
 

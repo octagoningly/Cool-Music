@@ -52,7 +52,7 @@ Cool Music 是基于开源项目 **[NeriPlayer](https://github.com/cwuom/NeriPla
 | 查找代码入口、模块结构 | 第六节 · 模块与代码入口 |
 | 功能演进流水（每次改了什么） | [`更新记录.md`](./更新记录.md) |
 | 发行签名、`versionCode`、ADB 约定 | [`开发规则.md`](./开发规则.md) |
-| 下载最新安装包 | [Releases · `v0.2.1`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.1) |
+| 下载最新安装包 | [Releases · `v0.2.2`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.2) |
 | 阅读上游完整文档 | [NeriPlayer README](https://github.com/cwuom/NeriPlayer/blob/master/README.md) |
 
 ```text
@@ -235,7 +235,7 @@ Cool Music（本仓库结构速览）
 
 ### 5.1 下载安装
 
-1. 打开 [Releases](https://github.com/octagoningly/Cool-Music/releases)，下载最新 `CoolMusic-*-arm64*.apk`（当前示例：[`v0.2.1`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.1)）。
+1. 打开 [Releases](https://github.com/octagoningly/Cool-Music/releases)，下载最新 `CoolMusic-*-arm64*.apk`（当前示例：[`v0.2.2`](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.2)）。
 2. 使用**同一签名覆盖安装**即可，**无需卸载**（保留登录与本地数据）。
 3. 也可在应用内：`设置 → 关于 → 检查更新`。
 
@@ -329,4 +329,4 @@ cd Cool-Music
 |------|------|
 | Cool Music（本衍生版） | <https://github.com/octagoningly/Cool-Music> |
 | NeriPlayer（上游） | <https://github.com/cwuom/NeriPlayer> |
-| 最新发行 | [v0.2.1](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.1) |
+| 最新发行 | [v0.2.2](https://github.com/octagoningly/Cool-Music/releases/tag/v0.2.2) |

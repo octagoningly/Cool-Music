@@ -809,7 +809,7 @@ PR 建议包含：
 - 授权 Cookie、Token、密码、完整配置备份、个人数据
 - 签名口令只放 `~/.gradle/gradle.properties` 或 GitHub Secrets，不要写入仓库文件
 
-Commit 信息本仓库统一使用（与 [`开发规则.md`](./开发规则.md) §6 一致）：
+Commit 信息本仓库统一使用（与 [`开发规则.md`](./开发规则.md) · **版本控制** 一致）：
 `修复xx功能_n` / `新增xx功能_n`（例：`修复缓存歌曲漏列问题_1`）。
 不使用 Conventional Commits（`feat:` / `fix:` 等）。
 

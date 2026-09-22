@@ -937,7 +937,7 @@ Do not commit:
 - Auth cookies, tokens, passwords, full config backups, personal data
 - Keep signing passwords only in `~/.gradle/gradle.properties` or GitHub Secrets — never in repository files
 
-Commit messages in this repository use (aligned with [`开发规则.md`](./开发规则.md) §6):
+Commit messages in this repository use (aligned with [`开发规则.md`](./开发规则.md) · **版本控制**):
 `修复xx功能_n` / `新增xx功能_n` (example: `修复缓存歌曲漏列问题_1`).
 Do not use Conventional Commits (`feat:` / `fix:` / etc.).
 

@@ -36,10 +36,12 @@ demo
 /output/
 .claude/
 CLAUDE.md
-AGENTS.md
 .opencode/
 .codex/
 .agents/
+logs*.txt
+**/__pycache__/
+*.pyc
 /ksp-annotations/build/
 /ksp-processor/build/
 /docs-private/

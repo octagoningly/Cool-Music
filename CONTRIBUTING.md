@@ -1,8 +1,14 @@
 [English](./CONTRIBUTING_EN.md) | [中文](./CONTRIBUTING.md)
 
-## Contributing to NeriPlayer / 贡献指南
+## Contributing to Cool Music（NeriPlayer 衍生）/ 贡献指南
 
-感谢你愿意为 NeriPlayer 做出贡献。
+> [!IMPORTANT]
+> 本仓库是 **Cool Music**（`octagoningly/Cool-Music`），基于上游 [NeriPlayer](https://github.com/cwuom/NeriPlayer)（GPL-3.0）的二次开发。
+> - 应用身份：`applicationId = moe.ouom.coolmusic`，显示名 **Cool Music**；Kotlin 包名仍为 `moe.ouom.neriplayer`（可保持）。
+> - **发版 / 签名 / versionCode / ADB** 以 [`开发规则.md`](./开发规则.md) 为准，与本文冲突时优先 `开发规则.md`。
+> - 本文其余部分描述客户端与一起听 Worker 的实现边界与扩展路径（大量内容沿用上游）。
+
+感谢你愿意为 Cool Music（NeriPlayer 衍生）做出贡献。
 本文描述**当前 Android 客户端和一起听 Worker 的真实实现**，
 请以源码和运行行为为准同步维护文档。
 
@@ -57,7 +63,7 @@
 - **CMake**：`3.28.0+`
 - **Node.js**：22，用于一起听 Worker 检查
 - **版本名格式**：`<git短哈希>.<MMddHHmm>`
-- **Release APK 文件名**：`NeriPlayer-<versionName>[-abi].apk`
+- **Release APK 文件名**：`CoolMusic-<versionName>[-abi].apk`
 
 补充说明：
 
@@ -105,8 +111,8 @@
 
 1. 克隆仓库：
    ```bash
-   git clone --recursive https://github.com/cwuom/NeriPlayer.git
-   cd NeriPlayer
+   git clone --recursive https://github.com/octagoningly/Cool-Music.git
+   cd Cool-Music
    ```
 2. 构建调试版：
    ```bash
@@ -155,7 +161,7 @@
 
 4. 产物位于 `app/build/outputs/apk/release/`，文件名格式为：
    ```text
-   NeriPlayer-<git短哈希>.<MMddHHmm>[-abi].apk
+   CoolMusic-<git短哈希>.<MMddHHmm>[-abi].apk
    ```
 
 安全提醒：
@@ -823,7 +829,7 @@ Commit 信息建议遵循 Conventional Commits，
 
 ### 沟通方式 / Communication
 
-- [Issues](https://github.com/cwuom/NeriPlayer/issues)：缺陷、功能建议、讨论
+- [Issues](https://github.com/octagoningly/Cool-Music/issues)：缺陷、功能建议、讨论
 - [README.md](./README.md)：功能与使用说明
 - [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)：社区行为准则
 

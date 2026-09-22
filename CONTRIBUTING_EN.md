@@ -1,8 +1,14 @@
 [English](./CONTRIBUTING_EN.md) | [中文](./CONTRIBUTING.md)
 
-## Contributing to NeriPlayer
+## Contributing to Cool Music (NeriPlayer fork)
 
-Thank you for contributing to NeriPlayer.
+> [!IMPORTANT]
+> This repository is **Cool Music** (`octagoningly/Cool-Music`), a GPL-3.0 derivative of upstream [NeriPlayer](https://github.com/cwuom/NeriPlayer).
+> - App identity: `applicationId = moe.ouom.coolmusic`, display name **Cool Music**; Kotlin package remains `moe.ouom.neriplayer`.
+> - **Release / signing / versionCode / ADB** follow [`开发规则.md`](./开发规则.md). On conflict, `开发规则.md` wins.
+> - The rest of this document covers client & Listen Together Worker boundaries (much content is inherited from upstream).
+
+Thank you for contributing to Cool Music (NeriPlayer fork).
 This document describes the **current Android client and Listen Together Worker
 implementation**. Keep documentation aligned with the source code and runtime behavior.
 
@@ -63,7 +69,7 @@ If it affects extension paths, tests, or module boundaries, update CONTRIBUTING.
 - **CMake**: `3.28.0+`
 - **Node.js**: 20, for Listen Together Worker checks
 - **Version name format**: `<git_short_hash>.<MMddHHmm>`
-- **Release APK filename**: `NeriPlayer-<versionName>[-abi].apk`
+- **Release APK filename**: `CoolMusic-<versionName>[-abi].apk`
 
 Additional notes:
 
@@ -120,8 +126,8 @@ for the new behavior.
 
 1. Clone the repository:
    ```bash
-   git clone --recursive https://github.com/cwuom/NeriPlayer.git
-   cd NeriPlayer
+   git clone --recursive https://github.com/octagoningly/Cool-Music.git
+   cd Cool-Music
    ```
 2. Build the Debug APK:
    ```bash
@@ -174,7 +180,7 @@ extra Gradle property.
 
 4. Artifacts are generated in `app/build/outputs/apk/release/`:
    ```text
-   NeriPlayer-<git_short_hash>.<MMddHHmm>[-abi].apk
+   CoolMusic-<git_short_hash>.<MMddHHmm>[-abi].apk
    ```
 
 Security reminders:
@@ -954,7 +960,7 @@ Commit messages should follow Conventional Commits when possible, for example:
 
 ### Communication
 
-- [Issues](https://github.com/cwuom/NeriPlayer/issues): bugs, feature requests, and discussions
+- [Issues](https://github.com/octagoningly/Cool-Music/issues): bugs, feature requests, and discussions
 - [README_EN.md](./README_EN.md): features and usage
 - [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md): community code of conduct
 

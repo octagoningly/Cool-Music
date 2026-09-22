@@ -20,6 +20,11 @@
     <string name="cached_songs_group_shared">一起听共享流</string>
     <string name="cached_songs_group_url">直连地址</string>
     <string name="cached_songs_group_other">其他缓存</string>
+    <string name="cached_songs_filter_complete">完整缓存</string>
+    <string name="cached_songs_filter_all">全部</string>
+    <string name="cached_songs_filter_artist">歌手</string>
+    <string name="cached_songs_filter_all_artists">全部歌手</string>
+    <string name="cached_songs_showing">显示 %1$d 首</string>
     <string name="local_files_manual_added">手动添加</string>
     <string name="local_files_downloaded">已下载</string>
     <string name="local_files_delete_downloaded_title">删除已下载歌曲</string>

@@ -1,6 +1,7 @@
 package moe.ouom.neriplayer.ui.screen.playlist
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -53,7 +56,9 @@ import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.core.player.cache.CachedSong
 import moe.ouom.neriplayer.core.player.cache.CachedSongsSnapshot
 import moe.ouom.neriplayer.core.player.cache.CachedUnrecognizedKind
+import moe.ouom.neriplayer.core.player.cache.cachedSongArtistOptions
 import moe.ouom.neriplayer.core.player.cache.cachedSongsSnapshot
+import moe.ouom.neriplayer.core.player.cache.filterCachedSongs
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.data.model.displayArtist
 import moe.ouom.neriplayer.data.model.displayCoverUrl
@@ -82,15 +87,20 @@ fun CachedSongsPlaylistScreen(
     }
     val cachedSongs = snapshot.songs
     var query by remember { mutableStateOf("") }
-    val visibleSongs = remember(cachedSongs, query) {
-        if (query.isBlank()) cachedSongs else cachedSongs.filter {
-            it.song.displayName().contains(query, ignoreCase = true) ||
-                it.song.displayArtist().contains(query, ignoreCase = true)
-        }
+    var onlyComplete by remember { mutableStateOf(true) }
+    var selectedArtist by remember { mutableStateOf<String?>(null) }
+    val artistOptions = remember(cachedSongs) { cachedSongArtistOptions(cachedSongs) }
+    val visibleSongs = remember(cachedSongs, query, onlyComplete, selectedArtist) {
+        filterCachedSongs(
+            songs = cachedSongs,
+            onlyComplete = onlyComplete,
+            selectedArtist = selectedArtist,
+            query = query,
+        )
     }
-    val playbackSongs = remember(cachedSongs) { cachedSongs.map(CachedSong::song) }
-    val completeSongs = remember(cachedSongs) {
-        cachedSongs.filter(CachedSong::complete).map(CachedSong::song)
+    val playbackSongs = remember(visibleSongs) { visibleSongs.map(CachedSong::song) }
+    val completeSongs = remember(visibleSongs) {
+        visibleSongs.filter(CachedSong::complete).map(CachedSong::song)
     }
     val offlineNow = offlineMode || !context.hasValidatedDefaultInternetAccess()
     val partialOfflineMessage = stringResource(R.string.cached_songs_partial_offline)
@@ -198,6 +208,42 @@ fun CachedSongsPlaylistScreen(
                                 Icon(Icons.Filled.Shuffle, contentDescription = stringResource(R.string.cached_songs_shuffle))
                             }
                         }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                        ) {
+                            FilterChip(
+                                selected = onlyComplete,
+                                onClick = { onlyComplete = true },
+                                label = { Text(stringResource(R.string.cached_songs_filter_complete)) }
+                            )
+                            FilterChip(
+                                selected = !onlyComplete,
+                                onClick = { onlyComplete = false },
+                                label = { Text(stringResource(R.string.cached_songs_filter_all)) }
+                            )
+                            FilterChip(
+                                selected = selectedArtist == null,
+                                onClick = { selectedArtist = null },
+                                label = { Text(stringResource(R.string.cached_songs_filter_all_artists)) }
+                            )
+                            artistOptions.forEach { artist ->
+                                FilterChip(
+                                    selected = selectedArtist == artist,
+                                    onClick = {
+                                        selectedArtist = if (selectedArtist == artist) null else artist
+                                    },
+                                    label = { Text(artist, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                )
+                            }
+                        }
+                        Text(
+                            text = stringResource(R.string.cached_songs_showing, visibleSongs.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         OutlinedTextField(
                             value = query,
                             onValueChange = { query = it },
@@ -212,7 +258,11 @@ fun CachedSongsPlaylistScreen(
                         Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                             Text(
                                 text = stringResource(
-                                    if (query.isBlank()) R.string.cached_songs_empty else R.string.cached_songs_no_results
+                                    if (query.isBlank() && onlyComplete && selectedArtist == null) {
+                                        R.string.cached_songs_empty
+                                    } else {
+                                        R.string.cached_songs_no_results
+                                    }
                                 ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

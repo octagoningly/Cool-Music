@@ -13,6 +13,8 @@ import moe.ouom.neriplayer.data.history.PlayHistoryRepository
 import moe.ouom.neriplayer.data.history.toSongItem
 import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.data.model.displayArtist
+import moe.ouom.neriplayer.data.model.displayName
 import moe.ouom.neriplayer.data.model.stableKey
 import moe.ouom.neriplayer.data.platform.youtube.extractYouTubeMusicVideoId
 import moe.ouom.neriplayer.data.platform.youtube.buildYouTubeMusicMediaUri
@@ -51,6 +53,31 @@ enum class CachedUnrecognizedKind {
     DIRECT_URL,
     OTHER
 }
+
+internal fun filterCachedSongs(
+    songs: List<CachedSong>,
+    onlyComplete: Boolean,
+    selectedArtist: String?,
+    query: String,
+): List<CachedSong> {
+    val artistFilter = selectedArtist?.trim()?.takeIf { it.isNotEmpty() }
+    val textQuery = query.trim()
+    return songs.filter { entry ->
+        (!onlyComplete || entry.complete) &&
+            (artistFilter == null ||
+                entry.song.displayArtist().trim().equals(artistFilter, ignoreCase = true)) &&
+            (textQuery.isEmpty() ||
+                entry.song.displayName().contains(textQuery, ignoreCase = true) ||
+                entry.song.displayArtist().contains(textQuery, ignoreCase = true))
+    }
+}
+
+internal fun cachedSongArtistOptions(songs: List<CachedSong>): List<String> =
+    songs
+        .map { it.song.displayArtist().trim() }
+        .filter { it.isNotEmpty() }
+        .distinct()
+        .sorted()
 
 internal fun unrecognizedCacheKind(key: String): CachedUnrecognizedKind = when {
     key.startsWith("lx-") || key.startsWith("lxjs-") -> CachedUnrecognizedKind.LX

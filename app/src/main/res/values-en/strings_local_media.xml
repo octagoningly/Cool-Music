@@ -20,6 +20,11 @@
     <string name="cached_songs_group_shared">Shared listening stream</string>
     <string name="cached_songs_group_url">Direct URL</string>
     <string name="cached_songs_group_other">Other cache</string>
+    <string name="cached_songs_filter_complete">Fully cached</string>
+    <string name="cached_songs_filter_all">All</string>
+    <string name="cached_songs_filter_artist">Artist</string>
+    <string name="cached_songs_filter_all_artists">All artists</string>
+    <string name="cached_songs_showing">Showing %1$d songs</string>
     <string name="local_files_manual_added">Manually Added</string>
     <string name="local_files_downloaded">Downloaded</string>
     <string name="local_files_delete_downloaded_title">Delete Downloaded Songs</string>

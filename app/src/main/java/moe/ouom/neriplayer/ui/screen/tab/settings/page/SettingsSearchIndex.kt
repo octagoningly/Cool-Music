@@ -97,6 +97,12 @@ internal fun AutoSettingInfo.settingsPage(): SettingsPage? {
     ) {
         return SettingsPage.PlaybackSource
     }
+    if (
+        keyName.startsWith("lx_source", ignoreCase = true) ||
+        keyName.startsWith("lx_online", ignoreCase = true)
+    ) {
+        return SettingsPage.OnlineListening
+    }
     if (section == AutoSettingsSections.playback && keyName.startsWith("usb_exclusive")) {
         return SettingsPage.UsbExclusive
     }

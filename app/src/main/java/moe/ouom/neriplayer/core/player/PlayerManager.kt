@@ -2401,6 +2401,8 @@ object PlayerManager {
     ): String {
         val currentSource = _currentPlaybackAudioInfo.value?.source
         return when {
+            song.channelId?.startsWith("lx:") == true ->
+                "lx-${song.stableKey().hashCode()}-${effectiveLxQuality()}"
             currentSource == PlaybackAudioSource.CUSTOM_LX ->
                 "lx-${song.id}-${effectiveLxQuality()}"
             isLocalSong(song) -> "local-${song.stableKey().hashCode()}"

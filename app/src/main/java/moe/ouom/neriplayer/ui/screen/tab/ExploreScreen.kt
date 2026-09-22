@@ -204,6 +204,9 @@ import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
 import moe.ouom.neriplayer.ui.feedback.NeriSnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollection
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollectionType
+import moe.ouom.neriplayer.ui.viewmodel.tab.DefaultExploreSearchType
 import moe.ouom.neriplayer.ui.viewmodel.tab.ExploreSearchResult
 import moe.ouom.neriplayer.ui.viewmodel.tab.ExploreUiState
 import moe.ouom.neriplayer.ui.viewmodel.tab.ExploreViewModel
@@ -237,16 +240,18 @@ internal fun exploreSearchSourceDisplayOrder(
     youtubeEnabled: Boolean
 ): List<SearchSource> {
     return if (!youtubeEnabled) {
-        listOf(SearchSource.NETEASE, SearchSource.BILIBILI, SearchSource.LINK_RECOGNITION)
+        listOf(SearchSource.DEFAULT, SearchSource.NETEASE, SearchSource.BILIBILI, SearchSource.LINK_RECOGNITION)
     } else if (isInternational) {
         listOf(
             SearchSource.YOUTUBE_MUSIC,
+            SearchSource.DEFAULT,
             SearchSource.NETEASE,
             SearchSource.BILIBILI,
             SearchSource.LINK_RECOGNITION
         )
     } else {
         listOf(
+            SearchSource.DEFAULT,
             SearchSource.NETEASE,
             SearchSource.BILIBILI,
             SearchSource.YOUTUBE_MUSIC,
@@ -269,11 +274,13 @@ internal fun exploreSearchScrollContextKey(
     keyword: String,
     source: SearchSource,
     neteaseSearchType: NeteaseExploreSearchType,
+    defaultSearchType: DefaultExploreSearchType = DefaultExploreSearchType.SONG,
     youtubeSearchType: YouTubeExploreSearchType = YouTubeExploreSearchType.SONG
 ): String? {
     val normalizedKeyword = keyword.trim()
     if (normalizedKeyword.isBlank()) return null
     val sourceType = when (source) {
+        SearchSource.DEFAULT -> defaultSearchType.name
         SearchSource.NETEASE -> neteaseSearchType.name
         SearchSource.YOUTUBE_MUSIC -> youtubeSearchType.name
         else -> "-"
@@ -304,12 +311,40 @@ internal fun shouldShowBiliPartsPicker(song: SongItem): Boolean {
 @Composable
 private fun searchSourceLabel(source: SearchSource): String {
     return when (source) {
+        SearchSource.DEFAULT -> stringResource(R.string.explore_tab_default)
         SearchSource.YOUTUBE_MUSIC -> stringResource(R.string.explore_tab_youtube)
         SearchSource.NETEASE -> stringResource(R.string.platform_netease_short)
         SearchSource.BILIBILI -> stringResource(R.string.platform_bilibili)
         SearchSource.LINK_RECOGNITION -> stringResource(R.string.explore_tab_links)
     }
 }
+
+@Composable
+private fun defaultSearchTypeLabel(type: DefaultExploreSearchType): String {
+    return when (type) {
+        DefaultExploreSearchType.SONG -> stringResource(R.string.explore_search_type_song)
+        DefaultExploreSearchType.PLAYLIST -> stringResource(R.string.explore_search_type_playlist)
+        DefaultExploreSearchType.ARTIST -> stringResource(R.string.explore_search_type_artist)
+    }
+}
+
+private fun defaultSearchTypeIcon(type: DefaultExploreSearchType): ImageVector {
+    return when (type) {
+        DefaultExploreSearchType.SONG -> Icons.Outlined.MusicNote
+        DefaultExploreSearchType.ARTIST -> Icons.Filled.AccountCircle
+        DefaultExploreSearchType.PLAYLIST -> Icons.AutoMirrored.Outlined.QueueMusic
+    }
+}
+
+@Composable
+private fun onlineCollectionSourceLabel(sourceId: String): String = stringResource(
+    when (sourceId) {
+        "tx" -> R.string.settings_lx_online_search_engines_tx
+        "kg" -> R.string.settings_lx_online_search_engines_kg
+        "kw" -> R.string.settings_lx_online_search_engines_kw
+        else -> R.string.settings_lx_online_search_engines_wy
+    }
+)
 
 @Composable
 private fun neteaseSearchTypeLabel(type: NeteaseExploreSearchType): String {
@@ -363,6 +398,7 @@ fun ExploreScreen(
     onYouTubeMusicPlaylistClick: (YouTubeMusicPlaylist) -> Unit = {},
     onYouTubeCreatorClick: (YouTubeMusicCreatorSummary) -> Unit = {},
     onNeteaseArtistClick: (NeteaseArtistSummary) -> Unit = {},
+    onOnlineCollectionClick: (LxOnlineCollection) -> Unit = {},
     onSongClick: (List<SongItem>, Int) -> Unit = { _, _ -> },
     onSongPlayPreservingQueue: (SongItem) -> Unit = {},
     onSongPlayNext: (SongItem) -> Unit = {},
@@ -631,6 +667,7 @@ fun ExploreScreen(
         effectiveSearchKeyword,
         searchHistoryEnabled,
         ui.selectedSearchSource,
+        ui.selectedDefaultSearchType,
         ui.selectedNeteaseSearchType,
         ui.selectedYouTubeMusicSearchType
     ) {
@@ -660,12 +697,14 @@ fun ExploreScreen(
     val currentSearchScrollContextKey = remember(
         effectiveSearchKeyword,
         ui.selectedSearchSource,
+        ui.selectedDefaultSearchType,
         ui.selectedNeteaseSearchType,
         ui.selectedYouTubeMusicSearchType
     ) {
         exploreSearchScrollContextKey(
             keyword = effectiveSearchKeyword,
             source = ui.selectedSearchSource,
+            defaultSearchType = ui.selectedDefaultSearchType,
             neteaseSearchType = ui.selectedNeteaseSearchType,
             youtubeSearchType = ui.selectedYouTubeMusicSearchType
         )
@@ -692,6 +731,7 @@ fun ExploreScreen(
         shouldLoadMoreSearch,
         ui.searchItems.size,
         ui.selectedSearchSource,
+        ui.selectedDefaultSearchType,
         ui.selectedNeteaseSearchType,
         ui.selectedYouTubeMusicSearchType
     ) {
@@ -849,8 +889,10 @@ fun ExploreScreen(
                     ) {
                         ExploreSearchTypeBar(
                             source = searchTypeBarSource,
+                            selectedDefaultSearchType = ui.selectedDefaultSearchType,
                             selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
                             selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                            onDefaultSearchTypeClick = vm::setDefaultSearchType,
                             onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
                             onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
                             selectedAlpha = tagChipSelectedAlpha,
@@ -1067,6 +1109,13 @@ fun ExploreScreen(
                                                 onClick = { onNeteaseArtistClick(item.result.artist) }
                                             )
                                         }
+                                        is ExploreSearchResult.OnlineCollection -> {
+                                            OnlineCollectionSearchRow(
+                                                collection = item.collection,
+                                                offlineMode = offlineMode,
+                                                onClick = { onOnlineCollectionClick(item.collection) }
+                                            )
+                                        }
                                         is ExploreSearchResult.YouTubeCreator -> {
                                             YouTubeCreatorSearchRow(
                                                 creator = item.creator,
@@ -1099,6 +1148,17 @@ fun ExploreScreen(
                     }
                 } else {
                     when (currentSource) {
+                        SearchSource.DEFAULT -> {
+                            NeteaseFeaturedHomeContent(
+                                ui = ui,
+                                favoriteKeys = favoriteKeys,
+                                onPlay = onPlay,
+                                onDiscover = {
+                                    vm.setSearchSource(SearchSource.NETEASE)
+                                    vm.openNeteaseDiscovery()
+                                }
+                            )
+                        }
                         SearchSource.NETEASE -> {
                             NeteaseFeaturedHomeContent(
                                 ui = ui,
@@ -1568,7 +1628,9 @@ internal fun exploreSearchTypeBarSource(
     // 上滑时仍保留类型图标栏，避免筛选入口在滚动中消失
     @Suppress("UNUSED_PARAMETER")
     return selectedSearchSource.takeIf {
-        it == SearchSource.NETEASE || it == SearchSource.YOUTUBE_MUSIC
+        it == SearchSource.DEFAULT ||
+            it == SearchSource.NETEASE ||
+            it == SearchSource.YOUTUBE_MUSIC
     }
 }
 
@@ -1585,8 +1647,10 @@ internal fun isExploreSearchTypeBarSourceSwap(
 @Composable
 internal fun ExploreSearchTypeBar(
     source: SearchSource?,
+    selectedDefaultSearchType: DefaultExploreSearchType,
     selectedNeteaseSearchType: NeteaseExploreSearchType,
     selectedYouTubeSearchType: YouTubeExploreSearchType,
+    onDefaultSearchTypeClick: (DefaultExploreSearchType) -> Unit,
     onNeteaseSearchTypeClick: (NeteaseExploreSearchType) -> Unit,
     onYouTubeSearchTypeClick: (YouTubeExploreSearchType) -> Unit,
     selectedAlpha: Float,
@@ -1675,6 +1739,32 @@ internal fun ExploreSearchTypeBar(
         label = "explore_search_type_bar"
     ) { displayedSource ->
         when (displayedSource) {
+            SearchSource.DEFAULT -> {
+                LazyRow(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .testTag(EXPLORE_DEFAULT_SEARCH_TYPE_BAR_TAG),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(DefaultExploreSearchType.entries) { _, type ->
+                        ExploreTagChip(
+                            label = defaultSearchTypeLabel(type),
+                            icon = defaultSearchTypeIcon(type),
+                            showLabel = false,
+                            selected = selectedDefaultSearchType == type,
+                            onClick = {
+                                if (source == displayedSource) {
+                                    onDefaultSearchTypeClick(type)
+                                }
+                            },
+                            selectedAlpha = selectedAlpha,
+                            unselectedAlpha = unselectedAlpha,
+                            borderAlpha = borderAlpha
+                        )
+                    }
+                }
+            }
+
             SearchSource.NETEASE -> {
                 LazyRow(
                     modifier = Modifier
@@ -1734,6 +1824,7 @@ internal fun ExploreSearchTypeBar(
 
 private const val EXPLORE_HISTORY_DISPLAY_LIMIT = 15
 private val EXPLORE_SEARCH_TYPE_BAR_SOURCES = setOf(
+    SearchSource.DEFAULT,
     SearchSource.NETEASE,
     SearchSource.YOUTUBE_MUSIC
 )
@@ -1742,6 +1833,7 @@ private const val EXPLORE_SEARCH_TYPE_BAR_EXIT_DURATION_MS = 140
 private const val EXPLORE_SEARCH_TYPE_BAR_SIZE_DURATION_MS = 220
 private const val EXPLORE_SEARCH_TYPE_BAR_SLIDE_DIVISOR = 5
 internal const val EXPLORE_SEARCH_TYPE_BAR_CONTAINER_TAG = "explore_search_type_bar"
+internal const val EXPLORE_DEFAULT_SEARCH_TYPE_BAR_TAG = "explore_default_search_type_bar"
 internal const val EXPLORE_NETEASE_SEARCH_TYPE_BAR_TAG = "explore_netease_search_type_bar"
 internal const val EXPLORE_YOUTUBE_SEARCH_TYPE_BAR_TAG = "explore_youtube_search_type_bar"
 
@@ -2249,6 +2341,42 @@ private fun NeteaseArtistSearchRow(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(34.dp)
+            )
+        },
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun OnlineCollectionSearchRow(
+    collection: LxOnlineCollection,
+    offlineMode: Boolean,
+    onClick: () -> Unit
+) {
+    val sourceLabel = onlineCollectionSourceLabel(collection.sourceId)
+    val countLabel = collection.trackCount.takeIf { it > 0 }?.let { count ->
+        pluralStringResource(R.plurals.count_songs_format, count, count)
+    }
+    val subtitle = listOfNotNull(
+        sourceLabel,
+        collection.creator.takeIf { it.isNotBlank() },
+        countLabel
+    ).joinToString(" · ")
+    LinkedCollectionRow(
+        title = collection.name,
+        subtitle = subtitle,
+        coverUrl = collection.coverUrl,
+        offlineMode = offlineMode,
+        fallbackIcon = {
+            Icon(
+                imageVector = if (collection.type == LxOnlineCollectionType.ARTIST) {
+                    Icons.Filled.AccountCircle
+                } else {
+                    Icons.AutoMirrored.Filled.QueueMusic
+                },
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(32.dp)
             )
         },
         onClick = onClick

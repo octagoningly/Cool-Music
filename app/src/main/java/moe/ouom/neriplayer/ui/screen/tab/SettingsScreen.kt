@@ -38,6 +38,7 @@ import androidx.activity.result.contract.ActivityResultContracts.OpenDocument
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,15 +68,18 @@ import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.MeetingRoom
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.ZoomInMap
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -128,6 +132,13 @@ import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.download.GlobalDownloadManager
 import moe.ouom.neriplayer.core.download.ManagedDownloadStorage
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LX_ONLINE_SEARCH_PLATFORM_ORDER
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LX_QQ_PLATFORM_ID
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LX_KUGOU_PLATFORM_ID
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LX_KUWO_PLATFORM_ID
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LX_NETEASE_PLATFORM_ID
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.encodeLxOnlineSearchEngines
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.parseLxOnlineSearchEngines
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthState
 import moe.ouom.neriplayer.data.settings.AdvancedBlurQuality
@@ -1936,6 +1947,149 @@ fun SettingsScreen(
                             onHighlightFinished = onSettingsHighlightFinished,
                             onClick = {
                                 onNeteaseAutoSourceSwitchChange(!neteaseAutoSourceSwitch)
+                            }
+                        )
+                    }
+                }
+
+                SettingsPage.OnlineListening -> {
+                    miuixSettingsSectionCardItem(key = "${selectedPage.name}:content") {
+                        MiuixSettingsSectionIntro(
+                            title = stringResource(R.string.settings_online_source_section),
+                            description = stringResource(R.string.settings_online_listening_desc)
+                        )
+                        ListItem(
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Outlined.CloudDownload,
+                                    contentDescription = stringResource(R.string.lx_source_manage_title),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            headlineContent = { Text(stringResource(R.string.lx_source_manage_title)) },
+                            supportingContent = { Text(stringResource(R.string.lx_source_manage_summary)) },
+                            modifier = Modifier.settingsItemClickable(
+                                onClick = { showLxSourceManageDialog = true }
+                            ),
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+                        val lxSourceCoverFallback by autoSettingsRepository
+                            .lxSourceCoverFallbackEnabledFlow
+                            .collectAsState(initial = true)
+                        val lxSourceLyricsFallback by autoSettingsRepository
+                            .lxSourceLyricsFallbackEnabledFlow
+                            .collectAsState(initial = true)
+                        val lxOnlineSearchEnginesRaw by autoSettingsRepository
+                            .lxOnlineSearchEnginesFlow
+                            .collectAsState(initial = "tx")
+                        var showLxEnginePicker by remember { mutableStateOf(false) }
+                        AutoSettingsListItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.LX_SOURCE_COVER_FALLBACK_ENABLED
+                            ),
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Wallpaper,
+                                    contentDescription = stringResource(
+                                        R.string.settings_lx_source_cover_fallback
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            trailingContent = {
+                                MiuixSettingsSwitch(
+                                    checked = lxSourceCoverFallback,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            autoSettingsRepository.setLxSourceCoverFallbackEnabled(enabled)
+                                        }
+                                    }
+                                )
+                            },
+                            highlightTargetId = settingsHighlightTargetId,
+                            highlightPulse = settingsHighlightPulse,
+                            onHighlightFinished = onSettingsHighlightFinished,
+                            onClick = {
+                                scope.launch {
+                                    autoSettingsRepository.setLxSourceCoverFallbackEnabled(!lxSourceCoverFallback)
+                                }
+                            }
+                        )
+                        AutoSettingsListItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.LX_ONLINE_SEARCH_ENGINES
+                            ),
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Public,
+                                    contentDescription = stringResource(
+                                        R.string.settings_lx_online_search_engines
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            trailingContent = {
+                                Text(
+                                    text = lxEngineSummary(lxOnlineSearchEnginesRaw),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            highlightTargetId = settingsHighlightTargetId,
+                            highlightPulse = settingsHighlightPulse,
+                            onHighlightFinished = onSettingsHighlightFinished,
+                            onClick = { showLxEnginePicker = true }
+                        )
+                        if (showLxEnginePicker) {
+                            LxOnlineSearchEngineDialog(
+                                selected = parseLxOnlineSearchEngines(lxOnlineSearchEnginesRaw),
+                                onDismiss = { showLxEnginePicker = false },
+                                onConfirm = { selected ->
+                                    showLxEnginePicker = false
+                                    if (selected.isNotEmpty()) {
+                                        scope.launch {
+                                            autoSettingsRepository.setLxOnlineSearchEngines(
+                                                encodeLxOnlineSearchEngines(selected)
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        AutoSettingsListItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.LX_SOURCE_LYRICS_FALLBACK_ENABLED
+                            ),
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Subtitles,
+                                    contentDescription = stringResource(
+                                        R.string.settings_lx_source_lyrics_fallback
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            trailingContent = {
+                                MiuixSettingsSwitch(
+                                    checked = lxSourceLyricsFallback,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            autoSettingsRepository.setLxSourceLyricsFallbackEnabled(enabled)
+                                        }
+                                    }
+                                )
+                            },
+                            highlightTargetId = settingsHighlightTargetId,
+                            highlightPulse = settingsHighlightPulse,
+                            onHighlightFinished = onSettingsHighlightFinished,
+                            onClick = {
+                                scope.launch {
+                                    autoSettingsRepository.setLxSourceLyricsFallbackEnabled(!lxSourceLyricsFallback)
+                                }
                             }
                         )
                     }
@@ -4343,23 +4497,6 @@ private fun SettingsLoginExpandedContent(
         ListItem(
             leadingContent = {
                 Icon(
-                    imageVector = Icons.Outlined.CloudDownload,
-                    contentDescription = stringResource(R.string.lx_source_manage_title),
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            headlineContent = { Text(stringResource(R.string.lx_source_manage_title)) },
-            supportingContent = { Text(stringResource(R.string.lx_source_manage_summary)) },
-            modifier = Modifier.settingsItemClickable(
-                onClick = { onOpenLxSourceDialog() }
-            ),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
-
-        ListItem(
-            leadingContent = {
-                Icon(
                     painter = painterResource(id = R.drawable.ic_qq_music),
                     contentDescription = stringResource(R.string.settings_qq_music),
                     modifier = Modifier.size(24.dp),
@@ -4372,4 +4509,72 @@ private fun SettingsLoginExpandedContent(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }
+}
+
+@Composable
+private fun lxEngineSummary(raw: String): String {
+    val engines = parseLxOnlineSearchEngines(raw)
+    return buildList {
+        if (LX_QQ_PLATFORM_ID in engines) add(stringResource(R.string.settings_lx_online_search_engines_tx))
+        if (LX_KUGOU_PLATFORM_ID in engines) add(stringResource(R.string.settings_lx_online_search_engines_kg))
+        if (LX_KUWO_PLATFORM_ID in engines) add(stringResource(R.string.settings_lx_online_search_engines_kw))
+        if (LX_NETEASE_PLATFORM_ID in engines) add(stringResource(R.string.settings_lx_online_search_engines_wy))
+    }.joinToString(" · ").ifBlank { stringResource(R.string.settings_lx_online_search_engines) }
+}
+
+@Composable
+private fun LxOnlineSearchEngineDialog(
+    selected: Set<String>,
+    onDismiss: () -> Unit,
+    onConfirm: (Set<String>) -> Unit
+) {
+    var draft by remember(selected) { mutableStateOf(selected) }
+    val labels = listOf(
+        LX_QQ_PLATFORM_ID to R.string.settings_lx_online_search_engines_tx,
+        LX_KUGOU_PLATFORM_ID to R.string.settings_lx_online_search_engines_kg,
+        LX_KUWO_PLATFORM_ID to R.string.settings_lx_online_search_engines_kw,
+        LX_NETEASE_PLATFORM_ID to R.string.settings_lx_online_search_engines_wy
+    )
+    MiuixSettingsDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_lx_online_search_engines)) },
+        text = {
+            Column {
+                Text(
+                    text = stringResource(R.string.settings_lx_online_search_engines_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                labels.forEach { (id, titleRes) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                draft = if (id in draft) draft - id else draft + id
+                            }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = id in draft,
+                            onCheckedChange = { checked ->
+                                draft = if (checked) draft + id else draft - id
+                            }
+                        )
+                        Text(text = stringResource(titleRes))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            MiuixSettingsTextButton(onClick = { onConfirm(draft) }) {
+                Text(stringResource(R.string.action_confirm))
+            }
+        },
+        dismissButton = {
+            MiuixSettingsTextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
 }

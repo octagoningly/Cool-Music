@@ -8,6 +8,9 @@
     <string name="settings_search_result_context">%1$s · %2$s</string>
     <string name="settings_general">通用</string>
     <string name="settings_general_desc">语言、触感和全局行为</string>
+    <string name="settings_online_listening">在线听歌</string>
+    <string name="settings_online_listening_desc">在线音乐源、封面歌词与搜索</string>
+    <string name="settings_online_source_section">在线音源</string>
     <string name="settings_accounts_desc">管理网易云、哔哩哔哩和 YouTube 登录状态</string>
     <string name="settings_personalization">个性化</string>
     <string name="settings_network">网络设置</string>

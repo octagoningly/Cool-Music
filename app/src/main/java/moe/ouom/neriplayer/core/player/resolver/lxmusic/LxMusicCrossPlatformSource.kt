@@ -96,6 +96,7 @@ internal data class LxCrossPlatformHit(
     val durationSec: Int,
     val albumName: String,
     val albumId: String = "",
+    val coverUrl: String? = null,
     /**
      * 平台专有：酷狗按音质档位区分的文件 hash。
      * 音源站的酷狗通道实际按 hash 取流，缺了它只会拿到 502。
@@ -212,7 +213,13 @@ private fun JSONObject.toLxCrossPlatformHit(): LxCrossPlatformHit? {
         name = name,
         artist = decodeLxHtmlEntities(optString("ARTIST")).trim(),
         durationSec = optString("DURATION").trim().toIntOrNull() ?: 0,
-        albumName = decodeLxHtmlEntities(optString("ALBUM")).trim()
+        albumName = decodeLxHtmlEntities(optString("ALBUM")).trim(),
+        coverUrl = sequenceOf("PIC", "pic", "IMG", "img", "ALBUMPIC", "albumpic")
+            .map { key -> optString(key) }
+            .firstOrNull { it.isNotBlank() }
+            ?.let { normalizeLxCoverUrl(it) }
+            ?.takeIf { !isPlaceholderLxCoverUrl(it) }
+            ?: normalizeLxCoverUrl(optString("DC_TARGETPIC"))?.takeIf { !isPlaceholderLxCoverUrl(it) }
     )
 }
 
@@ -237,7 +244,12 @@ private fun parseLxKuwoSearchLoose(body: String): List<LxCrossPlatformHit> {
             name = name,
             artist = block.lxField("ARTIST")?.let(::decodeLxHtmlEntities).orEmpty().trim(),
             durationSec = block.lxField("DURATION")?.trim()?.toIntOrNull() ?: 0,
-            albumName = block.lxField("ALBUM")?.let(::decodeLxHtmlEntities).orEmpty().trim()
+            albumName = block.lxField("ALBUM")?.let(::decodeLxHtmlEntities).orEmpty().trim(),
+            coverUrl = listOf("PIC", "pic", "IMG", "img", "DC_TARGETPIC")
+                .mapNotNull { key -> block.lxField(key) }
+                .firstOrNull { it.isNotBlank() }
+                ?.let { normalizeLxCoverUrl(it) }
+                ?.takeIf { !isPlaceholderLxCoverUrl(it) }
         )
     }.distinctBy { it.songMid }
 }
@@ -324,13 +336,14 @@ internal suspend fun fetchLxCrossPlatformHits(
     client: OkHttpClient,
     sourceId: String,
     keyword: String,
-    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT,
+    page: Int = 1
 ): List<LxCrossPlatformHit> {
     if (keyword.isBlank() || limit <= 0) return emptyList()
     return when (sourceId) {
-        LX_KUWO_PLATFORM_ID -> fetchLxKuwoHits(client, keyword, limit)
-        LX_KUGOU_PLATFORM_ID -> fetchLxKugouHits(client, keyword, limit)
-        LX_QQ_PLATFORM_ID -> fetchLxQqHits(client, keyword, limit)
+        LX_KUWO_PLATFORM_ID -> fetchLxKuwoHits(client, keyword, limit, page)
+        LX_KUGOU_PLATFORM_ID -> fetchLxKugouHits(client, keyword, limit, page)
+        LX_QQ_PLATFORM_ID -> fetchLxQqHits(client, keyword, limit, page)
         else -> emptyList()
     }
 }
@@ -339,7 +352,8 @@ internal suspend fun fetchLxCrossPlatformHits(
 internal suspend fun fetchLxKuwoHits(
     client: OkHttpClient,
     keyword: String,
-    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT,
+    page: Int = 1
 ): List<LxCrossPlatformHit> {
     val url = buildString {
         append("https://search.kuwo.cn/r.s?client=kt&uid=")
@@ -348,7 +362,7 @@ internal suspend fun fetchLxKuwoHits(
         append("&ft=music&cluster=0&strategy=2012&encoding=utf8&rformat=json&vermerge=1&mobi=1&issubtitle=1")
         append("&all=")
         append(java.net.URLEncoder.encode(keyword, "UTF-8"))
-        append("&pn=0&rn=")
+        append("&pn=${(page - 1).coerceAtLeast(0)}&rn=")
         append(limit)
     }
     val body = fetchText(
@@ -357,20 +371,82 @@ internal suspend fun fetchLxKuwoHits(
         referer = "https://www.kuwo.cn/",
         label = "Kuwo",
         keyword = keyword
+    ) ?: return fetchLxKuwoMobileHits(client, keyword, limit, page)
+    val parsed = parseLxKuwoSearchBody(body)
+    if (parsed.isNotEmpty()) return parsed
+    return fetchLxKuwoMobileHits(client, keyword, limit, page)
+}
+
+/** 酷我 r.s 偶发空/风控时，退回 mobilecdn 搜索接口 */
+internal suspend fun fetchLxKuwoMobileHits(
+    client: OkHttpClient,
+    keyword: String,
+    limit: Int,
+    page: Int
+): List<LxCrossPlatformHit> {
+    val url = buildString {
+        append("https://mobilecdn.kuwo.cn/api/v1/search/searchMusicBykeyWord?key=")
+        append(java.net.URLEncoder.encode(keyword, "UTF-8"))
+        append("&pn=${(page - 1).coerceAtLeast(0)}&rn=$limit&httpsStatus=1")
+    }
+    val body = fetchText(
+        client = client,
+        url = url,
+        referer = "https://www.kuwo.cn/",
+        label = "KuwoMobile",
+        keyword = keyword
     ) ?: return emptyList()
-    return parseLxKuwoSearchBody(body)
+    return runCatching {
+        val list = JSONObject(body).optJSONObject("data")?.optJSONArray("list") ?: return emptyList()
+        buildList {
+            for (index in 0 until list.length()) {
+                val item = list.optJSONObject(index) ?: continue
+                val songMid = item.optString("MUSICRID")
+                    .substringAfter("MUSIC_", missingDelimiterValue = "")
+                    .trim()
+                    .ifBlank { item.optString("rid").trim() }
+                    .ifBlank { item.optString("id").trim() }
+                if (songMid.isBlank()) continue
+                val name = decodeLxHtmlEntities(
+                    item.optString("NAME").ifBlank { item.optString("name") }.ifBlank { item.optString("SONGNAME") }
+                ).trim()
+                if (name.isBlank()) continue
+                add(
+                    LxCrossPlatformHit(
+                        sourceId = LX_KUWO_PLATFORM_ID,
+                        songMid = songMid,
+                        name = name,
+                        artist = decodeLxHtmlEntities(
+                            item.optString("ARTIST").ifBlank { item.optString("artist") }
+                        ).trim(),
+                        durationSec = (item.optString("DURATION").trim().toIntOrNull()
+                            ?: item.optInt("duration", 0)),
+                        albumName = decodeLxHtmlEntities(
+                            item.optString("ALBUM").ifBlank { item.optString("album") }
+                        ).trim(),
+                        coverUrl = sequenceOf("pic", "PIC", "img", "albumpic")
+                            .map { key -> item.optString(key) }
+                            .firstOrNull { it.isNotBlank() }
+                            ?.let { normalizeLxCoverUrl(it) }
+                            ?.takeIf { !isPlaceholderLxCoverUrl(it) }
+                    )
+                )
+            }
+        }.distinctBy { it.songMid }
+    }.getOrElse { emptyList() }
 }
 
 /** 按关键词搜索酷狗曲目（song_search_v2，明文接口） */
 internal suspend fun fetchLxKugouHits(
     client: OkHttpClient,
     keyword: String,
-    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT,
+    page: Int = 1
 ): List<LxCrossPlatformHit> {
     val url = buildString {
         append("https://songsearch.kugou.com/song_search_v2?keyword=")
         append(java.net.URLEncoder.encode(keyword, "UTF-8"))
-        append("&page=1&pagesize=")
+        append("&page=${page.coerceAtLeast(1)}&pagesize=")
         append(limit)
         append("&userid=0&clientver=&platform=WebFilter&filter=2&iscorrection=1&privilege_filter=0&area_code=1")
     }
@@ -388,14 +464,15 @@ internal suspend fun fetchLxKugouHits(
 internal suspend fun fetchLxQqHits(
     client: OkHttpClient,
     keyword: String,
-    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT
+    limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT,
+    page: Int = 1
 ): List<LxCrossPlatformHit> {
     val url = buildString {
         append("https://c.y.qq.com/soso/fcgi-bin/client_search_cp?w=")
         append(java.net.URLEncoder.encode(keyword, "UTF-8"))
         append("&format=json&n=")
         append(limit)
-        append("&p=1&cr=1&t=0&new_json=1")
+        append("&p=${page.coerceAtLeast(1)}&cr=1&t=0&new_json=1")
     }
     val body = fetchText(
         client = client,
@@ -458,6 +535,26 @@ internal fun parseLxKugouSearchBody(body: String): List<LxCrossPlatformHit> {
                     item.optString("ResFileHash").takeIf { it.isNotBlank() }?.let { put("flac24bit", it) }
                 }
                 if (qualityHashes.isEmpty()) continue
+                val albumId = item.optString("AlbumID").trim()
+                val coverUrl = sequenceOf("Image", "image", "Pic", "pic", "AlbumCover", "albumCover", "album_img")
+                    .map { key -> item.optString(key) }
+                    .firstOrNull { it.isNotBlank() }
+                    ?.let { raw ->
+                        val normalized = normalizeLxCoverUrl(raw)
+                        // 酷狗 Image 字段有时直接是路径/文件名
+                        normalized ?: normalizeLxCoverUrl(
+                            if (raw.contains('/')) "//imge.kugou.com$raw"
+                            else "//imge.kugou.com/softmusic/product/240/$raw.jpg"
+                        )
+                    }
+                    ?.takeIf { !isPlaceholderLxCoverUrl(it) }
+                    // 酷狗固定默认图 hash/路径：丢弃，留给 albumId 兜底
+                    ?.takeUnless { url ->
+                        url.contains("softmusic/common", ignoreCase = true) ||
+                            url.contains("/0.jpg", ignoreCase = true) ||
+                            Regex("/(0{6,}|default|unknown)[^/]*\\.(jpg|png|jpeg)$", RegexOption.IGNORE_CASE)
+                                .containsMatchIn(url)
+                    }
                 add(
                     LxCrossPlatformHit(
                         sourceId = LX_KUGOU_PLATFORM_ID,
@@ -467,8 +564,9 @@ internal fun parseLxKugouSearchBody(body: String): List<LxCrossPlatformHit> {
                         artist = parseLxKugouSingers(item.optJSONArray("Singers")),
                         durationSec = item.optString("Duration").trim().toIntOrNull() ?: 0,
                         albumName = decodeLxHtmlEntities(item.optString("AlbumName")).trim(),
-                        albumId = item.optString("AlbumID").trim(),
-                        qualityHashes = qualityHashes
+                        albumId = albumId,
+                        qualityHashes = qualityHashes,
+                        coverUrl = coverUrl
                     )
                 )
             }
@@ -514,6 +612,17 @@ internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
                     .ifBlank { decodeLxHtmlEntities(item.optString("songname")).trim() }
                 if (title.isBlank()) continue
                 val albumObj = item.optJSONObject("album")
+                val albumMid = sequenceOf("mid", "pmid")
+                    .map { key -> albumObj?.optString(key).orEmpty() }
+                    .firstOrNull { it.isNotBlank() }
+                    .orEmpty()
+                val albumCover = sequenceOf("pic", "picUrl", "cover")
+                    .map { key -> albumObj?.optString(key).orEmpty() }
+                    .firstOrNull { it.isNotBlank() }
+                    ?.let { normalizeLxCoverUrl(it) }
+                    ?.takeIf { !isPlaceholderLxCoverUrl(it) }
+                    ?: albumMid.takeIf { it.isNotBlank() && it.all { ch -> ch.isLetterOrDigit() } }
+                        ?.let { "https://y.qq.com/music/photo_new/T002R300x300M000${it}.jpg" }
                 add(
                     LxCrossPlatformHit(
                         sourceId = LX_QQ_PLATFORM_ID,
@@ -529,6 +638,8 @@ internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
                             .takeIf { it > 0L }
                             ?.toString()
                             .orEmpty()
+                            .ifBlank { albumMid },
+                        coverUrl = albumCover
                     )
                 )
             }

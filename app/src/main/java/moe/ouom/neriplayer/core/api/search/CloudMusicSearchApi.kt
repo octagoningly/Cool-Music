@@ -83,15 +83,33 @@ class CloudMusicSearchApi(private val neteaseClient: NeteaseClient) : SearchApi 
     override suspend fun search(keyword: String, page: Int): List<SongSearchInfo> {
         return withContext(Dispatchers.IO) {
             val offset = (page - 1).coerceAtLeast(0) * 20
-            val responseJson = neteaseClient.searchSongsCancellable(
-                keyword = keyword,
-                limit = 20,
-                offset = offset,
-                usePersistedCookies = false
-            )
+            val responseJson = runCatching {
+                neteaseClient.searchSongsCancellable(
+                    keyword = keyword,
+                    limit = 20,
+                    offset = offset,
+                    usePersistedCookies = false
+                )
+            }.recoverCatching {
+                // 免登录 cloudsearch 偶发空/风控时，退回 weapi 搜索并带本地 Cookie
+                neteaseClient.searchSongsCancellable(
+                    keyword = keyword,
+                    limit = 20,
+                    offset = offset,
+                    usePersistedCookies = true
+                )
+            }.getOrElse { error ->
+                NPLogger.w(TAG, "netease search failed: ${error.message}")
+                return@withContext emptyList()
+            }
             logResponseSummary(label = "netease-search", json = responseJson)
 
-            val searchResponse = json.decodeFromString<CloudMusicSearchResponse>(responseJson)
+            val searchResponse = runCatching {
+                json.decodeFromString<CloudMusicSearchResponse>(responseJson)
+            }.getOrElse {
+                // 兼容 result.songs 直接是数组/缺失的情况
+                return@withContext parseNeteaseSearchSongsFallback(responseJson)
+            }
 
             searchResponse.result?.songs?.map { song ->
                 SongSearchInfo(
@@ -103,8 +121,49 @@ class CloudMusicSearchApi(private val neteaseClient: NeteaseClient) : SearchApi 
                     albumName = song.album.name,
                     coverUrl = song.album.picUrl
                 )
-            } ?: emptyList()
+            } ?: parseNeteaseSearchSongsFallback(responseJson)
         }
+    }
+
+    private fun parseNeteaseSearchSongsFallback(raw: String): List<SongSearchInfo> {
+        return runCatching {
+            val root = org.json.JSONObject(raw)
+            val code = root.optInt("code", 200)
+            if (code != 200) return emptyList()
+            val songs = root.optJSONObject("result")?.optJSONArray("songs")
+                ?: root.optJSONArray("songs")
+                ?: return emptyList()
+            buildList {
+                for (i in 0 until songs.length()) {
+                    val song = songs.optJSONObject(i) ?: continue
+                    val id = song.optLong("id", 0L).takeIf { it > 0L } ?: continue
+                    val name = song.optString("name").ifBlank { song.optString("title") }
+                    if (name.isBlank()) continue
+                    val artists = buildList {
+                        val ar = song.optJSONArray("ar") ?: song.optJSONArray("artists")
+                        if (ar != null) {
+                            for (a in 0 until ar.length()) {
+                                ar.optJSONObject(a)?.optString("name")
+                                    ?.takeIf { it.isNotBlank() }
+                                    ?.let { add(it) }
+                            }
+                        }
+                    }
+                    val album = song.optJSONObject("al") ?: song.optJSONObject("album")
+                    add(
+                        SongSearchInfo(
+                            id = id.toString(),
+                            songName = name,
+                            singer = artists.joinToString("/"),
+                            duration = formatDuration((song.optLong("dt", song.optLong("duration", 0L))) / 1000),
+                            source = MusicPlatform.CLOUD_MUSIC,
+                            albumName = album?.optString("name").orEmpty(),
+                            coverUrl = album?.optString("picUrl")
+                        )
+                    )
+                }
+            }
+        }.getOrElse { emptyList() }
     }
 
     override suspend fun getSongInfo(id: String): SongDetails {

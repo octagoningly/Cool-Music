@@ -45,6 +45,10 @@ import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager.biliClient
 import moe.ouom.neriplayer.core.player.PlayerManager.neteaseClient
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.searchLxDefaultSongs
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollection
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollectionType
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.searchLxOnlineCollections
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.SongItem
@@ -97,6 +101,7 @@ val TAG_TO_API_CATEGORY = mapOf(
 
 /** 定义搜索源 */
 enum class SearchSource {
+    DEFAULT,
     YOUTUBE_MUSIC,
     NETEASE,
     BILIBILI,
@@ -107,6 +112,12 @@ enum class NeteaseExploreSearchType(val apiType: Int) {
     SONG(apiType = 1),
     PLAYLIST(apiType = 1000),
     ARTIST(apiType = 100)
+}
+
+enum class DefaultExploreSearchType {
+    SONG,
+    ARTIST,
+    PLAYLIST
 }
 
 enum class YouTubeExploreSearchType(
@@ -155,6 +166,11 @@ sealed class ExploreSearchResult {
         override val stableKey: String = "netease|artist|${result.artist.id}"
     }
 
+    data class OnlineCollection(val collection: LxOnlineCollection) : ExploreSearchResult() {
+        override val stableKey: String =
+            "online|${collection.type}|${collection.sourceId}|${collection.id}"
+    }
+
     data class YouTubeCreator(val creator: YouTubeMusicCreatorSummary) : ExploreSearchResult() {
         override val stableKey: String = "youtubeMusic|creator|${creator.browseId}"
     }
@@ -185,7 +201,8 @@ data class ExploreUiState(
     val searchPage: Int = 0,
     val searchKeyword: String = "",
     val searchDisplayQuery: String = "",
-    val selectedSearchSource: SearchSource = SearchSource.NETEASE,
+    val selectedSearchSource: SearchSource = SearchSource.DEFAULT,
+    val selectedDefaultSearchType: DefaultExploreSearchType = DefaultExploreSearchType.SONG,
     val selectedNeteaseSearchType: NeteaseExploreSearchType = NeteaseExploreSearchType.SONG,
     val selectedYouTubeMusicSearchType: YouTubeExploreSearchType = YouTubeExploreSearchType.SONG,
     val isNeteaseLoggedIn: Boolean = false,
@@ -403,6 +420,27 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    fun setDefaultSearchType(type: DefaultExploreSearchType) {
+        if (type == _uiState.value.selectedDefaultSearchType) return
+        NPLogger.d(TAG, "setDefaultSearchType: ${_uiState.value.selectedDefaultSearchType} -> $type")
+        searchJob?.cancel()
+        searchMoreJob?.cancel()
+        invalidateSearchRequest()
+        _uiState.value = _uiState.value.copy(
+            selectedDefaultSearchType = type,
+            searching = false,
+            searchError = null,
+            searchResults = emptyList(),
+            searchItems = emptyList(),
+            searchHasMore = false,
+            searchLoadingMore = false,
+            searchLoadMoreError = null,
+            searchPage = 0,
+            searchKeyword = "",
+            searchDisplayQuery = ""
+        )
+    }
+
     fun setNeteaseSearchType(type: NeteaseExploreSearchType) {
         if (type == _uiState.value.selectedNeteaseSearchType) return
         NPLogger.d(TAG, "setNeteaseSearchType: ${_uiState.value.selectedNeteaseSearchType} -> $type")
@@ -478,6 +516,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             "search start: source=$source, request=$requestVersion, keyword=$apiKeyword, display=$matchQuery"
         )
         when (source) {
+            SearchSource.DEFAULT -> searchDefault(apiKeyword, matchQuery, requestVersion)
             SearchSource.NETEASE -> searchNetease(apiKeyword, matchQuery, requestVersion)
             SearchSource.BILIBILI -> searchBilibili(apiKeyword, matchQuery, requestVersion)
             SearchSource.YOUTUBE_MUSIC -> searchYouTubeMusic(apiKeyword, matchQuery, requestVersion)
@@ -502,6 +541,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             return
         }
 
+        val defaultType = state.selectedDefaultSearchType
         val neteaseType = state.selectedNeteaseSearchType
         val keyword = state.searchKeyword
         val matchQuery = state.searchDisplayQuery.ifBlank { keyword }
@@ -510,7 +550,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = state.copy(searchLoadingMore = true, searchLoadMoreError = null)
         NPLogger.d(
             TAG,
-            "search load more: source=$source, request=$requestVersion, keyword=$keyword, page=$nextPage, type=$neteaseType"
+            "search load more: source=$source, request=$requestVersion, keyword=$keyword, page=$nextPage, defaultType=$defaultType, neteaseType=$neteaseType"
         )
         searchMoreJob = viewModelScope.launch {
             try {
@@ -519,6 +559,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
                 val result = when (source) {
+                    SearchSource.DEFAULT -> fetchDefaultSearchPage(
+                        keyword = keyword,
+                        matchQuery = matchQuery,
+                        page = nextPage,
+                        type = defaultType
+                    )
                     SearchSource.NETEASE -> fetchNeteaseSearchPage(
                         keyword = keyword,
                         matchQuery = matchQuery,
@@ -563,6 +609,70 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         searchLoadingMore = false,
                         searchLoadMoreError = searchErrorMessage(source, e),
                         searchHasMore = true
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchDefaultSearchPage(
+        keyword: String,
+        matchQuery: String,
+        page: Int,
+        type: DefaultExploreSearchType
+    ): ExploreSearchFetchResult {
+        if (type != DefaultExploreSearchType.SONG) {
+            val result = searchLxOnlineCollections(
+                keyword = keyword,
+                page = page,
+                type = if (type == DefaultExploreSearchType.ARTIST) {
+                    LxOnlineCollectionType.ARTIST
+                } else {
+                    LxOnlineCollectionType.PLAYLIST
+                }
+            )
+            return ExploreSearchFetchResult(
+                items = result.items.map(ExploreSearchResult::OnlineCollection),
+                page = page,
+                hasMore = result.hasMore
+            )
+        }
+        val result = searchLxDefaultSongs(keyword, page)
+        return ExploreSearchFetchResult(
+            items = rankExploreSongSearchResults(matchQuery, result.songs)
+                .map(ExploreSearchResult::Song),
+            page = page,
+            hasMore = result.hasMore
+        )
+    }
+
+    private fun searchDefault(keyword: String, matchQuery: String, requestVersion: Long) {
+        val type = _uiState.value.selectedDefaultSearchType
+        searchJob = viewModelScope.launch {
+            try {
+                val result = fetchDefaultSearchPage(keyword, matchQuery, page = 1, type = type)
+                updateSearchStateIfCurrent(requestVersion, SearchSource.DEFAULT) {
+                    it.copy(
+                        searching = false,
+                        searchError = null,
+                        searchResults = result.songs,
+                        searchItems = result.items,
+                        searchPage = result.page,
+                        searchHasMore = result.hasMore
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                NPLogger.e(TAG, "default search failed: keyword=$keyword, type=$type", error)
+                updateSearchStateIfCurrent(requestVersion, SearchSource.DEFAULT) {
+                    it.copy(
+                        searching = false,
+                        searchError = searchErrorMessage(SearchSource.DEFAULT, error),
+                        searchResults = emptyList(),
+                        searchItems = emptyList(),
+                        searchHasMore = false,
+                        searchPage = 0
                     )
                 }
             }
@@ -1327,15 +1437,13 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         type: NeteaseExploreSearchType
     ): ExploreSearchFetchResult {
         val offset = (page - 1).coerceAtLeast(0) * NETEASE_SEARCH_PAGE_SIZE
-        val raw = withContext(Dispatchers.IO) {
-            neteaseClient.searchSongs(
-                keyword = keyword,
-                limit = NETEASE_SEARCH_PAGE_SIZE,
-                offset = offset,
-                type = type.apiType,
-                usePersistedCookies = true
-            )
-        }
+        val raw = neteaseClient.searchSongsCancellable(
+            keyword = keyword,
+            limit = NETEASE_SEARCH_PAGE_SIZE,
+            offset = offset,
+            type = type.apiType,
+            usePersistedCookies = true
+        )
         val parsed = parseNeteaseSearchResults(raw, type)
         val items = if (type == NeteaseExploreSearchType.SONG) {
             rankExploreSongSearchResults(matchQuery, parsed.items.mapNotNull {
@@ -1509,8 +1617,11 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun searchErrorMessage(source: SearchSource, error: Exception): String {
-        val fallback = error.message ?: app.getString(R.string.github_sync_failed_message)
+        val fallback = error.message?.takeIf { it.isNotBlank() }
+            ?: error.javaClass.simpleName
+            ?: app.getString(R.string.error_parse, error.toString())
         return when (source) {
+            SearchSource.DEFAULT -> app.getString(R.string.error_search_failed, fallback)
             SearchSource.NETEASE -> app.getString(R.string.error_netease_search, fallback)
             SearchSource.BILIBILI -> app.getString(R.string.error_bilibili_search, fallback)
             SearchSource.YOUTUBE_MUSIC -> app.getString(R.string.error_youtube_search, fallback)

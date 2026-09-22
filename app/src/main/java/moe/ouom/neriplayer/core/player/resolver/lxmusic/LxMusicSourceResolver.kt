@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.core.player.resolver.lxmusic
+package moe.ouom.neriplayer.core.player.resolver.lxmusic
 
 import android.os.SystemClock
 import kotlinx.coroutines.CancellationException
@@ -113,6 +113,9 @@ internal suspend fun PlayerManager.tryResolveLxMusicCustomSource(
     song: SongItem,
     isFallbackAttempt: Boolean = false
 ): SongUrlResult? {
+    if (song.channelId?.startsWith(LX_SEARCH_CHANNEL_PREFIX) == true) {
+        return resolveLxSearchSong(song)
+    }
     val repository = runCatching { AppContainer.lxMusicSourceRepository }.getOrNull()
         ?: return null
 
@@ -183,6 +186,65 @@ internal suspend fun PlayerManager.tryResolveLxMusicCustomSource(
     } else {
         repository.recordResolveFailure(resolveFailureReason())
     }
+    return resolved
+}
+
+private suspend fun PlayerManager.resolveLxSearchSong(song: SongItem): SongUrlResult? {
+    val hit = song.lxSearchHitOrNull() ?: return null
+    if (hit.sourceId == LX_KUGOU_PLATFORM_ID && hit.qualityHashes.isEmpty()) return null
+    val repository = AppContainer.lxMusicSourceRepository
+    val sources = repository.getEnabledSources().filter { it.isJsSource }
+    if (sources.isEmpty()) return null
+    val preferredQuality = effectiveLxQuality()
+        .let { mapLxQualityToNeteaseKey(it) ?: effectiveNeteaseQuality() }
+    val resolved = withTimeoutOrNull(LX_RESOLVE_TOTAL_TIMEOUT_MS) {
+        for (source in sources) {
+            try {
+                val script = repository.readJsScript(source) ?: continue
+                if (!LxJsSourceEngine.ensureLoaded(
+                        context = application,
+                        okHttpClient = AppContainer.sharedOkHttpClient,
+                        sourceId = source.id,
+                        sourceName = source.name,
+                        script = script,
+                        description = source.description,
+                        version = source.version,
+                        author = source.author
+                    )) continue
+                val runtime = LxJsSourceEngine.runtime(source.id) ?: continue
+                if (runtime.supportedSources.isNotEmpty() && hit.sourceId !in runtime.supportedSources) continue
+                val qualities = selectLxQualityOrder(
+                    preferredNeteaseQuality = preferredQuality,
+                    supportedQualities = runtime.supportedQualities,
+                    maxAttempts = DEFAULT_LX_QUALITIES.size
+                ).filter { hit.sourceId != LX_KUGOU_PLATFORM_ID || it in hit.qualityHashes }
+                for (quality in qualities) {
+                    val url = runtime.getMusicUrl(
+                        sourceId = hit.sourceId,
+                        quality = quality,
+                        musicInfoJson = buildLxCrossPlatformMusicInfoJson(song, hit, quality),
+                        timeoutMs = LX_JS_CALL_TIMEOUT_MS
+                    ) ?: continue
+                    if (!url.startsWith("http", ignoreCase = true)) continue
+                    val mimeType = inferLxMimeType(quality, url)
+                    return@withTimeoutOrNull SongUrlResult.Success(
+                        url = url,
+                        durationMs = song.durationMs.takeIf { it > 0L },
+                        mimeType = mimeType,
+                        audioInfo = buildLxPlaybackAudioInfo(source, quality, mimeType),
+                        cacheKeyOverride = "lxjs-${source.id}-${hit.sourceId}-${hit.songMid}-$quality"
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                NPLogger.w(TAG, "LX direct resolve failed: source=${source.name}, platform=${hit.sourceId}, error=${error.message}")
+            }
+        }
+        null
+    }
+    if (resolved != null) repository.recordResolveSuccess()
+    else repository.recordResolveFailure(resolveFailureReason())
     return resolved
 }
 
@@ -382,7 +444,8 @@ internal suspend fun searchLxCrossPlatformHit(
  * 其余在线曲目一律按网易云处理（[SongItem.id] 即网易云 songId）。
  */
 private fun PlayerManager.isNeteaseMusicTrack(song: SongItem): Boolean {
-    return !isLocalSong(song) && !isBiliTrack(song) && !isYouTubeMusicTrack(song)
+    return !isLocalSong(song) && !isBiliTrack(song) && !isYouTubeMusicTrack(song) &&
+        song.channelId?.startsWith(LX_SEARCH_CHANNEL_PREFIX) != true
 }
 
 internal data class LxJsPlatformTarget(

@@ -28,6 +28,11 @@ internal enum class SettingsPage(
     val descriptionRes: Int,
     val icon: ImageVector
 ) {
+    OnlineListening(
+        titleRes = R.string.settings_online_listening,
+        descriptionRes = R.string.settings_online_listening_desc,
+        icon = Icons.Outlined.Cloud
+    ),
     General(
         AutoSettingsSchema.general.metadata,
         Icons.Outlined.Settings
@@ -116,6 +121,7 @@ internal enum class SettingsPage(
 
 internal val SettingsHomePageGroups: List<List<SettingsPage>> = listOf(
     listOf(
+        SettingsPage.OnlineListening,
         SettingsPage.Accounts,
         SettingsPage.General
     ),

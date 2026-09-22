@@ -25,10 +25,15 @@
     <string name="explore_search_type_song">Songs</string>
     <string name="explore_search_type_playlist">Playlists</string>
     <string name="explore_search_type_artist">Artists</string>
+    <string name="online_collection_load_more">Load more</string>
     <string name="explore_search_type_video">Videos</string>
     <string name="explore_search_type_creator">Creators</string>
     <string name="explore_tag_link_recognition">Link Recognition</string>
     <string name="explore_tab_youtube">YouTube</string>
+    <string name="explore_tab_default">Online</string>
+    <string name="explore_lx_source_kw">Kuwo</string>
+    <string name="explore_lx_source_kg">Kugou</string>
+    <string name="explore_lx_source_tx">QQ Music</string>
     <string name="explore_tab_links">Links</string>
     <string name="explore_link_input_label">Link or share text</string>
     <string name="explore_link_input_placeholder">Paste a NetEase, Bilibili, or YouTube link</string>

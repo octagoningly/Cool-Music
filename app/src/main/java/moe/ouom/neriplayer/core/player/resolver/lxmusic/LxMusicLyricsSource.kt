@@ -58,7 +58,10 @@ internal suspend fun fetchLxSourceLyric(
     LxLyricsCache.get(cacheKey)?.let { return it }
 
     val client = runCatching { AppContainer.sharedOkHttpClient }.getOrNull() ?: return null
-    val platforms = platformOverride?.let { listOf(it) } ?: LX_LYRICS_PLATFORM_ORDER
+    val directPlatform = song.lxSearchHitOrNull()?.sourceId
+    val platforms = platformOverride?.let { listOf(it) } ?: listOfNotNull(
+        directPlatform?.takeIf { it in LX_LYRICS_PLATFORM_ORDER }
+    ) + LX_LYRICS_PLATFORM_ORDER.filterNot { it == directPlatform }
 
     for (platform in platforms) {
         val hit = resolveLyricLookupHit(song, platform) ?: continue
@@ -90,6 +93,7 @@ private suspend fun resolveLyricLookupHit(
     song: SongItem,
     platform: String
 ): LxCrossPlatformHit? {
+    song.lxSearchHitOrNull()?.takeIf { it.sourceId == platform }?.let { return it }
     val cached = LxCrossPlatformHitCache.get("${song.stableKey()}|$platform")
     if (cached != null) return cached
     return searchLxCrossPlatformHit(song, platform)

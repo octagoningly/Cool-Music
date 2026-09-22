@@ -1,6 +1,18 @@
 # AGENTS.md — Cool Music 开发代理必读
 
-给 AI / 自动化协作者的 **3 分钟上手**。发版细节见 [`开发规则.md`](./开发规则.md)，架构与扩展见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)、[`README.md`](./README.md)。
+给 AI / 自动化协作者的 **3 分钟上手**。细规则见 [`开发规则.md`](./开发规则.md)（**冲突时最高优先**），架构与扩展见 [`CONTRIBUTING.md`](./CONTRIBUTING.md)、[`README.md`](./README.md)。
+
+## 你说什么 → 看哪里
+
+| 用户说法（示例） | 打开 |
+|------------------|------|
+| 「**发行**相关…」「发版 / Release / 上传安装包」 | [`开发规则.md` · 发行相关](./开发规则.md#发行相关) |
+| 「**版本控制**…」「Git / 分支 / 提交 / worktree」 | [`开发规则.md` · 版本控制](./开发规则.md#版本控制) |
+| 「**签名**…」「keystore / 覆盖安装」 | [`开发规则.md` · 签名](./开发规则.md#签名) |
+| 「**版本号**…」「versionCode / tag」 | [`开发规则.md` · 版本号](./开发规则.md#版本号) |
+| 「**调试**…」「ADB / 装到手机」 | [`开发规则.md` · 调试与 ADB](./开发规则.md#调试与-adb) |
+| 「改功能 / 加设置 / 音源 / 歌词」 | 本文 [高频任务路径](#高频任务路径) + [`CONTRIBUTING.md`](./CONTRIBUTING.md) |
+| 「这块代码在哪」 | 本文 [模块地图](#模块地图改哪里) |
 
 ## 身份（禁止随意改）
 
@@ -25,7 +37,7 @@
 # 仅构建
 .\gradlew.bat :app:assembleDebug
 
-# Release（须签名就绪，见开发规则.md §2）
+# Release（须签名就绪，见开发规则.md · 签名）
 .\gradlew.bat :app:assembleRelease
 ```
 
@@ -61,7 +73,8 @@
 | 改播放失败兜底 | `core/player/policy/failure/`、`core/player/url/`、`core/player/resolver/` |
 | 改首页次级板块 | `HomeViewModel` / `HomeScreen`，注意「更多」合并刷新逻辑 |
 | 改歌词补全 | `core/api/lyrics/`、`core/player/metadata/PlayerLyricsProvider.kt` |
-| 改发行 / 发版 | **只**按 [`开发规则.md`](./开发规则.md) §3–§4、§7 清单 |
+| **发行 / 发版** | **只**按 [`开发规则.md` · 发行相关](./开发规则.md#发行相关) + 签名 + 版本号 + 发版前清单 |
+| **Git / 提交 / 同步** | **只**按 [`开发规则.md` · 版本控制](./开发规则.md#版本控制) |
 
 ## 测试与验收
 
@@ -71,18 +84,21 @@
 
 ## 协作约定
 
-1. **在工作分支上改**；同步 GitHub 以 [`开发规则.md`](./开发规则.md) §6 为准（rebase 优先，禁止 force-push `main`，冲突优先两边都保留；签名 / applicationId / versionCode 冲突必须人工确认）。**只保留一个工作树，禁止 `git worktree add`**；并行任务用分支，不要多开 worktree。
-2. 提交信息：`修复xx功能_n` / `新增xx功能_n`（全仓统一）
-3. 每完成一项任务，更新根目录 [`更新记录.md`](./更新记录.md)：新条目**插在 `# 更新记录` 正下方**（新在上），格式 `lrq--简短说明--YYYY-MM-DD`
-4. **禁止提交**：`*.jks`、`*.keystore`、密码、Token、Cookie、完整配置备份、`logs*.txt`、`__pycache__`、`*.pyc`、`dist/` 安装包、IDE 本地配置、缓存/临时构建产物；签名口令只放 `~/.gradle/gradle.properties` 或 GitHub Secrets
-5. Debug APK **禁止**上传 GitHub Release；正式发版只用 `assembleRelease` 签名包
+细节一律以 [`开发规则.md` · 版本控制](./开发规则.md#版本控制) 为准。摘要：
+
+1. **在工作分支上改**；同步 GitHub：`main` 拉最新 → 工作分支 rebase → 合入（ff/PR）。禁止 force-push `main`。签名 / applicationId / versionCode 冲突必须人工确认。
+2. **只保留一个工作树，禁止 `git worktree add`**；并行任务用分支。
+3. 提交信息：`修复xx功能_n` / `新增xx功能_n`（全仓统一，不用 Conventional Commits）。
+4. 每完成一项任务，把 `lrq--简短说明--YYYY-MM-DD` **插在** [`更新记录.md`](./更新记录.md) 标题 `# 更新记录` 正下方（新在上）。
+5. **禁止提交**：`*.jks`、`*.keystore`、密码、Token、Cookie、完整配置备份、`logs*.txt`、`__pycache__`、`*.pyc`、`dist/` 安装包、IDE 本地配置、缓存/临时构建产物；签名口令只放 `~/.gradle/gradle.properties` 或 GitHub Secrets。
+6. Debug APK **禁止**上传 GitHub Release；正式发版只用 `assembleRelease` 签名包。
 
 ## 文档地图
 
 | 文档 | 用途 |
 |------|------|
-| `README.md` | 用户向：功能、安装、快速开始、模块入口 |
-| `开发规则.md` | **发版 / 签名 / versionCode / ADB**（冲突时最高优先） |
+| `开发规则.md` | **约定总册**（发行 / 版本控制 / 签名 / 版本号 / ADB），冲突时最高优先 |
+| 本文件 `AGENTS.md` | AI 入口：任务路由、模块地图、高频路径 |
 | `CONTRIBUTING.md` | 实现边界、扩展路径、质量护栏 |
+| `README.md` | 用户向：功能、安装、快速开始 |
 | `更新记录.md` | 功能演进流水 |
-| 本文件 `AGENTS.md` | AI / 自动化协作者入口 |

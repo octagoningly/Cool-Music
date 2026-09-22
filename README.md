@@ -51,7 +51,7 @@ Cool Music 是基于开源项目 **[NeriPlayer](https://github.com/cwuom/NeriPla
 | 安装 APK 或本地编译调试 | 第五节 · 快速开始 |
 | 查找代码入口、模块结构 | 第六节 · 模块与代码入口 |
 | 功能演进流水（每次改了什么） | [`更新记录.md`](./更新记录.md) |
-| 发行签名、`versionCode`、ADB 约定 | [`开发规则.md`](./开发规则.md) |
+| 发行签名、`versionCode`、ADB、版本控制约定 | [`开发规则.md`](./开发规则.md)（按主题：发行相关 / 版本控制 / 签名 / 版本号 / 调试与 ADB） |
 | 下载最新安装包 | [Releases · 最新](https://github.com/octagoningly/Cool-Music/releases/latest) |
 | 阅读上游完整文档 | [NeriPlayer README](https://github.com/cwuom/NeriPlayer/blob/master/README.md) |
 

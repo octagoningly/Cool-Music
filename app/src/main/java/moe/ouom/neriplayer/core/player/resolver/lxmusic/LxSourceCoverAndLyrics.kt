@@ -116,11 +116,13 @@ internal fun lxSourceCoverUrlFromHit(hit: LxCrossPlatformHit): String? {
 
 private data class LxCoverCacheKey(val platform: String, val id: String)
 
-private val lxSourceCoverCache = ConcurrentHashMap<LxCoverCacheKey, String?>()
+private val lxSourceCoverCache = ConcurrentHashMap<LxCoverCacheKey, String>()
+private val lxSourceCoverMisses = ConcurrentHashMap.newKeySet<LxCoverCacheKey>()
 
 /**
  * 歌曲没有封面时，按音源平台补一张。
  * 优先搜索结果里的封面；仍为空再调公开接口。
+ * 注意：ConcurrentHashMap 不允许 null value， miss 必须用单独集合。
  */
 internal suspend fun resolveLxSourceCoverUrl(
     song: SongItem,
@@ -134,9 +136,8 @@ internal suspend fun resolveLxSourceCoverUrl(
     val platform = song.channelId?.removePrefix(LX_SEARCH_CHANNEL_PREFIX) ?: return null
     val musicId = song.audioId?.takeIf { it.isNotBlank() } ?: return null
     val cacheKey = LxCoverCacheKey(platform, musicId)
-    if (lxSourceCoverCache.containsKey(cacheKey)) {
-        return lxSourceCoverCache[cacheKey]
-    }
+    lxSourceCoverCache[cacheKey]?.let { return it }
+    if (cacheKey in lxSourceCoverMisses) return null
     val albumId = song.lxSearchHitOrNull()?.albumId.orEmpty()
     val resolved = withContext(Dispatchers.IO) {
         runCatching {
@@ -149,43 +150,51 @@ internal suspend fun resolveLxSourceCoverUrl(
         }.getOrNull()
     }
     val usable = resolved?.takeIf { !isPlaceholderLxCoverUrl(it) }
+    if (usable == null) {
+        if (lxSourceCoverMisses.size >= 256) lxSourceCoverMisses.clear()
+        lxSourceCoverMisses.add(cacheKey)
+        return null
+    }
+    if (lxSourceCoverCache.size >= 256) {
+        lxSourceCoverCache.clear()
+        lxSourceCoverMisses.clear()
+    }
     lxSourceCoverCache[cacheKey] = usable
     return usable
 }
 
-/** 搜索结果里缺封面的曲目，有限并发补齐。 */
+/** 搜索结果里缺封面的曲目，有限并发补齐。补图失败不得影响搜索本身。 */
 internal suspend fun fillLxSongCoverGaps(
     songs: List<SongItem>,
     client: OkHttpClient = AppContainer.sharedOkHttpClient
 ): List<SongItem> {
     if (songs.isEmpty()) return songs
-    val missing = songs.mapIndexedNotNull { index, song ->
-        val cover = normalizeLxCoverUrl(song.coverUrl)
-        if (cover == null || isPlaceholderLxCoverUrl(cover)) index else null
-    }
-    if (missing.isEmpty()) return songs
-    val resolved = coroutineScope {
-        missing.map { index ->
-            async {
-                index to resolveLxSourceCoverUrl(songs[index], client)
+    return runCatching {
+        val missing = songs.mapIndexedNotNull { index, song ->
+            val cover = normalizeLxCoverUrl(song.coverUrl)
+            if (cover == null || isPlaceholderLxCoverUrl(cover)) index else null
+        }
+        if (missing.isEmpty()) return@runCatching songs
+        val resolved = coroutineScope {
+            missing.map { index ->
+                async {
+                    index to runCatching { resolveLxSourceCoverUrl(songs[index], client) }
+                        .getOrNull()
+                }
+            }.awaitAll()
+        }
+        if (resolved.all { it.second == null }) return@runCatching songs
+        val result = songs.toMutableList()
+        resolved.forEach { (index, cover) ->
+            if (cover != null) {
+                result[index] = result[index].copy(coverUrl = cover, originalCoverUrl = cover)
             }
-        }.awaitAll()
-    }
-    if (resolved.all { it.second == null }) return songs
-    val result = songs.map { song ->
-        val cover = normalizeLxCoverUrl(song.coverUrl)
-        if (cover != null && !isPlaceholderLxCoverUrl(cover)) {
-            song
-        } else {
-            song
         }
-    }.toMutableList()
-    resolved.forEach { (index, cover) ->
-        if (cover != null) {
-            result[index] = result[index].copy(coverUrl = cover, originalCoverUrl = cover)
-        }
+        result
+    }.getOrElse { error ->
+        NPLogger.w("NERI-LxCover", "fill cover gaps failed: ${error.message}")
+        songs
     }
-    return result
 }
 
 private fun fetchKugouCover(client: OkHttpClient, musicId: String, albumId: String): String? {

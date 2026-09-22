@@ -371,8 +371,69 @@ internal suspend fun fetchLxKuwoHits(
         referer = "https://www.kuwo.cn/",
         label = "Kuwo",
         keyword = keyword
+    ) ?: return fetchLxKuwoMobileHits(client, keyword, limit, page)
+    val parsed = parseLxKuwoSearchBody(body)
+    if (parsed.isNotEmpty()) return parsed
+    return fetchLxKuwoMobileHits(client, keyword, limit, page)
+}
+
+/** 酷我 r.s 偶发空/风控时，退回 mobilecdn 搜索接口 */
+internal suspend fun fetchLxKuwoMobileHits(
+    client: OkHttpClient,
+    keyword: String,
+    limit: Int,
+    page: Int
+): List<LxCrossPlatformHit> {
+    val url = buildString {
+        append("https://mobilecdn.kuwo.cn/api/v1/search/searchMusicBykeyWord?key=")
+        append(java.net.URLEncoder.encode(keyword, "UTF-8"))
+        append("&pn=${(page - 1).coerceAtLeast(0)}&rn=$limit&httpsStatus=1")
+    }
+    val body = fetchText(
+        client = client,
+        url = url,
+        referer = "https://www.kuwo.cn/",
+        label = "KuwoMobile",
+        keyword = keyword
     ) ?: return emptyList()
-    return parseLxKuwoSearchBody(body)
+    return runCatching {
+        val list = JSONObject(body).optJSONObject("data")?.optJSONArray("list") ?: return emptyList()
+        buildList {
+            for (index in 0 until list.length()) {
+                val item = list.optJSONObject(index) ?: continue
+                val songMid = item.optString("MUSICRID")
+                    .substringAfter("MUSIC_", missingDelimiterValue = "")
+                    .trim()
+                    .ifBlank { item.optString("rid").trim() }
+                    .ifBlank { item.optString("id").trim() }
+                if (songMid.isBlank()) continue
+                val name = decodeLxHtmlEntities(
+                    item.optString("NAME").ifBlank { item.optString("name") }.ifBlank { item.optString("SONGNAME") }
+                ).trim()
+                if (name.isBlank()) continue
+                add(
+                    LxCrossPlatformHit(
+                        sourceId = LX_KUWO_PLATFORM_ID,
+                        songMid = songMid,
+                        name = name,
+                        artist = decodeLxHtmlEntities(
+                            item.optString("ARTIST").ifBlank { item.optString("artist") }
+                        ).trim(),
+                        durationSec = (item.optString("DURATION").trim().toIntOrNull()
+                            ?: item.optInt("duration", 0)),
+                        albumName = decodeLxHtmlEntities(
+                            item.optString("ALBUM").ifBlank { item.optString("album") }
+                        ).trim(),
+                        coverUrl = sequenceOf("pic", "PIC", "img", "albumpic")
+                            .map { key -> item.optString(key) }
+                            .firstOrNull { it.isNotBlank() }
+                            ?.let { normalizeLxCoverUrl(it) }
+                            ?.takeIf { !isPlaceholderLxCoverUrl(it) }
+                    )
+                )
+            }
+        }.distinctBy { it.songMid }
+    }.getOrElse { emptyList() }
 }
 
 /** 按关键词搜索酷狗曲目（song_search_v2，明文接口） */
@@ -478,8 +539,22 @@ internal fun parseLxKugouSearchBody(body: String): List<LxCrossPlatformHit> {
                 val coverUrl = sequenceOf("Image", "image", "Pic", "pic", "AlbumCover", "albumCover", "album_img")
                     .map { key -> item.optString(key) }
                     .firstOrNull { it.isNotBlank() }
-                    ?.let { raw -> normalizeLxCoverUrl(raw) }
+                    ?.let { raw ->
+                        val normalized = normalizeLxCoverUrl(raw)
+                        // 酷狗 Image 字段有时直接是路径/文件名
+                        normalized ?: normalizeLxCoverUrl(
+                            if (raw.contains('/')) "//imge.kugou.com$raw"
+                            else "//imge.kugou.com/softmusic/product/240/$raw.jpg"
+                        )
+                    }
                     ?.takeIf { !isPlaceholderLxCoverUrl(it) }
+                    // 酷狗固定默认图 hash/路径：丢弃，留给 albumId 兜底
+                    ?.takeUnless { url ->
+                        url.contains("softmusic/common", ignoreCase = true) ||
+                            url.contains("/0.jpg", ignoreCase = true) ||
+                            Regex("/(0{6,}|default|unknown)[^/]*\\.(jpg|png|jpeg)$", RegexOption.IGNORE_CASE)
+                                .containsMatchIn(url)
+                    }
                 add(
                     LxCrossPlatformHit(
                         sourceId = LX_KUGOU_PLATFORM_ID,

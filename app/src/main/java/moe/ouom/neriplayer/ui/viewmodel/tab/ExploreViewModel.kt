@@ -1559,7 +1559,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun searchErrorMessage(source: SearchSource, error: Exception): String {
-        val fallback = error.message ?: app.getString(R.string.github_sync_failed_message)
+        val fallback = error.message?.takeIf { it.isNotBlank() }
+            ?: error.javaClass.simpleName
+            ?: app.getString(R.string.error_parse, error.toString())
         return when (source) {
             SearchSource.DEFAULT -> app.getString(R.string.error_search_failed, fallback)
             SearchSource.NETEASE -> app.getString(R.string.error_netease_search, fallback)

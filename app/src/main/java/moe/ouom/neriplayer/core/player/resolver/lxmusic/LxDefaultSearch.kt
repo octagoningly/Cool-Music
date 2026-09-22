@@ -49,8 +49,18 @@ internal suspend fun searchLxDefaultSongs(keyword: String, page: Int): LxDefault
     }.map { it.await() }
     val mapped = results.flatten()
         .distinctBy { "${it.sourceId}|${it.songMid}" }
-        .map { hit -> toLxSongItem(hit, useSourceCover) }
-    val songs = if (useSourceCover) fillLxSongCoverGaps(mapped) else mapped
+        .mapNotNull { hit ->
+            runCatching { toLxSongItem(hit, useSourceCover) }
+                .onFailure { error ->
+                    NPLogger.w("NERI-LxDefaultSearch", "map hit failed: ${error.message}")
+                }
+                .getOrNull()
+        }
+    val songs = if (useSourceCover) {
+        runCatching { fillLxSongCoverGaps(mapped) }.getOrDefault(mapped)
+    } else {
+        mapped
+    }
     LxDefaultSearchPage(
         songs = songs,
         hasMore = results.any { it.size >= LX_DEFAULT_SEARCH_PAGE_SIZE }

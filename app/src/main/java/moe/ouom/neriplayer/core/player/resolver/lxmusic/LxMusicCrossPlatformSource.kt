@@ -218,7 +218,8 @@ private fun JSONObject.toLxCrossPlatformHit(): LxCrossPlatformHit? {
             .map { key -> optString(key) }
             .firstOrNull { it.isNotBlank() }
             ?.let { normalizeLxCoverUrl(it) }
-            ?: normalizeLxCoverUrl(optString("DC_TARGETPIC"))
+            ?.takeIf { !isPlaceholderLxCoverUrl(it) }
+            ?: normalizeLxCoverUrl(optString("DC_TARGETPIC"))?.takeIf { !isPlaceholderLxCoverUrl(it) }
     )
 }
 
@@ -248,6 +249,7 @@ private fun parseLxKuwoSearchLoose(body: String): List<LxCrossPlatformHit> {
                 .mapNotNull { key -> block.lxField(key) }
                 .firstOrNull { it.isNotBlank() }
                 ?.let { normalizeLxCoverUrl(it) }
+                ?.takeIf { !isPlaceholderLxCoverUrl(it) }
         )
     }.distinctBy { it.songMid }
 }
@@ -473,13 +475,11 @@ internal fun parseLxKugouSearchBody(body: String): List<LxCrossPlatformHit> {
                 }
                 if (qualityHashes.isEmpty()) continue
                 val albumId = item.optString("AlbumID").trim()
-                val coverUrl = sequenceOf("Image", "image", "Pic", "pic", "AlbumCover", "albumCover")
+                val coverUrl = sequenceOf("Image", "image", "Pic", "pic", "AlbumCover", "albumCover", "album_img")
                     .map { key -> item.optString(key) }
                     .firstOrNull { it.isNotBlank() }
-                    ?.let { raw ->
-                        normalizeLxCoverUrl(raw)
-                            ?: normalizeLxCoverUrl("//imge.kugou.com/softmusic/product/240/$raw.jpg")
-                    }
+                    ?.let { raw -> normalizeLxCoverUrl(raw) }
+                    ?.takeIf { !isPlaceholderLxCoverUrl(it) }
                 add(
                     LxCrossPlatformHit(
                         sourceId = LX_KUGOU_PLATFORM_ID,
@@ -545,7 +545,8 @@ internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
                     .map { key -> albumObj?.optString(key).orEmpty() }
                     .firstOrNull { it.isNotBlank() }
                     ?.let { normalizeLxCoverUrl(it) }
-                    ?: albumMid.takeIf { it.isNotBlank() }
+                    ?.takeIf { !isPlaceholderLxCoverUrl(it) }
+                    ?: albumMid.takeIf { it.isNotBlank() && it.all { ch -> ch.isLetterOrDigit() } }
                         ?.let { "https://y.qq.com/music/photo_new/T002R300x300M000${it}.jpg" }
                 add(
                     LxCrossPlatformHit(

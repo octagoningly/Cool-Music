@@ -19,8 +19,12 @@ internal data class LxDefaultSearchPage(
 )
 
 internal suspend fun searchLxDefaultSongs(keyword: String, page: Int): LxDefaultSearchPage = coroutineScope {
-    val platforms = LX_CROSS_PLATFORM_ORDER + LX_NETEASE_PLATFORM_ID
+    val engines = lxOnlineSearchEngines()
+    val platforms = LX_ONLINE_SEARCH_PLATFORM_ORDER.filter { it in engines }
     val useSourceCover = isLxSourceCoverFallbackEnabled()
+    if (platforms.isEmpty()) {
+        return@coroutineScope LxDefaultSearchPage(songs = emptyList(), hasMore = false)
+    }
     val results = platforms.map { platform ->
         async {
             try {
@@ -43,10 +47,12 @@ internal suspend fun searchLxDefaultSongs(keyword: String, page: Int): LxDefault
             }
         }
     }.map { it.await() }
+    val mapped = results.flatten()
+        .distinctBy { "${it.sourceId}|${it.songMid}" }
+        .map { hit -> toLxSongItem(hit, useSourceCover) }
+    val songs = if (useSourceCover) fillLxSongCoverGaps(mapped) else mapped
     LxDefaultSearchPage(
-        songs = results.flatten()
-            .distinctBy { "${it.sourceId}|${it.songMid}" }
-            .map { hit -> toLxSongItem(hit, useSourceCover) },
+        songs = songs,
         hasMore = results.any { it.size >= LX_DEFAULT_SEARCH_PAGE_SIZE }
     )
 }
@@ -85,6 +91,10 @@ internal fun toLxSongItem(
     } else {
         null
     }
+    val subPayload = JSONObject()
+    hit.qualityHashes.forEach { (key, value) -> subPayload.put(key, value) }
+    if (hit.albumId.isNotBlank()) subPayload.put("albumId", hit.albumId)
+    if (hit.coverUrl.isNullOrBlank().not()) subPayload.put("rawCover", hit.coverUrl.orEmpty())
     return SongItem(
         id = numericId,
         name = hit.name,
@@ -96,7 +106,7 @@ internal fun toLxSongItem(
         originalCoverUrl = coverUrl,
         channelId = "$LX_SEARCH_CHANNEL_PREFIX$platform",
         audioId = hit.songMid,
-        subAudioId = hit.qualityHashes.takeIf { it.isNotEmpty() }?.let { JSONObject(it).toString() }
+        subAudioId = subPayload.toString().takeIf { it != "{}" }
     )
 }
 
@@ -106,10 +116,15 @@ internal fun SongItem.lxSearchHitOrNull(): LxCrossPlatformHit? {
     val platform = channel.removePrefix(LX_SEARCH_CHANNEL_PREFIX)
     if (platform !in LX_CROSS_PLATFORM_ORDER && platform != LX_NETEASE_PLATFORM_ID) return null
     val songMid = audioId?.takeIf { it.isNotBlank() } ?: return null
-    val hashes = runCatching {
-        val json = JSONObject(subAudioId ?: "{}")
-        json.keys().asSequence().associateWith { json.optString(it) }.filterValues { it.isNotBlank() }
-    }.getOrDefault(emptyMap())
+    val payload = runCatching { JSONObject(subAudioId ?: "{}") }.getOrDefault(JSONObject())
+    val hashes = payload.keys().asSequence()
+        .filter { it != "albumId" && it != "rawCover" }
+        .associateWith { payload.optString(it) }
+        .filterValues { it.isNotBlank() }
+    val payloadAlbumId = payload.optString("albumId").ifBlank {
+        this.albumId.takeIf { it > 0L }?.toString().orEmpty()
+    }
+    val rawCover = payload.optString("rawCover").ifBlank { this.coverUrl }
     return LxCrossPlatformHit(
         sourceId = platform,
         songMid = songMid,
@@ -117,9 +132,9 @@ internal fun SongItem.lxSearchHitOrNull(): LxCrossPlatformHit? {
         artist = artist,
         durationSec = (durationMs / 1000L).toInt(),
         albumName = album,
-        albumId = albumId.takeIf { it > 0L }?.toString().orEmpty(),
+        albumId = payloadAlbumId,
         qualityHashes = hashes,
-        coverUrl = coverUrl
+        coverUrl = rawCover
     )
 }
 

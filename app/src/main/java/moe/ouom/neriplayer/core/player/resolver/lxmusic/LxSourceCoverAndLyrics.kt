@@ -1,6 +1,9 @@
 package moe.ouom.neriplayer.core.player.resolver.lxmusic
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.core.di.AppContainer
@@ -12,8 +15,39 @@ import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * 在线音源封面/歌词开关 + 无封面时从音源解析封面。
+ * 在线搜索引擎选择、音源封面/歌词开关，以及无封面时从音源补封面。
  */
+
+internal val LX_ONLINE_SEARCH_PLATFORM_ORDER = listOf(
+    LX_QQ_PLATFORM_ID,
+    LX_KUGOU_PLATFORM_ID,
+    LX_KUWO_PLATFORM_ID,
+    LX_NETEASE_PLATFORM_ID
+)
+
+internal fun parseLxOnlineSearchEngines(raw: String?): Set<String> {
+    val tokens = raw?.split(',', ';', ' ')
+        ?.map { it.trim().lowercase() }
+        ?.filter { it.isNotBlank() }
+        ?: emptyList()
+    val known = tokens.filter { it in LX_ONLINE_SEARCH_PLATFORM_ORDER }.toSet()
+    return known.ifEmpty { LX_ONLINE_SEARCH_PLATFORM_ORDER.toSet() }
+}
+
+internal fun encodeLxOnlineSearchEngines(ids: Set<String>): String {
+    return LX_ONLINE_SEARCH_PLATFORM_ORDER.filter { it in ids }.joinToString(",")
+}
+
+internal suspend fun lxOnlineSearchEngines(): Set<String> {
+    return withContext(Dispatchers.IO) {
+        runCatching {
+            parseLxOnlineSearchEngines(
+                AppContainer.settingsRepo.lxOnlineSearchEnginesFlow.first()
+            )
+        }.getOrDefault(LX_ONLINE_SEARCH_PLATFORM_ORDER.toSet())
+    }
+}
+
 internal suspend fun isLxSourceCoverFallbackEnabled(): Boolean {
     return withContext(Dispatchers.IO) {
         runCatching { AppContainer.settingsRepo.lxSourceCoverFallbackEnabledFlow.first() }
@@ -37,12 +71,41 @@ internal fun normalizeLxCoverUrl(raw: String?): String? {
     return null
 }
 
+internal fun isPlaceholderLxCoverUrl(raw: String?): Boolean {
+    val value = raw?.lowercase().orEmpty()
+    if (value.isBlank()) return true
+    return PLACEHOLDER_COVER_MARKERS.any { value.contains(it) }
+}
+
+private val PLACEHOLDER_COVER_MARKERS = listOf(
+    "default",
+    "unknown",
+    "nopic",
+    "no_pic",
+    "no-cover",
+    "no_cover",
+    "placeholder",
+    "record.png",
+    "record.jpg",
+    "vinyl",
+    "album_default",
+    "default_240",
+    "default_500",
+    "softmusic/common/default",
+    "softmusic/common/unknown",
+    "/star/default",
+    "img1.kuwo.cn/star/albumcover/000",
+    "imge.kugou.com/softmusic/common/0.jpg",
+    "imge.kugou.com/mfcc/"
+)
+
 /** 搜索响应里能直接拿到封面时，按平台拼出可用 https 地址 */
 internal fun lxSourceCoverUrlFromHit(hit: LxCrossPlatformHit): String? {
-    normalizeLxCoverUrl(hit.coverUrl)?.let { return it }
+    val direct = normalizeLxCoverUrl(hit.coverUrl)
+    if (direct != null && !isPlaceholderLxCoverUrl(direct)) return direct
     return when (hit.sourceId) {
         LX_QQ_PLATFORM_ID -> hit.albumId
-            .takeIf { it.isNotBlank() && it != "0" }
+            .takeIf { it.isNotBlank() && it != "0" && it.all { ch -> ch.isLetterOrDigit() } }
             ?.let { "https://y.qq.com/music/photo_new/T002R300x300M000${it}.jpg" }
 
         LX_KUGOU_PLATFORM_ID -> null
@@ -63,7 +126,8 @@ internal suspend fun resolveLxSourceCoverUrl(
     song: SongItem,
     client: OkHttpClient = AppContainer.sharedOkHttpClient
 ): String? {
-    song.coverUrl?.takeIf { it.isNotBlank() }?.let { return normalizeLxCoverUrl(it) }
+    val existing = normalizeLxCoverUrl(song.coverUrl)
+    if (existing != null && !isPlaceholderLxCoverUrl(existing)) return existing
     song.lxSearchHitOrNull()?.let { hit ->
         lxSourceCoverUrlFromHit(hit)?.let { return it }
     }
@@ -73,33 +137,90 @@ internal suspend fun resolveLxSourceCoverUrl(
     if (lxSourceCoverCache.containsKey(cacheKey)) {
         return lxSourceCoverCache[cacheKey]
     }
+    val albumId = song.lxSearchHitOrNull()?.albumId.orEmpty()
     val resolved = withContext(Dispatchers.IO) {
         runCatching {
             when (platform) {
-                LX_KUGOU_PLATFORM_ID -> fetchKugouCover(client, musicId)
+                LX_KUGOU_PLATFORM_ID -> fetchKugouCover(client, musicId, albumId)
                 LX_KUWO_PLATFORM_ID -> fetchKuwoCover(client, musicId)
-                LX_QQ_PLATFORM_ID -> fetchQqCover(client, musicId, song.album)
+                LX_QQ_PLATFORM_ID -> fetchQqCover(client, musicId)
                 else -> null
             }
         }.getOrNull()
     }
-    lxSourceCoverCache[cacheKey] = resolved
-    return resolved
+    val usable = resolved?.takeIf { !isPlaceholderLxCoverUrl(it) }
+    lxSourceCoverCache[cacheKey] = usable
+    return usable
 }
 
-private fun fetchKugouCover(client: OkHttpClient, musicId: String): String? {
+/** 搜索结果里缺封面的曲目，有限并发补齐。 */
+internal suspend fun fillLxSongCoverGaps(
+    songs: List<SongItem>,
+    client: OkHttpClient = AppContainer.sharedOkHttpClient
+): List<SongItem> {
+    if (songs.isEmpty()) return songs
+    val missing = songs.mapIndexedNotNull { index, song ->
+        val cover = normalizeLxCoverUrl(song.coverUrl)
+        if (cover == null || isPlaceholderLxCoverUrl(cover)) index else null
+    }
+    if (missing.isEmpty()) return songs
+    val resolved = coroutineScope {
+        missing.map { index ->
+            async {
+                index to resolveLxSourceCoverUrl(songs[index], client)
+            }
+        }.awaitAll()
+    }
+    if (resolved.all { it.second == null }) return songs
+    val result = songs.map { song ->
+        val cover = normalizeLxCoverUrl(song.coverUrl)
+        if (cover != null && !isPlaceholderLxCoverUrl(cover)) {
+            song
+        } else {
+            song
+        }
+    }.toMutableList()
+    resolved.forEach { (index, cover) ->
+        if (cover != null) {
+            result[index] = result[index].copy(coverUrl = cover, originalCoverUrl = cover)
+        }
+    }
+    return result
+}
+
+private fun fetchKugouCover(client: OkHttpClient, musicId: String, albumId: String): String? {
+    if (albumId.isNotBlank() && albumId != "0") {
+        val albumUrl = "https://mobilecdn.kugou.com/api/v3/album/info?albumid=$albumId&plat=0"
+        httpText(client, albumUrl, referer = "https://www.kugou.com/")
+            ?.let { body ->
+                val root = JSONObject(body)
+                val data = root.optJSONObject("data") ?: root
+                sequenceOf("img", "Image", "cover", "Pic")
+                    .map { key -> data.optString(key) }
+                    .firstOrNull { it.isNotBlank() }
+                    ?.let { normalizeLxCoverUrl(it) }
+                    ?.takeIf { !isPlaceholderLxCoverUrl(it) }
+                    ?.let { return it }
+            }
+    }
     val url = "https://mobilecdn.kugou.com/api/v3/song/info?hash=$musicId&cmd=playInfo&from=mkugou"
     val body = httpText(client, url, referer = "https://www.kugou.com/") ?: return null
     val root = JSONObject(body)
-    val image = sequenceOf("image", "Image", "cover", "img")
-        .map { root.optString(it) }
-        .firstOrNull { it.isNotBlank() }
-        ?: root.optJSONObject("data")?.let { data ->
-            sequenceOf("image", "Image", "cover", "img")
+    val candidates = buildList {
+        sequenceOf("image", "Image", "cover", "img", "album_img")
+            .map { root.optString(it) }
+            .filter { it.isNotBlank() }
+            .forEach { add(it) }
+        root.optJSONObject("data")?.let { data ->
+            sequenceOf("image", "Image", "cover", "img", "album_img")
                 .map { data.optString(it) }
-                .firstOrNull { it.isNotBlank() }
+                .filter { it.isNotBlank() }
+                .forEach { add(it) }
         }
-    return normalizeLxCoverUrl(image)
+    }
+    return candidates
+        .mapNotNull { normalizeLxCoverUrl(it) }
+        .firstOrNull { !isPlaceholderLxCoverUrl(it) }
 }
 
 private fun fetchKuwoCover(client: OkHttpClient, musicId: String): String? {
@@ -107,13 +228,14 @@ private fun fetchKuwoCover(client: OkHttpClient, musicId: String): String? {
     val body = httpText(client, url, referer = "https://www.kuwo.cn/") ?: return null
     val root = JSONObject(body)
     val data = root.optJSONObject("data") ?: root
-    val image = sequenceOf("pic", "pic120", "pic240", "pic500", "albumpic", "img")
-        .map { data.optString(it) }
-        .firstOrNull { it.isNotBlank() }
-    return normalizeLxCoverUrl(image)
+    return sequenceOf("pic", "pic120", "pic240", "pic500", "albumpic", "img", "MUSICPIC")
+        .map { key -> data.optString(key) }
+        .filter { it.isNotBlank() }
+        .mapNotNull { normalizeLxCoverUrl(it) }
+        .firstOrNull { !isPlaceholderLxCoverUrl(it) }
 }
 
-private fun fetchQqCover(client: OkHttpClient, musicMid: String, albumName: String): String? {
+private fun fetchQqCover(client: OkHttpClient, musicMid: String): String? {
     val data = JSONObject()
         .put(
             "songinfo",

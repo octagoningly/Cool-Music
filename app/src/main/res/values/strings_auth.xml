@@ -64,6 +64,12 @@
     <string name="settings_netease_auto_source_switch_desc">默认关闭；开启后，网易云歌曲无权限或仅返回试听片段时，自动在哔哩哔哩查找音源</string>
     <string name="settings_lx_source_cover_fallback">音源封面</string>
     <string name="settings_lx_source_cover_fallback_desc">开启后，歌曲没有封面时自动使用在线音源返回的封面图</string>
+    <string name="settings_lx_online_search_engines">在线搜索</string>
+    <string name="settings_lx_online_search_engines_desc">选择探索页「在线」搜索使用的引擎；建议保留 QQ 音乐以获得更准的专辑封面</string>
+    <string name="settings_lx_online_search_engines_tx">QQ音乐</string>
+    <string name="settings_lx_online_search_engines_kg">酷狗</string>
+    <string name="settings_lx_online_search_engines_kw">酷我</string>
+    <string name="settings_lx_online_search_engines_wy">网易云</string>
     <string name="settings_lx_source_lyrics_fallback">音源歌词</string>
     <string name="settings_lx_source_lyrics_fallback_desc">开启后，优先/兜底使用在线音源歌词；关闭后不请求音源歌词</string>
     <string name="settings_netease_local_source_fallback">本地音频兜底</string>

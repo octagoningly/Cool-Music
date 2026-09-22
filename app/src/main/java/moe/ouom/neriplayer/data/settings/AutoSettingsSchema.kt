@@ -1733,6 +1733,15 @@ object AutoSettingsSchema {
             icon = AutoSettingIcon.Wallpaper
         )
 
+        @AutoSetting(order = 137)
+        val lxOnlineSearchEngines = autoStringSetting(
+            key = "lx_online_search_engines",
+            defaultValue = "tx,kg,kw,wy",
+            titleRes = R.string.settings_lx_online_search_engines,
+            descriptionRes = R.string.settings_lx_online_search_engines_desc,
+            icon = AutoSettingIcon.Public
+        )
+
         @AutoSetting(order = 139)
         val lxSourceLyricsFallbackEnabled = autoSwitchSetting(
             key = "lx_source_lyrics_fallback_enabled",

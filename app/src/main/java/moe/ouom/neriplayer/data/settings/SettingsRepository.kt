@@ -533,6 +533,9 @@ class SettingsRepository(private val context: Context) {
     val lxSourceLyricsFallbackEnabledFlow: Flow<Boolean> =
         autoSettingsRepository.lxSourceLyricsFallbackEnabledFlow
 
+    val lxOnlineSearchEnginesFlow: Flow<String> =
+        autoSettingsRepository.lxOnlineSearchEnginesFlow
+
     val neteaseLocalSourceFallbackFlow: Flow<Boolean> =
         dataStoreSettingFlow { it[SettingsKeys.NETEASE_LOCAL_SOURCE_FALLBACK] ?: false }
 
@@ -1273,6 +1276,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setLxSourceLyricsFallbackEnabled(enabled: Boolean) {
         autoSettingsRepository.setLxSourceLyricsFallbackEnabled(enabled)
+    }
+
+    suspend fun setLxOnlineSearchEngines(value: String) {
+        autoSettingsRepository.setLxOnlineSearchEngines(value)
     }
 
     suspend fun setNeteaseLocalSourceFallback(enabled: Boolean) {

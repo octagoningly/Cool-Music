@@ -64,6 +64,12 @@
     <string name="settings_netease_auto_source_switch_desc">Off by default. When enabled, search Bilibili automatically when a NetEase song is unavailable or only returns a preview clip.</string>
     <string name="settings_lx_source_cover_fallback">Source cover</string>
     <string name="settings_lx_source_cover_fallback_desc">When a song has no cover, use the cover returned by the online music source</string>
+    <string name="settings_lx_online_search_engines">Online search</string>
+    <string name="settings_lx_online_search_engines_desc">Choose engines for Explore «Online» search. Keep QQ Music for more accurate album covers</string>
+    <string name="settings_lx_online_search_engines_tx">QQ Music</string>
+    <string name="settings_lx_online_search_engines_kg">Kugou</string>
+    <string name="settings_lx_online_search_engines_kw">Kuwo</string>
+    <string name="settings_lx_online_search_engines_wy">NetEase</string>
     <string name="settings_lx_source_lyrics_fallback">Source lyrics</string>
     <string name="settings_lx_source_lyrics_fallback_desc">Prefer or fall back to online source lyrics; when off, source lyrics are not requested</string>
     <string name="settings_netease_local_source_fallback">Local Audio Fallback</string>

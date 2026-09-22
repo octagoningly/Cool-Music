@@ -60,6 +60,7 @@ import moe.ouom.neriplayer.core.api.bili.buildBiliSongAlbum
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicCreatorSection
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicCreatorSummary
 import moe.ouom.neriplayer.core.di.AppContainer
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollection
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.data.platform.youtube.stableYouTubeMusicId
@@ -75,6 +76,7 @@ import moe.ouom.neriplayer.ui.screen.artist.YouTubeMusicCreatorItemsScreen
 import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.NeteaseAlbumDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.NeteasePlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.OnlineCollectionDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.YouTubeMusicPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.tab.ExploreScreen
 import moe.ouom.neriplayer.ui.shouldSuppressRestoredMainTabHostEntry
@@ -89,6 +91,7 @@ import moe.ouom.neriplayer.util.media.CoverArtColorCache
 internal sealed class ExploreSelectedItem {
     data class Netease(val playlist: PlaylistSummary) : ExploreSelectedItem()
     data class NeteaseArtist(val artist: NeteaseArtistSummary) : ExploreSelectedItem()
+    data class OnlineCollection(val collection: LxOnlineCollection) : ExploreSelectedItem()
     data class NeteaseArtistAlbum(
         val artist: NeteaseArtistSummary,
         val album: AlbumSummary
@@ -413,6 +416,10 @@ fun ExploreHostScreen(
                                     captureExploreScrollPosition()
                                     openExploreSelectedItem(ExploreSelectedItem.NeteaseArtist(artist))
                                 },
+                                onOnlineCollectionClick = { collection ->
+                                    captureExploreScrollPosition()
+                                    openExploreSelectedItem(ExploreSelectedItem.OnlineCollection(collection))
+                                },
                                 onSongClick = onSongClick,
                                 onSongPlayPreservingQueue = onSongPlayPreservingQueue,
                                 onSongPlayNext = onSongPlayNext,
@@ -450,6 +457,18 @@ fun ExploreHostScreen(
                                             )
                                         )
                                     },
+                                    offlineMode = offlineMode
+                                )
+                            }
+
+                            is ExploreSelectedItem.OnlineCollection -> {
+                                OnlineCollectionDetailScreen(
+                                    collection = current.collection,
+                                    onBack = ::closeSelectedDetail,
+                                    onSongClick = onSongClick,
+                                    onSongPlayPreservingQueue = onSongPlayPreservingQueue,
+                                    onSongPlayNext = onSongPlayNext,
+                                    onSongAddToQueueEnd = onSongAddToQueueEnd,
                                     offlineMode = offlineMode
                                 )
                             }

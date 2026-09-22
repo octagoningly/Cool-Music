@@ -204,6 +204,8 @@ import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
 import moe.ouom.neriplayer.ui.feedback.NeriSnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollection
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollectionType
 import moe.ouom.neriplayer.ui.viewmodel.tab.DefaultExploreSearchType
 import moe.ouom.neriplayer.ui.viewmodel.tab.ExploreSearchResult
 import moe.ouom.neriplayer.ui.viewmodel.tab.ExploreUiState
@@ -326,6 +328,24 @@ private fun defaultSearchTypeLabel(type: DefaultExploreSearchType): String {
     }
 }
 
+private fun defaultSearchTypeIcon(type: DefaultExploreSearchType): ImageVector {
+    return when (type) {
+        DefaultExploreSearchType.SONG -> Icons.Outlined.MusicNote
+        DefaultExploreSearchType.ARTIST -> Icons.Filled.AccountCircle
+        DefaultExploreSearchType.PLAYLIST -> Icons.AutoMirrored.Outlined.QueueMusic
+    }
+}
+
+@Composable
+private fun onlineCollectionSourceLabel(sourceId: String): String = stringResource(
+    when (sourceId) {
+        "tx" -> R.string.settings_lx_online_search_engines_tx
+        "kg" -> R.string.settings_lx_online_search_engines_kg
+        "kw" -> R.string.settings_lx_online_search_engines_kw
+        else -> R.string.settings_lx_online_search_engines_wy
+    }
+)
+
 @Composable
 private fun neteaseSearchTypeLabel(type: NeteaseExploreSearchType): String {
     return when (type) {
@@ -378,6 +398,7 @@ fun ExploreScreen(
     onYouTubeMusicPlaylistClick: (YouTubeMusicPlaylist) -> Unit = {},
     onYouTubeCreatorClick: (YouTubeMusicCreatorSummary) -> Unit = {},
     onNeteaseArtistClick: (NeteaseArtistSummary) -> Unit = {},
+    onOnlineCollectionClick: (LxOnlineCollection) -> Unit = {},
     onSongClick: (List<SongItem>, Int) -> Unit = { _, _ -> },
     onSongPlayPreservingQueue: (SongItem) -> Unit = {},
     onSongPlayNext: (SongItem) -> Unit = {},
@@ -1088,6 +1109,13 @@ fun ExploreScreen(
                                                 onClick = { onNeteaseArtistClick(item.result.artist) }
                                             )
                                         }
+                                        is ExploreSearchResult.OnlineCollection -> {
+                                            OnlineCollectionSearchRow(
+                                                collection = item.collection,
+                                                offlineMode = offlineMode,
+                                                onClick = { onOnlineCollectionClick(item.collection) }
+                                            )
+                                        }
                                         is ExploreSearchResult.YouTubeCreator -> {
                                             YouTubeCreatorSearchRow(
                                                 creator = item.creator,
@@ -1721,6 +1749,8 @@ internal fun ExploreSearchTypeBar(
                     itemsIndexed(DefaultExploreSearchType.entries) { _, type ->
                         ExploreTagChip(
                             label = defaultSearchTypeLabel(type),
+                            icon = defaultSearchTypeIcon(type),
+                            showLabel = false,
                             selected = selectedDefaultSearchType == type,
                             onClick = {
                                 if (source == displayedSource) {
@@ -2311,6 +2341,42 @@ private fun NeteaseArtistSearchRow(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(34.dp)
+            )
+        },
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun OnlineCollectionSearchRow(
+    collection: LxOnlineCollection,
+    offlineMode: Boolean,
+    onClick: () -> Unit
+) {
+    val sourceLabel = onlineCollectionSourceLabel(collection.sourceId)
+    val countLabel = collection.trackCount.takeIf { it > 0 }?.let { count ->
+        pluralStringResource(R.plurals.count_songs_format, count, count)
+    }
+    val subtitle = listOfNotNull(
+        sourceLabel,
+        collection.creator.takeIf { it.isNotBlank() },
+        countLabel
+    ).joinToString(" · ")
+    LinkedCollectionRow(
+        title = collection.name,
+        subtitle = subtitle,
+        coverUrl = collection.coverUrl,
+        offlineMode = offlineMode,
+        fallbackIcon = {
+            Icon(
+                imageVector = if (collection.type == LxOnlineCollectionType.ARTIST) {
+                    Icons.Filled.AccountCircle
+                } else {
+                    Icons.AutoMirrored.Filled.QueueMusic
+                },
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(32.dp)
             )
         },
         onClick = onClick

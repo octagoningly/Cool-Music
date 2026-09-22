@@ -25,6 +25,7 @@
     <string name="explore_search_type_song">Songs</string>
     <string name="explore_search_type_playlist">Playlists</string>
     <string name="explore_search_type_artist">Artists</string>
+    <string name="online_collection_load_more">Load more</string>
     <string name="explore_search_type_video">Videos</string>
     <string name="explore_search_type_creator">Creators</string>
     <string name="explore_tag_link_recognition">Link Recognition</string>

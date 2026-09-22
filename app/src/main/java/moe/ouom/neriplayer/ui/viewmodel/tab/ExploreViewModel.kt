@@ -46,6 +46,9 @@ import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager.biliClient
 import moe.ouom.neriplayer.core.player.PlayerManager.neteaseClient
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.searchLxDefaultSongs
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollection
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollectionType
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.searchLxOnlineCollections
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.SongItem
@@ -117,14 +120,6 @@ enum class DefaultExploreSearchType {
     PLAYLIST
 }
 
-private fun DefaultExploreSearchType.toNeteaseSearchType(): NeteaseExploreSearchType {
-    return when (this) {
-        DefaultExploreSearchType.SONG -> NeteaseExploreSearchType.SONG
-        DefaultExploreSearchType.PLAYLIST -> NeteaseExploreSearchType.PLAYLIST
-        DefaultExploreSearchType.ARTIST -> NeteaseExploreSearchType.ARTIST
-    }
-}
-
 enum class YouTubeExploreSearchType(
     val filter: YouTubeMusicSearchFilter?
 ) {
@@ -169,6 +164,11 @@ sealed class ExploreSearchResult {
 
     data class Artist(val result: NeteaseSearchArtistResult) : ExploreSearchResult() {
         override val stableKey: String = "netease|artist|${result.artist.id}"
+    }
+
+    data class OnlineCollection(val collection: LxOnlineCollection) : ExploreSearchResult() {
+        override val stableKey: String =
+            "online|${collection.type}|${collection.sourceId}|${collection.id}"
     }
 
     data class YouTubeCreator(val creator: YouTubeMusicCreatorSummary) : ExploreSearchResult() {
@@ -622,13 +622,19 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         type: DefaultExploreSearchType
     ): ExploreSearchFetchResult {
         if (type != DefaultExploreSearchType.SONG) {
-            return fetchNeteaseSearchPage(
+            val result = searchLxOnlineCollections(
                 keyword = keyword,
-                matchQuery = matchQuery,
                 page = page,
-                type = type.toNeteaseSearchType(),
-                usePersistedCookies = false,
-                retryWithPersistedCookies = true
+                type = if (type == DefaultExploreSearchType.ARTIST) {
+                    LxOnlineCollectionType.ARTIST
+                } else {
+                    LxOnlineCollectionType.PLAYLIST
+                }
+            )
+            return ExploreSearchFetchResult(
+                items = result.items.map(ExploreSearchResult::OnlineCollection),
+                page = page,
+                hasMore = result.hasMore
             )
         }
         val result = searchLxDefaultSongs(keyword, page)
@@ -1428,37 +1434,16 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         keyword: String,
         matchQuery: String,
         page: Int,
-        type: NeteaseExploreSearchType,
-        usePersistedCookies: Boolean = true,
-        retryWithPersistedCookies: Boolean = false
+        type: NeteaseExploreSearchType
     ): ExploreSearchFetchResult {
         val offset = (page - 1).coerceAtLeast(0) * NETEASE_SEARCH_PAGE_SIZE
-        suspend fun requestSearch(persistedCookies: Boolean): String {
-            return neteaseClient.searchSongsCancellable(
-                keyword = keyword,
-                limit = NETEASE_SEARCH_PAGE_SIZE,
-                offset = offset,
-                type = type.apiType,
-                usePersistedCookies = persistedCookies
-            )
-        }
-        var usedPersistedCookies = usePersistedCookies
-        var raw = try {
-            requestSearch(usePersistedCookies)
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            if (!retryWithPersistedCookies || usePersistedCookies) throw error
-            usedPersistedCookies = true
-            requestSearch(persistedCookies = true)
-        }
-        if (
-            retryWithPersistedCookies &&
-            !usedPersistedCookies &&
-            runCatching { JSONObject(raw).optInt("code", -1) }.getOrDefault(-1) != 200
-        ) {
-            raw = requestSearch(persistedCookies = true)
-        }
+        val raw = neteaseClient.searchSongsCancellable(
+            keyword = keyword,
+            limit = NETEASE_SEARCH_PAGE_SIZE,
+            offset = offset,
+            type = type.apiType,
+            usePersistedCookies = true
+        )
         val parsed = parseNeteaseSearchResults(raw, type)
         val items = if (type == NeteaseExploreSearchType.SONG) {
             rankExploreSongSearchResults(matchQuery, parsed.items.mapNotNull {

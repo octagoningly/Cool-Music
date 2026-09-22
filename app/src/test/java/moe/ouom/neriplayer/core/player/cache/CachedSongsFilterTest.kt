@@ -66,6 +66,29 @@ class CachedSongsFilterTest {
     }
 
     @Test
+    fun duetSongMatchesEachSplitArtist() {
+        val duet = entry(song(1, "合唱曲", "歌手甲 / 歌手乙"), complete = true)
+        val other = entry(song(2, "独唱", "歌手丙"), complete = true)
+
+        val forA = filterCachedSongs(
+            songs = listOf(duet, other),
+            onlyComplete = true,
+            selectedArtist = "歌手甲",
+            query = "",
+        )
+        val forB = filterCachedSongs(
+            songs = listOf(duet, other),
+            onlyComplete = true,
+            selectedArtist = "歌手乙",
+            query = "",
+        )
+
+        assertEquals(listOf(duet), forA)
+        assertEquals(listOf(duet), forB)
+        assertEquals(listOf("歌手丙", "歌手乙", "歌手甲").sorted(), cachedSongArtistOptions(listOf(duet, other)))
+    }
+
+    @Test
     fun artistOptionsAreUniqueAndSorted() {
         val options = cachedSongArtistOptions(
             listOf(

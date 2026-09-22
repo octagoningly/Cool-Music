@@ -2704,7 +2704,7 @@ object PlayerManager {
             currentPlaylist.isNotEmpty() && shouldResumePlaybackSnapshot()
     ) = persistStateImpl(positionMs, shouldResumePlayback)
 
-    fun addCurrentToPlaylist(playlistId: Long) = addCurrentToPlaylistImpl(playlistId)
+    suspend fun addCurrentToPlaylist(playlistId: Long) = addCurrentToPlaylistImpl(playlistId)
 
     fun playBiliVideoAsAudio(videos: List<BiliVideoItem>, startIndex: Int) =
         playBiliVideoAsAudioImpl(videos, startIndex)

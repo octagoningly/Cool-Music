@@ -54,6 +54,26 @@ enum class CachedUnrecognizedKind {
     OTHER
 }
 
+internal fun splitCachedSongArtists(rawArtist: String): List<String> {
+    if (rawArtist.isBlank()) return emptyList()
+    return rawArtist
+        .split(
+            Regex(
+                """[/、，,；;＆&+|｜]|(?:\s+(?:feat\.?|ft\.?|featuring|vs\.?|x)\s+)""",
+                RegexOption.IGNORE_CASE,
+            )
+        )
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .distinct()
+}
+
+internal fun cachedSongArtistOptions(songs: List<CachedSong>): List<String> =
+    songs
+        .flatMap { splitCachedSongArtists(it.song.displayArtist()) }
+        .distinct()
+        .sorted()
+
 internal fun filterCachedSongs(
     songs: List<CachedSong>,
     onlyComplete: Boolean,
@@ -63,21 +83,14 @@ internal fun filterCachedSongs(
     val artistFilter = selectedArtist?.trim()?.takeIf { it.isNotEmpty() }
     val textQuery = query.trim()
     return songs.filter { entry ->
+        val artists = splitCachedSongArtists(entry.song.displayArtist())
         (!onlyComplete || entry.complete) &&
-            (artistFilter == null ||
-                entry.song.displayArtist().trim().equals(artistFilter, ignoreCase = true)) &&
+            (artistFilter == null || artists.any { it.equals(artistFilter, ignoreCase = true) }) &&
             (textQuery.isEmpty() ||
                 entry.song.displayName().contains(textQuery, ignoreCase = true) ||
                 entry.song.displayArtist().contains(textQuery, ignoreCase = true))
     }
 }
-
-internal fun cachedSongArtistOptions(songs: List<CachedSong>): List<String> =
-    songs
-        .map { it.song.displayArtist().trim() }
-        .filter { it.isNotEmpty() }
-        .distinct()
-        .sorted()
 
 internal fun unrecognizedCacheKind(key: String): CachedUnrecognizedKind = when {
     key.startsWith("lx-") || key.startsWith("lxjs-") -> CachedUnrecognizedKind.LX

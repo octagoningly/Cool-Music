@@ -84,10 +84,15 @@ import java.util.LinkedHashSet
 import java.util.Locale
 
 data class LocalPlaylistSongAddResult(
-    val addedSongs: List<SongItem>
+    val addedSongs: List<SongItem>,
+    val requestedCount: Int = addedSongs.size,
 ) {
     val addedCount: Int
         get() = addedSongs.size
+    val duplicateCount: Int
+        get() = (requestedCount - addedCount).coerceAtLeast(0)
+    val allDuplicates: Boolean
+        get() = addedCount == 0 && requestedCount > 0
 }
 
 data class LocalPlaylistSongDeleteResult(
@@ -1642,7 +1647,7 @@ class LocalPlaylistRepository private constructor(
         includeLocalMetadataFallback: Boolean = false
     ): LocalPlaylistSongAddResult {
         return withContext(Dispatchers.IO) {
-            if (songs.isEmpty()) return@withContext LocalPlaylistSongAddResult(emptyList())
+            if (songs.isEmpty()) return@withContext LocalPlaylistSongAddResult(emptyList(), requestedCount = 0)
             val now = System.currentTimeMillis()
             val hydratedSongs = hydrateLocalSongsForPersistence(songs, hydrateLocalMetadata)
             commitPlaylistMutation {
@@ -1652,7 +1657,8 @@ class LocalPlaylistRepository private constructor(
                         songs = hydratedSongs,
                         now = now,
                         includeLocalMetadataFallback = includeLocalMetadataFallback
-                    )
+                    ),
+                    requestedCount = hydratedSongs.size,
                 )
             }
         }
@@ -1844,6 +1850,13 @@ class LocalPlaylistRepository private constructor(
 
     suspend fun addSongToPlaylist(playlistId: Long, song: SongItem) {
         addSongsToPlaylist(playlistId, listOf(song))
+    }
+
+    suspend fun addSongToPlaylistWithResult(
+        playlistId: Long,
+        song: SongItem
+    ): LocalPlaylistSongAddResult {
+        return addSongsToPlaylistWithResult(playlistId, listOf(song))
     }
 
     suspend fun removeSongFromPlaylist(playlistId: Long, song: SongItem) {

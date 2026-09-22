@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -210,33 +212,81 @@ fun CachedSongsPlaylistScreen(
                         }
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState())
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            FilterChip(
-                                selected = onlyComplete,
-                                onClick = { onlyComplete = true },
-                                label = { Text(stringResource(R.string.cached_songs_filter_complete)) }
-                            )
-                            FilterChip(
-                                selected = !onlyComplete,
-                                onClick = { onlyComplete = false },
-                                label = { Text(stringResource(R.string.cached_songs_filter_all)) }
-                            )
-                            FilterChip(
-                                selected = selectedArtist == null,
-                                onClick = { selectedArtist = null },
-                                label = { Text(stringResource(R.string.cached_songs_filter_all_artists)) }
-                            )
-                            artistOptions.forEach { artist ->
+                            var cacheModeMenuExpanded by remember { mutableStateOf(false) }
+                            Box {
                                 FilterChip(
-                                    selected = selectedArtist == artist,
-                                    onClick = {
-                                        selectedArtist = if (selectedArtist == artist) null else artist
-                                    },
-                                    label = { Text(artist, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                    selected = true,
+                                    onClick = { cacheModeMenuExpanded = true },
+                                    label = {
+                                        Text(
+                                            stringResource(
+                                                if (onlyComplete) {
+                                                    R.string.cached_songs_filter_complete
+                                                } else {
+                                                    R.string.cached_songs_filter_all
+                                                }
+                                            )
+                                        )
+                                    }
                                 )
+                                DropdownMenu(
+                                    expanded = cacheModeMenuExpanded,
+                                    onDismissRequest = { cacheModeMenuExpanded = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.cached_songs_filter_complete)) },
+                                        onClick = {
+                                            onlyComplete = true
+                                            cacheModeMenuExpanded = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.cached_songs_filter_all)) },
+                                        onClick = {
+                                            onlyComplete = false
+                                            cacheModeMenuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+
+                            var artistMenuExpanded by remember { mutableStateOf(false) }
+                            Box {
+                                FilterChip(
+                                    selected = selectedArtist != null,
+                                    onClick = { artistMenuExpanded = true },
+                                    label = {
+                                        Text(
+                                            selectedArtist
+                                                ?: stringResource(R.string.cached_songs_filter_all_artists),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                )
+                                DropdownMenu(
+                                    expanded = artistMenuExpanded,
+                                    onDismissRequest = { artistMenuExpanded = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.cached_songs_filter_all_artists)) },
+                                        onClick = {
+                                            selectedArtist = null
+                                            artistMenuExpanded = false
+                                        }
+                                    )
+                                    artistOptions.forEach { artist ->
+                                        DropdownMenuItem(
+                                            text = { Text(artist, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                            onClick = {
+                                                selectedArtist = artist
+                                                artistMenuExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                         Text(

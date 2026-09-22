@@ -297,6 +297,7 @@ import moe.ouom.neriplayer.ui.component.playback.WaveformSlider
 import moe.ouom.neriplayer.ui.component.playback.resolvePlaybackWaiting
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetDragBlocker
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
+import moe.ouom.neriplayer.ui.feedback.AppFeedback
 import moe.ouom.neriplayer.ui.feedback.NeriOverlaySnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
 import moe.ouom.neriplayer.ui.theme.LocalNeriTargetColorScheme
@@ -3741,7 +3742,24 @@ fun NowPlayingScreen(
                                             song = currentSong,
                                             actionLabel = composeResources.getString(R.string.playlist_add_to)
                                         ) {
-                                            PlayerManager.addCurrentToPlaylist(pl.id)
+                                            screenScope.launch {
+                                                val result = runCatching {
+                                                    PlayerManager.addCurrentToPlaylist(pl.id)
+                                                }
+                                                result.onSuccess { addResult ->
+                                                    val message = if (addResult.allDuplicates) {
+                                                        context.getString(R.string.playlist_add_already_exists)
+                                                    } else {
+                                                        context.getString(R.string.playlist_add_success_one, pl.name)
+                                                    }
+                                                    AppFeedback.showToast(context, message)
+                                                }.onFailure {
+                                                    AppFeedback.showToast(
+                                                        context,
+                                                        context.getString(R.string.playlist_export_failed)
+                                                    )
+                                                }
+                                            }
                                             showAddSheet = false
                                         }
                                     }

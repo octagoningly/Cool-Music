@@ -164,6 +164,7 @@ import moe.ouom.neriplayer.util.format.formatDuration
 import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
 import moe.ouom.neriplayer.ui.haptic.performHapticFeedback
 import kotlinx.coroutines.launch
+import moe.ouom.neriplayer.ui.feedback.AppFeedback
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
@@ -1015,7 +1016,24 @@ fun LyricsScreen(
                                             song = currentSong,
                                             actionLabel = playlistAddActionLabel
                                         ) {
-                                            PlayerManager.addCurrentToPlaylist(pl.id)
+                                            scope.launch {
+                                                val result = runCatching {
+                                                    PlayerManager.addCurrentToPlaylist(pl.id)
+                                                }
+                                                result.onSuccess { addResult ->
+                                                    val message = if (addResult.allDuplicates) {
+                                                        context.getString(R.string.playlist_add_already_exists)
+                                                    } else {
+                                                        context.getString(R.string.playlist_add_success_one, pl.name)
+                                                    }
+                                                    AppFeedback.showToast(context, message)
+                                                }.onFailure {
+                                                    AppFeedback.showToast(
+                                                        context,
+                                                        context.getString(R.string.playlist_export_failed)
+                                                    )
+                                                }
+                                            }
                                             showAddSheet = false
                                         }
                                     }

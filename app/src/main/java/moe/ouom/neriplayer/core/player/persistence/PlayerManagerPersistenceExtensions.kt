@@ -869,24 +869,30 @@ internal suspend fun PlayerManager.persistStateImpl(
     }
 }
 
-internal fun PlayerManager.addCurrentToPlaylistImpl(playlistId: Long) {
+internal suspend fun PlayerManager.addCurrentToPlaylistImpl(
+    playlistId: Long
+): moe.ouom.neriplayer.data.local.playlist.LocalPlaylistSongAddResult {
     ensureInitialized()
-    if (!initialized) return
-    val song = _currentSongFlow.value ?: return
+    check(initialized) { "Call PlayerManager.initialize(application) first." }
+    val song = _currentSongFlow.value
+        ?: return moe.ouom.neriplayer.data.local.playlist.LocalPlaylistSongAddResult(
+            addedSongs = emptyList(),
+            requestedCount = 0,
+        )
     NPLogger.d(
         "NERI-PlayerManager",
         "addCurrentToPlaylist(): playlistId=$playlistId, song=${song.name}/${song.id}, stack=[${debugStackHint()}]"
     )
-    ioScope.launch {
-        try {
-            localRepo.addSongToPlaylist(playlistId, song)
-            NPLogger.d(
-                "NERI-PlayerManager",
-                "addCurrentToPlaylist(): completed, playlistId=$playlistId, song=${song.name}/${song.id}"
-            )
-        } catch (e: Exception) {
-            NPLogger.e("NERI-PlayerManager", "addCurrentToPlaylist failed: ${e.message}", e)
-        }
+    return try {
+        val result = localRepo.addSongToPlaylistWithResult(playlistId, song)
+        NPLogger.d(
+            "NERI-PlayerManager",
+            "addCurrentToPlaylist(): completed, playlistId=$playlistId, song=${song.name}/${song.id}, added=${result.addedCount}"
+        )
+        result
+    } catch (e: Exception) {
+        NPLogger.e("NERI-PlayerManager", "addCurrentToPlaylist failed: ${e.message}", e)
+        throw e
     }
 }
 

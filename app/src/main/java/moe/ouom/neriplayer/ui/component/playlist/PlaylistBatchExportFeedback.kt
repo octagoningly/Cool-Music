@@ -41,6 +41,13 @@ internal fun CoroutineScope.showPlaylistBatchExportAddedResult(
     result: Result<LocalPlaylistSongAddResult>
 ) {
     result.onSuccess { addResult ->
+        if (addResult.allDuplicates) {
+            showPlaylistBatchExportAlreadyExists(
+                context = context,
+                snackbarHostState = snackbarHostState,
+            )
+            return@onSuccess
+        }
         showPlaylistBatchExportAddedSongs(
             context = context,
             snackbarHostState = snackbarHostState,
@@ -51,6 +58,15 @@ internal fun CoroutineScope.showPlaylistBatchExportAddedResult(
         )
     }.onFailure {
         showPlaylistBatchExportFailure(context, snackbarHostState)
+    }
+}
+
+internal fun CoroutineScope.showPlaylistBatchExportAlreadyExists(
+    context: Context,
+    snackbarHostState: SnackbarHostState,
+) {
+    launch {
+        snackbarHostState.showNeriSnackbar(context.getString(R.string.playlist_add_already_exists))
     }
 }
 

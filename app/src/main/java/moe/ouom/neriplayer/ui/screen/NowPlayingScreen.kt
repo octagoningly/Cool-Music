@@ -3620,7 +3620,8 @@ fun NowPlayingScreen(
             if (showDockMoreSheet) {
                 ModalBottomSheet(
                     onDismissRequest = { showDockMoreSheet = false },
-                    sheetState = dockMoreSheetState
+                    sheetState = dockMoreSheetState,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
                 ) {
                     Column(
                         modifier = Modifier

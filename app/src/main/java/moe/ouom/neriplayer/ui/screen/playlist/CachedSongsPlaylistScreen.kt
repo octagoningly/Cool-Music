@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,6 +51,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -89,6 +92,7 @@ fun CachedSongsPlaylistScreen(
     }
     val cachedSongs = snapshot.songs
     var query by remember { mutableStateOf("") }
+    var showSearch by remember { mutableStateOf(false) }
     var onlyComplete by remember { mutableStateOf(true) }
     var selectedArtist by remember { mutableStateOf<String?>(null) }
     val artistOptions = remember(cachedSongs) { cachedSongArtistOptions(cachedSongs) }
@@ -118,6 +122,17 @@ fun CachedSongsPlaylistScreen(
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            showSearch = !showSearch
+                            if (!showSearch) query = ""
+                        }) {
+                            Icon(
+                                Icons.Filled.Search,
+                                contentDescription = stringResource(R.string.cd_search_songs)
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -219,6 +234,7 @@ fun CachedSongsPlaylistScreen(
                                 FilterChip(
                                     selected = true,
                                     onClick = { cacheModeMenuExpanded = true },
+                                    shape = RoundedCornerShape(50),
                                     label = {
                                         Text(
                                             stringResource(
@@ -233,17 +249,31 @@ fun CachedSongsPlaylistScreen(
                                 )
                                 DropdownMenu(
                                     expanded = cacheModeMenuExpanded,
-                                    onDismissRequest = { cacheModeMenuExpanded = false }
+                                    onDismissRequest = { cacheModeMenuExpanded = false },
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.widthIn(min = 148.dp)
                                 ) {
                                     DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.cached_songs_filter_complete)) },
+                                        text = {
+                                            Text(
+                                                stringResource(R.string.cached_songs_filter_complete),
+                                                modifier = Modifier.fillMaxWidth(),
+                                                textAlign = TextAlign.Center
+                                            )
+                                        },
                                         onClick = {
                                             onlyComplete = true
                                             cacheModeMenuExpanded = false
                                         }
                                     )
                                     DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.cached_songs_filter_all)) },
+                                        text = {
+                                            Text(
+                                                stringResource(R.string.cached_songs_filter_all),
+                                                modifier = Modifier.fillMaxWidth(),
+                                                textAlign = TextAlign.Center
+                                            )
+                                        },
                                         onClick = {
                                             onlyComplete = false
                                             cacheModeMenuExpanded = false
@@ -257,6 +287,7 @@ fun CachedSongsPlaylistScreen(
                                 FilterChip(
                                     selected = selectedArtist != null,
                                     onClick = { artistMenuExpanded = true },
+                                    shape = RoundedCornerShape(50),
                                     label = {
                                         Text(
                                             selectedArtist
@@ -268,10 +299,18 @@ fun CachedSongsPlaylistScreen(
                                 )
                                 DropdownMenu(
                                     expanded = artistMenuExpanded,
-                                    onDismissRequest = { artistMenuExpanded = false }
+                                    onDismissRequest = { artistMenuExpanded = false },
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.widthIn(min = 168.dp, max = 280.dp)
                                 ) {
                                     DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.cached_songs_filter_all_artists)) },
+                                        text = {
+                                            Text(
+                                                stringResource(R.string.cached_songs_filter_all_artists),
+                                                modifier = Modifier.fillMaxWidth(),
+                                                textAlign = TextAlign.Center
+                                            )
+                                        },
                                         onClick = {
                                             selectedArtist = null
                                             artistMenuExpanded = false
@@ -279,7 +318,15 @@ fun CachedSongsPlaylistScreen(
                                     )
                                     artistOptions.forEach { artist ->
                                         DropdownMenuItem(
-                                            text = { Text(artist, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                            text = {
+                                                Text(
+                                                    artist,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            },
                                             onClick = {
                                                 selectedArtist = artist
                                                 artistMenuExpanded = false
@@ -294,13 +341,16 @@ fun CachedSongsPlaylistScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        OutlinedTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            label = { Text(stringResource(R.string.cached_songs_search)) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        if (showSearch) {
+                            OutlinedTextField(
+                                value = query,
+                                onValueChange = { query = it },
+                                placeholder = { Text(stringResource(R.string.cached_songs_search)) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(24.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
                 if (visibleSongs.isEmpty()) {

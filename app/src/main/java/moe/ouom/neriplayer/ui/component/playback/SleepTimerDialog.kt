@@ -55,6 +55,7 @@ fun SleepTimerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
         icon = { Icon(Icons.Default.Timer, contentDescription = null) },
         title = { Text(stringResource(R.string.sleep_timer_title)) },
         text = {

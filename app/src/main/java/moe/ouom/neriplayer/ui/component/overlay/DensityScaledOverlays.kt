@@ -68,7 +68,7 @@ internal fun DensityScaledAlertDialog(
     icon: @Composable (() -> Unit)? = null,
     title: @Composable (() -> Unit)? = null,
     text: @Composable (() -> Unit)? = null,
-    shape: Shape = AlertDialogDefaults.shape,
+    shape: Shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
     containerColor: Color = AlertDialogDefaults.containerColor,
     iconContentColor: Color = AlertDialogDefaults.iconContentColor,
     titleContentColor: Color = AlertDialogDefaults.titleContentColor,

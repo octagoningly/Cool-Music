@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -133,9 +135,12 @@ fun BoxScope.GlassDropdownMenu(
         onDismissRequest = onDismissRequest,
         properties = PopupProperties(focusable = true),
     ) {
-        // 宽度随内容，禁止 fillMaxWidth / IntrinsicSize.Max（会撑满弹窗或触发无限高度）
+        // DropdownMenuItem 自带 fillMaxWidth；Popup 无限宽时必须用 IntrinsicSize.Max
+        // 收到最宽子项。不要同时套 verticalScroll（会触发无限高度崩溃）。
         Box(
-            Modifier.heightIn(max = 360.dp)
+            Modifier
+                .width(IntrinsicSize.Max)
+                .heightIn(max = 360.dp)
         ) {
             AdvancedGlassSurface(
                 role = AdvancedGlassRole.PopupMenu,

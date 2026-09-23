@@ -556,17 +556,10 @@ private fun NeriSnackbar(snackbarData: SnackbarData) {
         tintColor = MaterialTheme.colorScheme.secondaryContainer,
         enabled = glassActive,
     ) {
-        androidx.compose.material3.Card(
-            colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = androidx.compose.ui.graphics.Color.Transparent
-            ),
-            shape = shape,
-            modifier = Modifier.matchParentSize()
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
-            ) {
                 Text(
                     text = snackbarData.visuals.message,
                     style = MaterialTheme.typography.titleMedium,
@@ -598,7 +591,6 @@ private fun NeriSnackbar(snackbarData: SnackbarData) {
                         )
                     }
                 }
-            }
         }
     }
 }

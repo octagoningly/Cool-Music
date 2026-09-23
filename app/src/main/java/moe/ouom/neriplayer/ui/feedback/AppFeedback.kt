@@ -19,6 +19,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,6 +49,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -540,44 +542,44 @@ private fun NeriSnackbar(snackbarData: SnackbarData) {
     )
     val controller = moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController.current
     val glassActive = controller.isBaseBlurEnabled
-    // 与 GlassDropdownMenu 同一套玻璃参数，保证观感一致
-    val fallbackColor = if (glassActive) {
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
-    }
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
 
-    Box(
+    // 完全按 NeriMiniPlayer：secondaryContainer 底 + onSecondaryContainer 字
+    moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface(
+        role = moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole.MiniPlayer,
         modifier = Modifier
             .padding(12.dp)
-            .width(IntrinsicSize.Max)
             .testTag(NeriSnackbarTestTag)
+            .clip(shape),
+        shape = shape,
+        fallbackColor = MaterialTheme.colorScheme.secondaryContainer,
+        tintColor = MaterialTheme.colorScheme.secondaryContainer,
+        enabled = glassActive,
     ) {
-        moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface(
-            role = moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole.FeedbackBanner,
+        androidx.compose.material3.Card(
+            colors = androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = androidx.compose.ui.graphics.Color.Transparent
+            ),
             shape = shape,
-            fallbackColor = fallbackColor,
-            tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            enabled = glassActive,
+            modifier = Modifier.matchParentSize()
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
             ) {
                 Text(
                     text = snackbarData.visuals.message,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
                     maxLines = messageMaxLines,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    // 不要 weight：IntrinsicSize.Max 下 weight 子项量宽为 0，文字会消失
-                    modifier = Modifier.padding(end = 4.dp)
                 )
                 if (actionLabel != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
                     TextButton(
                         onClick = snackbarData::performAction,
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     ) {
                         Text(
@@ -592,7 +594,7 @@ private fun NeriSnackbar(snackbarData: SnackbarData) {
                         Icon(
                             imageVector = Icons.Filled.Close,
                             contentDescription = stringResource(R.string.cd_close),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
                 }

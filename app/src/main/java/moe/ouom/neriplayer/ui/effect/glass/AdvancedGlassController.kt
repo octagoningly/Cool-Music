@@ -49,6 +49,7 @@ internal fun canSampleAdvancedGlassBackdrop(
     val roleEnabled = when (role) {
         AdvancedGlassRole.MiniPlayer,
         AdvancedGlassRole.BottomNavigation,
+        AdvancedGlassRole.ScreenTopTab,
         AdvancedGlassRole.ExploreSearchOverlay,
         AdvancedGlassRole.PopupMenu,
         AdvancedGlassRole.FeedbackBanner,

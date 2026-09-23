@@ -136,6 +136,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -825,6 +826,13 @@ fun ExploreScreen(
                     .fillMaxWidth()
                     .padding(horizontal = searchPanelHorizontalPadding, vertical = 8.dp)
             ) {
+                    AdvancedGlassSurface(
+                        role = AdvancedGlassRole.ExploreSearchOverlay,
+                        shape = ExploreSearchFieldShape,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(ExploreSearchFieldShape)
+                    ) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = {
@@ -866,8 +874,16 @@ fun ExploreScreen(
                         }),
                         singleLine = true,
                         shape = ExploreSearchFieldShape,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
+                    }
                     if (ui.selectedSearchSource == SearchSource.NETEASE && !ui.isNeteaseLoggedIn
                     ) {
                         Spacer(Modifier.height(6.dp))

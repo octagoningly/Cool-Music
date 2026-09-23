@@ -122,6 +122,7 @@ import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.ui.component.common.NeriTabLargeTitleTopBar
 import moe.ouom.neriplayer.ui.component.playlist.AddSongToPlaylistSheet
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.download.GlobalDownloadManager
 import moe.ouom.neriplayer.core.download.toPlaybackSongItem
@@ -1218,7 +1219,7 @@ private fun SongRowMini(
                 )
             }
 
-            DropdownMenu(
+            GlassDropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {

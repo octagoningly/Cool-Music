@@ -123,7 +123,8 @@ internal fun AdvancedGlassHost(
             val contentRegions = renderedRegions.filter { region ->
                 region.role == AdvancedGlassRole.MiniPlayer ||
                     region.role == AdvancedGlassRole.BottomNavigation ||
-                    region.role == AdvancedGlassRole.PopupMenu
+                    region.role == AdvancedGlassRole.PopupMenu ||
+                    region.role == AdvancedGlassRole.FeedbackBanner
             }
             AdvancedGlassRenderRegionState(
                 background = resolveStableAdvancedGlassRenderRegions(

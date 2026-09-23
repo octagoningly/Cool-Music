@@ -94,7 +94,8 @@ internal fun AdvancedGlassSurface(
     val requiresContentBackdrop = role == AdvancedGlassRole.MiniPlayer ||
         role == AdvancedGlassRole.BottomNavigation ||
         role == AdvancedGlassRole.ExploreSearchOverlay ||
-        role == AdvancedGlassRole.PopupMenu
+        role == AdvancedGlassRole.PopupMenu ||
+        role == AdvancedGlassRole.FeedbackBanner
     val backdropsReady = availableBackdrops?.let { backdrops ->
         backdrops.background.positionInWindow.isSpecified &&
             (!requiresContentBackdrop ||
@@ -167,7 +168,8 @@ internal fun AdvancedGlassSurface(
                 return@onGloballyPositioned
             }
             // Popup 内 boundsInWindow 是弹窗本地坐标，必须用已换算的 override
-            if (role == AdvancedGlassRole.PopupMenu && regionBoundsOverride == null) {
+            if (role == AdvancedGlassRole.PopupMenu ||
+        role == AdvancedGlassRole.FeedbackBanner && regionBoundsOverride == null) {
                 availableBackdrops?.regionRegistry?.remove(regionKey)
                 return@onGloballyPositioned
             }
@@ -300,6 +302,7 @@ private fun advancedGlassRoleColor(role: AdvancedGlassRole): Color = when (role)
     AdvancedGlassRole.SettingsHeader -> MaterialTheme.colorScheme.primaryContainer
     AdvancedGlassRole.PlaylistSheet,
     AdvancedGlassRole.PopupMenu,
+    AdvancedGlassRole.FeedbackBanner,
     AdvancedGlassRole.SemanticCard -> MaterialTheme.colorScheme.surfaceContainerHigh
     AdvancedGlassRole.ExploreTag -> MaterialTheme.colorScheme.surface
     AdvancedGlassRole.ExploreSearchOverlay -> MaterialTheme.colorScheme.surfaceContainerHighest

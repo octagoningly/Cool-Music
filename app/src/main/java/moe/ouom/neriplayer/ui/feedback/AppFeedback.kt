@@ -479,6 +479,7 @@ fun AppFeedbackHostEffect(snackbarHostState: SnackbarHostState) {
 fun NeriSnackbarHost(
     hostState: SnackbarHostState,
     modifier: Modifier = Modifier,
+    contentAlignment: Alignment = Alignment.BottomCenter,
     bottomPadding: Dp = 0.dp,
     applyNavigationBarsPadding: Boolean = true,
     applyImePadding: Boolean = true
@@ -495,7 +496,14 @@ fun NeriSnackbarHost(
     SnackbarHost(
         hostState = hostState,
         modifier = hostModifier,
-        snackbar = ::NeriSnackbar
+        snackbar = { data ->
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = contentAlignment
+            ) {
+                NeriSnackbar(data)
+            }
+        }
     )
 }
 
@@ -515,6 +523,7 @@ fun BoxScope.NeriOverlaySnackbarHost(
         NeriSnackbarHost(
             hostState = hostState,
             modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center,
             bottomPadding = bottomPadding,
             applyNavigationBarsPadding = applyNavigationBarsPadding,
             applyImePadding = applyImePadding
@@ -546,7 +555,7 @@ private fun NeriSnackbar(snackbarData: SnackbarData) {
             .testTag(NeriSnackbarTestTag)
     ) {
         moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface(
-            role = moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole.PopupMenu,
+            role = moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole.FeedbackBanner,
             shape = shape,
             fallbackColor = fallbackColor,
             tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,

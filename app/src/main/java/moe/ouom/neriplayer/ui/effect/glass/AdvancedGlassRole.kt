@@ -14,4 +14,5 @@ internal enum class AdvancedGlassRole {
     ThemeModeToggle,
     InlineControl,
     PopupMenu,
+    FeedbackBanner,
 }

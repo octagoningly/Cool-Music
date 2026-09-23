@@ -50,7 +50,8 @@ internal fun canSampleAdvancedGlassBackdrop(
         AdvancedGlassRole.MiniPlayer,
         AdvancedGlassRole.BottomNavigation,
         AdvancedGlassRole.ExploreSearchOverlay,
-        AdvancedGlassRole.PopupMenu -> controller.isBaseBlurEnabled
+        AdvancedGlassRole.PopupMenu,
+        AdvancedGlassRole.FeedbackBanner -> controller.isBaseBlurEnabled
         else -> controller.isEnabled && controller.advancedBlurQuality.supports(role)
     }
     return roleEnabled && glassDepth == 0 && advancedGlassTokens(role, false).samplesBackdrop

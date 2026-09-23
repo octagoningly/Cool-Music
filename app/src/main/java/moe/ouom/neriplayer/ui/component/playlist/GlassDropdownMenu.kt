@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -134,10 +133,9 @@ fun BoxScope.GlassDropdownMenu(
         onDismissRequest = onDismissRequest,
         properties = PopupProperties(focusable = true),
     ) {
+        // 宽度随内容，禁止 fillMaxWidth / IntrinsicSize.Max（会撑满弹窗或触发无限高度）
         Box(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(max = 360.dp)
+            Modifier.heightIn(max = 360.dp)
         ) {
             AdvancedGlassSurface(
                 role = AdvancedGlassRole.PopupMenu,
@@ -148,9 +146,7 @@ fun BoxScope.GlassDropdownMenu(
                 regionBoundsOverride = menuBoundsInMainWindow,
             ) {
                 Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                    Modifier.padding(vertical = 4.dp),
                     content = content,
                 )
             }

@@ -39,7 +39,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import moe.ouom.neriplayer.ui.component.overlay.DensityScaledModalBottomSheet as ModalBottomSheet
+import moe.ouom.neriplayer.ui.component.overlay.GlassPanel
+import moe.ouom.neriplayer.ui.component.overlay.GlassPanelPosition
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -262,92 +263,83 @@ internal fun SettingsCookieLoginSheet(
     onBrowserLogin: () -> Unit,
     onSaveCookie: (String) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 1)) }
     var rawCookie by remember { mutableStateOf("") }
 
-    ModalBottomSheet(
+    // 居中弹窗：避免贴底与迷你播放器/底栏重叠导致视觉透层
+    GlassPanel(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        sheetGesturesEnabled = false,
-        // 真模糊由 GlassModalBottomSheet 提供；此处不再铺不透明底
-        containerColor = Color.Transparent,
-        tonalElevation = 0.dp
+        position = GlassPanelPosition.Centered,
+        maxWidth = 420.dp,
     ) {
-        Box(
-            modifier = Modifier
-                .bottomSheetDragBlocker()
-                .padding(start = 20.dp, end = 20.dp, bottom = 48.dp, top = 8.dp)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        stringResource(R.string.login_title),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                AnimatedVisibility(visible = inlineMsg != null, enter = fadeIn(), exit = fadeOut()) {
-                    InlineMessage(
-                        text = inlineMsg ?: "",
-                        onClose = { onInlineMsgChange(null) }
-                    )
-                }
-
-                MiuixSettingsSegmentedTabs(
-                    labels = listOf(
-                        browserTabLabel,
-                        stringResource(R.string.login_paste_cookie)
-                    ),
-                    selectedIndex = selectedTab,
-                    onSelectedIndexChange = { selectedTab = it }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                Text(
+                    stringResource(R.string.login_title),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp
+            AnimatedVisibility(visible = inlineMsg != null, enter = fadeIn(), exit = fadeOut()) {
+                InlineMessage(
+                    text = inlineMsg ?: "",
+                    onClose = { onInlineMsgChange(null) }
+                )
+            }
+
+            MiuixSettingsSegmentedTabs(
+                labels = listOf(
+                    browserTabLabel,
+                    stringResource(R.string.login_paste_cookie)
+                ),
+                selectedIndex = selectedTab,
+                onSelectedIndexChange = { selectedTab = it }
+            )
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.45f),
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        when (selectedTab) {
-                            0 -> {
-                                browserHintContent()
-                                MiuixSettingsButton(
-                                    onClick = onBrowserLogin,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(browserButtonLabel)
-                                }
+                    when (selectedTab) {
+                        0 -> {
+                            browserHintContent()
+                            MiuixSettingsButton(
+                                onClick = onBrowserLogin,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(browserButtonLabel)
                             }
+                        }
 
-                            else -> {
-                                MiuixSettingsTextField(
-                                    value = rawCookie,
-                                    onValueChange = { rawCookie = it },
-                                    label = { Text(cookieLabel) },
-                                    minLines = 6,
-                                    maxLines = 10,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                MiuixSettingsButton(
-                                    onClick = { onSaveCookie(rawCookie) },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(stringResource(R.string.login_save_cookie))
-                                }
+                        else -> {
+                            MiuixSettingsTextField(
+                                value = rawCookie,
+                                onValueChange = { rawCookie = it },
+                                label = { Text(cookieLabel) },
+                                minLines = 6,
+                                maxLines = 10,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            MiuixSettingsButton(
+                                onClick = { onSaveCookie(rawCookie) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(stringResource(R.string.login_save_cookie))
                             }
                         }
                     }

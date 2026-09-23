@@ -408,84 +408,42 @@ fun HomeScreen(
             showContinue || (showOnlineFeeds && (showNeteaseTrending || showNeteaseRadar || showRecommendedCard || isInternational))
 
     Box(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-        ) {
-            NeriTabLargeTitleTopBar(
-                title = appBarTitle,
-                actions = {
-                    HapticIconButton(
-                        enabled = !offlineMode,
-                        onClick = {
-                            if (isInternational) {
-                                vm.refreshYtMusicHome()
-                            } else {
-                                vm.refreshNeteaseHome()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = stringResource(R.string.recommend_refresh)
-                        )
-                    }
-                },
-                windowInsets = WindowInsets(0)
-            )
-
+        // 列表铺满，顶栏浮在上面：内容从顶栏下滚过，玻璃才能采样到
+        if (hasVisibleSections) {
+            val miniPlayerHeight = LocalMiniPlayerHeight.current
+            val homeLoadingText = stringResource(R.string.home_loading)
+            val scrollAnchorIndexes = linkedMapOf<String, Int>()
+            var nextGridItemIndex = 0
+            fun registerGridItemKey(key: String): String {
+                scrollAnchorIndexes[key] = nextGridItemIndex
+                nextGridItemIndex += 1
+                return key
+            }
             Box(
                 modifier = Modifier
-                    .padding(horizontal = pageHorizontalPadding, vertical = 4.dp)
-                    .widthIn(max = 1240.dp)
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .align(Alignment.CenterHorizontally)
+                    .fillMaxSize()
+                    .statusBarsPadding()
             ) {
-                if (!hasVisibleSections) {
-                    SideEffect {
-                        onScrollAnchorIndexesChanged(emptyMap())
-                    }
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (offlineMode) {
-                                stringResource(R.string.home_offline_no_continue)
-                            } else {
-                                stringResource(R.string.home_all_cards_hidden)
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    return@Box
-                }
-
-                val miniPlayerHeight = LocalMiniPlayerHeight.current
-                val homeLoadingText = stringResource(R.string.home_loading)
-                val scrollAnchorIndexes = linkedMapOf<String, Int>()
-                var nextGridItemIndex = 0
-                fun registerGridItemKey(key: String): String {
-                    scrollAnchorIndexes[key] = nextGridItemIndex
-                    nextGridItemIndex += 1
-                    return key
-                }
-                LazyVerticalGrid(
-                    state = gridState,
-                    columns = GridCells.Adaptive(gridMinCellSize),
-                    contentPadding = PaddingValues(
-                        start = gridContentPadding,
-                        end = gridContentPadding,
-                        top = gridContentPadding,
-                        bottom = gridContentPadding + miniPlayerHeight
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(gridSpacing),
-                    horizontalArrangement = Arrangement.spacedBy(gridSpacing),
-                    modifier = Modifier.fillMaxSize()
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = pageHorizontalPadding, vertical = 4.dp)
+                        .widthIn(max = 1240.dp)
+                        .fillMaxWidth()
                 ) {
+                    LazyVerticalGrid(
+                        state = gridState,
+                        columns = GridCells.Adaptive(gridMinCellSize),
+                        contentPadding = PaddingValues(
+                            start = gridContentPadding,
+                            end = gridContentPadding,
+                            // 顶栏浮层高度：初始让开，滚动后内容进入顶栏玻璃区
+                            top = gridContentPadding + 56.dp,
+                            bottom = gridContentPadding + miniPlayerHeight
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(gridSpacing),
+                        horizontalArrangement = Arrangement.spacedBy(gridSpacing),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
                     if (showContinue) {
                         item(
                             key = registerGridItemKey(HomeScrollKeyContinueHeader),
@@ -883,8 +841,55 @@ fun HomeScreen(
                 SideEffect {
                     onScrollAnchorIndexesChanged(scrollAnchorIndexes.toMap())
                 }
+                }
+            }
+        } else {
+            SideEffect {
+                onScrollAnchorIndexesChanged(emptyMap())
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (offlineMode) {
+                        stringResource(R.string.home_offline_no_continue)
+                    } else {
+                        stringResource(R.string.home_all_cards_hidden)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
+
+        // 顶栏浮层：不占布局高度，列表从下面滚过时玻璃可采样
+        NeriTabLargeTitleTopBar(
+            title = appBarTitle,
+            actions = {
+                HapticIconButton(
+                    enabled = !offlineMode,
+                    onClick = {
+                        if (isInternational) {
+                            vm.refreshYtMusicHome()
+                        } else {
+                            vm.refreshNeteaseHome()
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = stringResource(R.string.recommend_refresh)
+                    )
+                }
+            },
+            windowInsets = WindowInsets(0),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+        )
 
         NeriOverlaySnackbarHost(
             hostState = snackbarHostState,

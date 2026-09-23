@@ -378,6 +378,10 @@ private fun libraryListBottomPadding(): Dp {
     return if (blur) 12.dp else 8.dp + mini
 }
 
+/** 顶部为浮层标题+Tab 留出起始空白，滚动后内容可进入玻璃区被采样。 */
+@Composable
+private fun libraryListTopPadding(): Dp = 96.dp
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun LibraryScreen(
@@ -522,55 +526,11 @@ fun LibraryScreen(
     val currentLibraryTab = orderedTabs.getOrNull(pagerState.currentPage)
     val libraryRefreshEnabled = currentLibraryTab.isRefreshable()
 
-    Column(
-        Modifier
-            .fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
     ) {
-        // 顶栏右侧：刷新 → 播放统计 → 最近播放（排序入口一并上移，放在刷新前）
-        NeriTabLargeTitleTopBar(
-            title = stringResource(R.string.library_title),
-            actions = {
-                HapticIconButton(
-                    onClick = {
-                        when (currentLibraryTab) {
-                            LibraryTab.BILI -> vm.refreshBilibili()
-                            LibraryTab.YTMUSIC -> vm.refreshYouTubeMusicPlaylists()
-                            LibraryTab.NETEASE -> {
-                                vm.refreshNeteasePlaylists()
-                                vm.refreshNeteaseAlbums()
-                            }
-                            else -> Unit
-                        }
-                    },
-                    enabled = libraryRefreshEnabled
-                ) {
-                    Icon(
-                        Icons.Filled.Refresh,
-                        contentDescription = stringResource(R.string.action_refresh)
-                    )
-                }
-                HapticIconButton(onClick = onOpenStats) {
-                    Icon(
-                        Icons.Filled.BarChart,
-                        contentDescription = stringResource(R.string.stats_title)
-                    )
-                }
-                HapticIconButton(onClick = onOpenRecent) {
-                    Icon(
-                        Icons.Outlined.History,
-                        contentDescription = stringResource(R.string.library_recent_played)
-                    )
-                }
-                HapticIconButton(onClick = { showLibraryTabOrderEditor = true }) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Sort,
-                        contentDescription = stringResource(R.string.library_tab_order_cd)
-                    )
-                }
-            }
-        )
-
+        // 列表/分页铺满，标题栏与 Tab 浮在上面，内容从底下滚过供玻璃采样
         Card(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
@@ -580,104 +540,152 @@ fun LibraryScreen(
             modifier = Modifier
                 .padding(horizontal = pageHorizontalPadding, vertical = 4.dp)
                 .widthIn(max = 1180.dp)
-                .fillMaxWidth()
-                .weight(1f)
+                .fillMaxSize()
         ) {
-            Column(Modifier.fillMaxSize()) {
-                LibraryMainTabs(
-                    tabs = orderedTabs,
-                    selectedTabIndex = pagerState.currentPage,
-                    onTabSelected = { index ->
-                        scope.launch {
-                            pagerState.animateScrollToPage(index)
-                        }
-                    }
-                )
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                pageSpacing = 0.dp
+            ) { page ->
+                when (orderedTabs[page]) {
+                    LibraryTab.LOCAL -> LocalPlaylistList(
+                        playlists = ui.localPlaylists,
+                        listState = localListState,
+                        onCreate = { name ->
+                            val finalName = name.trim().ifBlank { defaultPlaylistName }
+                            vm.createLocalPlaylist(finalName)
+                        },
+                        onImportExternalPlaylist = { rawLink ->
+                            vm.importExternalPlaylist(rawLink)
+                        },
+                        onClick = onLocalPlaylistClick,
+                        onCachedPlaylistClick = onCachedPlaylistClick,
+                        onArtistClick = onLocalArtistClick,
+                        onRename = { playlistId, newName ->
+                            vm.renameLocalPlaylist(playlistId, newName)
+                        },
+                        onDelete = { playlistIds ->
+                            vm.deleteLocalPlaylists(playlistIds) { result ->
+                                showPlaylistDeleteResultGlobally(
+                                    context = context,
+                                    repository = localPlaylistRepo,
+                                    result = result
+                                )
+                            }
+                        },
+                        onReorder = { order ->
+                            vm.reorderLocalPlaylists(order)
+                        },
+                        offlineMode = offlineMode
+                    )
 
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    pageSpacing = 0.dp
-                ) { page ->
-                    when (orderedTabs[page]) {
-                        LibraryTab.LOCAL -> LocalPlaylistList(
-                            playlists = ui.localPlaylists,
-                            listState = localListState,
-                            onCreate = { name ->
-                                val finalName = name.trim().ifBlank { defaultPlaylistName }
-                                vm.createLocalPlaylist(finalName)
-                            },
-                            onImportExternalPlaylist = { rawLink ->
-                                vm.importExternalPlaylist(rawLink)
-                            },
-                            onClick = onLocalPlaylistClick,
-                            onCachedPlaylistClick = onCachedPlaylistClick,
-                            onArtistClick = onLocalArtistClick,
-                            onRename = { playlistId, newName ->
-                                vm.renameLocalPlaylist(playlistId, newName)
-                            },
-                            onDelete = { playlistIds ->
-                                vm.deleteLocalPlaylists(playlistIds) { result ->
-                                    showPlaylistDeleteResultGlobally(
-                                        context = context,
-                                        repository = localPlaylistRepo,
-                                        result = result
-                                    )
+                    LibraryTab.FAVORITE -> FavoritePlaylistList(
+                        listState = favoriteListState,
+                        onHotPlaylistClick = onHotPlaylistClick,
+                        onNeteasePlaylistClick = onNeteasePlaylistClick,
+                        onNeteaseAlbumClick = onNeteaseAlbumClick,
+                        onNeteaseArtistClick = onNeteaseArtistClick,
+                        onBiliPlaylistClick = onBiliPlaylistClick,
+                        onYouTubeMusicPlaylistClick = onYouTubeMusicPlaylistClick,
+                        offlineMode = offlineMode
+                    )
+
+                    LibraryTab.NETEASE,
+                    LibraryTab.NETEASEALBUM -> NeteaseLibraryList(
+                        playlists = ui.neteasePlaylists,
+                        albums = ui.neteaseAlbums,
+                        playlistListState = neteaseListState,
+                        albumListState = neteaseAlbumState,
+                        selectedCategory = selectedNeteaseCategory,
+                        onCategoryChange = { selectedNeteaseCategory = it },
+                        onPlaylistClick = onNeteasePlaylistClick,
+                        onAlbumClick = onNeteaseAlbumClick,
+                        offlineMode = offlineMode
+                    )
+
+                    LibraryTab.YTMUSIC -> YouTubeMusicPlaylistList(
+                        playlists = ui.youtubeMusicPlaylists,
+                        error = ui.youtubeMusicError,
+                        listState = youtubeMusicListState,
+                        onClick = onYouTubeMusicPlaylistClick,
+                        onRetry = { vm.refreshYouTubeMusicPlaylists() },
+                        offlineMode = offlineMode
+                    )
+
+                    LibraryTab.BILI -> BiliPlaylistList(
+                        playlists = ui.biliPlaylists,
+                        error = ui.biliError,
+                        listState = biliListState,
+                        onClick = onBiliPlaylistClick,
+                        offlineMode = offlineMode
+                    )
+
+                    LibraryTab.QQMUSIC -> QqMusicPlaylistList(
+                        listState = qqMusicListState
+                    )
+                }
+            }
+        }
+
+        Column(
+            Modifier
+                .widthIn(max = 1180.dp)
+                .fillMaxWidth()
+                .padding(horizontal = pageHorizontalPadding)
+        ) {
+            // 顶栏右侧：刷新 → 播放统计 → 最近播放（排序入口一并上移，放在刷新前）
+            NeriTabLargeTitleTopBar(
+                title = stringResource(R.string.library_title),
+                actions = {
+                    HapticIconButton(
+                        onClick = {
+                            when (currentLibraryTab) {
+                                LibraryTab.BILI -> vm.refreshBilibili()
+                                LibraryTab.YTMUSIC -> vm.refreshYouTubeMusicPlaylists()
+                                LibraryTab.NETEASE -> {
+                                    vm.refreshNeteasePlaylists()
+                                    vm.refreshNeteaseAlbums()
                                 }
-                            },
-                            onReorder = { order ->
-                                vm.reorderLocalPlaylists(order)
-                            },
-                            offlineMode = offlineMode
+                                else -> Unit
+                            }
+                        },
+                        enabled = libraryRefreshEnabled
+                    ) {
+                        Icon(
+                            Icons.Filled.Refresh,
+                            contentDescription = stringResource(R.string.action_refresh)
                         )
-
-                        LibraryTab.FAVORITE -> FavoritePlaylistList(
-                            listState = favoriteListState,
-                            onHotPlaylistClick = onHotPlaylistClick,
-                            onNeteasePlaylistClick = onNeteasePlaylistClick,
-                            onNeteaseAlbumClick = onNeteaseAlbumClick,
-                            onNeteaseArtistClick = onNeteaseArtistClick,
-                            onBiliPlaylistClick = onBiliPlaylistClick,
-                            onYouTubeMusicPlaylistClick = onYouTubeMusicPlaylistClick,
-                            offlineMode = offlineMode
+                    }
+                    HapticIconButton(onClick = onOpenStats) {
+                        Icon(
+                            Icons.Filled.BarChart,
+                            contentDescription = stringResource(R.string.stats_title)
                         )
-
-                        LibraryTab.NETEASE,
-                        LibraryTab.NETEASEALBUM -> NeteaseLibraryList(
-                            playlists = ui.neteasePlaylists,
-                            albums = ui.neteaseAlbums,
-                            playlistListState = neteaseListState,
-                            albumListState = neteaseAlbumState,
-                            selectedCategory = selectedNeteaseCategory,
-                            onCategoryChange = { selectedNeteaseCategory = it },
-                            onPlaylistClick = onNeteasePlaylistClick,
-                            onAlbumClick = onNeteaseAlbumClick,
-                            offlineMode = offlineMode
+                    }
+                    HapticIconButton(onClick = onOpenRecent) {
+                        Icon(
+                            Icons.Outlined.History,
+                            contentDescription = stringResource(R.string.library_recent_played)
                         )
-
-                        LibraryTab.YTMUSIC -> YouTubeMusicPlaylistList(
-                            playlists = ui.youtubeMusicPlaylists,
-                            error = ui.youtubeMusicError,
-                            listState = youtubeMusicListState,
-                            onClick = onYouTubeMusicPlaylistClick,
-                            onRetry = { vm.refreshYouTubeMusicPlaylists() },
-                            offlineMode = offlineMode
-                        )
-
-                        LibraryTab.BILI -> BiliPlaylistList(
-                            playlists = ui.biliPlaylists,
-                            error = ui.biliError,
-                            listState = biliListState,
-                            onClick = onBiliPlaylistClick,
-                            offlineMode = offlineMode
-                        )
-
-                        LibraryTab.QQMUSIC -> QqMusicPlaylistList(
-                            listState = qqMusicListState
+                    }
+                    HapticIconButton(onClick = { showLibraryTabOrderEditor = true }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = stringResource(R.string.library_tab_order_cd)
                         )
                     }
                 }
-            }
+            )
+
+            LibraryMainTabs(
+                tabs = orderedTabs,
+                selectedTabIndex = pagerState.currentPage,
+                onTabSelected = { index ->
+                    scope.launch {
+                        pagerState.animateScrollToPage(index)
+                    }
+                }
+            )
         }
     }
 
@@ -863,7 +871,7 @@ private fun YouTubeMusicPlaylistList(
         contentPadding = PaddingValues(
             start = 8.dp,
             end = 8.dp,
-            top = 8.dp,
+            top = libraryListTopPadding(),
             bottom = libraryListBottomPadding()
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -1102,7 +1110,7 @@ private fun BiliPlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = libraryListBottomPadding()),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -1506,7 +1514,7 @@ private fun LocalPlaylistList(
         contentPadding = PaddingValues(
             start = 8.dp,
             end = 8.dp,
-            top = 8.dp,
+            top = libraryListTopPadding(),
             // 对齐首页/探索：只用 contentPadding 留出底部，列表本体可滚到迷你播放器下
             bottom = if (localSortMode) {
                 24.dp
@@ -2826,7 +2834,7 @@ private fun NeteaseLibraryList(
         contentPadding = PaddingValues(
             start = 8.dp,
             end = 8.dp,
-            top = 8.dp,
+            top = libraryListTopPadding(),
             bottom = libraryListBottomPadding()
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -3143,7 +3151,7 @@ private fun NeteasePlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = libraryListBottomPadding()),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -3302,7 +3310,7 @@ private fun NeteaseAlbumList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = libraryListBottomPadding()),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -3542,7 +3550,7 @@ private fun FavoritePlaylistList(
 
     LazyColumn(
         state = reorderState.listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = libraryListBottomPadding()),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxSize()
@@ -4048,7 +4056,7 @@ private fun QqMusicPlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = libraryListBottomPadding()),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {

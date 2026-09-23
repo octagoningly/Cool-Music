@@ -35,14 +35,14 @@ internal fun advancedGlassTokens(
             edgeAlpha = 0.12f
         )
         AdvancedGlassRole.ExploreSearchOverlay -> AdvancedGlassTokens(
-            // 比底部导航更实：更大模糊半径 + 更高叠色，避免大面积过透
-            blurRadiusDp = adjustableRadiusDp ?: 40f,
-            tintAlpha = 0.88f,
-            edgeAlpha = 0.14f
+            // 要能透出背后列表模糊，叠色不能过实
+            blurRadiusDp = adjustableRadiusDp ?: 28f,
+            tintAlpha = if (isDarkTheme) 0.42f else 0.52f,
+            edgeAlpha = 0.12f
         )
         AdvancedGlassRole.ScreenTopTab -> AdvancedGlassTokens(
-            blurRadiusDp = adjustableRadiusDp ?: 22f,
-            tintAlpha = if (isDarkTheme) 0.16f else 0.18f,
+            blurRadiusDp = adjustableRadiusDp ?: 24f,
+            tintAlpha = if (isDarkTheme) 0.28f else 0.34f,
             edgeAlpha = 0.10f
         )
         AdvancedGlassRole.SettingsGroup -> AdvancedGlassTokens(

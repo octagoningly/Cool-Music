@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 internal fun roleRequiresContentBackdrop(role: AdvancedGlassRole): Boolean =
     role == AdvancedGlassRole.MiniPlayer ||
         role == AdvancedGlassRole.BottomNavigation ||
+        role == AdvancedGlassRole.ScreenTopTab ||
         role == AdvancedGlassRole.ExploreSearchOverlay ||
         role == AdvancedGlassRole.PopupMenu ||
         role == AdvancedGlassRole.FeedbackBanner ||
@@ -48,6 +49,8 @@ internal fun roleRequiresContentBackdrop(role: AdvancedGlassRole): Boolean =
 internal fun roleCanFallbackToBackgroundBackdrop(role: AdvancedGlassRole): Boolean =
     role == AdvancedGlassRole.MiniPlayer ||
         role == AdvancedGlassRole.BottomNavigation ||
+        role == AdvancedGlassRole.ScreenTopTab ||
+        role == AdvancedGlassRole.ExploreSearchOverlay ||
         role == AdvancedGlassRole.PopupMenu ||
         role == AdvancedGlassRole.FeedbackBanner ||
         role == AdvancedGlassRole.DialogPanel

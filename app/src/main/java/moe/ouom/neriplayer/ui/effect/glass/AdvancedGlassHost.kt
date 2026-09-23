@@ -129,6 +129,8 @@ internal fun AdvancedGlassHost(
             val contentRegions = renderedRegions.filter { region ->
                 region.role == AdvancedGlassRole.MiniPlayer ||
                     region.role == AdvancedGlassRole.BottomNavigation ||
+                    region.role == AdvancedGlassRole.ScreenTopTab ||
+                    region.role == AdvancedGlassRole.ExploreSearchOverlay ||
                     region.role == AdvancedGlassRole.PopupMenu ||
                     region.role == AdvancedGlassRole.FeedbackBanner ||
                     region.role == AdvancedGlassRole.DialogPanel

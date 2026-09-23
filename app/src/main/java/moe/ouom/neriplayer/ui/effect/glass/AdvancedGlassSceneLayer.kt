@@ -19,6 +19,8 @@ internal fun AdvancedGlassSceneLayer(
     disableStretchOverscroll: Boolean = false,
     // 固定背景场景不画自己的壁纸, 玻璃面直接采样根层静止壁纸
     fixedBackground: Boolean = false,
+    // 顶栏/搜索等 chrome 画在 content 捕获层之外（同 MiniPlayer），列表可滚到其下被采样
+    chrome: @Composable (BoxScope.() -> Unit)? = null,
     background: @Composable BoxScope.() -> Unit,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -41,6 +43,7 @@ internal fun AdvancedGlassSceneLayer(
                     },
                 content = content
             )
+            chrome?.invoke(this)
         }
         return
     }
@@ -84,6 +87,7 @@ internal fun AdvancedGlassSceneLayer(
                         .captureAdvancedGlassBackdrop(contentBackdrop),
                     content = content
                 )
+                chrome?.invoke(this)
             }
         }
     }

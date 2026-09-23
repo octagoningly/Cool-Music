@@ -147,10 +147,13 @@ internal fun GlassPanel(
                     regionBoundsOverride = boundsInMainWindow,
                     modifier = modifier
                         .widthIn(max = maxWidth)
+                        .heightIn(max = 640.dp)
                         .fillMaxWidth()
                 ) {
                     Column(
                         Modifier
+                            // Popup 默认无限高，必须先钳高再滚动，否则 verticalScroll 闪退
+                            .heightIn(max = 640.dp)
                             .verticalScroll(rememberScrollState())
                             .padding(contentPadding),
                         content = content,

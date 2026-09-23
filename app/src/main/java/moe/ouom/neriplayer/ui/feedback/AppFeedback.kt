@@ -18,12 +18,15 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -57,8 +60,8 @@ import moe.ouom.neriplayer.R
 import java.util.WeakHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-private const val StyledToastBackgroundColor = 0xE62B2B2E.toInt()
-private const val StyledToastTextColor = Color.WHITE
+private const val StyledToastBackgroundColor = 0x8CE6E6EA.toInt()
+private const val StyledToastTextColor = 0xFF1C1B1F.toInt()
 private const val SnackbarLayerZIndex = 50f
 private const val FeedbackDedupWindowMs = 1_800L
 private const val StyledToastBottomOffsetDp = 76
@@ -526,51 +529,64 @@ private fun NeriSnackbar(snackbarData: SnackbarData) {
         actionLabel = actionLabel,
         withDismissAction = snackbarData.visuals.withDismissAction
     )
-    Snackbar(
+    val controller = moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController.current
+    val glassActive = controller.isBaseBlurEnabled
+    // 与 GlassDropdownMenu 同一套玻璃参数，保证观感一致
+    val fallbackColor = if (glassActive) {
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+
+    Box(
         modifier = Modifier
             .padding(12.dp)
-            .testTag(NeriSnackbarTestTag),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        actionContentColor = MaterialTheme.colorScheme.primary,
-        dismissActionContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        action = if (actionLabel != null) {
-            {
-                TextButton(
-                    onClick = snackbarData::performAction,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = SnackbarDefaults.actionColor
-                    )
-                ) {
-                    Text(
-                        text = actionLabel,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        } else {
-            null
-        },
-        dismissAction = if (snackbarData.visuals.withDismissAction) {
-            {
-                IconButton(onClick = snackbarData::dismiss) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = stringResource(R.string.cd_close)
-                    )
-                }
-            }
-        } else {
-            null
-        },
-        actionOnNewLine = false
+            .width(IntrinsicSize.Max)
+            .testTag(NeriSnackbarTestTag)
     ) {
-        Text(
-            text = snackbarData.visuals.message,
-            maxLines = messageMaxLines,
-            overflow = TextOverflow.Ellipsis
-        )
+        moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface(
+            role = moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole.PopupMenu,
+            shape = shape,
+            fallbackColor = fallbackColor,
+            tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            enabled = glassActive,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = snackbarData.visuals.message,
+                    maxLines = messageMaxLines,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f, fill = true)
+                )
+                if (actionLabel != null) {
+                    TextButton(
+                        onClick = snackbarData::performAction,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(
+                            text = actionLabel,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                if (snackbarData.visuals.withDismissAction) {
+                    IconButton(onClick = snackbarData::dismiss) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.cd_close),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
     }
 }

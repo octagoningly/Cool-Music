@@ -168,8 +168,7 @@ internal fun AdvancedGlassSurface(
                 return@onGloballyPositioned
             }
             // Popup 内 boundsInWindow 是弹窗本地坐标，必须用已换算的 override
-            if (role == AdvancedGlassRole.PopupMenu ||
-        role == AdvancedGlassRole.FeedbackBanner && regionBoundsOverride == null) {
+            if (role == AdvancedGlassRole.PopupMenu && regionBoundsOverride == null) {
                 availableBackdrops?.regionRegistry?.remove(regionKey)
                 return@onGloballyPositioned
             }

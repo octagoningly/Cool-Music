@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import moe.ouom.neriplayer.testutil.assumeComposeHostAvailable
@@ -72,6 +73,9 @@ class NeriSnackbarHostTest {
             .fetchSemanticsNodes()
             .single()
             .boundsInRoot
+        val messageBounds = composeRule.onNodeWithText(TestLongMessage)
+            .fetchSemanticsNode()
+            .boundsInRoot
 
         assertTrue(
             "Snackbar was not anchored near the bottom: $snackbarBounds in $containerBounds",
@@ -84,6 +88,18 @@ class NeriSnackbarHostTest {
         assertTrue(
             "Action feedback was not compact: $snackbarBounds in $containerBounds",
             snackbarBounds.height < containerBounds.height * 0.14f
+        )
+        assertTrue(
+            "Snackbar message had no visible layout bounds: $messageBounds",
+            messageBounds.width > 0f && messageBounds.height > 0f
+        )
+        assertTrue(
+            "Snackbar message was laid out outside its glass container: " +
+                "$messageBounds in $snackbarBounds",
+            messageBounds.left >= snackbarBounds.left - PositionTolerancePx &&
+                messageBounds.top >= snackbarBounds.top - PositionTolerancePx &&
+                messageBounds.right <= snackbarBounds.right + PositionTolerancePx &&
+                messageBounds.bottom <= snackbarBounds.bottom + PositionTolerancePx
         )
     }
 

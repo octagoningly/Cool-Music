@@ -502,6 +502,8 @@ fun ExploreScreen(
     }
     val miniPlayerHeight = LocalMiniPlayerHeight.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val favoriteAddedText = stringResource(R.string.favorite_added)
+    val favoriteRemovedText = stringResource(R.string.favorite_removed)
     val windowWidthDp = currentWindowWidthDp()
     val isTabletLayout = windowWidthDp >= 720.dp
     val searchPanelHorizontalPadding = if (isTabletLayout) 28.dp else 16.dp
@@ -1101,7 +1103,20 @@ fun ExploreScreen(
                                                 onToggleFavorite = {
                                                     if (localPlaylistsReady) {
                                                         scope.launchLocalPlaylistMutation(
-                                                            "toggleFavoriteFromExplore"
+                                                            operation = "toggleFavoriteFromExplore",
+                                                            onResult = { result ->
+                                                                result.onSuccess { added ->
+                                                                    scope.launch {
+                                                                        snackbarHostState.showNeriSnackbar(
+                                                                            if (added) {
+                                                                                favoriteAddedText
+                                                                            } else {
+                                                                                favoriteRemovedText
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
                                                         ) {
                                                             val isFavoriteAtAction = FavoritesPlaylist
                                                                 .firstOrNull(repo.playlists.value, context)
@@ -1112,6 +1127,7 @@ fun ExploreScreen(
                                                             } else {
                                                                 repo.addToFavorites(song)
                                                             }
+                                                            !isFavoriteAtAction
                                                         }
                                                     }
                                                 }

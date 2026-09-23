@@ -1,27 +1,51 @@
 package moe.ouom.neriplayer.ui.component.playlist
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 
 /**
- * 下拉菜单透明材质：与 MiniPlayer 同一套 AdvancedGlass。
- * 受设置 → 动效 → 高级模糊 / 模糊度 控制；关闭时退化为可读实底。
+ * 下拉菜单透明材质（真模糊）。
+ *
+ * 与 MiniPlayer 同一套 AdvancedGlass：菜单窗体透明，主窗口 content 背景
+ * 在菜单区域被模糊后透出；开关/模糊度跟随设置 → 动效 → 高级模糊。
+ *
+ * 用法（锚点同级，放在 [Box] 内）：
+ * ```
+ * Box {
+ *     IconButton(onClick = { expanded = true }) { ... }
+ *     GlassDropdownMenu(expanded, onDismissRequest = { expanded = false }) { ... }
+ * }
+ * ```
  */
 @Composable
-fun GlassDropdownMenu(
+fun BoxScope.GlassDropdownMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
@@ -30,8 +54,34 @@ fun GlassDropdownMenu(
 ) {
     val controller = LocalAdvancedGlassController.current
     val glassActive = controller.isBaseBlurEnabled
+    var anchorBounds by remember { mutableStateOf<Rect?>(null) }
+    var menuSize by remember { mutableStateOf(IntSize.Zero) }
+
+    // 测量锚点父 Box 在主窗口中的位置（弹窗是独立 Window，需映射回主窗口）
+    Box(
+        Modifier
+            .matchParentSize()
+            .onGloballyPositioned { coordinates ->
+                anchorBounds = coordinates.boundsInWindow()
+            }
+    )
+
+    if (!expanded) return
+
+    val anchor = anchorBounds
+    val regionOverride = if (anchor != null && menuSize.width > 0 && menuSize.height > 0) {
+        Rect(
+            left = anchor.left,
+            top = anchor.bottom + 4f,
+            right = anchor.left + menuSize.width.toFloat(),
+            bottom = anchor.bottom + 4f + menuSize.height.toFloat(),
+        )
+    } else {
+        null
+    }
+
     val fallbackColor = if (glassActive) {
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.78f)
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
@@ -39,23 +89,35 @@ fun GlassDropdownMenu(
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
-        modifier = modifier.clip(shape),
+        modifier = modifier,
         shape = shape,
         containerColor = Color.Transparent,
         tonalElevation = 0.dp,
-        shadowElevation = 10.dp,
+        shadowElevation = 0.dp,
     ) {
-        AdvancedGlassSurface(
-            role = AdvancedGlassRole.PlaylistSheet,
-            shape = shape,
-            fallbackColor = fallbackColor,
-            tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            enabled = glassActive,
+        Box(
+            Modifier
+                .width(IntrinsicSize.Max)
+                .verticalScroll(rememberScrollState())
+                .onGloballyPositioned { coordinates ->
+                    menuSize = coordinates.size
+                }
         ) {
-            Column(
-                modifier = Modifier.padding(vertical = 4.dp),
-                content = content,
-            )
+            AdvancedGlassSurface(
+                role = AdvancedGlassRole.PopupMenu,
+                shape = shape,
+                fallbackColor = fallbackColor,
+                tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                enabled = glassActive,
+                regionBoundsOverride = regionOverride,
+            ) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    content = content,
+                )
+            }
         }
     }
 }

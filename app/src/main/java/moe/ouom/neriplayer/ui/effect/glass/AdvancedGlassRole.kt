@@ -12,5 +12,6 @@ internal enum class AdvancedGlassRole {
     ExploreTag,
     ExploreSearchOverlay,
     ThemeModeToggle,
-    InlineControl
+    InlineControl,
+    PopupMenu,
 }

@@ -64,6 +64,7 @@ internal fun AdvancedGlassSurface(
     tintColor: Color = Color.Unspecified,
     enabled: Boolean = true,
     suppressInactiveNavigationSurface: Boolean = false,
+    regionBoundsOverride: androidx.compose.ui.geometry.Rect? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     val controller = LocalAdvancedGlassController.current
@@ -88,10 +89,14 @@ internal fun AdvancedGlassSurface(
     val edgeBaseColor = MaterialTheme.colorScheme.onSurface
     val requiresContentBackdrop = role == AdvancedGlassRole.MiniPlayer ||
         role == AdvancedGlassRole.BottomNavigation ||
-        role == AdvancedGlassRole.ExploreSearchOverlay
+        role == AdvancedGlassRole.ExploreSearchOverlay ||
+        role == AdvancedGlassRole.PopupMenu
     val backdropsReady = availableBackdrops?.let { backdrops ->
         backdrops.background.positionInWindow.isSpecified &&
-            (!requiresContentBackdrop || backdrops.content.positionInWindow.isSpecified)
+            (!requiresContentBackdrop ||
+                backdrops.content.positionInWindow.isSpecified ||
+                // MiniPlayer 在个别页面（如媒体库）content 未就绪时仍可用背景层采样
+                role == AdvancedGlassRole.MiniPlayer)
     } == true
     val belongsToActiveNavigationScreen = isAdvancedGlassNavigationOwnerActive(
         requiresContentBackdrop = requiresContentBackdrop,
@@ -133,7 +138,8 @@ internal fun AdvancedGlassSurface(
                 registry.remove(regionKey)
                 return@onGloballyPositioned
             }
-            val bounds = coordinates.boundsInWindow()
+            val measured = coordinates.boundsInWindow()
+            val bounds = regionBoundsOverride ?: measured
             if (bounds.width <= 0f || bounds.height <= 0f) {
                 registry.remove(regionKey)
                 return@onGloballyPositioned
@@ -265,6 +271,7 @@ private fun advancedGlassRoleColor(role: AdvancedGlassRole): Color = when (role)
     AdvancedGlassRole.SettingsSection -> MaterialTheme.colorScheme.surfaceContainerHighest
     AdvancedGlassRole.SettingsHeader -> MaterialTheme.colorScheme.primaryContainer
     AdvancedGlassRole.PlaylistSheet,
+    AdvancedGlassRole.PopupMenu,
     AdvancedGlassRole.SemanticCard -> MaterialTheme.colorScheme.surfaceContainerHigh
     AdvancedGlassRole.ExploreTag -> MaterialTheme.colorScheme.surface
     AdvancedGlassRole.ExploreSearchOverlay -> MaterialTheme.colorScheme.surfaceContainerHighest

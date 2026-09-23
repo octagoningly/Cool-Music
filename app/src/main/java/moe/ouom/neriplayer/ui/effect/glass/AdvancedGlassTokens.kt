@@ -21,6 +21,11 @@ internal fun advancedGlassTokens(
             tintAlpha = if (isDarkTheme) 0.30f else 0.36f,
             edgeAlpha = 0.10f
         )
+        AdvancedGlassRole.PopupMenu -> AdvancedGlassTokens(
+            blurRadiusDp = adjustableRadiusDp ?: 24f,
+            tintAlpha = if (isDarkTheme) 0.42f else 0.55f,
+            edgeAlpha = 0.12f
+        )
         AdvancedGlassRole.BottomNavigation -> AdvancedGlassTokens(
             blurRadiusDp = adjustableRadiusDp ?: 28f,
             tintAlpha = 0.75f,

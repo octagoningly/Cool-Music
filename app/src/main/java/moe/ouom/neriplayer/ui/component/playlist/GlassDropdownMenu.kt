@@ -1,9 +1,5 @@
 package moe.ouom.neriplayer.ui.component.playlist
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
-import android.view.View
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -12,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,30 +18,80 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
+import kotlin.math.roundToInt
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
+/**
+ * 与 Material DropdownMenu 相同的锚点定位，同时把 **主窗口坐标** 写出来。
+ *
+ * 关键：[PopupPositionProvider.calculatePosition] 的返回值就是弹窗在
+ * **父窗口（主窗口）** 中的坐标，与 MiniPlayer 的 `boundsInWindow` 同一体系，
+ * 可直接注册进玻璃区域，无需屏幕坐标换算。
+ */
+private class GlassMenuPositionProvider(
+    private val contentOffset: DpOffset,
+    private val onMenuBoundsInMainWindow: (Rect) -> Unit,
+) : PopupPositionProvider {
+    private var density: Density = Density(1f)
+
+    fun attach(density: Density) {
+        this.density = density
+    }
+
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize
+    ): IntOffset {
+        val offsetX = with(density) { contentOffset.x.roundToPx() }
+        val offsetY = with(density) { contentOffset.y.roundToPx() }
+
+        // 默认对齐锚点左下；靠边时翻转，与 Material DropdownMenu 一致
+        var x = anchorBounds.left + offsetX
+        var y = anchorBounds.bottom + offsetY
+        if (x + popupContentSize.width > windowSize.width) {
+            x = anchorBounds.right - popupContentSize.width - offsetX
+        }
+        if (x < 0) x = 0
+        if (y + popupContentSize.height > windowSize.height) {
+            y = anchorBounds.top - popupContentSize.height - offsetY
+        }
+        if (y < 0) y = 0
+
+        onMenuBoundsInMainWindow(
+            Rect(
+                left = x.toFloat(),
+                top = y.toFloat(),
+                right = (x + popupContentSize.width).toFloat(),
+                bottom = (y + popupContentSize.height).toFloat(),
+            )
+        )
+        return IntOffset(x, y)
+    }
 }
 
 /**
  * 下拉菜单透明材质（真模糊）。
  *
- * 与 MiniPlayer 同一套 AdvancedGlass：菜单窗体透明，主窗口 content 背景
- * 在菜单区域被模糊后透出；开关/模糊度跟随设置 → 动效 → 高级模糊。
+ * 与 MiniPlayer 同一套两层结构：
+ * 1. 主窗口 content 背景层在菜单区域做模糊
+ * 2. 菜单本体透明，只叠 tint，模糊从背后透出
  *
- * 坐标：Material [DropdownMenu] 在独立 Window，必须换算到主窗口坐标
- * （屏幕坐标 − **Activity** DecorView 原点；不能用弹窗自己的 rootView）。
+ * 开关/模糊度：设置 → 动效 → 高级模糊 / 模糊度。
  *
  * 用法（锚点同级，放在 [Box] 内）：
  * ```
@@ -66,8 +111,7 @@ fun BoxScope.GlassDropdownMenu(
 ) {
     val controller = LocalAdvancedGlassController.current
     val glassActive = controller.isBaseBlurEnabled
-    val popupView = LocalView.current
-    var menuSize by remember { mutableStateOf(IntSize.Zero) }
+    val density = LocalDensity.current
     var menuBoundsInMainWindow by remember { mutableStateOf<Rect?>(null) }
 
     val fallbackColor = if (glassActive) {
@@ -76,45 +120,24 @@ fun BoxScope.GlassDropdownMenu(
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
 
+    val positionProvider = remember(density) {
+        GlassMenuPositionProvider(
+            contentOffset = DpOffset(0.dp, 8.dp),
+            onMenuBoundsInMainWindow = { menuBoundsInMainWindow = it },
+        ).also { it.attach(density) }
+    }
+
     if (!expanded) return
 
-    DropdownMenu(
-        expanded = expanded,
+    Popup(
+        popupPositionProvider = positionProvider,
         onDismissRequest = onDismissRequest,
-        modifier = modifier,
-        shape = shape,
-        containerColor = Color.Transparent,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
+        properties = PopupProperties(focusable = true),
     ) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .heightIn(max = 360.dp)
-                .onGloballyPositioned { coordinates ->
-                    menuSize = coordinates.size
-                    if (!coordinates.isAttached) {
-                        menuBoundsInMainWindow = null
-                        return@onGloballyPositioned
-                    }
-                    val local = coordinates.boundsInWindow()
-                    val posInPopup = coordinates.positionInWindow()
-                    val popupLoc = IntArray(2)
-                    val decorLoc = IntArray(2)
-                    popupView.getLocationOnScreen(popupLoc)
-                    // 必须用 Activity 的 DecorView，弹窗 rootView 是另一个 Window
-                    val decor: View? = popupView.context.findActivity()?.window?.decorView
-                        ?: (popupView.parent as? View)
-                    decor?.getLocationOnScreen(decorLoc)
-                    val screenLeft = popupLoc[0] + posInPopup.x
-                    val screenTop = popupLoc[1] + posInPopup.y
-                    menuBoundsInMainWindow = Rect(
-                        left = screenLeft - decorLoc[0],
-                        top = screenTop - decorLoc[1],
-                        right = screenLeft - decorLoc[0] + local.width,
-                        bottom = screenTop - decorLoc[1] + local.height,
-                    )
-                }
         ) {
             AdvancedGlassSurface(
                 role = AdvancedGlassRole.PopupMenu,

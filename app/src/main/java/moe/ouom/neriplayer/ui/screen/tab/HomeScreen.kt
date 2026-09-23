@@ -70,7 +70,6 @@ import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -1459,7 +1458,7 @@ private fun RadarPlaylistCard(
             )
         }
 
-        DropdownMenu(
+        GlassDropdownMenu(
             expanded = showMenu,
             onDismissRequest = { showMenu = false }
         ) {
@@ -1572,7 +1571,7 @@ fun PlaylistCard(
             )
         }
 
-        DropdownMenu(
+        GlassDropdownMenu(
             expanded = showMenu,
             onDismissRequest = { showMenu = false }
         ) {
@@ -1684,7 +1683,7 @@ private fun YtMusicPlaylistCard(
             }
         }
 
-        DropdownMenu(
+        GlassDropdownMenu(
             expanded = showMenu,
             onDismissRequest = { showMenu = false }
         ) {
@@ -1804,7 +1803,7 @@ private fun YtMusicHomeItemCard(
             }
         }
 
-        DropdownMenu(
+        GlassDropdownMenu(
             expanded = showMenu,
             onDismissRequest = { showMenu = false }
         ) {
@@ -2196,7 +2195,7 @@ private fun ContinueCard(
             )
         }
 
-        DropdownMenu(
+        GlassDropdownMenu(
             expanded = showMenu,
             onDismissRequest = { showMenu = false }
         ) {

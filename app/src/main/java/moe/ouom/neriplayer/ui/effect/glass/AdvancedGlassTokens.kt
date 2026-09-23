@@ -22,6 +22,7 @@ internal fun advancedGlassTokens(
             edgeAlpha = 0.10f
         )
         AdvancedGlassRole.PopupMenu,
+        AdvancedGlassRole.DialogPanel,
         AdvancedGlassRole.FeedbackBanner -> AdvancedGlassTokens(
             blurRadiusDp = adjustableRadiusDp ?: 24f,
             tintAlpha = if (isDarkTheme) 0.42f else 0.55f,

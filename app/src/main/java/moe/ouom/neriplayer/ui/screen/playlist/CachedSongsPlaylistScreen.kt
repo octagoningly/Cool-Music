@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -75,6 +74,7 @@ import moe.ouom.neriplayer.ui.feedback.AppFeedback
 import moe.ouom.neriplayer.util.format.formatFileSize
 import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
 import kotlin.random.Random
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -247,7 +247,7 @@ fun CachedSongsPlaylistScreen(
                                         )
                                     }
                                 )
-                                DropdownMenu(
+                                GlassDropdownMenu(
                                     expanded = cacheModeMenuExpanded,
                                     onDismissRequest = { cacheModeMenuExpanded = false },
                                     shape = RoundedCornerShape(20.dp),
@@ -297,7 +297,7 @@ fun CachedSongsPlaylistScreen(
                                         )
                                     }
                                 )
-                                DropdownMenu(
+                                GlassDropdownMenu(
                                     expanded = artistMenuExpanded,
                                     onDismissRequest = { artistMenuExpanded = false },
                                     shape = RoundedCornerShape(20.dp),

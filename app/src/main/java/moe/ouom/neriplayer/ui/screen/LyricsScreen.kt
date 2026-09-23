@@ -75,7 +75,6 @@ import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -165,6 +164,7 @@ import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
 import moe.ouom.neriplayer.ui.haptic.performHapticFeedback
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.ui.feedback.AppFeedback
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
@@ -455,7 +455,7 @@ fun LyricsScreen(
                                 onLongClick = { showSongNameMenu = true }
                             )
                     )
-                    DropdownMenu(
+                    GlassDropdownMenu(
                         expanded = showSongNameMenu,
                         onDismissRequest = { showSongNameMenu = false }
                     ) {
@@ -498,7 +498,7 @@ fun LyricsScreen(
                                 onLongClick = { showArtistMenu = true }
                             )
                     )
-                    DropdownMenu(
+                    GlassDropdownMenu(
                         expanded = showArtistMenu,
                         onDismissRequest = { showArtistMenu = false }
                     ) {

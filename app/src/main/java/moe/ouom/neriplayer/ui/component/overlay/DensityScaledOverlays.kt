@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.material3.AlertDialog as MaterialAlertDialog
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,30 +67,27 @@ internal fun DensityScaledAlertDialog(
     icon: @Composable (() -> Unit)? = null,
     title: @Composable (() -> Unit)? = null,
     text: @Composable (() -> Unit)? = null,
-    shape: Shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-    containerColor: Color = AlertDialogDefaults.containerColor,
+    shape: Shape = GlassDialogShape,
+    containerColor: Color = Color.Unspecified,
     iconContentColor: Color = AlertDialogDefaults.iconContentColor,
     titleContentColor: Color = AlertDialogDefaults.titleContentColor,
     textContentColor: Color = AlertDialogDefaults.textContentColor,
     tonalElevation: Dp = AlertDialogDefaults.TonalElevation,
     properties: DialogProperties = DialogProperties()
 ) {
-    val surfaceScale = LocalOverlaySurfaceScale.current
-    MaterialAlertDialog(
+    // 统一走 GlassAlertDialog：圆角 28 + 高级透明模糊（设置 → 动效 → 高级模糊 / 模糊度）
+    GlassAlertDialog(
         onDismissRequest = onDismissRequest,
         confirmButton = confirmButton,
-        modifier = Modifier.scaleOverlaySurfaceWidth(surfaceScale).then(modifier),
+        modifier = Modifier.scaleOverlaySurfaceWidth(LocalOverlaySurfaceScale.current).then(modifier),
         dismissButton = dismissButton,
         icon = icon,
         title = title,
         text = text,
         shape = shape,
-        containerColor = containerColor,
         iconContentColor = iconContentColor,
         titleContentColor = titleContentColor,
         textContentColor = textContentColor,
-        tonalElevation = tonalElevation,
-        properties = properties
     )
 }
 
@@ -103,7 +99,7 @@ internal fun DensityScaledModalBottomSheet(
     sheetState: SheetState = rememberModalBottomSheetState(),
     sheetMaxWidth: Dp = BottomSheetDefaults.SheetMaxWidth,
     sheetGesturesEnabled: Boolean = true,
-    shape: Shape = BottomSheetDefaults.ExpandedShape,
+    shape: Shape = GlassSheetShape,
     containerColor: Color = BottomSheetDefaults.ContainerColor,
     contentColor: Color = contentColorFor(containerColor),
     tonalElevation: Dp = 0.dp,
@@ -117,6 +113,15 @@ internal fun DensityScaledModalBottomSheet(
 ) {
     val scope = rememberCoroutineScope()
     val dragHandleInteractionSource = remember { MutableInteractionSource() }
+    val glassActive = moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
+        .current.isBaseBlurEnabled
+    val resolvedShape = shape
+    val resolvedContainer = if (glassActive) {
+        // 模糊开：半透明底，贴近 MiniPlayer 质感；关时用可读实底
+        BottomSheetDefaults.ContainerColor.copy(alpha = 0.78f)
+    } else {
+        containerColor
+    }
 
     // 保持 Sheet 贴边，密度缩放由 LocalDensity 传递给内部内容
     ModalBottomSheet(
@@ -125,9 +130,9 @@ internal fun DensityScaledModalBottomSheet(
         sheetState = sheetState,
         sheetMaxWidth = sheetMaxWidth,
         sheetGesturesEnabled = sheetGesturesEnabled,
-        shape = shape,
-        containerColor = containerColor,
-        contentColor = contentColor,
+        shape = resolvedShape,
+        containerColor = resolvedContainer,
+        contentColor = contentColorFor(resolvedContainer),
         tonalElevation = tonalElevation,
         scrimColor = scrimColor,
         // 绕过 Material 默认的 TooltipBox，避免按住把手时出现矩形遮罩

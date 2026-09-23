@@ -20,10 +20,9 @@ import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SkipNext
-import androidx.compose.material3.AlertDialog
+import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -31,7 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import moe.ouom.neriplayer.ui.component.overlay.DensityScaledModalBottomSheet as ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -59,6 +58,7 @@ import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.platform.bili.BiliVideoSkipInterval
 import moe.ouom.neriplayer.data.platform.bili.BiliVideoSkipTarget
 import moe.ouom.neriplayer.data.platform.bili.normalizeBiliVideoSkipIntervals
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 
 private const val MAX_BILI_VIDEO_SKIP_TIMESTAMP_MS = 24L * 60L * 60L * 1_000L
 internal const val BILI_VIDEO_SKIP_SMALL_SEEK_STEP_MS = 1_000L
@@ -329,7 +329,7 @@ internal fun BiliVideoSkipIntervalsContent(
                             targetMenuExpanded = true
                         }
                     )
-                    DropdownMenu(
+                    GlassDropdownMenu(
                         expanded = targetMenuExpanded,
                         onDismissRequest = { targetMenuExpanded = false }
                     ) {

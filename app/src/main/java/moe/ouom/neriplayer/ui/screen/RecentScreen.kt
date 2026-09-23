@@ -68,7 +68,6 @@ import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -127,6 +126,7 @@ import moe.ouom.neriplayer.util.format.formatDuration
 import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
 import moe.ouom.neriplayer.util.search.SearchTextMatcher
 import kotlin.random.Random
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -461,7 +461,7 @@ fun RecentScreen(
                                             contentDescription = stringResource(R.string.cd_more)
                                         )
                                     }
-                                    DropdownMenu(
+                                    GlassDropdownMenu(
                                         expanded = showMenu,
                                         onDismissRequest = { showMenu = false }
                                     ) {

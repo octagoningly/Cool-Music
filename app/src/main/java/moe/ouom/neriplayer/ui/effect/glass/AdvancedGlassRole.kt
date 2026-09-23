@@ -15,4 +15,5 @@ internal enum class AdvancedGlassRole {
     InlineControl,
     PopupMenu,
     FeedbackBanner,
+    DialogPanel,
 }

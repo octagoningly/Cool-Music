@@ -62,7 +62,6 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -147,6 +146,7 @@ import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
 import moe.ouom.neriplayer.data.local.playlist.launchLocalPlaylistMutation
 import moe.ouom.neriplayer.data.platform.youtube.stableYouTubeMusicId
 import kotlin.random.Random
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -1211,7 +1211,7 @@ private fun YouTubeMusicSongRow(
                         tint = playlistModernListSecondaryContentColor()
                     )
                 }
-            DropdownMenu(
+            GlassDropdownMenu(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {

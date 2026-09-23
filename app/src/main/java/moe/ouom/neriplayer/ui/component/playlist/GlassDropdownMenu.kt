@@ -1,7 +1,6 @@
 package moe.ouom.neriplayer.ui.component.playlist
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -94,16 +93,14 @@ private class GlassMenuPositionProvider(
  *
  * 开关/模糊度：设置 → 动效 → 高级模糊 / 模糊度。
  *
- * 用法（锚点同级，放在 [Box] 内）：
+ * 用法（任意 Composable 作用域）：
  * ```
- * Box {
- *     IconButton(onClick = { expanded = true }) { ... }
- *     GlassDropdownMenu(expanded, onDismissRequest = { expanded = false }) { ... }
- * }
+ * IconButton(onClick = { expanded = true }) { ... }
+ * GlassDropdownMenu(expanded, onDismissRequest = { expanded = false }) { ... }
  * ```
  */
 @Composable
-fun BoxScope.GlassDropdownMenu(
+fun GlassDropdownMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,

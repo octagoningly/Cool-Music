@@ -80,7 +80,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -167,6 +166,7 @@ import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
 import moe.ouom.neriplayer.ui.haptic.performHapticFeedback
 import moe.ouom.neriplayer.util.search.playlistSearchValues
 import kotlin.random.Random
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 
 internal fun isNeteaseCollectionHeaderForRoute(
     header: NeteaseCollectionHeader?,
@@ -1190,7 +1190,7 @@ private fun SongRow(
                     )
                 }
 
-                DropdownMenu(
+                GlassDropdownMenu(
                     expanded = showMoreMenu,
                     onDismissRequest = { showMoreMenu = false }
                 ) {

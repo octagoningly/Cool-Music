@@ -124,7 +124,8 @@ internal fun AdvancedGlassHost(
                 region.role == AdvancedGlassRole.MiniPlayer ||
                     region.role == AdvancedGlassRole.BottomNavigation ||
                     region.role == AdvancedGlassRole.PopupMenu ||
-                    region.role == AdvancedGlassRole.FeedbackBanner
+                    region.role == AdvancedGlassRole.FeedbackBanner ||
+                    region.role == AdvancedGlassRole.DialogPanel
             }
             AdvancedGlassRenderRegionState(
                 background = resolveStableAdvancedGlassRenderRegions(

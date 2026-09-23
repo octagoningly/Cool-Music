@@ -97,6 +97,7 @@ import moe.ouom.neriplayer.ui.rememberMainTabDetailVisibilityState
 import moe.ouom.neriplayer.ui.screen.BiliVideoSkipIntervalsSheet
 import moe.ouom.neriplayer.ui.component.download.BatchDownloadManagerSheet
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledModalBottomSheet
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 import moe.ouom.neriplayer.ui.component.playlist.PlaylistExportSheet
 import moe.ouom.neriplayer.ui.component.playlist.showPlaylistBatchExportAddedResult
 import moe.ouom.neriplayer.ui.component.playlist.showPlaylistBatchExportCreatedResult
@@ -1272,7 +1273,7 @@ private fun VideoRow(
                     )
                 }
                 
-                DropdownMenu(
+                GlassDropdownMenu(
                     expanded = showMoreMenu,
                     onDismissRequest = { showMoreMenu = false }
                 ) {

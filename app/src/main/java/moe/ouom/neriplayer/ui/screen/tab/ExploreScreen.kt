@@ -105,7 +105,6 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -200,6 +199,7 @@ import moe.ouom.neriplayer.data.playlist.favorite.FavoritePlaylistRepository
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 import moe.ouom.neriplayer.ui.component.playlist.AddSongToPlaylistSheet
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
+import moe.ouom.neriplayer.ui.component.overlay.GlassMenuShape
 import moe.ouom.neriplayer.ui.component.playlist.PlaylistExportSheet
 import moe.ouom.neriplayer.ui.component.playlist.showPlaylistBatchExportAddedResult
 import moe.ouom.neriplayer.ui.component.playlist.showPlaylistBatchExportCreatedResult
@@ -969,14 +969,11 @@ fun ExploreScreen(
                                     )
                                 }
                             }
-                            DropdownMenu(
+                            GlassDropdownMenu(
                                 expanded = sourceMenuExpanded,
                                 onDismissRequest = { sourceMenuExpanded = false },
-                                shape = RoundedCornerShape(16.dp),
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                tonalElevation = 6.dp,
-                                shadowElevation = 8.dp,
-                                modifier = Modifier.clip(RoundedCornerShape(16.dp))
+                                shape = GlassMenuShape,
+                                modifier = Modifier
                             ) {
                                 orderedSearchSources.forEach { source ->
                                     DropdownMenuItem(

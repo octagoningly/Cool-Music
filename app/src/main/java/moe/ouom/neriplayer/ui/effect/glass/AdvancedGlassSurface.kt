@@ -33,6 +33,36 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
+internal fun roleRequiresContentBackdrop(role: AdvancedGlassRole): Boolean =
+    role == AdvancedGlassRole.MiniPlayer ||
+        role == AdvancedGlassRole.BottomNavigation ||
+        role == AdvancedGlassRole.ExploreSearchOverlay ||
+        role == AdvancedGlassRole.PopupMenu ||
+        role == AdvancedGlassRole.FeedbackBanner ||
+        role == AdvancedGlassRole.DialogPanel
+
+/**
+ * MiniPlayer / 底栏在媒体库等页面 content 捕获层短暂未就绪时，
+ * 仍允许用背景层采样出玻璃，避免 dock 与迷你播放器整块退化成实底。
+ */
+internal fun roleCanFallbackToBackgroundBackdrop(role: AdvancedGlassRole): Boolean =
+    role == AdvancedGlassRole.MiniPlayer ||
+        role == AdvancedGlassRole.BottomNavigation ||
+        role == AdvancedGlassRole.PopupMenu ||
+        role == AdvancedGlassRole.FeedbackBanner ||
+        role == AdvancedGlassRole.DialogPanel
+
+internal fun isAdvancedGlassBackdropReady(
+    backgroundReady: Boolean,
+    contentReady: Boolean,
+    requiresContentBackdrop: Boolean,
+    canFallbackToBackground: Boolean
+): Boolean {
+    if (!backgroundReady) return false
+    if (!requiresContentBackdrop) return true
+    return contentReady || canFallbackToBackground
+}
+
 internal fun isAdvancedGlassNavigationOwnerActive(
     requiresContentBackdrop: Boolean,
     activeNavigationOwners: Set<Any>?,
@@ -91,17 +121,14 @@ internal fun AdvancedGlassSurface(
     val tokens = advancedGlassTokens(role, isDarkTheme, enhancedBlurRadiusDp)
     val resolvedTintColor = if (tintColor.isColorSpecified) tintColor else advancedGlassRoleColor(role)
     val edgeBaseColor = MaterialTheme.colorScheme.onSurface
-    val requiresContentBackdrop = role == AdvancedGlassRole.MiniPlayer ||
-        role == AdvancedGlassRole.BottomNavigation ||
-        role == AdvancedGlassRole.ExploreSearchOverlay ||
-        role == AdvancedGlassRole.PopupMenu ||
-        role == AdvancedGlassRole.FeedbackBanner
+    val requiresContentBackdrop = roleRequiresContentBackdrop(role)
     val backdropsReady = availableBackdrops?.let { backdrops ->
-        backdrops.background.positionInWindow.isSpecified &&
-            (!requiresContentBackdrop ||
-                backdrops.content.positionInWindow.isSpecified ||
-                // MiniPlayer 在个别页面（如媒体库）content 未就绪时仍可用背景层采样
-                role == AdvancedGlassRole.MiniPlayer)
+        isAdvancedGlassBackdropReady(
+            backgroundReady = backdrops.background.positionInWindow.isSpecified,
+            contentReady = backdrops.content.positionInWindow.isSpecified,
+            requiresContentBackdrop = requiresContentBackdrop,
+            canFallbackToBackground = roleCanFallbackToBackgroundBackdrop(role)
+        )
     } == true
     val belongsToActiveNavigationScreen = isAdvancedGlassNavigationOwnerActive(
         requiresContentBackdrop = requiresContentBackdrop,
@@ -301,6 +328,7 @@ private fun advancedGlassRoleColor(role: AdvancedGlassRole): Color = when (role)
     AdvancedGlassRole.SettingsHeader -> MaterialTheme.colorScheme.primaryContainer
     AdvancedGlassRole.PlaylistSheet,
     AdvancedGlassRole.PopupMenu,
+    AdvancedGlassRole.DialogPanel,
     AdvancedGlassRole.FeedbackBanner,
     AdvancedGlassRole.SemanticCard -> MaterialTheme.colorScheme.surfaceContainerHigh
     AdvancedGlassRole.ExploreTag -> MaterialTheme.colorScheme.surface

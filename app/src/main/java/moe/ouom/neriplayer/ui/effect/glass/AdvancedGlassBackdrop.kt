@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 
@@ -72,7 +71,11 @@ internal fun Modifier.captureAdvancedGlassBackdrop(
     backdrop: AdvancedGlassBackdrop
 ): Modifier = this
     .onGloballyPositioned { coordinates ->
-        backdrop.positionInWindow = coordinates.attachedPositionInWindow()
+        // 保留上一次坐标：媒体库等复杂宿主在转场/离附着瞬间会 isAttached=false，
+        // 若写成 Unspecified 会让 MiniPlayer/底栏的 content 模糊区域整帧失效。
+        if (coordinates.isAttached) {
+            backdrop.positionInWindow = coordinates.positionInWindow()
+        }
     }
     .graphicsLayer {
         val effect = backdrop.renderEffect
@@ -98,12 +101,6 @@ internal fun resolveAdvancedGlassCompositingStrategy(
     CompositingStrategy.Offscreen
 } else {
     CompositingStrategy.Auto
-}
-
-private fun LayoutCoordinates.attachedPositionInWindow(): Offset = if (isAttached) {
-    positionInWindow()
-} else {
-    Offset.Unspecified
 }
 
 private const val NoLocalBlurRendererCacheKey = Int.MIN_VALUE

@@ -77,7 +77,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -190,6 +189,7 @@ import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.detectReorder
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 
 enum class LibraryTab(val labelResId: Int) {
     LOCAL(R.string.library_tab_local),
@@ -983,7 +983,7 @@ private fun YouTubeMusicPlaylistList(
                     }
                 )
 
-                DropdownMenu(
+                GlassDropdownMenu(
                     expanded = menuPlaylist?.browseId == playlist.browseId,
                     onDismissRequest = { menuPlaylist = null }
                 ) {
@@ -2110,7 +2110,7 @@ private fun LocalPlaylistList(
                                             contentDescription = stringResource(R.string.common_more_options)
                                         )
                                     }
-                                    DropdownMenu(
+                                    GlassDropdownMenu(
                                         expanded = showMenu,
                                         onDismissRequest = { showMenu = false }
                                     ) {
@@ -2524,7 +2524,7 @@ private fun LocalArtistSearchAndSortRow(
                     contentDescription = stringResource(R.string.library_local_artist_sort)
                 )
             }
-            DropdownMenu(
+            GlassDropdownMenu(
                 expanded = menuExpanded,
                 onDismissRequest = { menuExpanded = false }
             ) {

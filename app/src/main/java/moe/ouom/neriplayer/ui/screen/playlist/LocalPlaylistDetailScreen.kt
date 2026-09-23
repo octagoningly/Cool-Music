@@ -97,7 +97,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -236,6 +235,7 @@ import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
 import java.io.File
 import kotlin.random.Random
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 
 internal enum class LocalFilesSongTab {
     MANUALLY_ADDED,
@@ -2166,7 +2166,7 @@ fun LocalPlaylistDetailScreen(
                                                             )
                                                         }
 
-                                                        DropdownMenu(
+                                                        GlassDropdownMenu(
                                                             expanded = showMoreMenu,
                                                             onDismissRequest = { showMoreMenu = false }
                                                         ) {
@@ -3106,7 +3106,7 @@ private fun LocalScanPreviewScreen(
                                     contentDescription = stringResource(R.string.common_more_options)
                                 )
                             }
-                            DropdownMenu(
+                            GlassDropdownMenu(
                                 expanded = showMoreMenu,
                                 onDismissRequest = { showMoreMenu = false }
                             ) {

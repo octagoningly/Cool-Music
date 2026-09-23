@@ -97,4 +97,58 @@ class AdvancedGlassSurfaceTest {
             )
         )
     }
+
+    @Test
+    fun miniPlayerAndBottomBarFallbackWhenContentBackdropIsNotReady() {
+        // 媒体库等页面 content 捕获未就绪时，dock / 迷你播放器仍可采样背景层
+        assertTrue(
+            isAdvancedGlassBackdropReady(
+                backgroundReady = true,
+                contentReady = false,
+                requiresContentBackdrop = true,
+                canFallbackToBackground = true
+            )
+        )
+        assertFalse(
+            isAdvancedGlassBackdropReady(
+                backgroundReady = true,
+                contentReady = false,
+                requiresContentBackdrop = true,
+                canFallbackToBackground = false
+            )
+        )
+        assertFalse(
+            isAdvancedGlassBackdropReady(
+                backgroundReady = false,
+                contentReady = true,
+                requiresContentBackdrop = true,
+                canFallbackToBackground = true
+            )
+        )
+        assertTrue(
+            isAdvancedGlassBackdropReady(
+                backgroundReady = true,
+                contentReady = true,
+                requiresContentBackdrop = true,
+                canFallbackToBackground = false
+            )
+        )
+    }
+
+    @Test
+    fun dockAndDialogRolesAllowBackgroundFallback() {
+        assertTrue(roleCanFallbackToBackgroundBackdrop(AdvancedGlassRole.MiniPlayer))
+        assertTrue(roleCanFallbackToBackgroundBackdrop(AdvancedGlassRole.BottomNavigation))
+        assertTrue(roleCanFallbackToBackgroundBackdrop(AdvancedGlassRole.DialogPanel))
+        assertTrue(roleCanFallbackToBackgroundBackdrop(AdvancedGlassRole.PopupMenu))
+        assertFalse(roleCanFallbackToBackgroundBackdrop(AdvancedGlassRole.ScreenTopTab))
+    }
+
+    @Test
+    fun dialogPanelRequiresContentBackdropLikePopup() {
+        assertTrue(roleRequiresContentBackdrop(AdvancedGlassRole.DialogPanel))
+        assertTrue(roleRequiresContentBackdrop(AdvancedGlassRole.MiniPlayer))
+        assertTrue(roleRequiresContentBackdrop(AdvancedGlassRole.BottomNavigation))
+        assertFalse(roleRequiresContentBackdrop(AdvancedGlassRole.PlaylistSheet))
+    }
 }

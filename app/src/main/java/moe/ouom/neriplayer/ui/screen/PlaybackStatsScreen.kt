@@ -16,7 +16,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ClearAll
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -47,6 +46,7 @@ import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.ui.haptic.HapticIconButton
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 
 internal enum class StatsSortMode {
     PLAY_COUNT, LISTEN_TIME, RECENT, FIRST_PLAYED
@@ -136,7 +136,7 @@ fun PlaybackStatsScreen(
                             HapticIconButton(onClick = { showSortMenu = true }) {
                                 Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null)
                             }
-                            DropdownMenu(
+                            GlassDropdownMenu(
                                 expanded = showSortMenu,
                                 onDismissRequest = { showSortMenu = false }
                             ) {

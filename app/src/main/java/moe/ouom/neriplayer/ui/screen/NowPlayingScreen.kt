@@ -131,7 +131,6 @@ import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as Aler
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -341,6 +340,7 @@ import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
 import java.util.Locale
 import kotlin.math.roundToInt
+import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 
 private const val LyricsPageTransitionDurationMs = 300
 private const val CoverSourceBadgeRevealBufferMs = 120
@@ -912,7 +912,7 @@ private fun NowPlayingQueueRow(
                         )
                     }
 
-                    DropdownMenu(
+                    GlassDropdownMenu(
                         expanded = showMoreMenu,
                         onDismissRequest = { showMoreMenu = false }
                     ) {
@@ -3162,7 +3162,7 @@ fun NowPlayingScreen(
                                             onLongClick = { showSongNameMenu = true }
                                         )
                                 )
-                                DropdownMenu(
+                                GlassDropdownMenu(
                                     expanded = showSongNameMenu,
                                     onDismissRequest = { showSongNameMenu = false }
                                 ) {
@@ -3200,7 +3200,7 @@ fun NowPlayingScreen(
                                             onLongClick = { showArtistMenu = true }
                                         )
                                 )
-                                DropdownMenu(
+                                GlassDropdownMenu(
                                     expanded = showArtistMenu,
                                     onDismissRequest = { showArtistMenu = false }
                                 ) {

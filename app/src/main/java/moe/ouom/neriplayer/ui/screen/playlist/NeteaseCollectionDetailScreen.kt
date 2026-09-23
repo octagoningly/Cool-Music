@@ -167,6 +167,7 @@ import moe.ouom.neriplayer.ui.haptic.performHapticFeedback
 import moe.ouom.neriplayer.util.search.playlistSearchValues
 import kotlin.random.Random
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
+import moe.ouom.neriplayer.ui.feedback.AppFeedback
 
 internal fun isNeteaseCollectionHeaderForRoute(
     header: NeteaseCollectionHeader?,
@@ -380,9 +381,8 @@ fun DetailScreen(
             operation = "toggleNeteaseDetailSongFavorite",
             onResult = { result ->
                 if (result.isSuccess) {
-                    scope.launch {
-                        snackbarHostState.showNeriSnackbar(message)
-                    }
+                    // 根级 AppFeedback，避免页内 Snackbar 被玻璃采样层模糊导致无文字
+                    AppFeedback.show(context, message)
                 }
             }
         ) {
@@ -1073,7 +1073,7 @@ private fun RetryChip(onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun SongRow(
     index: Int,
@@ -1179,6 +1179,7 @@ private fun SongRow(
         // 更多操作菜单
         if (!selectionMode) {
             var showMoreMenu by remember { mutableStateOf(false) }
+            var showAddToPlaylistSheet by remember { mutableStateOf(false) }
             Box {
                 IconButton(
                     onClick = { showMoreMenu = true }
@@ -1194,82 +1195,47 @@ private fun SongRow(
                     expanded = showMoreMenu,
                     onDismissRequest = { showMoreMenu = false }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.local_playlist_play_next)) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
-                                contentDescription = null
-                            )
+                    moe.ouom.neriplayer.ui.component.playlist.GlassSongActionsMenuContent(
+                        isFavorite = isFavorite,
+                        onPlayKeepQueue = {
+                            PlayerManager.playPlaylist(listOf(song), 0)
+                            showMoreMenu = false
                         },
-                        onClick = {
+                        onPlayNext = {
                             PlayerManager.addToQueueNext(song)
                             showMoreMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.playlist_add_to_end)) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
-                                contentDescription = null
-                            )
                         },
-                        onClick = {
+                        onAddToQueueEnd = {
                             PlayerManager.addToQueueEnd(song)
                             showMoreMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(
-                                    if (isFavorite) {
-                                        R.string.favorite_remove
-                                    } else {
-                                        R.string.favorite_add
-                                    }
-                                )
-                            )
                         },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = if (isFavorite) {
-                                    Icons.Filled.Favorite
-                                } else {
-                                    Icons.Outlined.FavoriteBorder
-                                },
-                                contentDescription = null,
-                            tint = if (isFavorite) {
-                                Color(0xFFE53935)
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            }
-                            )
+                        onAddToPlaylist = {
+                            showMoreMenu = false
+                            showAddToPlaylistSheet = true
                         },
-                        onClick = {
+                        onToggleFavorite = {
                             onFavoriteToggle(song, isFavorite)
                             showMoreMenu = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.action_copy_song_info)) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.ContentCopy,
-                                contentDescription = null
-                            )
                         },
-                        onClick = {
+                        onCopySongInfo = {
                             val songInfo = "${song.displayName()}-${song.displayArtist()}"
                             scope.launch {
                                 clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("text", songInfo)))
-                                snackbarHostState.showNeriSnackbar(composeResources.getString(R.string.toast_copied))
+                                AppFeedback.show(
+                                    context,
+                                    composeResources.getString(moe.ouom.neriplayer.R.string.toast_copied)
+                                )
                             }
                             showMoreMenu = false
                         }
                     )
                 }
+            }
+            if (showAddToPlaylistSheet) {
+                moe.ouom.neriplayer.ui.component.playlist.AddSongToPlaylistSheet(
+                    song = song,
+                    onDismissRequest = { showAddToPlaylistSheet = false }
+                )
             }
         }
     }

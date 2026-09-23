@@ -236,6 +236,7 @@ import org.burnoutcrew.reorderable.reorderable
 import java.io.File
 import kotlin.random.Random
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
+import moe.ouom.neriplayer.ui.feedback.AppFeedback
 
 internal enum class LocalFilesSongTab {
     MANUALLY_ADDED,
@@ -581,9 +582,7 @@ fun LocalPlaylistDetailScreen(
                     operation = "toggleLocalDetailSongFavorite",
                     onResult = { result ->
                         if (result.isSuccess) {
-                            scope.launch {
-                                snackbarHostState.showNeriSnackbar(message)
-                            }
+                            AppFeedback.show(context, message)
                         }
                     }
                 ) {
@@ -2155,6 +2154,7 @@ fun LocalPlaylistDetailScreen(
 
                                                     // 更多操作菜单
                                                     var showMoreMenu by remember { mutableStateOf(false) }
+                                                    var showAddToPlaylistSheet by remember { mutableStateOf(false) }
                                                     Box {
                                                         IconButton(
                                                             onClick = { showMoreMenu = true }
@@ -2199,7 +2199,8 @@ fun LocalPlaylistDetailScreen(
                                                                                 LocalMediaSupport.shareSongFile(context, song)
                                                                             }.getOrElse { false }
                                                                             if (!shared) {
-                                                                                snackbarHostState.showNeriSnackbar(
+                                                                                AppFeedback.show(
+                                                                                    context,
                                                                                     composeResources.getString(R.string.local_song_share_failed)
                                                                                 )
                                                                             }
@@ -2207,73 +2208,35 @@ fun LocalPlaylistDetailScreen(
                                                                     }
                                                                 )
                                                             }
-                                                            DropdownMenuItem(
-                                                                text = { Text(stringResource(R.string.local_playlist_play_next)) },
-                                                                leadingIcon = {
-                                                                    Icon(
-                                                                        imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
-                                                                        contentDescription = null
-                                                                    )
+                                                            moe.ouom.neriplayer.ui.component.playlist.GlassSongActionsMenuContent(
+                                                                isFavorite = isFavoriteSong,
+                                                                onPlayKeepQueue = {
+                                                                    PlayerManager.playPlaylist(listOf(song), 0)
+                                                                    showMoreMenu = false
                                                                 },
-                                                                onClick = {
+                                                                onPlayNext = {
                                                                     PlayerManager.addToQueueNext(song)
                                                                     showMoreMenu = false
-                                                                }
-                                                            )
-                                                            DropdownMenuItem(
-                                                                text = { Text(stringResource(R.string.playlist_add_to_end)) },
-                                                                leadingIcon = {
-                                                                    Icon(
-                                                                        imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
-                                                                        contentDescription = null
-                                                                    )
                                                                 },
-                                                                onClick = {
+                                                                onAddToQueueEnd = {
                                                                     PlayerManager.addToQueueEnd(song)
                                                                     showMoreMenu = false
-                                                                }
-                                                            )
-                                                            DropdownMenuItem(
-                                                                text = {
-                                                                    Text(
-                                                                        stringResource(
-                                                                            if (isFavoriteSong) {
-                                                                                R.string.favorite_remove
-                                                                            } else {
-                                                                                R.string.favorite_add
-                                                                            }
-                                                                        )
-                                                                    )
                                                                 },
-                                                                leadingIcon = {
-                                                                    Icon(
-                                                                        imageVector = if (isFavoriteSong) {
-                                                                            Icons.Filled.Favorite
-                                                                        } else {
-                                                                            Icons.Outlined.FavoriteBorder
-                                                                        },
-                                                                        contentDescription = null
-                                                                    )
+                                                                onAddToPlaylist = {
+                                                                    showMoreMenu = false
+                                                                    showAddToPlaylistSheet = true
                                                                 },
-                                                                onClick = {
+                                                                onToggleFavorite = {
                                                                     toggleSongFavorite(song, isFavoriteSong)
                                                                     showMoreMenu = false
-                                                                }
-                                                            )
-                                                            DropdownMenuItem(
-                                                                text = { Text(stringResource(R.string.action_copy_song_info)) },
-                                                                leadingIcon = {
-                                                                    Icon(
-                                                                        imageVector = Icons.Outlined.ContentCopy,
-                                                                        contentDescription = null
-                                                                    )
                                                                 },
-                                                                onClick = {
+                                                                onCopySongInfo = {
                                                                     val songInfo =
                                                                         "${song.displayName()}-${song.displayArtist()}"
                                                                     scope.launch {
                                                                         clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("text", songInfo)))
-                                                                        snackbarHostState.showNeriSnackbar(
+                                                                        AppFeedback.show(
+                                                                            context,
                                                                             composeResources.getString(R.string.toast_copied)
                                                                         )
                                                                     }
@@ -2281,6 +2244,12 @@ fun LocalPlaylistDetailScreen(
                                                                 }
                                                             )
                                                         }
+                                                    }
+                                                    if (showAddToPlaylistSheet) {
+                                                        moe.ouom.neriplayer.ui.component.playlist.AddSongToPlaylistSheet(
+                                                            song = song,
+                                                            onDismissRequest = { showAddToPlaylistSheet = false }
+                                                        )
                                                     }
                                                 }
                                             }

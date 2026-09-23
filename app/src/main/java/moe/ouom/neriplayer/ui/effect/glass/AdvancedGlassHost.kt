@@ -55,6 +55,12 @@ internal val LocalAdvancedGlassNavigationOwner =
 internal val LocalAdvancedGlassSceneActive = staticCompositionLocalOf { true }
 internal val LocalAdvancedGlassBackdropRegistrationEnabled = staticCompositionLocalOf { true }
 
+/**
+ * 有玻璃弹窗/菜单盖在 MiniPlayer、底栏上时置 true。
+ * 下层玻璃减淡，避免上层模糊采样不到下层独立图层像素而透出清晰内容。
+ */
+internal val LocalGlassOverlayElevated = staticCompositionLocalOf { false }
+
 @Composable
 internal fun AdvancedGlassScene(
     active: Boolean,

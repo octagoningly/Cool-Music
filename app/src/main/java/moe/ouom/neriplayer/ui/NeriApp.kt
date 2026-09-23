@@ -2684,12 +2684,21 @@ private fun NeriAppContent(
                     disableStretchOverscroll = backgroundImageUri != null,
                     fixedBackground = fixedBackground,
                     background = {
-                        // 场景自绘壁纸背景, 玻璃模糊要采样它
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.background)
-                        ) {
+                        // 高级模糊开启时不铺不透明底，否则 MiniPlayer/底栏采样到的是纯色，
+                        // 模糊看不出效果（媒体库短列表尤其明显）；关闭模糊时保留不透明底防叠印。
+                        if (!advancedGlassController.isBaseBlurEnabled) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.background)
+                            ) {
+                                CustomBackground(
+                                    imageUri = backgroundImageUri,
+                                    blur = backgroundImageBlur,
+                                    alpha = effectiveBackgroundImageAlpha
+                                )
+                            }
+                        } else {
                             CustomBackground(
                                 imageUri = backgroundImageUri,
                                 blur = backgroundImageBlur,

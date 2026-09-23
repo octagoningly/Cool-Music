@@ -4,13 +4,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -19,6 +25,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
@@ -33,6 +40,7 @@ import kotlin.math.roundToInt
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
+import moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated
 
 /**
  * 与 Material DropdownMenu 相同的锚点定位，同时把 **主窗口坐标** 写出来。
@@ -127,31 +135,51 @@ fun GlassDropdownMenu(
 
     if (!expanded) return
 
-    Popup(
-        popupPositionProvider = positionProvider,
-        onDismissRequest = onDismissRequest,
-        properties = PopupProperties(focusable = true),
-    ) {
-        // DropdownMenuItem 自带 fillMaxWidth；Popup 无限宽时必须用 IntrinsicSize.Max
-        // 收到最宽子项。不要同时套 verticalScroll（会触发无限高度崩溃）。
-        Box(
-            Modifier
-                .width(IntrinsicSize.Max)
-                .heightIn(max = 360.dp)
+    // 两层玻璃重叠时（菜单盖住 MiniPlayer/底栏），抬升标记让下层玻璃减淡，
+    // 避免上层模糊采样不到独立 Window 外的下层玻璃像素而“透出下层”。
+    CompositionLocalProvider(LocalGlassOverlayElevated provides true) {
+        Popup(
+            popupPositionProvider = positionProvider,
+            onDismissRequest = onDismissRequest,
+            properties = PopupProperties(focusable = true),
         ) {
-            AdvancedGlassSurface(
-                role = AdvancedGlassRole.PopupMenu,
-                shape = shape,
-                fallbackColor = fallbackColor,
-                tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                enabled = glassActive,
-                regionBoundsOverride = menuBoundsInMainWindow,
+            // DropdownMenuItem 自带 fillMaxWidth；Popup 无限宽时用 IntrinsicSize.Max
+            // 收成「最宽一项」，再 clamp 到 240.dp（开发规则：选项下拉）。
+            Box(
+                Modifier
+                    .width(IntrinsicSize.Max)
+                    .widthIn(max = 240.dp)
+                    .heightIn(max = 360.dp)
             ) {
-                Column(
-                    Modifier.padding(vertical = 4.dp),
-                    content = content,
-                )
+                AdvancedGlassSurface(
+                    role = AdvancedGlassRole.PopupMenu,
+                    shape = shape,
+                    fallbackColor = fallbackColor,
+                    tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    enabled = glassActive,
+                    regionBoundsOverride = menuBoundsInMainWindow,
+                ) {
+                    Column(Modifier.padding(vertical = 4.dp), content = content)
+                }
             }
         }
     }
+}
+
+/**
+ * 下拉菜单文案：居中 + 自适应省略（开发规则：下拉菜单文字居中）。
+ */
+@Composable
+fun GlassMenuItemText(
+    text: String,
+    modifier: Modifier = Modifier,
+    maxLines: Int = 2,
+) {
+    Text(
+        text = text,
+        modifier = modifier.fillMaxWidth(),
+        textAlign = TextAlign.Center,
+        maxLines = maxLines,
+        style = LocalTextStyle.current
+    )
 }

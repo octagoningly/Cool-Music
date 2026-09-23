@@ -286,6 +286,7 @@ fun NeriMiniPlayer(
 ) {
     val shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     val context = LocalContext.current
+    val overlayElevated = moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated.current
     val requestedCoverUrl = coverUrl?.trim()?.takeIf { it.isNotEmpty() }
     var displayedCoverUrl by remember { mutableStateOf(requestedCoverUrl) }
     val latestRequestedCoverUrl by rememberUpdatedState(requestedCoverUrl)
@@ -337,6 +338,7 @@ fun NeriMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .height(NeriMiniPlayerDefaults.Height)
+            .graphicsLayer { alpha = if (overlayElevated) 0.35f else 1f }
             .padding(horizontal = 8.dp)
             .clip(shape)
             .pointerInput(Unit) {

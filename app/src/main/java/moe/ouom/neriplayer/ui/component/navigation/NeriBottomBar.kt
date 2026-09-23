@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -69,6 +70,7 @@ fun NeriBottomBar(
 ) {
     val context = LocalContext.current
     val alwaysShowLabel = selectAlpha != 0f
+    val overlayElevated = moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated.current
     val baseBlurRequested = LocalAdvancedGlassController.current.isBaseBlurRequested
     val fallbackScrimAlpha = resolveBottomBarFallbackScrimAlpha(
         selectAlpha = selectAlpha,
@@ -82,7 +84,8 @@ fun NeriBottomBar(
 
     AdvancedGlassSurface(
         role = AdvancedGlassRole.BottomNavigation,
-        modifier = modifier,
+        modifier = modifier
+            .graphicsLayer { alpha = if (overlayElevated) 0.35f else 1f },
         fallbackColor = fallbackColor
     ) {
         NavigationBar(

@@ -189,7 +189,9 @@ import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.detectReorder
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
+import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
+import moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText
 
 enum class LibraryTab(val labelResId: Int) {
     LOCAL(R.string.library_tab_local),
@@ -853,7 +855,7 @@ private fun YouTubeMusicPlaylistList(
             start = 8.dp,
             end = 8.dp,
             top = 8.dp,
-            bottom = 8.dp + miniPlayerHeight
+            bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
@@ -988,7 +990,7 @@ private fun YouTubeMusicPlaylistList(
                     onDismissRequest = { menuPlaylist = null }
                 ) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.library_youtube_music_open_playlist)) },
+                        text = { GlassMenuItemText(stringResource(R.string.library_youtube_music_open_playlist)) },
                         onClick = {
                             menuPlaylist = null
                             onClick(playlist)
@@ -996,7 +998,7 @@ private fun YouTubeMusicPlaylistList(
                     )
                     DropdownMenuItem(
                         text = {
-                            Text(
+                            GlassMenuItemText(
                                 if (isFavorite) {
                                     stringResource(R.string.home_unfavorite_playlist)
                                 } else {
@@ -1035,7 +1037,7 @@ private fun YouTubeMusicPlaylistList(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.library_youtube_music_copy_browse_id)) },
+                        text = { GlassMenuItemText(stringResource(R.string.library_youtube_music_copy_browse_id)) },
                         onClick = {
                             copyToClipboard("ytmusic_browse_id", playlist.browseId)
                             menuPlaylist = null
@@ -1043,7 +1045,7 @@ private fun YouTubeMusicPlaylistList(
                     )
                     if (playlist.playlistId.isNotBlank()) {
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.library_youtube_music_copy_playlist_id)) },
+                            text = { GlassMenuItemText(stringResource(R.string.library_youtube_music_copy_playlist_id)) },
                             onClick = {
                                 copyToClipboard("ytmusic_playlist_id", playlist.playlistId)
                                 menuPlaylist = null
@@ -1091,7 +1093,7 @@ private fun BiliPlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp + miniPlayerHeight),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -2115,7 +2117,7 @@ private fun LocalPlaylistList(
                                         onDismissRequest = { showMenu = false }
                                     ) {
                                         DropdownMenuItem(
-                                            text = { Text(stringResource(R.string.action_rename)) },
+                                            text = { GlassMenuItemText(stringResource(R.string.action_rename)) },
                                             onClick = {
                                                 showMenu = false
                                                 renameText = pl.name.take(maxNameLength)
@@ -2123,7 +2125,7 @@ private fun LocalPlaylistList(
                                             }
                                         )
                                         DropdownMenuItem(
-                                            text = { Text(stringResource(R.string.action_delete)) },
+                                            text = { GlassMenuItemText(stringResource(R.string.action_delete)) },
                                             onClick = {
                                                 showMenu = false
                                                 showDeleteDialog = true
@@ -2565,7 +2567,7 @@ private fun LocalArtistSortMenuItem(
 ) {
     DropdownMenuItem(
         text = {
-            Text(text)
+            GlassMenuItemText(text)
         },
         leadingIcon = {
             if (selected) {
@@ -2805,7 +2807,7 @@ private fun NeteaseLibraryList(
             start = 8.dp,
             end = 8.dp,
             top = 8.dp,
-            bottom = 8.dp + miniPlayerHeight
+            bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
@@ -3121,7 +3123,7 @@ private fun NeteasePlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp + miniPlayerHeight),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -3280,7 +3282,7 @@ private fun NeteaseAlbumList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp + miniPlayerHeight),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -3520,7 +3522,7 @@ private fun FavoritePlaylistList(
 
     LazyColumn(
         state = reorderState.listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp + miniPlayerHeight),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxSize()
@@ -4026,7 +4028,7 @@ private fun QqMusicPlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp + miniPlayerHeight),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {

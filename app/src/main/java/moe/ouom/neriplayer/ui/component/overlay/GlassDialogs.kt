@@ -39,6 +39,7 @@ import androidx.compose.ui.window.PopupProperties
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
+import moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated
 
 /** 对话框 / 面板统一圆角（开发规则：对话框 28.dp） */
 internal val GlassDialogShape = RoundedCornerShape(28.dp)
@@ -126,28 +127,30 @@ internal fun GlassPanel(
         onDismissRequest = onDismissRequest,
         properties = PopupProperties(focusable = true),
     ) {
-        Box(
-            Modifier
-                .width(IntrinsicSize.Max)
-                .heightIn(max = 640.dp)
-        ) {
-            AdvancedGlassSurface(
-                role = role,
-                shape = shape,
-                fallbackColor = glassDialogFallbackColor(glassActive),
-                tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                enabled = glassActive,
-                regionBoundsOverride = boundsInMainWindow,
-                modifier = modifier
-                    .widthIn(max = maxWidth)
-                    .fillMaxWidth()
+        CompositionLocalProvider(LocalGlassOverlayElevated provides true) {
+            Box(
+                Modifier
+                    .width(IntrinsicSize.Max)
+                    .heightIn(max = 640.dp)
             ) {
-                Column(
-                    Modifier
-                        .verticalScroll(rememberScrollState())
-                        .padding(contentPadding),
-                    content = content,
-                )
+                AdvancedGlassSurface(
+                    role = role,
+                    shape = shape,
+                    fallbackColor = glassDialogFallbackColor(glassActive),
+                    tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    enabled = glassActive,
+                    regionBoundsOverride = boundsInMainWindow,
+                    modifier = modifier
+                        .widthIn(max = maxWidth)
+                        .fillMaxWidth()
+                ) {
+                    Column(
+                        Modifier
+                            .verticalScroll(rememberScrollState())
+                            .padding(contentPadding),
+                        content = content,
+                    )
+                }
             }
         }
     }

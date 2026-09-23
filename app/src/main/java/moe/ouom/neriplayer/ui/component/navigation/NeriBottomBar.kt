@@ -85,7 +85,7 @@ fun NeriBottomBar(
     AdvancedGlassSurface(
         role = AdvancedGlassRole.BottomNavigation,
         modifier = modifier
-            .graphicsLayer { alpha = if (overlayElevated) 0.35f else 1f },
+            .graphicsLayer { alpha = if (overlayElevated) 0.45f else 1f },
         fallbackColor = fallbackColor
     ) {
         NavigationBar(

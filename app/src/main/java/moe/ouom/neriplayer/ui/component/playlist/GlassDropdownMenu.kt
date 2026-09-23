@@ -159,7 +159,8 @@ fun GlassDropdownMenu(
     var menuBoundsInMainWindow by remember { mutableStateOf<Rect?>(null) }
 
     val fallbackColor = if (glassActive) {
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
+        // 玻璃开启时的半透明底：要能透出模糊，又保证文字可读
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.62f)
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }

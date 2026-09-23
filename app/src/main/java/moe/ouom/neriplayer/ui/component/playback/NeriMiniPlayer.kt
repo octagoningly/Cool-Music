@@ -338,7 +338,7 @@ fun NeriMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .height(NeriMiniPlayerDefaults.Height)
-            .graphicsLayer { alpha = if (overlayElevated) 0.35f else 1f }
+            .graphicsLayer { alpha = if (overlayElevated) 0.45f else 1f }
             .padding(horizontal = 8.dp)
             .clip(shape)
             .pointerInput(Unit) {

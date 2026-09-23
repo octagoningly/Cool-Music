@@ -91,7 +91,7 @@ private class GlassPanelPositionProvider(
 @Composable
 private fun glassDialogFallbackColor(glassActive: Boolean) =
     if (glassActive) {
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f)
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.62f)
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }

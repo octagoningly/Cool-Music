@@ -25,7 +25,8 @@ internal fun advancedGlassTokens(
         AdvancedGlassRole.DialogPanel,
         AdvancedGlassRole.FeedbackBanner -> AdvancedGlassTokens(
             blurRadiusDp = adjustableRadiusDp ?: 24f,
-            tintAlpha = if (isDarkTheme) 0.42f else 0.55f,
+            // 中间档：能透出背后模糊，又不至于过透/过实
+            tintAlpha = if (isDarkTheme) 0.48f else 0.58f,
             edgeAlpha = 0.12f
         )
         AdvancedGlassRole.BottomNavigation -> AdvancedGlassTokens(

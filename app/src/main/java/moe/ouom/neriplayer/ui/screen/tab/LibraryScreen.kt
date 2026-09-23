@@ -125,6 +125,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -367,6 +368,14 @@ private fun LibraryTab?.isRefreshable(): Boolean {
         LibraryTab.NETEASE -> true
         else -> false
     }
+}
+
+/** 底部留白：模糊开时少留，让条目滚到迷你播放器下被采样；关时避开控件。 */
+@Composable
+private fun libraryListBottomPadding(): Dp {
+    val mini = LocalMiniPlayerHeight.current
+    val blur = LocalAdvancedGlassController.current.isBaseBlurEnabled
+    return if (blur) 12.dp else 8.dp + mini
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -855,7 +864,7 @@ private fun YouTubeMusicPlaylistList(
             start = 8.dp,
             end = 8.dp,
             top = 8.dp,
-            bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight
+            bottom = libraryListBottomPadding()
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
@@ -1093,7 +1102,7 @@ private fun BiliPlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -1498,13 +1507,24 @@ private fun LocalPlaylistList(
             start = 8.dp,
             end = 8.dp,
             top = 8.dp,
-            bottom = if (localSortMode) 24.dp else 8.dp
+            // 对齐首页/探索：只用 contentPadding 留出底部，列表本体可滚到迷你播放器下
+            bottom = if (localSortMode) {
+                24.dp
+            } else {
+                libraryListBottomPadding()
+            }
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxSize()
-            // Shrink list viewport above mini player so drag auto-scroll stops in the visible area
-            .padding(bottom = miniPlayerHeight)
+            // 仅排序拖拽时收窄视口，避免拖出屏幕；平时必须让内容滚过迷你播放器才能采样模糊
+            .then(
+                if (localSortMode) {
+                    Modifier.padding(bottom = miniPlayerHeight)
+                } else {
+                    Modifier
+                }
+            )
             .pointerInput(localSortMode) {
                 if (!localSortMode) return@pointerInput
                 awaitEachGesture {
@@ -2807,7 +2827,7 @@ private fun NeteaseLibraryList(
             start = 8.dp,
             end = 8.dp,
             top = 8.dp,
-            bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight
+            bottom = libraryListBottomPadding()
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
@@ -3123,7 +3143,7 @@ private fun NeteasePlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -3282,7 +3302,7 @@ private fun NeteaseAlbumList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -3522,7 +3542,7 @@ private fun FavoritePlaylistList(
 
     LazyColumn(
         state = reorderState.listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxSize()
@@ -4028,7 +4048,7 @@ private fun QqMusicPlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (LocalAdvancedGlassController.current.isBaseBlurEnabled) 12.dp else 8.dp + miniPlayerHeight),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {

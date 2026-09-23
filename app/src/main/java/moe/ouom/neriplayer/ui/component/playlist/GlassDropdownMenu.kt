@@ -41,6 +41,54 @@ import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 import moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated
+import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
+
+/**
+ * 菜单定位：优先向上弹出；向下时不允许进入底部保留区（迷你播放器 + 底栏）。
+ * 返回主窗口坐标，供玻璃区域注册。
+ */
+internal fun resolveGlassMenuPosition(
+    anchor: IntRect,
+    windowSize: IntSize,
+    popupSize: IntSize,
+    offsetX: Int,
+    offsetY: Int,
+    reservedBottomPx: Int,
+): IntOffset {
+    var x = anchor.left + offsetX
+    if (x + popupSize.width > windowSize.width) {
+        x = anchor.right - popupSize.width - offsetX
+    }
+    if (x < 0) x = 0
+    if (x + popupSize.width > windowSize.width) {
+        x = (windowSize.width - popupSize.width).coerceAtLeast(0)
+    }
+
+    // 1) 尽量向上
+    var y = anchor.top - popupSize.height - offsetY
+    val maxBottom = (windowSize.height - reservedBottomPx).coerceAtLeast(0)
+    val maxTop = (maxBottom - popupSize.height).coerceAtLeast(0)
+
+    // 2) 向上放不下，再向下；仍不得压住底部保留区
+    if (y < offsetY) {
+        y = anchor.bottom + offsetY
+    }
+    if (y + popupSize.height > maxBottom) {
+        y = maxTop
+    }
+    if (y < offsetY) y = offsetY
+    return IntOffset(x, y)
+}
+
+internal fun glassMenuBoundsInMainWindow(
+    position: IntOffset,
+    popupSize: IntSize,
+): Rect = Rect(
+    left = position.x.toFloat(),
+    top = position.y.toFloat(),
+    right = (position.x + popupSize.width).toFloat(),
+    bottom = (position.y + popupSize.height).toFloat(),
+)
 
 /**
  * 与 Material DropdownMenu 相同的锚点定位，同时把 **主窗口坐标** 写出来。
@@ -51,6 +99,7 @@ import moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated
  */
 private class GlassMenuPositionProvider(
     private val contentOffset: DpOffset,
+    private val reservedBottomPx: () -> Int,
     private val onMenuBoundsInMainWindow: (Rect) -> Unit,
 ) : PopupPositionProvider {
     private var density: Density = Density(1f)
@@ -67,28 +116,16 @@ private class GlassMenuPositionProvider(
     ): IntOffset {
         val offsetX = with(density) { contentOffset.x.roundToPx() }
         val offsetY = with(density) { contentOffset.y.roundToPx() }
-
-        // 默认对齐锚点左下；靠边时翻转，与 Material DropdownMenu 一致
-        var x = anchorBounds.left + offsetX
-        var y = anchorBounds.bottom + offsetY
-        if (x + popupContentSize.width > windowSize.width) {
-            x = anchorBounds.right - popupContentSize.width - offsetX
-        }
-        if (x < 0) x = 0
-        if (y + popupContentSize.height > windowSize.height) {
-            y = anchorBounds.top - popupContentSize.height - offsetY
-        }
-        if (y < 0) y = 0
-
-        onMenuBoundsInMainWindow(
-            Rect(
-                left = x.toFloat(),
-                top = y.toFloat(),
-                right = (x + popupContentSize.width).toFloat(),
-                bottom = (y + popupContentSize.height).toFloat(),
-            )
+        val position = resolveGlassMenuPosition(
+            anchor = anchorBounds,
+            windowSize = windowSize,
+            popupSize = popupContentSize,
+            offsetX = offsetX,
+            offsetY = offsetY,
+            reservedBottomPx = reservedBottomPx(),
         )
-        return IntOffset(x, y)
+        onMenuBoundsInMainWindow(glassMenuBoundsInMainWindow(position, popupContentSize))
+        return position
     }
 }
 
@@ -118,6 +155,7 @@ fun GlassDropdownMenu(
     val controller = LocalAdvancedGlassController.current
     val glassActive = controller.isBaseBlurEnabled
     val density = LocalDensity.current
+    val reservedBottom = LocalMiniPlayerHeight.current
     var menuBoundsInMainWindow by remember { mutableStateOf<Rect?>(null) }
 
     val fallbackColor = if (glassActive) {
@@ -126,9 +164,10 @@ fun GlassDropdownMenu(
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
 
-    val positionProvider = remember(density) {
+    val positionProvider = remember(density, reservedBottom) {
         GlassMenuPositionProvider(
             contentOffset = DpOffset(0.dp, 8.dp),
+            reservedBottomPx = { with(density) { reservedBottom.roundToPx() } },
             onMenuBoundsInMainWindow = { menuBoundsInMainWindow = it },
         ).also { it.attach(density) }
     }

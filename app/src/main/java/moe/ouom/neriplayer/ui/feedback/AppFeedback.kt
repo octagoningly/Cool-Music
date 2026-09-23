@@ -570,7 +570,8 @@ private fun NeriSnackbar(snackbarData: SnackbarData) {
                     maxLines = messageMaxLines,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f, fill = true)
+                    // 不要 weight：IntrinsicSize.Max 下 weight 子项量宽为 0，文字会消失
+                    modifier = Modifier.padding(end = 4.dp)
                 )
                 if (actionLabel != null) {
                     TextButton(

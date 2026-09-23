@@ -5,9 +5,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
@@ -131,43 +135,60 @@ internal fun AdvancedGlassSurface(
         }
     }
 
+    var measuredBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+
+    fun updateRegion(bounds: androidx.compose.ui.geometry.Rect?) {
+        val registry = availableBackdrops?.regionRegistry ?: return
+        if (bounds == null || bounds.width <= 0f || bounds.height <= 0f) {
+            registry.remove(regionKey)
+            return
+        }
+        registry.update(
+            regionKey,
+            AdvancedGlassRegion(
+                role = role,
+                boundsInWindow = bounds,
+                cornerRadiiPx = resolveCornerRadiiPx(
+                    shape = shape,
+                    size = bounds.size,
+                    layoutDirection = layoutDirection,
+                    density = density
+                ),
+                navigationOwner = if (requiresContentBackdrop) null else navigationOwner
+            )
+        )
+    }
+
     val regionRegistrationModifier = if (registersBackdrop) {
         Modifier.onGloballyPositioned { coordinates ->
-            val registry = availableBackdrops.regionRegistry
             if (!coordinates.isAttached) {
-                registry.remove(regionKey)
+                availableBackdrops?.regionRegistry?.remove(regionKey)
+                measuredBounds = null
                 return@onGloballyPositioned
             }
-            // Popup 内的 boundsInWindow 是弹窗本地坐标，必须提供已换算的主窗口 bounds
-            val bounds = if (regionBoundsOverride != null) {
-                regionBoundsOverride
-            } else if (role == AdvancedGlassRole.PopupMenu) {
-                registry.remove(regionKey)
-                return@onGloballyPositioned
-            } else {
-                coordinates.boundsInWindow()
-            }
-            if (bounds.width <= 0f || bounds.height <= 0f) {
-                registry.remove(regionKey)
+            // Popup 内 boundsInWindow 是弹窗本地坐标，必须用已换算的 override
+            if (role == AdvancedGlassRole.PopupMenu && regionBoundsOverride == null) {
+                availableBackdrops?.regionRegistry?.remove(regionKey)
                 return@onGloballyPositioned
             }
-            registry.update(
-                regionKey,
-                AdvancedGlassRegion(
-                    role = role,
-                    boundsInWindow = bounds,
-                    cornerRadiiPx = resolveCornerRadiiPx(
-                        shape = shape,
-                        size = bounds.size,
-                        layoutDirection = layoutDirection,
-                        density = density
-                    ),
-                    navigationOwner = if (requiresContentBackdrop) null else navigationOwner
-                )
-            )
+            val bounds = regionBoundsOverride ?: coordinates.boundsInWindow()
+            measuredBounds = bounds
+            updateRegion(bounds)
         }
     } else {
         Modifier
+    }
+
+    // override 就绪后 position 可能不再变化，必须在此补注册
+    LaunchedEffect(regionBoundsOverride, registersBackdrop) {
+        if (!registersBackdrop) {
+            availableBackdrops?.regionRegistry?.remove(regionKey)
+            return@LaunchedEffect
+        }
+        if (regionBoundsOverride != null) {
+            measuredBounds = regionBoundsOverride
+            updateRegion(regionBoundsOverride)
+        }
     }
 
     Box(

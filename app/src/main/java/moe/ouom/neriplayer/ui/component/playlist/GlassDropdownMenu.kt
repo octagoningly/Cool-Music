@@ -1,5 +1,9 @@
 package moe.ouom.neriplayer.ui.component.playlist
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.view.View
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -29,15 +33,20 @@ import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 /**
  * 下拉菜单透明材质（真模糊）。
  *
  * 与 MiniPlayer 同一套 AdvancedGlass：菜单窗体透明，主窗口 content 背景
  * 在菜单区域被模糊后透出；开关/模糊度跟随设置 → 动效 → 高级模糊。
  *
- * 坐标说明：Material [DropdownMenu] 跑在独立 Window 里，
- * `boundsInWindow` 是弹窗本地坐标，不能直接注册进主窗口玻璃区域，
- * 必须先换算到主窗口坐标（屏幕坐标 − 主窗口原点）。
+ * 坐标：Material [DropdownMenu] 在独立 Window，必须换算到主窗口坐标
+ * （屏幕坐标 − **Activity** DecorView 原点；不能用弹窗自己的 rootView）。
  *
  * 用法（锚点同级，放在 [Box] 内）：
  * ```
@@ -88,20 +97,22 @@ fun BoxScope.GlassDropdownMenu(
                         menuBoundsInMainWindow = null
                         return@onGloballyPositioned
                     }
-                    // 弹窗本地 bounds → 屏幕坐标 → 主窗口坐标
                     val local = coordinates.boundsInWindow()
                     val posInPopup = coordinates.positionInWindow()
                     val popupLoc = IntArray(2)
-                    val rootLoc = IntArray(2)
+                    val decorLoc = IntArray(2)
                     popupView.getLocationOnScreen(popupLoc)
-                    popupView.rootView.getLocationOnScreen(rootLoc)
+                    // 必须用 Activity 的 DecorView，弹窗 rootView 是另一个 Window
+                    val decor: View? = popupView.context.findActivity()?.window?.decorView
+                        ?: (popupView.parent as? View)
+                    decor?.getLocationOnScreen(decorLoc)
                     val screenLeft = popupLoc[0] + posInPopup.x
                     val screenTop = popupLoc[1] + posInPopup.y
                     menuBoundsInMainWindow = Rect(
-                        left = screenLeft - rootLoc[0],
-                        top = screenTop - rootLoc[1],
-                        right = screenLeft - rootLoc[0] + local.width,
-                        bottom = screenTop - rootLoc[1] + local.height,
+                        left = screenLeft - decorLoc[0],
+                        top = screenTop - decorLoc[1],
+                        right = screenLeft - decorLoc[0] + local.width,
+                        bottom = screenTop - decorLoc[1] + local.height,
                     )
                 }
         ) {
@@ -111,7 +122,6 @@ fun BoxScope.GlassDropdownMenu(
                 fallbackColor = fallbackColor,
                 tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 enabled = glassActive,
-                // 未换算完成前不注册，避免把弹窗 (0,0) 当成主窗口左上角
                 regionBoundsOverride = menuBoundsInMainWindow,
             ) {
                 Column(

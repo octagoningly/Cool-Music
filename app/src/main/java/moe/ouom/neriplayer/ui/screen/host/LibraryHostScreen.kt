@@ -146,6 +146,7 @@ private enum class LibraryScrollSource {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryHostScreen(
+    mainTabReselectTick: Int = 0,
     onSongClick: (List<SongItem>, Int) -> Unit = { _, _ -> },
     onSongClickWithSourceRoute: (List<SongItem>, Int, String?) -> Unit = { songs, index, _ ->
         onSongClick(songs, index)
@@ -306,6 +307,23 @@ fun LibraryHostScreen(
         LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0)
     }
     val topAppBarState = rememberTopAppBarState()
+    LaunchedEffect(mainTabReselectTick) {
+        if (mainTabReselectTick <= 0) return@LaunchedEffect
+        selected = null
+        pendingListRestoreIndex = 0
+        pendingListRestoreOffset = 0
+        pendingTopAppBarHeightOffset = Float.NaN
+        pendingTopAppBarContentOffset = Float.NaN
+        localListState.scrollToItem(0)
+        favoriteListState.scrollToItem(0)
+        neteaseListState.scrollToItem(0)
+        neteaseAlbumState.scrollToItem(0)
+        youtubeMusicListState.scrollToItem(0)
+        biliListState.scrollToItem(0)
+        qqMusicListState.scrollToItem(0)
+        topAppBarState.heightOffset = 0f
+        topAppBarState.contentOffset = 0f
+    }
     fun listStateFor(source: LibraryScrollSource): LazyListState = when (source) {
         LibraryScrollSource.Local -> localListState
         LibraryScrollSource.Favorite -> favoriteListState

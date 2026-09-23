@@ -309,7 +309,9 @@ fun CachedSongsPlaylistScreen(
                                                 stringResource(R.string.cached_songs_filter_all_artists),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
-                                                style = MaterialTheme.typography.bodyLarge
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.fillMaxWidth()
                                             )
                                         },
                                         onClick = {
@@ -324,7 +326,9 @@ fun CachedSongsPlaylistScreen(
                                                     artist,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
-                                                    style = MaterialTheme.typography.bodyLarge
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    textAlign = TextAlign.Center,
+                                                    modifier = Modifier.fillMaxWidth()
                                                 )
                                             },
                                             onClick = {

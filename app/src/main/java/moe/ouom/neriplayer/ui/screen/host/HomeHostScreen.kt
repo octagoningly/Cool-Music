@@ -139,6 +139,7 @@ fun HomeHostScreen(
     homeUsageLoaded: Boolean = true,
     offlineMode: Boolean = false,
     runtimeState: HomeHostRuntimeState = rememberHomeHostRuntimeState(),
+    mainTabReselectTick: Int = 0,
     onSongClick: (List<SongItem>, Int) -> Unit = { _, _ -> },
     onSongClickWithSourceRoute: (List<SongItem>, Int, String?) -> Unit = { songs, index, _ ->
         onSongClick(songs, index)
@@ -186,6 +187,15 @@ fun HomeHostScreen(
         runtimeState.pendingGridRestoreArmed = false
         runtimeState.pendingRadarPlaylistRestoreIndex = null
         runtimeState.pendingRadarPlaylistRestoreOffset = 0
+    }
+
+    LaunchedEffect(mainTabReselectTick) {
+        if (mainTabReselectTick <= 0) return@LaunchedEffect
+        skipDetailCloseAnimation = true
+        selected = null
+        clearPendingHomeScrollRestore()
+        runtimeState.radarPlaylistListState.scrollToItem(0)
+        gridState.scrollToItem(0)
     }
 
     fun captureHomeScrollPosition() {

@@ -58,6 +58,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -944,7 +945,9 @@ fun ExploreScreen(
                                 ) { sourceMenuExpanded = true }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    modifier = Modifier
+                                        .height(48.dp)
+                                        .padding(horizontal = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
@@ -2187,6 +2190,7 @@ private fun ExploreTagChip(
         contentColor = contentColor,
         border = BorderStroke(1.dp, borderColor),
         shape = if (showLabel) ExplorePillShape else ExploreTypeChipShape,
+        modifier = if (showLabel) Modifier else Modifier.requiredSize(48.dp),
         onClick = onClick
     ) {
         if (!showLabel && icon != null) {
@@ -2239,11 +2243,12 @@ internal fun ExploreGlassPillSurface(
     onClick: () -> Unit,
     border: BorderStroke? = null,
     shape: androidx.compose.ui.graphics.Shape = ExplorePillShape,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .minimumInteractiveComponentSize()
             .clickable(
                 interactionSource = interactionSource,
@@ -2260,6 +2265,7 @@ internal fun ExploreGlassPillSurface(
         ) {
             Surface(
                 modifier = Modifier
+                    .fillMaxSize()
                     .clip(shape)
                     .indication(interactionSource, ripple()),
                 shape = shape,

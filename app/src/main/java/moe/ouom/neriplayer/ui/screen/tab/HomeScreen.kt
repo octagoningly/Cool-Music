@@ -59,6 +59,7 @@ import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -1222,6 +1223,19 @@ private fun SongRowMini(
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
+                    text = { Text(stringResource(R.string.search_result_play_keep_queue)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.PlayCircle,
+                            contentDescription = null
+                        )
+                    },
+                    onClick = {
+                        PlayerManager.playPlaylist(listOf(song), 0)
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
                     text = { Text(stringResource(R.string.local_playlist_play_next)) },
                     leadingIcon = {
                         Icon(
@@ -1235,7 +1249,7 @@ private fun SongRowMini(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.playlist_add_to_end)) },
+                    text = { Text(stringResource(R.string.search_result_add_to_current_queue)) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,

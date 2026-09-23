@@ -154,6 +154,7 @@ internal fun resolveExploreSelectedDetailBackTarget(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreHostScreen(
+    mainTabReselectTick: Int = 0,
     offlineMode: Boolean = false,
     isTabActive: Boolean = true,
     onSongClick: (List<SongItem>, Int) -> Unit = { _, _ -> },
@@ -255,6 +256,16 @@ fun ExploreHostScreen(
     var pendingGridRestoreOffset by rememberSaveable { mutableIntStateOf(0) }
     var pendingTopAppBarHeightOffset by rememberSaveable { mutableFloatStateOf(Float.NaN) }
     var pendingTopAppBarContentOffset by rememberSaveable { mutableFloatStateOf(Float.NaN) }
+    LaunchedEffect(mainTabReselectTick) {
+        if (mainTabReselectTick <= 0) return@LaunchedEffect
+        selected = null
+        pendingGridRestoreIndex = null
+        pendingGridRestoreOffset = 0
+        pendingTopAppBarHeightOffset = Float.NaN
+        pendingTopAppBarContentOffset = Float.NaN
+        searchListState.scrollToItem(0)
+        gridState.scrollToItem(0)
+    }
 
     fun captureExploreScrollPosition() {
         val position = gridState.captureHostScrollPosition()

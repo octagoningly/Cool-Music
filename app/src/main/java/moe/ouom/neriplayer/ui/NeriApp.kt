@@ -2392,6 +2392,7 @@ private fun NeriAppContent(
                     MainTabGlassOwner(selectedMainTabRoute)
             }
             var settingsTabEntryTick by remember { mutableIntStateOf(0) }
+            var mainTabReselectTick by remember { mutableIntStateOf(0) }
             fun navigateToMainTab(route: String) {
                 if (selectedMainTabRoute != route) {
                     // 离开设置 Tab 时后台重置，下次进入直接是一级页
@@ -2405,6 +2406,13 @@ private fun NeriAppContent(
                 } else if (route == Destinations.Settings.route) {
                     // 再次点击设置 Tab，回到一级页
                     settingsTabEntryTick++
+                } else if (
+                    route == Destinations.Home.route ||
+                    route == Destinations.Explore.route ||
+                    route == Destinations.Library.route
+                ) {
+                    // 再次点击主页 Tab，关闭详情并回到顶部
+                    mainTabReselectTick++
                 }
                 mainTabTransitionState.request(route)
                 if (
@@ -2765,6 +2773,7 @@ private fun NeriAppContent(
                         homeUsageLoaded = homeUsageSnapshot.isLoaded,
                         offlineMode = offlineMode,
                         runtimeState = homeHostRuntimeState,
+                        mainTabReselectTick = mainTabReselectTick,
                         onSongClick = ::playSongsAndOpenNowPlaying,
                         onSongClickWithSourceRoute = ::playSongsAndOpenNowPlaying,
                         onPlayBiliAudioWithSourceRoute = ::playBiliAudioAndOpenNowPlayingWithSource,
@@ -2788,6 +2797,7 @@ private fun NeriAppContent(
                     Destinations.Explore.route -> ExploreHostScreen(
                         offlineMode = offlineMode,
                         isTabActive = selectedMainTabRoute == Destinations.Explore.route,
+                        mainTabReselectTick = mainTabReselectTick,
                         onSongClick = ::playSongsAndOpenNowPlaying,
                         onSongClickWithSourceRoute = ::playSongsAndOpenNowPlaying,
                         neteasePlaylistSourceRoute = ::neteasePlaylistSourceRoute,
@@ -2809,6 +2819,7 @@ private fun NeriAppContent(
                     )
 
                     Destinations.Library.route -> LibraryHostScreen(
+                        mainTabReselectTick = mainTabReselectTick,
                         onSongClick = ::playSongsAndOpenNowPlaying,
                         onSongClickWithSourceRoute = ::playSongsAndOpenNowPlaying,
                         onPlayBiliAudioWithSourceRoute = ::playBiliAudioAndOpenNowPlayingWithSource,

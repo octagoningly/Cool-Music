@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
@@ -33,6 +35,10 @@ import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
  * 与 MiniPlayer 同一套 AdvancedGlass：菜单窗体透明，主窗口 content 背景
  * 在菜单区域被模糊后透出；开关/模糊度跟随设置 → 动效 → 高级模糊。
  *
+ * 坐标说明：Material [DropdownMenu] 跑在独立 Window 里，
+ * `boundsInWindow` 是弹窗本地坐标，不能直接注册进主窗口玻璃区域，
+ * 必须先换算到主窗口坐标（屏幕坐标 − 主窗口原点）。
+ *
  * 用法（锚点同级，放在 [Box] 内）：
  * ```
  * Box {
@@ -40,10 +46,6 @@ import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
  *     GlassDropdownMenu(expanded, onDismissRequest = { expanded = false }) { ... }
  * }
  * ```
- *
- * 注意：内容区不要再包 [androidx.compose.foundation.verticalScroll] /
- * [androidx.compose.foundation.layout.IntrinsicSize]，否则会在无限高度约束下崩溃。
- * 菜单滚动由 Material [DropdownMenu] 自身负责。
  */
 @Composable
 fun BoxScope.GlassDropdownMenu(
@@ -55,40 +57,17 @@ fun BoxScope.GlassDropdownMenu(
 ) {
     val controller = LocalAdvancedGlassController.current
     val glassActive = controller.isBaseBlurEnabled
-    var anchorBounds by remember { mutableStateOf<Rect?>(null) }
+    val popupView = LocalView.current
     var menuSize by remember { mutableStateOf(IntSize.Zero) }
-
-    // 测量锚点父 Box 在主窗口中的位置（弹窗是独立 Window，需映射回主窗口）
-    Box(
-        Modifier
-            .fillMaxWidth(0f)
-            .heightIn(max = 0.dp)
-            .onGloballyPositioned { coordinates ->
-                if (coordinates.isAttached) {
-                    anchorBounds = coordinates.boundsInWindow()
-                }
-            }
-    )
-
-    if (!expanded) return
-
-    val anchor = anchorBounds
-    val regionOverride = if (anchor != null && menuSize.width > 0 && menuSize.height > 0) {
-        Rect(
-            left = anchor.left,
-            top = anchor.bottom + 4f,
-            right = anchor.left + menuSize.width.toFloat(),
-            bottom = anchor.bottom + 4f + menuSize.height.toFloat(),
-        )
-    } else {
-        null
-    }
+    var menuBoundsInMainWindow by remember { mutableStateOf<Rect?>(null) }
 
     val fallbackColor = if (glassActive) {
         MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
+
+    if (!expanded) return
 
     DropdownMenu(
         expanded = expanded,
@@ -105,6 +84,25 @@ fun BoxScope.GlassDropdownMenu(
                 .heightIn(max = 360.dp)
                 .onGloballyPositioned { coordinates ->
                     menuSize = coordinates.size
+                    if (!coordinates.isAttached) {
+                        menuBoundsInMainWindow = null
+                        return@onGloballyPositioned
+                    }
+                    // 弹窗本地 bounds → 屏幕坐标 → 主窗口坐标
+                    val local = coordinates.boundsInWindow()
+                    val posInPopup = coordinates.positionInWindow()
+                    val popupLoc = IntArray(2)
+                    val rootLoc = IntArray(2)
+                    popupView.getLocationOnScreen(popupLoc)
+                    popupView.rootView.getLocationOnScreen(rootLoc)
+                    val screenLeft = popupLoc[0] + posInPopup.x
+                    val screenTop = popupLoc[1] + posInPopup.y
+                    menuBoundsInMainWindow = Rect(
+                        left = screenLeft - rootLoc[0],
+                        top = screenTop - rootLoc[1],
+                        right = screenLeft - rootLoc[0] + local.width,
+                        bottom = screenTop - rootLoc[1] + local.height,
+                    )
                 }
         ) {
             AdvancedGlassSurface(
@@ -113,7 +111,8 @@ fun BoxScope.GlassDropdownMenu(
                 fallbackColor = fallbackColor,
                 tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 enabled = glassActive,
-                regionBoundsOverride = regionOverride,
+                // 未换算完成前不注册，避免把弹窗 (0,0) 当成主窗口左上角
+                regionBoundsOverride = menuBoundsInMainWindow,
             ) {
                 Column(
                     Modifier

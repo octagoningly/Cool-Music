@@ -138,8 +138,15 @@ internal fun AdvancedGlassSurface(
                 registry.remove(regionKey)
                 return@onGloballyPositioned
             }
-            val measured = coordinates.boundsInWindow()
-            val bounds = regionBoundsOverride ?: measured
+            // Popup 内的 boundsInWindow 是弹窗本地坐标，必须提供已换算的主窗口 bounds
+            val bounds = if (regionBoundsOverride != null) {
+                regionBoundsOverride
+            } else if (role == AdvancedGlassRole.PopupMenu) {
+                registry.remove(regionKey)
+                return@onGloballyPositioned
+            } else {
+                coordinates.boundsInWindow()
+            }
             if (bounds.width <= 0f || bounds.height <= 0f) {
                 registry.remove(regionKey)
                 return@onGloballyPositioned

@@ -4,13 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -43,6 +40,10 @@ import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
  *     GlassDropdownMenu(expanded, onDismissRequest = { expanded = false }) { ... }
  * }
  * ```
+ *
+ * 注意：内容区不要再包 [androidx.compose.foundation.verticalScroll] /
+ * [androidx.compose.foundation.layout.IntrinsicSize]，否则会在无限高度约束下崩溃。
+ * 菜单滚动由 Material [DropdownMenu] 自身负责。
  */
 @Composable
 fun BoxScope.GlassDropdownMenu(
@@ -60,9 +61,12 @@ fun BoxScope.GlassDropdownMenu(
     // 测量锚点父 Box 在主窗口中的位置（弹窗是独立 Window，需映射回主窗口）
     Box(
         Modifier
-            .matchParentSize()
+            .fillMaxWidth(0f)
+            .heightIn(max = 0.dp)
             .onGloballyPositioned { coordinates ->
-                anchorBounds = coordinates.boundsInWindow()
+                if (coordinates.isAttached) {
+                    anchorBounds = coordinates.boundsInWindow()
+                }
             }
     )
 
@@ -97,8 +101,8 @@ fun BoxScope.GlassDropdownMenu(
     ) {
         Box(
             Modifier
-                .width(IntrinsicSize.Max)
-                .verticalScroll(rememberScrollState())
+                .fillMaxWidth()
+                .heightIn(max = 360.dp)
                 .onGloballyPositioned { coordinates ->
                     menuSize = coordinates.size
                 }

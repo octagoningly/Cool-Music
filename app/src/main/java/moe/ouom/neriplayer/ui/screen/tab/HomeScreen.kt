@@ -1294,7 +1294,12 @@ private fun SongRowMini(
                             } else {
                                 Icons.Outlined.FavoriteBorder
                             },
-                            contentDescription = null
+                            contentDescription = null,
+                        tint = if (isFavorite) {
+                            Color(0xFFE53935)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
                         )
                     },
                     onClick = {
@@ -1474,7 +1479,12 @@ private fun RadarPlaylistCard(
                         } else {
                             Icons.Outlined.FavoriteBorder
                         },
-                        contentDescription = null
+                        contentDescription = null,
+                    tint = if (isFavorite) {
+                        Color(0xFFE53935)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
                     )
                 },
                 onClick = {
@@ -1582,7 +1592,12 @@ fun PlaylistCard(
                         } else {
                             Icons.Outlined.FavoriteBorder
                         },
-                        contentDescription = null
+                        contentDescription = null,
+                    tint = if (isFavorite) {
+                        Color(0xFFE53935)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
                     )
                 },
                 onClick = {
@@ -1689,7 +1704,12 @@ private fun YtMusicPlaylistCard(
                         } else {
                             Icons.Outlined.FavoriteBorder
                         },
-                        contentDescription = null
+                        contentDescription = null,
+                    tint = if (isFavorite) {
+                        Color(0xFFE53935)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
                     )
                 },
                 onClick = {
@@ -1806,7 +1826,12 @@ private fun YtMusicHomeItemCard(
                             } else {
                                 Icons.Outlined.FavoriteBorder
                             },
-                            contentDescription = null
+                            contentDescription = null,
+                        tint = if (isFavorite) {
+                            Color(0xFFE53935)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
                         )
                     },
                     onClick = {

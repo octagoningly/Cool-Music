@@ -2955,7 +2955,7 @@ fun NowPlayingScreen(
                                     contentDescription = if (isFavorite) stringResource(R.string.nowplaying_favorited) else stringResource(R.string.nowplaying_favorite),
                                     modifier = Modifier.size(nowPlayingTopActionIconSize),
                                     tint = if (isFavorite) {
-                                        Color.Red.copy(alpha = 0.6f)
+                                        Color(0xFFE53935)
                                     } else {
                                         MaterialTheme.colorScheme.onSurface
                                     }

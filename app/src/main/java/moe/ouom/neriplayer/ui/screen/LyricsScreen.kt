@@ -568,7 +568,7 @@ fun LyricsScreen(
                     contentDescription = if (isFavorite) stringResource(R.string.lyrics_favorited) else stringResource(R.string.lyrics_favorite),
                     modifier = Modifier.size(lyricsTopActionIconSize),
                     tint = if (isFavorite) {
-                        Color.Red.copy(alpha = 0.6f)
+                        Color(0xFFE53935)
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     }

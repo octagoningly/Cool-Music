@@ -1260,7 +1260,12 @@ private fun YouTubeMusicSongRow(
                             } else {
                                 Icons.Outlined.FavoriteBorder
                             },
-                            contentDescription = null
+                            contentDescription = null,
+                        tint = if (isFavorite) {
+                            Color(0xFFE53935)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
                         )
                     },
                     onClick = {

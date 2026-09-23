@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.SnackbarDuration
@@ -56,7 +57,7 @@ import moe.ouom.neriplayer.R
 import java.util.WeakHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
-private const val StyledToastBackgroundColor = 0xFF323232.toInt()
+private const val StyledToastBackgroundColor = 0xE62B2B2E.toInt()
 private const val StyledToastTextColor = Color.WHITE
 private const val SnackbarLayerZIndex = 50f
 private const val FeedbackDedupWindowMs = 1_800L
@@ -326,7 +327,7 @@ object AppFeedback {
         fun dp(value: Int): Int = (value * density + 0.5f).toInt()
         val background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(8).toFloat()
+            cornerRadius = dp(20).toFloat()
             setColor(StyledToastBackgroundColor)
         }
         val horizontalPadding = dp(StyledToastHorizontalPaddingDp)
@@ -529,6 +530,11 @@ private fun NeriSnackbar(snackbarData: SnackbarData) {
         modifier = Modifier
             .padding(12.dp)
             .testTag(NeriSnackbarTestTag),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        actionContentColor = MaterialTheme.colorScheme.primary,
+        dismissActionContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         action = if (actionLabel != null) {
             {
                 TextButton(

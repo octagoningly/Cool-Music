@@ -39,6 +39,7 @@ import androidx.compose.ui.window.PopupProperties
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
+import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassDepth
 import moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated
 
 /** 对话框 / 面板统一圆角（开发规则：对话框 28.dp） */
@@ -127,7 +128,12 @@ internal fun GlassPanel(
         onDismissRequest = onDismissRequest,
         properties = PopupProperties(focusable = true),
     ) {
-        CompositionLocalProvider(LocalGlassOverlayElevated provides true) {
+        // 弹窗可能从 SettingsGroup/Section 等玻璃面内弹出，depth>0 会禁止采样。
+        // Popup 是独立前景层，必须按 depth=0 注册，才能真正模糊背后内容。
+        CompositionLocalProvider(
+            LocalGlassOverlayElevated provides true,
+            LocalAdvancedGlassDepth provides 0,
+        ) {
             Box(
                 Modifier
                     .width(IntrinsicSize.Max)
@@ -218,6 +224,7 @@ internal fun GlassAlertDialog(
 
 /**
  * 真模糊底部面板：顶部圆角 28.dp + 高级透明模糊。
+ * role 用 [AdvancedGlassRole.DialogPanel]，只依赖基础高级模糊开关即可采样。
  */
 @Composable
 internal fun GlassModalBottomSheet(
@@ -230,7 +237,7 @@ internal fun GlassModalBottomSheet(
         onDismissRequest = onDismissRequest,
         modifier = modifier.fillMaxWidth(),
         shape = shape,
-        role = AdvancedGlassRole.PlaylistSheet,
+        role = AdvancedGlassRole.DialogPanel,
         position = GlassPanelPosition.Bottom,
         maxWidth = 720.dp,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(

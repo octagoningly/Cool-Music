@@ -40,6 +40,7 @@ import kotlin.math.roundToInt
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
+import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassDepth
 import moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 
@@ -175,9 +176,12 @@ fun GlassDropdownMenu(
 
     if (!expanded) return
 
-    // 两层玻璃重叠时（菜单盖住 MiniPlayer/底栏），抬升标记让下层玻璃减淡，
-    // 避免上层模糊采样不到独立 Window 外的下层玻璃像素而“透出下层”。
-    CompositionLocalProvider(LocalGlassOverlayElevated provides true) {
+    // 两层玻璃重叠时（菜单盖住 MiniPlayer/底栏），抬升标记让下层玻璃减淡；
+    // depth 归零，避免从设置卡片等玻璃面内弹出时被禁止采样。
+    CompositionLocalProvider(
+        LocalGlassOverlayElevated provides true,
+        LocalAdvancedGlassDepth provides 0,
+    ) {
         Popup(
             popupPositionProvider = positionProvider,
             onDismissRequest = onDismissRequest,

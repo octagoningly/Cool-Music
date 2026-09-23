@@ -50,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -269,7 +270,8 @@ internal fun SettingsCookieLoginSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         sheetGesturesEnabled = false,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        // 真模糊由 GlassModalBottomSheet 提供；此处不再铺不透明底
+        containerColor = Color.Transparent,
         tonalElevation = 0.dp
     ) {
         Box(
@@ -312,7 +314,7 @@ internal fun SettingsCookieLoginSheet(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp
                 ) {

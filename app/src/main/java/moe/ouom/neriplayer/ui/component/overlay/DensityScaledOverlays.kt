@@ -111,64 +111,23 @@ internal fun DensityScaledModalBottomSheet(
     properties: ModalBottomSheetProperties = ModalBottomSheetProperties(),
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    val dragHandleInteractionSource = remember { MutableInteractionSource() }
-    val glassActive = moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
-        .current.isBaseBlurEnabled
-    val resolvedShape = shape
-    val resolvedContainer = if (glassActive) {
-        // 模糊开：半透明底，贴近 MiniPlayer 质感；关时用可读实底
-        BottomSheetDefaults.ContainerColor.copy(alpha = 0.78f)
-    } else {
-        containerColor
-    }
-
-    // 保持 Sheet 贴边，密度缩放由 LocalDensity 传递给内部内容
-    ModalBottomSheet(
+    // 统一走 GlassModalBottomSheet：主窗口内真模糊（Material ModalBottomSheet 是独立
+    // Window，只能半透明、采不到背后内容）。拖拽把手保留为视觉件，点外关闭。
+    GlassModalBottomSheet(
         onDismissRequest = onDismissRequest,
         modifier = modifier,
-        sheetState = sheetState,
-        sheetMaxWidth = sheetMaxWidth,
-        sheetGesturesEnabled = sheetGesturesEnabled,
-        shape = resolvedShape,
-        containerColor = resolvedContainer,
-        contentColor = contentColorFor(resolvedContainer),
-        tonalElevation = tonalElevation,
-        scrimColor = scrimColor,
-        // 绕过 Material 默认的 TooltipBox，避免按住把手时出现矩形遮罩
-        dragHandle = null,
-        contentWindowInsets = contentWindowInsets,
-        properties = properties,
-        content = {
-            if (dragHandle != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = dragHandleInteractionSource,
-                            indication = null
-                        ) {
-                            scope.launch {
-                                when (sheetState.currentValue) {
-                                    SheetValue.Expanded -> {
-                                        sheetState.hide()
-                                        if (!sheetState.isVisible) {
-                                            onDismissRequest()
-                                        }
-                                    }
-                                    SheetValue.PartiallyExpanded -> sheetState.expand()
-                                    SheetValue.Hidden -> sheetState.show()
-                                }
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    dragHandle()
-                }
+        shape = shape,
+    ) {
+        if (dragHandle != null) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                dragHandle()
             }
-            content()
         }
-    )
+        content()
+    }
 }
 
 private fun Modifier.scaleOverlaySurfaceWidth(surfaceScale: Float): Modifier {

@@ -90,7 +90,8 @@ internal fun MiuixSettingsDialog(
         title = title,
         text = text,
         shape = MiuixDialogShape,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        // 半透明/模糊由 GlassAlertDialog 接管，这里不要再铺不透明底
+        containerColor = Color.Transparent,
         titleContentColor = MaterialTheme.colorScheme.onSurface,
         textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         tonalElevation = 0.dp,

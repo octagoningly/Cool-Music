@@ -254,6 +254,38 @@ class LxMusicCrossPlatformSourceTest {
     }
 
     @Test
+    fun `parses qq search_for response with legacy album fields`() {
+        val body = """
+            {"code":0,"data":{"song":{"list":[
+              {"songmid":"0039MnYb0qxYhV","songname":"晴天","interval":269,
+               "singer":[{"id":4558,"name":"周杰伦"}],
+               "albumid":8220,"albummid":"000MkMni19ClKG","albumname":"叶惠美"}
+            ]}}}
+        """.trimIndent()
+
+        val hit = parseLxQqSearchBody(body).single()
+
+        assertEquals("0039MnYb0qxYhV", hit.songMid)
+        assertEquals("晴天", hit.name)
+        assertEquals("叶惠美", hit.albumName)
+        assertEquals("8220", hit.albumId)
+        assertEquals(
+            "https://y.qq.com/music/photo_new/T002R300x300M000000MkMni19ClKG.jpg",
+            hit.coverUrl
+        )
+    }
+
+    @Test
+    fun `qq search uses the working search_for endpoint`() {
+        val url = buildLxQqSearchUrl("周杰伦", limit = 20, page = 1)
+
+        assertTrue(url.startsWith("https://c.y.qq.com/soso/fcgi-bin/search_for_qq_cp?"))
+        assertTrue(url.contains("w=%E5%91%A8%E6%9D%B0%E4%BC%A6"))
+        assertTrue(url.contains("n=20"))
+        assertTrue(url.contains("p=1"))
+    }
+
+    @Test
     fun `parsing ignores empty platform responses`() {
         assertTrue(parseLxKugouSearchBody("").isEmpty())
         assertTrue(parseLxKugouSearchBody("{\"data\":{\"lists\":[]}}").isEmpty())

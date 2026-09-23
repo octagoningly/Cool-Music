@@ -467,21 +467,24 @@ internal suspend fun fetchLxQqHits(
     limit: Int = LX_CROSS_PLATFORM_SEARCH_LIMIT,
     page: Int = 1
 ): List<LxCrossPlatformHit> {
-    val url = buildString {
-        append("https://c.y.qq.com/soso/fcgi-bin/client_search_cp?w=")
-        append(java.net.URLEncoder.encode(keyword, "UTF-8"))
-        append("&format=json&n=")
-        append(limit)
-        append("&p=${page.coerceAtLeast(1)}&cr=1&t=0&new_json=1")
-    }
     val body = fetchText(
         client = client,
-        url = url,
+        url = buildLxQqSearchUrl(keyword, limit, page),
         referer = "https://y.qq.com/",
         label = "QQMusic",
         keyword = keyword
     ) ?: return emptyList()
     return parseLxQqSearchBody(body)
+}
+
+internal fun buildLxQqSearchUrl(keyword: String, limit: Int, page: Int): String {
+    return buildString {
+        append("https://c.y.qq.com/soso/fcgi-bin/search_for_qq_cp?w=")
+        append(java.net.URLEncoder.encode(keyword, "UTF-8"))
+        append("&format=json&n=")
+        append(limit)
+        append("&p=${page.coerceAtLeast(1)}&cr=1&t=0&new_json=1&g_tk=5381&uin=0")
+    }
 }
 
 private suspend fun fetchText(
@@ -612,8 +615,11 @@ internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
                     .ifBlank { decodeLxHtmlEntities(item.optString("songname")).trim() }
                 if (title.isBlank()) continue
                 val albumObj = item.optJSONObject("album")
-                val albumMid = sequenceOf("mid", "pmid")
-                    .map { key -> albumObj?.optString(key).orEmpty() }
+                val albumMid = sequenceOf(
+                    albumObj?.optString("mid").orEmpty(),
+                    albumObj?.optString("pmid").orEmpty(),
+                    item.optString("albummid")
+                )
                     .firstOrNull { it.isNotBlank() }
                     .orEmpty()
                 val albumCover = sequenceOf("pic", "picUrl", "cover")
@@ -632,10 +638,13 @@ internal fun parseLxQqSearchBody(body: String): List<LxCrossPlatformHit> {
                         durationSec = item.optInt("interval", 0),
                         albumName = decodeLxHtmlEntities(
                             albumObj?.optString("title")?.ifBlank { albumObj.optString("name") }
-                                ?: albumObj?.optString("name").orEmpty()
+                                ?: albumObj?.optString("name").orEmpty().ifBlank {
+                                    item.optString("albumname")
+                                }
                         ).trim(),
-                        albumId = (albumObj?.optLong("id", 0L) ?: 0L)
+                        albumId = ((albumObj?.optLong("id", 0L) ?: 0L)
                             .takeIf { it > 0L }
+                            ?: item.optLong("albumid", 0L).takeIf { it > 0L })
                             ?.toString()
                             .orEmpty()
                             .ifBlank { albumMid },

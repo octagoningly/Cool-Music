@@ -204,6 +204,7 @@ import moe.ouom.neriplayer.ui.component.playlist.PlaylistExportSheet
 import moe.ouom.neriplayer.ui.component.playlist.showPlaylistBatchExportAddedResult
 import moe.ouom.neriplayer.ui.component.playlist.showPlaylistBatchExportCreatedResult
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
+import moe.ouom.neriplayer.ui.feedback.AppFeedback
 import moe.ouom.neriplayer.ui.feedback.NeriSnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
 import moe.ouom.neriplayer.data.model.SongItem
@@ -1106,15 +1107,14 @@ fun ExploreScreen(
                                                             operation = "toggleFavoriteFromExplore",
                                                             onResult = { result ->
                                                                 result.onSuccess { added ->
-                                                                    scope.launch {
-                                                                        snackbarHostState.showNeriSnackbar(
-                                                                            if (added) {
-                                                                                favoriteAddedText
-                                                                            } else {
-                                                                                favoriteRemovedText
-                                                                            }
-                                                                        )
-                                                                    }
+                                                                    AppFeedback.show(
+                                                                        context,
+                                                                        if (added) {
+                                                                            favoriteAddedText
+                                                                        } else {
+                                                                            favoriteRemovedText
+                                                                        }
+                                                                    )
                                                                 }
                                                             }
                                                         ) {

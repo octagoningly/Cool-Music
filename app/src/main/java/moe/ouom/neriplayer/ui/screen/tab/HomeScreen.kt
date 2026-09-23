@@ -157,6 +157,7 @@ import moe.ouom.neriplayer.ui.viewmodel.tab.favoriteId
 import moe.ouom.neriplayer.ui.util.rememberPlaylistDisplayCoverUrl
 import moe.ouom.neriplayer.ui.util.rememberSongDisplayCoverUrl
 import moe.ouom.neriplayer.ui.util.currentWindowWidthDp
+import moe.ouom.neriplayer.ui.feedback.AppFeedback
 import moe.ouom.neriplayer.ui.feedback.NeriOverlaySnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicHomeShelf
@@ -374,10 +375,10 @@ fun HomeScreen(
         scope.launch {
             if (isFavorite) {
                 localPlaylistRepo.removeFromFavorites(song)
-                snackbarHostState.showNeriSnackbar(favoriteRemovedText)
+                AppFeedback.show(context, favoriteRemovedText)
             } else {
                 localPlaylistRepo.addToFavorites(song)
-                snackbarHostState.showNeriSnackbar(favoriteAddedText)
+                AppFeedback.show(context, favoriteAddedText)
             }
         }
     }

@@ -34,6 +34,7 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
+import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassBackdropRegistrationEnabled
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassDepth
 import moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated
@@ -131,6 +132,7 @@ internal fun GlassPanel(
         CompositionLocalProvider(
             LocalGlassOverlayElevated provides true,
             LocalAdvancedGlassDepth provides 0,
+            LocalAdvancedGlassBackdropRegistrationEnabled provides true,
         ) {
             // 内容自适应宽度/高度，禁止 fillMaxWidth 撑满（二级弹窗过大根因）
             Box(

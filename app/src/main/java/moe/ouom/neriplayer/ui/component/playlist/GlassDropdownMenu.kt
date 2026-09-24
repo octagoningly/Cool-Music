@@ -42,6 +42,7 @@ import androidx.compose.ui.window.PopupProperties
 import kotlin.math.roundToInt
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
+import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassBackdropRegistrationEnabled
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassDepth
 import moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated
@@ -182,10 +183,11 @@ fun GlassDropdownMenu(
     if (!expanded) return
 
     // 两层玻璃重叠时（菜单盖住 MiniPlayer/底栏），抬升标记让下层玻璃减淡；
-    // depth 归零，避免从设置卡片等玻璃面内弹出时被禁止采样。
+    // depth 归零 + 强制允许注册，避免被外层「播放页禁用主 Tab 注册」误伤。
     CompositionLocalProvider(
         LocalGlassOverlayElevated provides true,
         LocalAdvancedGlassDepth provides 0,
+        LocalAdvancedGlassBackdropRegistrationEnabled provides true,
     ) {
         Popup(
             popupPositionProvider = positionProvider,

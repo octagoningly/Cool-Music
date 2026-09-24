@@ -4324,6 +4324,10 @@ private fun NeriAppContent(
                         targetOffsetY = { fullHeight -> fullHeight }
                     ) + fadeOut(animationSpec = tween(durationMillis = 150))
                 ) {
+                    // 播放页及其弹窗必须允许注册模糊区域（主 Tab 侧已关掉，避免误糊页面）
+                    CompositionLocalProvider(
+                        LocalAdvancedGlassBackdropRegistrationEnabled provides true,
+                    ) {
                     DisposableEffect(Unit) {
                         latestOnNowPlayingVisibilityChanged(true)
                         onDispose {
@@ -4618,6 +4622,7 @@ private fun NeriAppContent(
                                 )
                             }
                         }
+                    }
                     }
                 }
 

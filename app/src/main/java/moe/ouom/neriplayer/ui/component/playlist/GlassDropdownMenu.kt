@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalTextStyle
@@ -216,7 +218,13 @@ fun GlassDropdownMenu(
                             textAlign = TextAlign.Center
                         )
                     ) {
-                        Column(Modifier.padding(vertical = 4.dp), content = content)
+                        Column(
+                            modifier = Modifier
+                                .padding(vertical = 4.dp)
+                                .heightIn(max = maxHeight)
+                                .verticalScroll(rememberScrollState()),
+                            content = content
+                        )
                     }
                 }
             }

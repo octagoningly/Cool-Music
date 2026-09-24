@@ -3924,7 +3924,8 @@ private fun NeteaseArtistPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        // 真模糊由 GlassModalBottomSheet 提供；不要再铺不透明 surface
+        containerColor = Color.Transparent
     ) {
         Column(
             modifier = Modifier
@@ -3959,7 +3960,8 @@ private fun YouTubeMusicCreatorPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        // 真模糊由 GlassModalBottomSheet 提供；不要再铺不透明 surface
+        containerColor = Color.Transparent
     ) {
         Column(
             modifier = Modifier
@@ -4324,28 +4326,21 @@ fun NowPlayingQualityOptionsDialog(
         title = {
             Text(
                 text = title,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center
             )
         },
         text = {
-            Column(modifier = Modifier.heightIn(max = 280.dp)) {
+            Column {
                 options.forEach { option ->
+                    val selected = option.key == selectedKey
                     GlassSheetMenuItem(
-                        text = option.label,
-                        enabled = true,
-                        supportingContent = if (option.key == selectedKey) {
-                            {
-                                Text(
-                                    text = stringResource(R.string.common_selected),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
+                        text = if (selected) {
+                            "${option.label} · ${stringResource(R.string.common_selected)}"
                         } else {
-                            null
+                            option.label
                         },
+                        enabled = true,
                         onClick = { onSelect(option) }
                     )
                 }

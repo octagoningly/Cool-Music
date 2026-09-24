@@ -88,7 +88,8 @@ private class GlassPanelPositionProvider(
 @Composable
 private fun glassDialogFallbackColor(glassActive: Boolean) =
     if (glassActive) {
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.62f)
+        // 与 GlassDropdownMenu 同档半透明底，避免二级弹窗发黑
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
@@ -185,9 +186,11 @@ internal fun GlassAlertDialog(
         shape = shape,
         role = AdvancedGlassRole.DialogPanel,
         position = GlassPanelPosition.Centered,
-        maxWidth = 360.dp,
+        // 手机上 360 已接近全宽；对话框固定紧凑宽，内容 wrap
+        maxWidth = 272.dp,
+        maxHeight = 360.dp,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (icon != null) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CompositionLocalProvider(LocalContentColor provides iconContentColor) {
@@ -196,14 +199,14 @@ internal fun GlassAlertDialog(
                 }
             }
             if (title != null) {
-                Box(Modifier.fillMaxWidth()) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CompositionLocalProvider(LocalContentColor provides titleContentColor) {
                         title()
                     }
                 }
             }
             if (text != null) {
-                Box(Modifier.fillMaxWidth()) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CompositionLocalProvider(LocalContentColor provides textContentColor) {
                         text()
                     }
@@ -238,11 +241,11 @@ internal fun GlassModalBottomSheet(
         shape = shape,
         role = AdvancedGlassRole.DialogPanel,
         position = GlassPanelPosition.Bottom,
-        maxWidth = 340.dp,
-        maxHeight = 480.dp,
+        maxWidth = 300.dp,
+        maxHeight = 420.dp,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 20.dp,
-            end = 20.dp,
+            start = 16.dp,
+            end = 16.dp,
             top = 12.dp,
             bottom = 20.dp
         ),

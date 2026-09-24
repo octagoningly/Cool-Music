@@ -345,7 +345,10 @@ private fun MetadataSearchResultItem(
                 contentScale = ContentScale.Crop
             )
         },
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick)
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
+        colors = androidx.compose.material3.ListItemDefaults.colors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent
+        )
     )
 }
 

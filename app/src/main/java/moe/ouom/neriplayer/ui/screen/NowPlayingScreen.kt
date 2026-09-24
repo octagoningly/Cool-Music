@@ -4079,9 +4079,10 @@ fun BoxScope.MoreOptionsSheet(
                 onShowQualitySwitch()
             },
             onEnterAlbum = { album ->
+                // 先关面板与播放页，再进专辑，避免半透明叠层
                 onDismiss()
-                onEnterAlbum(album)
                 onNavigateUp()
+                onEnterAlbum(album)
             },
             onDismissSheet = { afterHidden ->
                 onDismiss()
@@ -4198,7 +4199,11 @@ fun BoxScope.MoreOptionsSheet(
                     displayedTranslatedLyrics = displayedTranslatedLyrics,
                     onDismiss = { secondaryPage = null },
                     snackbarHostState = snackbarHostState,
-                    offlineMode = offlineMode
+                    offlineMode = offlineMode,
+                    onOpenFullSearch = {
+                        // 先关编辑二级，再开居中搜索弹窗，避免叠层
+                        secondaryPage = MoreOptionsPage.SEARCH
+                    }
                 )
             }
         }
@@ -4544,6 +4549,7 @@ fun LyricBehaviorSheet(
                     }
                 )
             },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
@@ -4576,6 +4582,7 @@ fun LyricBehaviorSheet(
                     enabled = phoneticSwitchEnabled
                 )
             },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
@@ -4739,7 +4746,8 @@ fun EditSongInfoSheet(
     displayedTranslatedLyrics: List<LyricEntry>,
     onDismiss: () -> Unit,
     snackbarHostState: SnackbarHostState,
-    offlineMode: Boolean = false
+    offlineMode: Boolean = false,
+    onOpenFullSearch: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val composeResources = LocalResources.current
@@ -5291,8 +5299,9 @@ fun EditSongInfoSheet(
                 onClick = {
                     viewModel.prepareForSearch(songName)
                     viewModel.performSearch()
-                    showSearchResults = true
-                    focusManager.clearFocus()
+                    clearEditSongInfoFocus()
+                    onOpenFullSearch()
+                    onDismiss()
                 },
                 modifier = Modifier.weight(1f)
             ) {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -103,7 +104,7 @@ fun PlaybackSoundSheet(
             .verticalScroll(scrollState)
             .padding(horizontal = 24.dp, vertical = 16.dp)
             .windowInsetsPadding(WindowInsets.navigationBars),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
             text = androidx.compose.ui.res.stringResource(R.string.nowplaying_audio_effects_title),
@@ -357,20 +358,34 @@ fun PlaybackSoundSheet(
             }
         }
 
-        HapticOutlinedButton(
-            onClick = onReset,
-            modifier = Modifier.align(Alignment.End)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(stringResource(R.string.nowplaying_audio_effects_reset))
-        }
+            HapticOutlinedButton(
+                onClick = onReset,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.nowplaying_audio_effects_reset),
+                    maxLines = 1
+                )
+            }
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        HapticTextButton(
-            onClick = onDismiss,
-            modifier = Modifier.align(Alignment.End)
-        ) {
-            Text(stringResource(R.string.action_done))
+            HapticTextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.action_done),
+                    maxLines = 1
+                )
+            }
         }
     }
 }

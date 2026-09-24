@@ -46,16 +46,39 @@ object SearchManager {
         keyword: String,
         platform: MusicPlatform,
     ): List<SongSearchInfo> = withContext(Dispatchers.IO) {
-        val api = searchApi(platform)
-
         NPLogger.d("SearchManager", "try to search $keyword")
         try {
+            if (platform == MusicPlatform.QQ_MUSIC) {
+                // 与探索「在线」同一套落雪 QQ 源，避免独立 QQ API 登录/风控
+                return@withContext searchQqViaLxOnline(keyword)
+            }
+            val api = searchApi(platform)
             api.search(keyword, page = 1).take(10)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             NPLogger.e("SearchManager", "Failed to find match", e)
             throw e
+        }
+    }
+
+    private suspend fun searchQqViaLxOnline(keyword: String): List<SongSearchInfo> {
+        val hits = moe.ouom.neriplayer.core.player.resolver.lxmusic.fetchLxQqHits(
+            client = AppContainer.sharedOkHttpClient,
+            keyword = keyword,
+            limit = 10,
+            page = 1
+        )
+        return hits.map { hit ->
+            SongSearchInfo(
+                id = hit.songMid,
+                songName = hit.name,
+                singer = hit.artist,
+                duration = formatDurationSec(hit.durationSec),
+                source = MusicPlatform.QQ_MUSIC,
+                albumName = hit.albumName,
+                coverUrl = hit.coverUrl
+            )
         }
     }
 
@@ -171,6 +194,13 @@ object SearchManager {
             MusicPlatform.CLOUD_MUSIC -> AppContainer.cloudMusicSearchApi
             MusicPlatform.QQ_MUSIC -> AppContainer.qqMusicSearchApi
         }
+    }
+
+    private fun formatDurationSec(durationSec: Int): String {
+        if (durationSec <= 0) return ""
+        val minutes = durationSec / 60
+        val seconds = durationSec % 60
+        return "%d:%02d".format(minutes, seconds)
     }
 
     private fun scoreCandidate(

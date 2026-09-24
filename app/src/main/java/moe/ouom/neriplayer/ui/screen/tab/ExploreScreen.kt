@@ -134,10 +134,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.ui.Modifier
@@ -539,11 +541,57 @@ fun ExploreScreen(
             }
         }
     }
+    // 下滑浏览时收起搜索框；上滑意图时先弹出搜索框
+    var showExploreSearchField by remember { mutableStateOf(true) }
+    var lastExploreScrollTotal by remember { mutableIntStateOf(0) }
+    LaunchedEffect(searchQuery, ui.selectedSearchSource) {
+        snapshotFlow {
+            when (activeListState) {
+                gridState ->
+                    gridState.firstVisibleItemIndex * 100_000 +
+                        gridState.firstVisibleItemScrollOffset
+                youtubeGridState ->
+                    youtubeGridState.firstVisibleItemIndex * 100_000 +
+                        youtubeGridState.firstVisibleItemScrollOffset
+                else ->
+                    searchListState.firstVisibleItemIndex * 100_000 +
+                        searchListState.firstVisibleItemScrollOffset
+            }
+        }.collect { total ->
+            val atTop = total <= 48
+            val delta = total - lastExploreScrollTotal
+            if (atTop) {
+                showExploreSearchField = true
+            } else if (delta > 12) {
+                showExploreSearchField = false
+            } else if (delta < -12) {
+                showExploreSearchField = true
+            }
+            lastExploreScrollTotal = total
+        }
+    }
+    suspend fun scrollExploreContentToTop() {
+        when (activeListState) {
+            gridState -> gridState.animateScrollToItem(0)
+            youtubeGridState -> youtubeGridState.animateScrollToItem(0)
+            else -> searchListState.animateScrollToItem(0)
+        }
+        showExploreSearchField = true
+    }
     // 筛选行收起时列表 contentPadding 收窄：上滑给更多视野，下拉再弹出
     val exploreListContentTop by animateDpAsState(
-        targetValue = if (showTypeFilterLayer) 12.dp else 116.dp,
+        targetValue = when {
+            showTypeFilterLayer -> 12.dp
+            showExploreSearchField -> 116.dp
+            else -> 56.dp
+        },
         animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
         label = "exploreListContentTop"
+    )
+    val exploreFilterRowTop by animateDpAsState(
+        targetValue = if (showExploreSearchField) 116.dp else 56.dp,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "exploreFilterRowTop"
     )
     var previousSearchSource by remember { mutableStateOf(ui.selectedSearchSource) }
     val isExploreContentScrolled by remember(
@@ -863,6 +911,11 @@ fun ExploreScreen(
                     windowInsets = TopAppBarDefaults.windowInsets,
                     modifier = Modifier.fillMaxWidth()
                 )
+                AnimatedVisibility(
+                    visible = showExploreSearchField,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
                 Column(
                     Modifier
                         .fillMaxWidth()
@@ -932,9 +985,16 @@ fun ExploreScreen(
                                 unfocusedContainerColor = Color.Transparent,
                                 disabledContainerColor = Color.Transparent,
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        scope.launch { scrollExploreContentToTop() }
+                                    }
+                                }
                         )
                     }
+                }
                 }
             }
         }
@@ -999,7 +1059,7 @@ fun ExploreScreen(
                             androidx.compose.animation.fadeOut(),
                     ) {
                     // 为 chrome（标题+搜索）让位；再上移约半个「探索」标题高
-                    Column(Modifier.padding(top = 116.dp)) {
+                    Column(Modifier.padding(top = exploreFilterRowTop)) {
                     // 第一行：左侧搜索类型（歌曲/歌单/歌手），右侧搜索源按钮 —— 整组水平居中
                     Row(
                         modifier = Modifier.fillMaxWidth(),

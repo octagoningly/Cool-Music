@@ -57,12 +57,14 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.lazy.LazyColumn
@@ -242,7 +244,6 @@ private val ExplorePrimaryTabShape = RoundedCornerShape(20.dp)
 private val ExplorePillShape = RoundedCornerShape(999.dp)
 private val ExploreSearchFieldShape = RoundedCornerShape(16.dp)
 private val ExploreTypeChipShape = RoundedCornerShape(18.dp)
-private val ExploreTypeChipSize = 44.dp
 
 internal fun exploreSearchSourceDisplayOrder(
     isInternational: Boolean,
@@ -2086,7 +2087,9 @@ private fun NeteaseDiscoveryPage(
                 top = 12.dp,
                 bottom = 16.dp
             ),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
         ) {
             if (ui.playlists.isNotEmpty()) {
                 items(items = ui.playlists, key = { it.id }) { playlist ->
@@ -2210,6 +2213,7 @@ private fun ExploreNeteasePlaylistTagRow(
         state = tagListState,
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(max = 48.dp)
             .padding(top = 8.dp)
             .exploreHorizontalEdgeFade(
                 showStartFade = showTagStartFade,
@@ -2271,8 +2275,9 @@ private fun ExploreTagChip(
         onClick = onClick
     ) {
         if (!showLabel && icon != null) {
+            // 外层 requiredSize(48) 已定界，内容撑满以铺满玻璃底
             Box(
-                modifier = Modifier.size(ExploreTypeChipSize),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -2341,8 +2346,10 @@ internal fun ExploreGlassPillSurface(
             tintColor = tintColor
         ) {
             Surface(
+                // 不能 fillMaxSize：LazyRow 里 item 的 max 高度是整行约束，
+                // 会把标签 chip 拉成整屏竖条，并把下方专辑网格挤没
                 modifier = Modifier
-                    .fillMaxSize()
+                    .wrapContentSize()
                     .clip(shape)
                     .indication(interactionSource, ripple()),
                 shape = shape,

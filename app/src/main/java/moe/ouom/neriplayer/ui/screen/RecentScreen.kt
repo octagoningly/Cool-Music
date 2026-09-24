@@ -231,7 +231,7 @@ fun RecentScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = Color.Transparent,
+            containerColor = MaterialTheme.colorScheme.background,
             snackbarHost = {
                 NeriSnackbarHost(
                     hostState = snackbarHostState,

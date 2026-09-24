@@ -27,6 +27,14 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -93,6 +101,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarState
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -105,6 +114,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -380,8 +391,10 @@ private fun libraryListBottomPadding(): Dp {
 }
 
 /** 顶部为浮层标题+Tab 留出起始空白，滚动后内容可进入玻璃区被采样。 */
+private val LocalLibraryListTopPadding = staticCompositionLocalOf { 136.dp }
+
 @Composable
-private fun libraryListTopPadding(): Dp = 136.dp
+private fun libraryListTopPadding(): Dp = LocalLibraryListTopPadding.current
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -526,7 +539,47 @@ fun LibraryScreen(
 
     val currentLibraryTab = orderedTabs.getOrNull(pagerState.currentPage)
     val libraryRefreshEnabled = currentLibraryTab.isRefreshable()
+    val activeLibraryListState = when (currentLibraryTab) {
+        LibraryTab.FAVORITE -> favoriteListState
+        LibraryTab.NETEASE,
+        LibraryTab.NETEASEALBUM ->
+            if (selectedNeteaseCategory == NETEASE_CATEGORY_ALBUM) {
+                neteaseAlbumState
+            } else {
+                neteaseListState
+            }
+        LibraryTab.YTMUSIC -> youtubeMusicListState
+        LibraryTab.BILI -> biliListState
+        LibraryTab.QQMUSIC -> qqMusicListState
+        else -> localListState
+    }
+    // 下滑收起 Tab 行；上滑意图时先弹出
+    var showLibraryTabs by remember { mutableStateOf(true) }
+    var lastLibraryScrollTotal by remember { mutableIntStateOf(0) }
+    LaunchedEffect(activeLibraryListState) {
+        snapshotFlow {
+            activeLibraryListState.firstVisibleItemIndex * 100_000 +
+                activeLibraryListState.firstVisibleItemScrollOffset
+        }.collect { total ->
+            val atTop = total <= 48
+            val delta = total - lastLibraryScrollTotal
+            if (atTop) {
+                showLibraryTabs = true
+            } else if (delta > 12) {
+                showLibraryTabs = false
+            } else if (delta < -12) {
+                showLibraryTabs = true
+            }
+            lastLibraryScrollTotal = total
+        }
+    }
+    val libraryContentTop by animateDpAsState(
+        targetValue = if (showLibraryTabs) 136.dp else 56.dp,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "libraryContentTop"
+    )
 
+    CompositionLocalProvider(LocalLibraryListTopPadding provides libraryContentTop) {
     Box(
         Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter
@@ -674,6 +727,11 @@ fun LibraryScreen(
                 }
             )
 
+            AnimatedVisibility(
+                visible = showLibraryTabs,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
+            ) {
             LibraryMainTabs(
                 tabs = orderedTabs,
                 selectedTabIndex = pagerState.currentPage,
@@ -684,7 +742,9 @@ fun LibraryScreen(
                 }
             )
             }
+            }
         }
+    }
     }
 
     if (showLibraryTabOrderEditor) {

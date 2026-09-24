@@ -118,7 +118,7 @@ fun PlaybackStatsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = Color.Transparent,
+            containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets.statusBars,
             topBar = {
                 TopAppBar(

@@ -4270,7 +4270,10 @@ private fun NeriAppContent(
 
                                 // 主 Tab chrome（顶栏/搜索/Tab）画在 content 捕获层外：
                                 // 只显示当前 route，避免媒体库 chrome 残留到设置页
-                                mainTabChromeSlot.ContentFor(selectedMainTabRoute)
+                                // Hide main-tab chrome under transparent detail routes (stats/recent)
+                                if (currentRoute == null || currentRoute in MAIN_TAB_ROUTES) {
+                                    mainTabChromeSlot.ContentFor(selectedMainTabRoute)
+                                }
 
                                 AnimatedVisibility(
                                     visible = currentSong != null && !showNowPlaying,

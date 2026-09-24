@@ -543,6 +543,7 @@ fun ExploreScreen(
     }
     // 下滑浏览时收起搜索框；上滑意图时先弹出搜索框
     var showExploreSearchField by remember { mutableStateOf(true) }
+    var sourceMenuExpanded by remember { mutableStateOf(false) }
     var lastExploreScrollTotal by remember { mutableIntStateOf(0) }
     LaunchedEffect(searchQuery, ui.selectedSearchSource) {
         snapshotFlow {
@@ -967,11 +968,48 @@ fun ExploreScreen(
                             },
                             leadingIcon = { Icon(Icons.Default.Search, "Search") },
                             trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    HapticIconButton(onClick = {
-                                        onSearchQueryChange("")
-                                        vm.search("")
-                                    }) { Icon(Icons.Default.Clear, "Clear") }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    // 搜索源：点击只弹出换源，不拉起搜索
+                                    Surface(
+                                        shape = ExplorePrimaryTabShape,
+                                        color = MaterialTheme.colorScheme.surface.copy(alpha = tagChipUnselectedAlpha),
+                                        border = BorderStroke(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.outline.copy(alpha = tagChipBorderAlpha)
+                                        ),
+                                        modifier = Modifier.clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = ripple()
+                                        ) { sourceMenuExpanded = true }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                        ) {
+                                            Text(
+                                                text = searchSourceLabel(ui.selectedSearchSource),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Filled.ArrowDropDown,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                    if (searchQuery.isNotEmpty()) {
+                                        HapticIconButton(onClick = {
+                                            onSearchQueryChange("")
+                                            vm.search("")
+                                        }) { Icon(Icons.Default.Clear, "Clear") }
+                                    }
                                 }
                             },
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -993,6 +1031,24 @@ fun ExploreScreen(
                                     }
                                 }
                         )
+                        GlassDropdownMenu(
+                            expanded = sourceMenuExpanded,
+                            onDismissRequest = { sourceMenuExpanded = false },
+                            shape = GlassMenuShape,
+                            modifier = Modifier
+                        ) {
+                            orderedSearchSources.forEach { source ->
+                                DropdownMenuItem(
+                                    text = { Text(searchSourceLabel(source)) },
+                                    onClick = {
+                                        sourceMenuExpanded = false
+                                        if (source != ui.selectedSearchSource) {
+                                            vm.setSearchSource(source)
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
                 }
@@ -1048,7 +1104,6 @@ fun ExploreScreen(
                         )
                     }
                     Spacer(Modifier.height(8.dp))
-                    var sourceMenuExpanded by remember { mutableStateOf(false) }
                     var tagMenuExpanded by remember { mutableStateOf(false) }
                     val currentSearchSource = ui.selectedSearchSource
                     androidx.compose.animation.AnimatedVisibility(
@@ -1078,61 +1133,8 @@ fun ExploreScreen(
                             unselectedAlpha = tagChipUnselectedAlpha,
                             borderAlpha = tagChipBorderAlpha
                         )
-                        Box(modifier = Modifier.padding(start = 8.dp)) {
-                            Surface(
-                                shape = ExplorePrimaryTabShape,
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = tagChipUnselectedAlpha),
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = tagChipBorderAlpha)
-                                ),
-                                modifier = Modifier.clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple()
-                                ) { sourceMenuExpanded = true }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .height(48.dp)
-                                        .padding(horizontal = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = searchSourceLabel(currentSearchSource),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Filled.ArrowDropDown,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                            GlassDropdownMenu(
-                                expanded = sourceMenuExpanded,
-                                onDismissRequest = { sourceMenuExpanded = false },
-                                shape = GlassMenuShape,
-                                modifier = Modifier
-                            ) {
-                                orderedSearchSources.forEach { source ->
-                                    DropdownMenuItem(
-                                        text = { Text(searchSourceLabel(source)) },
-                                        onClick = {
-                                            sourceMenuExpanded = false
-                                            if (source != currentSearchSource) {
-                                                vm.setSearchSource(source)
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        // 风格下拉：与「歌曲/歌手/歌单/在线」同一行
+                                                // 搜索源按钮已移到搜索框右侧
+                        // 风格下拉：与「歌曲/歌手/歌单」同一行
                         if (
                             (currentSearchSource == SearchSource.DEFAULT ||
                                 currentSearchSource == SearchSource.NETEASE) &&

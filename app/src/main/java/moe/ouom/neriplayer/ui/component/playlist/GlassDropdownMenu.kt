@@ -203,7 +203,14 @@ fun GlassDropdownMenu(
                     enabled = glassActive,
                     regionBoundsOverride = menuBoundsInMainWindow,
                 ) {
-                    Column(Modifier.padding(vertical = 4.dp), content = content)
+                    // 开发规则：下拉菜单文字居中
+                    CompositionLocalProvider(
+                        LocalTextStyle provides LocalTextStyle.current.copy(
+                            textAlign = TextAlign.Center
+                        )
+                    ) {
+                        Column(Modifier.padding(vertical = 4.dp), content = content)
+                    }
                 }
             }
         }

@@ -4049,6 +4049,8 @@ fun MoreOptionsSheet(
         onDismissRequest = { dismissSheet() },
         sheetState = sheetState,
         sheetGesturesEnabled = page != MoreOptionsPage.LISTEN_TOGETHER,
+        // 开发规则：面板圆角 28 + 透明模糊（DensityScaled→Glass）
+        shape = moe.ouom.neriplayer.ui.component.overlay.GlassSheetShape,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         BackHandler(

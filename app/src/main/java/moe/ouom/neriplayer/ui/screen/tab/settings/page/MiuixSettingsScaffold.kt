@@ -152,7 +152,8 @@ internal fun MiuixSettingsHomeScaffold(
                 contentPadding = PaddingValues(
                     start = horizontalPadding,
                     end = horizontalPadding,
-                    top = 10.dp,
+                    // 为 chrome 大标题让位，避免搜索框/首组卡片被挡住
+                    top = 72.dp,
                     bottom = 18.dp + miniPlayerHeight
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),

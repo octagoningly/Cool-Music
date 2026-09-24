@@ -900,8 +900,8 @@ fun ExploreScreen(
                     .padding(
                         start = searchPanelHorizontalPadding,
                         end = searchPanelHorizontalPadding,
-                        // 标题+搜索在 chrome 浮层，这里只留出类型筛选起始间距
-                        top = 8.dp,
+                        // 标题+搜索在 chrome 浮层（约 140dp），内容整体下移
+                        top = 140.dp,
                         bottom = 8.dp
                     )
             ) {

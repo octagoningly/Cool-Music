@@ -3490,11 +3490,18 @@ private fun NeriAppContent(
                                     )
                                     .clipToBounds()
                             ) {
-                                // Keep the effect on a stable layer outside NavHost transitions
+                                // Keep the effect on a stable layer outside NavHost transitions.
+                                // 播放页显示时改由 NowPlaying 层采样，避免双层抢 positionInWindow。
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .captureAdvancedGlassBackdrop(contentGlassBackdrop)
+                                        .then(
+                                            if (showNowPlaying) {
+                                                Modifier
+                                            } else {
+                                                Modifier.captureAdvancedGlassBackdrop(contentGlassBackdrop)
+                                            }
+                                        )
                                 ) {
                                     MainTabLayerHost(
                                         selectedRoute = selectedMainTabRoute,
@@ -4343,6 +4350,9 @@ private fun NeriAppContent(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                // 开发规则：播放页内容必须进捕获层，GlassDropdownMenu/二级弹窗
+                                // 才能对背后真实模糊；否则只剩半透明 tint（透明无模糊）。
+                                .captureAdvancedGlassBackdrop(contentGlassBackdrop)
                                 .blockUnderlyingTouches()
                         ) {
                             val coverBlurAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S

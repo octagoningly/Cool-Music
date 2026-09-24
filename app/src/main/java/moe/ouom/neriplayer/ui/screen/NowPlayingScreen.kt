@@ -65,6 +65,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -3997,7 +3998,7 @@ private enum class MoreOptionsPage {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MoreOptionsSheet(
+fun BoxScope.MoreOptionsSheet(
     viewModel: NowPlayingViewModel,
     originalSong: SongItem,
     queue: List<SongItem>,
@@ -4016,7 +4017,8 @@ fun MoreOptionsSheet(
     onShowQualitySwitch: () -> Unit = {},
     offlineMode: Boolean = false
 ) {
-    var page by remember { mutableStateOf(MoreOptionsPage.MAIN) }
+    // 一级：锚点小菜单；二级：GlassModalBottomSheet（禁止塞进 IntrinsicSize 菜单，见开发规则）
+    var secondaryPage by remember { mutableStateOf<MoreOptionsPage?>(null) }
     val currentSong by PlayerManager.currentSongFlow.collectAsStateWithLifecycle()
     val actualSong = currentSong?.takeIf { it.sameIdentityAs(originalSong) } ?: originalSong
     val isLocalSong = actualSong.isLocalSong()
@@ -4026,190 +4028,203 @@ fun MoreOptionsSheet(
     val currentLyricFontScale = lyricFontScales.scaleFor(lyricFontScaleTarget)
     val currentTranslationFontScale = lyricFontScales.scaleFor(translationFontScaleTarget)
 
-    // 开发规则弹窗配方：GlassDropdownMenu 真模糊 + 内容自适应（菜单档 / 子页略放宽）
-    val menuMaxWidth = if (page == MoreOptionsPage.MAIN) 240.dp else 320.dp
-    val menuMaxHeight = if (page == MoreOptionsPage.MAIN) 360.dp else 480.dp
-
     GlassDropdownMenu(
-        expanded = true,
+        expanded = secondaryPage == null,
         onDismissRequest = onDismiss,
         shape = moe.ouom.neriplayer.ui.component.overlay.GlassMenuShape,
-        maxWidth = menuMaxWidth,
-        maxHeight = menuMaxHeight,
+        maxWidth = 240.dp,
+        maxHeight = 360.dp,
     ) {
-        BackHandler(
-            enabled = page != MoreOptionsPage.MAIN
-        ) {
-            page = MoreOptionsPage.MAIN
-        }
+        BackHandler(enabled = true) { onDismiss() }
 
-        BackHandler(
-            enabled = page == MoreOptionsPage.MAIN
-        ) {
-            onDismiss()
-        }
-
-        Box(modifier = Modifier.fillMaxWidth()) {
-        AnimatedContent(
-            targetState = page,
-            transitionSpec = {
-                (fadeIn(animationSpec = tween(220, delayMillis = 90)) +
-                        scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 90)))
-                    .togetherWith(fadeOut(animationSpec = tween(90)))
+        MoreOptionsMainContent(
+            viewModel = viewModel,
+            originalSong = originalSong,
+            queue = queue,
+            isLocalSong = isLocalSong,
+            lyricFontScale = currentLyricFontScale,
+            translationFontScale = currentTranslationFontScale,
+            currentPlaybackAudioInfo = currentPlaybackAudioInfo,
+            isDismissing = false,
+            snackbarHostState = snackbarHostState,
+            onOpenSearch = { secondaryPage = MoreOptionsPage.SEARCH },
+            onOpenEditInfo = { secondaryPage = MoreOptionsPage.EDIT_INFO },
+            onOpenPlaybackSound = { secondaryPage = MoreOptionsPage.PLAYBACK_SOUND },
+            onOpenLyricBehavior = { secondaryPage = MoreOptionsPage.LYRIC_BEHAVIOR },
+            onOpenFontSize = { secondaryPage = MoreOptionsPage.FONT_SIZE },
+            onOpenBiliVideoSkip = { secondaryPage = MoreOptionsPage.BILI_VIDEO_SKIP },
+            onOpenListenTogether = { secondaryPage = MoreOptionsPage.LISTEN_TOGETHER },
+            onShowSongDetails = {
+                onDismiss()
+                onShowSongDetails(originalSong)
             },
-            label = "more_options_sheet_content"
-        ) { targetState ->
-            when (targetState) {
-                MoreOptionsPage.MAIN -> {
-                    MoreOptionsMainContent(
-                        viewModel = viewModel,
-                        originalSong = originalSong,
-                        queue = queue,
-                        isLocalSong = isLocalSong,
-                        lyricFontScale = currentLyricFontScale,
-                        translationFontScale = currentTranslationFontScale,
-                        currentPlaybackAudioInfo = currentPlaybackAudioInfo,
-                        isDismissing = false,
-                        snackbarHostState = snackbarHostState,
-                        onOpenSearch = { page = MoreOptionsPage.SEARCH },
-                        onOpenEditInfo = { page = MoreOptionsPage.EDIT_INFO },
-                        onOpenPlaybackSound = { page = MoreOptionsPage.PLAYBACK_SOUND },
-                        onOpenLyricBehavior = { page = MoreOptionsPage.LYRIC_BEHAVIOR },
-                        onOpenFontSize = { page = MoreOptionsPage.FONT_SIZE },
-                        onOpenBiliVideoSkip = { page = MoreOptionsPage.BILI_VIDEO_SKIP },
-                        onOpenListenTogether = { page = MoreOptionsPage.LISTEN_TOGETHER },
-                        onShowSongDetails = {
-                            onDismiss()
-                            onShowSongDetails(originalSong)
-                        },
-                        onShowQualitySwitch = {
-                            onDismiss()
-                            onShowQualitySwitch()
-                        },
-                        onEnterAlbum = { album ->
-                            onDismiss()
-                            onEnterAlbum(album)
-                            onNavigateUp()
-                        },
-                        onDismissSheet = { afterHidden ->
-                            onDismiss()
-                            afterHidden()
-                        }
-                    )
-                }
+            onShowQualitySwitch = {
+                onDismiss()
+                onShowQualitySwitch()
+            },
+            onEnterAlbum = { album ->
+                onDismiss()
+                onEnterAlbum(album)
+                onNavigateUp()
+            },
+            onDismissSheet = { afterHidden ->
+                onDismiss()
+                afterHidden()
+            }
+        )
+    }
 
-                MoreOptionsPage.LISTEN_TOGETHER -> {
-                    val listenTogetherScrollState = rememberScrollState()
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(listenTogetherScrollState)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        ListenTogetherRoomPanel(
-                            modifier = Modifier.fillMaxWidth(),
-                            showBaseUrlEditor = false
-                        )
-                    }
-                }
-
-                MoreOptionsPage.BILI_VIDEO_SKIP -> {
-                    val currentPosition by PlayerManager.playbackPositionFlow
-                        .collectAsStateWithLifecycle()
-                    val isPlaying by PlayerManager.isPlayingFlow.collectAsStateWithLifecycle()
-                    val activeBiliTargetGeneration by BiliVideoSkipPlaybackController
-                        .activeTrackGeneration
-                        .collectAsStateWithLifecycle()
-                    val currentBiliTarget = remember(actualSong, activeBiliTargetGeneration) {
-                        BiliVideoSkipPlaybackController.activeTargetFor(actualSong)
-                    }
-                    BiliVideoSkipIntervalsContent(
-                        title = stringResource(R.string.bili_video_skip_title),
-                        targetResolverKey = actualSong.stableKey(),
-                        loadTargetOptions = {
-                            resolveBiliVideoSkipTargetOptions(
-                                song = actualSong,
-                                client = AppContainer.biliClient
-                            )
-                        },
-                        initialTarget = currentBiliTarget,
-                        currentPlaybackPositionMs = currentPosition,
-                        currentPlaybackTarget = currentBiliTarget,
-                        currentPlaybackIsPlaying = isPlaying,
-                        onTogglePlayback = { PlayerManager.togglePlayPauseWithoutFade() },
-                        onSeekToPlaybackPosition = { positionMs ->
-                            PlayerManager.seekTo(positionMs)
-                        },
-                        onDismiss = { page = MoreOptionsPage.MAIN }
-                    )
-                }
-
-                MoreOptionsPage.SEARCH -> {
-                    SongMetadataSearchContent(
-                        viewModel = viewModel,
-                        song = actualSong,
-                        offlineMode = offlineMode,
-                        enabled = true,
-                        onSongSelected = { songResult ->
-                            onDismiss()
-                            viewModel.onSongSelected(actualSong, songResult)
-                        },
-                        onDone = { page = MoreOptionsPage.MAIN }
-                    )
-                }
-
-                MoreOptionsPage.LYRIC_BEHAVIOR -> {
-                    LyricBehaviorSheet(
-                        song = originalSong,
-                        hasPhoneticLyrics = hasPhoneticLyrics,
-                        onDismiss = { page = MoreOptionsPage.MAIN }
-                    )
-                }
-
-                MoreOptionsPage.FONT_SIZE -> {
-                    LyricFontSizeSheet(
-                        currentLyricScale = currentLyricFontScale,
-                        currentTranslationScale = currentTranslationFontScale,
-                        onLyricScaleCommit = { scale ->
-                            onLyricFontScaleChange(lyricFontScaleTarget, scale)
-                        },
-                        onTranslationScaleCommit = { scale ->
-                            onLyricFontScaleChange(translationFontScaleTarget, scale)
-                        },
-                        onDismiss = { page = MoreOptionsPage.MAIN }
-                    )
-                }
-
-                MoreOptionsPage.EDIT_INFO -> {
-                    EditSongInfoSheet(
-                        viewModel = viewModel,
-                        originalSong = actualSong,
-                        displayedLyrics = displayedLyrics,
-                        displayedTranslatedLyrics = displayedTranslatedLyrics,
-                        onDismiss = { page = MoreOptionsPage.MAIN },
-                        snackbarHostState = snackbarHostState,
-                        offlineMode = offlineMode
-                    )
-                }
-
-                MoreOptionsPage.PLAYBACK_SOUND -> {
-                    PlaybackSoundSheet(
-                        state = playbackSoundState,
-                        onSpeedChange = { value, persist -> viewModel.setPlaybackSpeed(value, persist) },
-                        onPitchChange = { value, persist -> viewModel.setPlaybackPitch(value, persist) },
-                        onLoudnessGainChange = { value, persist -> viewModel.setPlaybackLoudnessGain(value, persist) },
-                        onEqualizerEnabledChange = viewModel::setPlaybackEqualizerEnabled,
-                        onPresetSelected = viewModel::selectPlaybackEqualizerPreset,
-                        onBandLevelChange = { index, value, persist ->
-                            viewModel.updatePlaybackEqualizerBandLevel(index, value, persist)
-                        },
-                        onReset = viewModel::resetPlaybackSoundSettings,
-                        onDismiss = { page = MoreOptionsPage.MAIN }
+    // 二级弹窗：DensityScaled → GlassModalBottomSheet（DialogPanel + depth0 真模糊）
+    when (val page = secondaryPage) {
+        MoreOptionsPage.LISTEN_TOGETHER -> {
+            ModalBottomSheet(
+                onDismissRequest = { secondaryPage = null },
+                sheetGesturesEnabled = false
+            ) {
+                val listenTogetherScrollState = rememberScrollState()
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .bottomSheetScrollGuard()
+                        .verticalScroll(listenTogetherScrollState)
+                        .padding(bottom = 16.dp)
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                ) {
+                    ListenTogetherRoomPanel(
+                        modifier = Modifier.fillMaxWidth(),
+                        showBaseUrlEditor = false
                     )
                 }
             }
         }
+
+        MoreOptionsPage.BILI_VIDEO_SKIP -> {
+            ModalBottomSheet(
+                onDismissRequest = { secondaryPage = null },
+                sheetGesturesEnabled = false
+            ) {
+                val currentPosition by PlayerManager.playbackPositionFlow
+                    .collectAsStateWithLifecycle()
+                val isPlaying by PlayerManager.isPlayingFlow.collectAsStateWithLifecycle()
+                val activeBiliTargetGeneration by BiliVideoSkipPlaybackController
+                    .activeTrackGeneration
+                    .collectAsStateWithLifecycle()
+                val currentBiliTarget = remember(actualSong, activeBiliTargetGeneration) {
+                    BiliVideoSkipPlaybackController.activeTargetFor(actualSong)
+                }
+                BiliVideoSkipIntervalsContent(
+                    title = stringResource(R.string.bili_video_skip_title),
+                    targetResolverKey = actualSong.stableKey(),
+                    loadTargetOptions = {
+                        resolveBiliVideoSkipTargetOptions(
+                            song = actualSong,
+                            client = AppContainer.biliClient
+                        )
+                    },
+                    initialTarget = currentBiliTarget,
+                    currentPlaybackPositionMs = currentPosition,
+                    currentPlaybackTarget = currentBiliTarget,
+                    currentPlaybackIsPlaying = isPlaying,
+                    onTogglePlayback = { PlayerManager.togglePlayPauseWithoutFade() },
+                    onSeekToPlaybackPosition = { positionMs ->
+                        PlayerManager.seekTo(positionMs)
+                    },
+                    onDismiss = { secondaryPage = null }
+                )
+            }
         }
+
+        MoreOptionsPage.SEARCH -> {
+            ModalBottomSheet(
+                onDismissRequest = { secondaryPage = null },
+                sheetGesturesEnabled = false
+            ) {
+                SongMetadataSearchContent(
+                    viewModel = viewModel,
+                    song = actualSong,
+                    offlineMode = offlineMode,
+                    enabled = true,
+                    onSongSelected = { songResult ->
+                        secondaryPage = null
+                        onDismiss()
+                        viewModel.onSongSelected(actualSong, songResult)
+                    },
+                    onDone = { secondaryPage = null }
+                )
+            }
+        }
+
+        MoreOptionsPage.LYRIC_BEHAVIOR -> {
+            ModalBottomSheet(
+                onDismissRequest = { secondaryPage = null },
+                sheetGesturesEnabled = false
+            ) {
+                LyricBehaviorSheet(
+                    song = originalSong,
+                    hasPhoneticLyrics = hasPhoneticLyrics,
+                    onDismiss = { secondaryPage = null }
+                )
+            }
+        }
+
+        MoreOptionsPage.FONT_SIZE -> {
+            ModalBottomSheet(
+                onDismissRequest = { secondaryPage = null },
+                sheetGesturesEnabled = false
+            ) {
+                LyricFontSizeSheet(
+                    currentLyricScale = currentLyricFontScale,
+                    currentTranslationScale = currentTranslationFontScale,
+                    onLyricScaleCommit = { scale ->
+                        onLyricFontScaleChange(lyricFontScaleTarget, scale)
+                    },
+                    onTranslationScaleCommit = { scale ->
+                        onLyricFontScaleChange(translationFontScaleTarget, scale)
+                    },
+                    onDismiss = { secondaryPage = null }
+                )
+            }
+        }
+
+        MoreOptionsPage.EDIT_INFO -> {
+            ModalBottomSheet(
+                onDismissRequest = { secondaryPage = null },
+                sheetGesturesEnabled = false
+            ) {
+                EditSongInfoSheet(
+                    viewModel = viewModel,
+                    originalSong = actualSong,
+                    displayedLyrics = displayedLyrics,
+                    displayedTranslatedLyrics = displayedTranslatedLyrics,
+                    onDismiss = { secondaryPage = null },
+                    snackbarHostState = snackbarHostState,
+                    offlineMode = offlineMode
+                )
+            }
+        }
+
+        MoreOptionsPage.PLAYBACK_SOUND -> {
+            ModalBottomSheet(
+                onDismissRequest = { secondaryPage = null },
+                sheetGesturesEnabled = false
+            ) {
+                PlaybackSoundSheet(
+                    state = playbackSoundState,
+                    onSpeedChange = { value, persist -> viewModel.setPlaybackSpeed(value, persist) },
+                    onPitchChange = { value, persist -> viewModel.setPlaybackPitch(value, persist) },
+                    onLoudnessGainChange = { value, persist -> viewModel.setPlaybackLoudnessGain(value, persist) },
+                    onEqualizerEnabledChange = viewModel::setPlaybackEqualizerEnabled,
+                    onPresetSelected = viewModel::selectPlaybackEqualizerPreset,
+                    onBandLevelChange = { index, value, persist ->
+                        viewModel.updatePlaybackEqualizerBandLevel(index, value, persist)
+                    },
+                    onReset = viewModel::resetPlaybackSoundSettings,
+                    onDismiss = { secondaryPage = null }
+                )
+            }
+        }
+
+        MoreOptionsPage.MAIN, null -> Unit
     }
 }
 

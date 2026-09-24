@@ -2962,42 +2962,45 @@ fun NowPlayingScreen(
                                 )
                             }
 
-                            HapticIconButton(
-                                onClick = { showMoreOptions = true },
-                                modifier = Modifier.size(nowPlayingTopActionButtonSize)
-                                    .sharedBounds(
-                                        rememberSharedContentState(key = "btn_more"),
-                                        animatedVisibilityScope = this@AnimatedContent,
-                                        enter = EnterTransition.None,
-                                        exit = ExitTransition.None,
-                                    ).zIndex(1f)
-                            ) {
-                                Icon(
-                                    Icons.Filled.MoreVert,
-                                    contentDescription = stringResource(R.string.nowplaying_more_options),
-                                    modifier = Modifier.size(nowPlayingTopActionIconSize)
-                                )
-                            }
-                            if (showMoreOptions && currentSong != null) {
-                                MoreOptionsSheet(
-                                    viewModel = nowPlayingViewModel,
-                                    originalSong = currentSong!!,
-                                    queue = displayedQueue,
-                                    displayedLyrics = lyrics,
-                                    displayedTranslatedLyrics = translatedLyrics,
-                                    hasPhoneticLyrics = phoneticLyrics.isNotEmpty(),
-                                    onDismiss = { showMoreOptions = false },
-                                    onShowSongDetails = { detailSong = it },
-                                    onEnterAlbum = onEnterAlbum,
-                                    onNavigateUp = onNavigateUp,
-                                    snackbarHostState = snackbarHostState,
-                                    lyricFontScalePage = LyricFontScalePage.COVER,
-                                    lyricFontScales = lyricFontScales,
-                                    onLyricFontScaleChange = onLyricFontScaleChange,
-                                    currentPlaybackAudioInfo = currentPlaybackAudioInfo,
-                                    onShowQualitySwitch = { showQualitySwitchDialog = true },
-                                    offlineMode = offlineMode
-                                )
+                            // 锚点同级 Box：GlassDropdownMenu 真模糊 + 自适应小弹窗
+                            Box {
+                                HapticIconButton(
+                                    onClick = { showMoreOptions = true },
+                                    modifier = Modifier.size(nowPlayingTopActionButtonSize)
+                                        .sharedBounds(
+                                            rememberSharedContentState(key = "btn_more"),
+                                            animatedVisibilityScope = this@AnimatedContent,
+                                            enter = EnterTransition.None,
+                                            exit = ExitTransition.None,
+                                        ).zIndex(1f)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.MoreVert,
+                                        contentDescription = stringResource(R.string.nowplaying_more_options),
+                                        modifier = Modifier.size(nowPlayingTopActionIconSize)
+                                    )
+                                }
+                                if (showMoreOptions && currentSong != null) {
+                                    MoreOptionsSheet(
+                                        viewModel = nowPlayingViewModel,
+                                        originalSong = currentSong!!,
+                                        queue = displayedQueue,
+                                        displayedLyrics = lyrics,
+                                        displayedTranslatedLyrics = translatedLyrics,
+                                        hasPhoneticLyrics = phoneticLyrics.isNotEmpty(),
+                                        onDismiss = { showMoreOptions = false },
+                                        onShowSongDetails = { detailSong = it },
+                                        onEnterAlbum = onEnterAlbum,
+                                        onNavigateUp = onNavigateUp,
+                                        snackbarHostState = snackbarHostState,
+                                        lyricFontScalePage = LyricFontScalePage.COVER,
+                                        lyricFontScales = lyricFontScales,
+                                        onLyricFontScaleChange = onLyricFontScaleChange,
+                                        currentPlaybackAudioInfo = currentPlaybackAudioInfo,
+                                        onShowQualitySwitch = { showQualitySwitchDialog = true },
+                                        offlineMode = offlineMode
+                                    )
+                                }
                             }
                         }
                     }
@@ -4013,11 +4016,7 @@ fun MoreOptionsSheet(
     onShowQualitySwitch: () -> Unit = {},
     offlineMode: Boolean = false
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var page by remember { mutableStateOf(MoreOptionsPage.MAIN) }
-    var isDismissing by remember { mutableStateOf(false) }
-
-    val coroutineScope = rememberCoroutineScope()
     val currentSong by PlayerManager.currentSongFlow.collectAsStateWithLifecycle()
     val actualSong = currentSong?.takeIf { it.sameIdentityAs(originalSong) } ?: originalSong
     val isLocalSong = actualSong.isLocalSong()
@@ -4027,30 +4026,16 @@ fun MoreOptionsSheet(
     val currentLyricFontScale = lyricFontScales.scaleFor(lyricFontScaleTarget)
     val currentTranslationFontScale = lyricFontScales.scaleFor(translationFontScaleTarget)
 
-    fun dismissSheet(afterHidden: () -> Unit = {}) {
-        if (isDismissing) return
-        isDismissing = true
-        coroutineScope.launch {
-            try {
-                sheetState.hide()
-                afterHidden()
-            } finally {
-                try {
-                    onDismiss()
-                } finally {
-                    isDismissing = false
-                }
-            }
-        }
-    }
+    // 开发规则弹窗配方：GlassDropdownMenu 真模糊 + 内容自适应（菜单档 / 子页略放宽）
+    val menuMaxWidth = if (page == MoreOptionsPage.MAIN) 240.dp else 320.dp
+    val menuMaxHeight = if (page == MoreOptionsPage.MAIN) 360.dp else 480.dp
 
-    ModalBottomSheet(
-        onDismissRequest = { dismissSheet() },
-        sheetState = sheetState,
-        sheetGesturesEnabled = page != MoreOptionsPage.LISTEN_TOGETHER,
-        // 开发规则：面板圆角 28 + 透明模糊（DensityScaled→Glass）
-        shape = moe.ouom.neriplayer.ui.component.overlay.GlassSheetShape,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
+    GlassDropdownMenu(
+        expanded = true,
+        onDismissRequest = onDismiss,
+        shape = moe.ouom.neriplayer.ui.component.overlay.GlassMenuShape,
+        maxWidth = menuMaxWidth,
+        maxHeight = menuMaxHeight,
     ) {
         BackHandler(
             enabled = page != MoreOptionsPage.MAIN
@@ -4061,7 +4046,7 @@ fun MoreOptionsSheet(
         BackHandler(
             enabled = page == MoreOptionsPage.MAIN
         ) {
-            dismissSheet()
+            onDismiss()
         }
 
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -4084,7 +4069,7 @@ fun MoreOptionsSheet(
                         lyricFontScale = currentLyricFontScale,
                         translationFontScale = currentTranslationFontScale,
                         currentPlaybackAudioInfo = currentPlaybackAudioInfo,
-                        isDismissing = isDismissing,
+                        isDismissing = false,
                         snackbarHostState = snackbarHostState,
                         onOpenSearch = { page = MoreOptionsPage.SEARCH },
                         onOpenEditInfo = { page = MoreOptionsPage.EDIT_INFO },
@@ -4094,19 +4079,21 @@ fun MoreOptionsSheet(
                         onOpenBiliVideoSkip = { page = MoreOptionsPage.BILI_VIDEO_SKIP },
                         onOpenListenTogether = { page = MoreOptionsPage.LISTEN_TOGETHER },
                         onShowSongDetails = {
-                            dismissSheet { onShowSongDetails(originalSong) }
+                            onDismiss()
+                            onShowSongDetails(originalSong)
                         },
                         onShowQualitySwitch = {
-                            dismissSheet { onShowQualitySwitch() }
+                            onDismiss()
+                            onShowQualitySwitch()
                         },
                         onEnterAlbum = { album ->
-                            dismissSheet {
-                                onEnterAlbum(album)
-                                onNavigateUp()
-                            }
+                            onDismiss()
+                            onEnterAlbum(album)
+                            onNavigateUp()
                         },
                         onDismissSheet = { afterHidden ->
-                            dismissSheet(afterHidden)
+                            onDismiss()
+                            afterHidden()
                         }
                     )
                 }
@@ -4116,10 +4103,8 @@ fun MoreOptionsSheet(
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .bottomSheetScrollGuard()
                             .verticalScroll(listenTogetherScrollState)
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .windowInsetsPadding(WindowInsets.navigationBars)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         ListenTogetherRoomPanel(
                             modifier = Modifier.fillMaxWidth(),
@@ -4164,11 +4149,10 @@ fun MoreOptionsSheet(
                         viewModel = viewModel,
                         song = actualSong,
                         offlineMode = offlineMode,
-                        enabled = !isDismissing,
+                        enabled = true,
                         onSongSelected = { songResult ->
-                            dismissSheet {
-                                viewModel.onSongSelected(actualSong, songResult)
-                            }
+                            onDismiss()
+                            viewModel.onSongSelected(actualSong, songResult)
                         },
                         onDone = { page = MoreOptionsPage.MAIN }
                     )
@@ -4225,11 +4209,6 @@ fun MoreOptionsSheet(
                 }
             }
         }
-
-        NeriOverlaySnackbarHost(
-            hostState = snackbarHostState,
-            bottomPadding = LocalMiniPlayerHeight.current
-        )
         }
     }
 }

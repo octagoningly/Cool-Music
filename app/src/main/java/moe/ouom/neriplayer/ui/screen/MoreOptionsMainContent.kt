@@ -113,9 +113,9 @@ internal fun MoreOptionsMainContent(
     val scrollState = rememberScrollState()
     Column(
         Modifier
-            .bottomSheetScrollGuard { scrollState.value == 0 }
+            .fillMaxWidth()
             .verticalScroll(scrollState)
-            .padding(bottom = 32.dp)
+            .padding(bottom = 8.dp)
     ) {
         MetadataAndPlaybackActions(
             audioInfo = currentPlaybackAudioInfo,

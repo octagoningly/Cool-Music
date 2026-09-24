@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -153,6 +154,8 @@ fun GlassDropdownMenu(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(20.dp),
+    maxWidth: Dp = 240.dp,
+    maxHeight: Dp = 360.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val controller = LocalAdvancedGlassController.current
@@ -190,12 +193,12 @@ fun GlassDropdownMenu(
             properties = PopupProperties(focusable = true),
         ) {
             // DropdownMenuItem 自带 fillMaxWidth；Popup 无限宽时用 IntrinsicSize.Max
-            // 收成「最宽一项」，再 clamp 到 240.dp（开发规则：选项下拉）。
+            // 收成「最宽一项」，再 clamp 到 maxWidth（开发规则：选项下拉默认 240.dp）。
             Box(
                 Modifier
                     .width(IntrinsicSize.Max)
-                    .widthIn(max = 240.dp)
-                    .heightIn(max = 360.dp)
+                    .widthIn(max = maxWidth)
+                    .heightIn(max = maxHeight)
             ) {
                 AdvancedGlassSurface(
                     role = AdvancedGlassRole.PopupMenu,

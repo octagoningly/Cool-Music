@@ -575,50 +575,52 @@ fun LyricsScreen(
                 )
             }
 
-            // 更多按钮
+            // 更多按钮（锚点同级 Box → GlassDropdownMenu 自适应小弹窗）
             var showMoreOptions by remember { mutableStateOf(false) }
-            HapticIconButton(
-                onClick = { showMoreOptions = true },
-                modifier = Modifier.size(lyricsTopActionButtonSize)
-                    .then(
-                        if (sharedTransitionScope != null && animatedContentScope != null) {
-                            with(sharedTransitionScope) {
-                                Modifier.sharedBounds(
-                                    rememberSharedContentState(key = "btn_more"),
-                                    animatedVisibilityScope = animatedContentScope,
-                                    enter = EnterTransition.None,
-                                    exit = ExitTransition.None,
-                                ).zIndex(1f)
-                            }
-                        } else Modifier
+            Box {
+                HapticIconButton(
+                    onClick = { showMoreOptions = true },
+                    modifier = Modifier.size(lyricsTopActionButtonSize)
+                        .then(
+                            if (sharedTransitionScope != null && animatedContentScope != null) {
+                                with(sharedTransitionScope) {
+                                    Modifier.sharedBounds(
+                                        rememberSharedContentState(key = "btn_more"),
+                                        animatedVisibilityScope = animatedContentScope,
+                                        enter = EnterTransition.None,
+                                        exit = ExitTransition.None,
+                                    ).zIndex(1f)
+                                }
+                            } else Modifier
+                        )
+                ) {
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = stringResource(R.string.lyrics_more_options),
+                        modifier = Modifier.size(lyricsTopActionIconSize)
                     )
-            ) {
-                Icon(
-                    Icons.Filled.MoreVert,
-                    contentDescription = stringResource(R.string.lyrics_more_options),
-                    modifier = Modifier.size(lyricsTopActionIconSize)
-                )
-            }
-            if (showMoreOptions && currentSong != null) {
-                val queue by PlayerManager.currentQueueFlow.collectAsState()
-                val displayedQueue = remember(queue) { queue }
-                val nowPlayingViewModel: moe.ouom.neriplayer.ui.viewmodel.NowPlayingViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-                MoreOptionsSheet(
-                    viewModel = nowPlayingViewModel,
-                    originalSong = currentSong!!,
-                    queue = displayedQueue,
-                    displayedLyrics = lyrics,
-                    displayedTranslatedLyrics = translatedLyrics.orEmpty(),
-                    hasPhoneticLyrics = effectivePhoneticLyrics.isNotEmpty(),
-                    onDismiss = { showMoreOptions = false },
-                    onShowSongDetails = { detailSong = it },
-                    onEnterAlbum = onEnterAlbum,
-                    onNavigateUp = onExitNowPlaying,
-                    snackbarHostState = snackbarHostState,
-                    lyricFontScalePage = LyricFontScalePage.LYRICS,
-                    lyricFontScales = lyricFontScales,
-                    onLyricFontScaleChange = onLyricFontScaleChange
-                )
+                }
+                if (showMoreOptions && currentSong != null) {
+                    val queue by PlayerManager.currentQueueFlow.collectAsState()
+                    val displayedQueue = remember(queue) { queue }
+                    val nowPlayingViewModel: moe.ouom.neriplayer.ui.viewmodel.NowPlayingViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+                    MoreOptionsSheet(
+                        viewModel = nowPlayingViewModel,
+                        originalSong = currentSong!!,
+                        queue = displayedQueue,
+                        displayedLyrics = lyrics,
+                        displayedTranslatedLyrics = translatedLyrics.orEmpty(),
+                        hasPhoneticLyrics = effectivePhoneticLyrics.isNotEmpty(),
+                        onDismiss = { showMoreOptions = false },
+                        onShowSongDetails = { detailSong = it },
+                        onEnterAlbum = onEnterAlbum,
+                        onNavigateUp = onExitNowPlaying,
+                        snackbarHostState = snackbarHostState,
+                        lyricFontScalePage = LyricFontScalePage.LYRICS,
+                        lyricFontScales = lyricFontScales,
+                        onLyricFontScaleChange = onLyricFontScaleChange
+                    )
+                }
             }
         }
 

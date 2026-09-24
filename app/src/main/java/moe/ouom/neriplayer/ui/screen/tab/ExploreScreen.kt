@@ -801,77 +801,100 @@ fun ExploreScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
     MainTabChrome(route = moe.ouom.neriplayer.navigation.Destinations.Explore.route) {
-        Column(Modifier.fillMaxWidth()) {
-            NeriTabLargeTitleTopBar(
-                title = stringResource(R.string.nav_explore),
-                windowInsets = TopAppBarDefaults.windowInsets,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Column(
-                Modifier
+        if (showNeteaseDiscoveryPage) {
+            // 「新发现」二级页：chrome 换成返回+标题，避免探索搜索框叠在上面
+            Row(
+                modifier = Modifier
                     .fillMaxWidth()
-                    .padding(
-                        start = searchPanelHorizontalPadding,
-                        end = searchPanelHorizontalPadding,
-                        top = 4.dp,
-                        bottom = 4.dp
-                    )
+                    .windowInsetsPadding(TopAppBarDefaults.windowInsets)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // 搜索框在 chrome（采样层外）：文字/描边清晰；列表从底下滚过时被模糊
-                AdvancedGlassSurface(
-                    role = AdvancedGlassRole.ExploreSearchOverlay,
-                    shape = ExploreSearchFieldShape,
-                    fallbackColor = MaterialTheme.colorScheme.background,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(ExploreSearchFieldShape)
-                ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { onSearchQueryChange(it) },
-                        label = {
-                            Text(
-                                stringResource(
-                                    if (ui.selectedSearchSource == SearchSource.LINK_RECOGNITION) {
-                                        R.string.explore_link_input_label
-                                    } else {
-                                        R.string.search_keyword
-                                    }
-                                )
-                            )
-                        },
-                        placeholder = {
-                            when {
-                                ui.selectedSearchSource == SearchSource.LINK_RECOGNITION -> {
-                                    Text(stringResource(R.string.explore_link_input_placeholder))
-                                }
-                                ui.selectedSearchSource == SearchSource.NETEASE && !ui.isNeteaseLoggedIn -> {
-                                    Text(stringResource(R.string.netease_login_required_search_placeholder))
-                                }
-                            }
-                        },
-                        leadingIcon = { Icon(Icons.Default.Search, "Search") },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                HapticIconButton(onClick = {
-                                    onSearchQueryChange("")
-                                    vm.search("")
-                                }) { Icon(Icons.Default.Clear, "Clear") }
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(onSearch = {
-                            submitExploreSearch()
-                        }),
-                        singleLine = true,
-                        shape = ExploreSearchFieldShape,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                IconButton(onClick = { vm.closeNeteaseDiscovery() }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = stringResource(R.string.explore_new_discovery)
                     )
+                }
+                Text(
+                    text = stringResource(R.string.explore_new_discovery),
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+        } else {
+            Column(Modifier.fillMaxWidth()) {
+                NeriTabLargeTitleTopBar(
+                    title = stringResource(R.string.nav_explore),
+                    windowInsets = TopAppBarDefaults.windowInsets,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = searchPanelHorizontalPadding,
+                            end = searchPanelHorizontalPadding,
+                            top = 4.dp,
+                            bottom = 4.dp
+                        )
+                ) {
+                    // 搜索框在 chrome（采样层外）：文字/描边清晰；列表从底下滚过时被模糊
+                    AdvancedGlassSurface(
+                        role = AdvancedGlassRole.ExploreSearchOverlay,
+                        shape = ExploreSearchFieldShape,
+                        fallbackColor = MaterialTheme.colorScheme.background,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(ExploreSearchFieldShape)
+                    ) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { onSearchQueryChange(it) },
+                            label = {
+                                Text(
+                                    stringResource(
+                                        if (ui.selectedSearchSource == SearchSource.LINK_RECOGNITION) {
+                                            R.string.explore_link_input_label
+                                        } else {
+                                            R.string.search_keyword
+                                        }
+                                    )
+                                )
+                            },
+                            placeholder = {
+                                when {
+                                    ui.selectedSearchSource == SearchSource.LINK_RECOGNITION -> {
+                                        Text(stringResource(R.string.explore_link_input_placeholder))
+                                    }
+                                    ui.selectedSearchSource == SearchSource.NETEASE && !ui.isNeteaseLoggedIn -> {
+                                        Text(stringResource(R.string.netease_login_required_search_placeholder))
+                                    }
+                                }
+                            },
+                            leadingIcon = { Icon(Icons.Default.Search, "Search") },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    HapticIconButton(onClick = {
+                                        onSearchQueryChange("")
+                                        vm.search("")
+                                    }) { Icon(Icons.Default.Clear, "Clear") }
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = {
+                                submitExploreSearch()
+                            }),
+                            singleLine = true,
+                            shape = ExploreSearchFieldShape,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }
@@ -2009,32 +2032,12 @@ private fun NeteaseDiscoveryPage(
     val gridMinCellSize = if (isTabletLayout) 170.dp else 150.dp
     val gridSpacing = if (isTabletLayout) 16.dp else 12.dp
 
-    // 独立全屏二级页：不包含探索搜索框
+    // 独立全屏二级页：标题在 chrome（返回+新发现），这里不再重复顶栏
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(bottom = miniPlayerHeight)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(TopAppBarDefaults.windowInsets)
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = stringResource(R.string.explore_new_discovery)
-                )
-            }
-            Text(
-                text = stringResource(R.string.explore_new_discovery),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(start = 4.dp)
-            )
-        }
-
         ExploreNeteasePlaylistTagRow(
             tagKeys = tagKeys,
             tagLabels = tagLabels,

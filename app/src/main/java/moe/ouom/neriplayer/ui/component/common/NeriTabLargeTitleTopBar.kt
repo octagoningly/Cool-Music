@@ -22,8 +22,8 @@ import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 
 /**
  * 首页 Tab 通用紧凑大标题顶栏。
- * 比 Material LargeTopAppBar 更靠上，减少状态栏下方的空白。
- * 整条铺满透明玻璃（直角，不做胶囊），滚动内容从下面经过时可被模糊采样。
+ * 玻璃从屏幕顶部铺满（含状态栏），标题用 insets 让开状态栏；
+ * 关模糊时实底挡住滚过内容，开模糊时采样背后列表。
  */
 @Composable
 fun NeriTabLargeTitleTopBar(
@@ -35,13 +35,13 @@ fun NeriTabLargeTitleTopBar(
     AdvancedGlassSurface(
         role = AdvancedGlassRole.ScreenTopTab,
         shape = RectangleShape,
-        // 关模糊时用实底挡住滚过的内容；开模糊时半透明 + 采样背后列表
         fallbackColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                // 内容让开状态栏，但玻璃本体一直画到屏幕顶
                 .windowInsetsPadding(windowInsets)
                 .padding(start = 20.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
             verticalAlignment = Alignment.CenterVertically

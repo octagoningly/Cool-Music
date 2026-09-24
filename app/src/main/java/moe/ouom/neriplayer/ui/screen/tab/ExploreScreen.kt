@@ -801,55 +801,33 @@ fun ExploreScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
     MainTabChrome(route = moe.ouom.neriplayer.navigation.Destinations.Explore.route) {
-        NeriTabLargeTitleTopBar(
-            title = stringResource(R.string.nav_explore),
-            windowInsets = WindowInsets(0),
-            modifier = Modifier.statusBarsPadding()
-        )
-    }
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize(),
-        containerColor = Color.Transparent,
-        snackbarHost = {
-            NeriSnackbarHost(
-                hostState = snackbarHostState,
-                bottomPadding = miniPlayerHeight
+        Column(Modifier.fillMaxWidth()) {
+            NeriTabLargeTitleTopBar(
+                title = stringResource(R.string.nav_explore),
+                windowInsets = TopAppBarDefaults.windowInsets,
+                modifier = Modifier.fillMaxWidth()
             )
-        },
-        topBar = {}
-    ) { innerPadding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
             Column(
                 Modifier
-                    .widthIn(max = 1040.dp)
                     .fillMaxWidth()
                     .padding(
                         start = searchPanelHorizontalPadding,
                         end = searchPanelHorizontalPadding,
-                        // 为 chrome 标题留空，避免搜索框/结果被顶栏盖住
-                        top = 56.dp,
-                        bottom = 8.dp
+                        top = 4.dp,
+                        bottom = 4.dp
                     )
             ) {
-                    AdvancedGlassSurface(
-                        role = AdvancedGlassRole.ExploreSearchOverlay,
-                        shape = ExploreSearchFieldShape,
-                        fallbackColor = MaterialTheme.colorScheme.background,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(ExploreSearchFieldShape)
-                    ) {
+                AdvancedGlassSurface(
+                    role = AdvancedGlassRole.ExploreSearchOverlay,
+                    shape = ExploreSearchFieldShape,
+                    fallbackColor = MaterialTheme.colorScheme.background,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ExploreSearchFieldShape)
+                ) {
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = {
-                            onSearchQueryChange(it)
-                        },
+                        onValueChange = { onSearchQueryChange(it) },
                         label = {
                             Text(
                                 stringResource(
@@ -890,12 +868,43 @@ fun ExploreScreen(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
                             disabledContainerColor = Color.Transparent,
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
-                    }
+                }
+            }
+        }
+    }
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize(),
+        containerColor = Color.Transparent,
+        snackbarHost = {
+            NeriSnackbarHost(
+                hostState = snackbarHostState,
+                bottomPadding = miniPlayerHeight
+            )
+        },
+        topBar = {}
+    ) { innerPadding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Column(
+                Modifier
+                    .widthIn(max = 1040.dp)
+                    .fillMaxWidth()
+                    .padding(
+                        start = searchPanelHorizontalPadding,
+                        end = searchPanelHorizontalPadding,
+                        // 标题+搜索在 chrome 浮层，这里只留出类型筛选起始间距
+                        top = 8.dp,
+                        bottom = 8.dp
+                    )
+            ) {
                     if (ui.selectedSearchSource == SearchSource.NETEASE && !ui.isNeteaseLoggedIn
                     ) {
                         Spacer(Modifier.height(6.dp))

@@ -887,9 +887,8 @@ fun HomeScreen(
                         )
                     }
                 },
-                windowInsets = WindowInsets(0),
-                modifier = Modifier
-                    .statusBarsPadding()
+                windowInsets = TopAppBarDefaults.windowInsets,
+                modifier = Modifier.fillMaxWidth()
             )
         }
 

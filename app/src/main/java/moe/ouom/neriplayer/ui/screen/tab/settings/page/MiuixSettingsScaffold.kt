@@ -128,9 +128,14 @@ internal fun MiuixSettingsHomeScaffold(
             .background(Color.Transparent),
         containerColor = Color.Transparent,
         topBar = {
-            NeriTabLargeTitleTopBar(
-                title = { title() }
-            )
+            // chrome 挂到捕获层外，避免设置标题被自模糊
+            moe.ouom.neriplayer.ui.component.common.MainTabChrome(
+                route = moe.ouom.neriplayer.navigation.Destinations.Settings.route
+            ) {
+                NeriTabLargeTitleTopBar(
+                    title = { title() }
+                )
+            }
         }
     ) { innerPadding ->
         Box(

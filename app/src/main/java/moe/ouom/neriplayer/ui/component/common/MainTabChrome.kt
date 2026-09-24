@@ -2,10 +2,9 @@ package moe.ouom.neriplayer.ui.component.common
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
 
 /**
@@ -14,7 +13,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
  * 必须画在 content 捕获层之外（与 MiniPlayer 同级）：
  * - 列表可滚到 chrome 底下并被模糊采样
  * - 标题文字不进采样层，不会被一起糊掉
- * - 切换 Tab 时只显示当前 route 的 chrome，避免残留「媒体库」标题
+ * - 切换 Tab 时只显示当前 route 的 chrome
  */
 @Stable
 class MainTabChromeSlot {
@@ -30,7 +29,8 @@ class MainTabChromeSlot {
 
     @Composable
     fun ContentFor(route: String) {
-        entries[route]?.invoke()
+        val content = entries[route] ?: return
+        content()
     }
 }
 
@@ -38,7 +38,8 @@ val LocalMainTabChromeSlot = staticCompositionLocalOf { MainTabChromeSlot() }
 
 /**
  * 在页面内声明 chrome（顶栏等），实际绘制发生在 [LocalMainTabChromeSlot] 宿主（捕获层外）。
- * [route] 用于多 Tab 并存时只显示当前页 chrome。
+ *
+ * 每次组合都用 [SideEffect] 刷新 content，保证「新发现」等条件分支切换时顶栏跟着变。
  */
 @Composable
 fun MainTabChrome(
@@ -46,9 +47,10 @@ fun MainTabChrome(
     content: @Composable () -> Unit
 ) {
     val slot = LocalMainTabChromeSlot.current
-    val latest by rememberUpdatedState(content)
+    SideEffect {
+        slot.register(route, content)
+    }
     DisposableEffect(slot, route) {
-        slot.register(route) { latest() }
         onDispose { slot.unregister(route) }
     }
 }

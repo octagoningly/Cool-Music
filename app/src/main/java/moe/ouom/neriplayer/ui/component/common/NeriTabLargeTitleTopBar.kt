@@ -3,7 +3,9 @@ package moe.ouom.neriplayer.ui.component.common
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -22,8 +24,8 @@ import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 
 /**
  * 首页 Tab 通用紧凑大标题顶栏。
- * 玻璃从屏幕顶部铺满（含状态栏），标题用 insets 让开状态栏；
- * 关模糊时实底挡住滚过内容，开模糊时采样背后列表。
+ * 玻璃画在底层只做模糊/tint，标题与操作钮画在上层（不进玻璃 content），
+ * 保证文字始终清晰；关模糊时用实底挡住滚过内容。
  */
 @Composable
 fun NeriTabLargeTitleTopBar(
@@ -32,16 +34,21 @@ fun NeriTabLargeTitleTopBar(
     actions: @Composable RowScope.() -> Unit = {},
     windowInsets: WindowInsets = TopAppBarDefaults.windowInsets,
 ) {
-    AdvancedGlassSurface(
-        role = AdvancedGlassRole.ScreenTopTab,
-        shape = RectangleShape,
-        fallbackColor = MaterialTheme.colorScheme.background,
-        modifier = modifier.fillMaxWidth()
-    ) {
+    Box(modifier = modifier.fillMaxWidth()) {
+        // 底层：只负责磨砂/实底，不包含文字
+        AdvancedGlassSurface(
+            role = AdvancedGlassRole.ScreenTopTab,
+            shape = RectangleShape,
+            fallbackColor = MaterialTheme.colorScheme.background,
+            tintColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            modifier = Modifier.matchParentSize()
+        ) {
+            Spacer(modifier = Modifier.fillMaxSize())
+        }
+        // 上层：标题与按钮，始终清晰
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // 内容让开状态栏，但玻璃本体一直画到屏幕顶
                 .windowInsetsPadding(windowInsets)
                 .padding(start = 20.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
             verticalAlignment = Alignment.CenterVertically

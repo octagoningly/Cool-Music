@@ -802,7 +802,7 @@ fun ExploreScreen(
     Box(modifier = Modifier.fillMaxSize()) {
     MainTabChrome(route = moe.ouom.neriplayer.navigation.Destinations.Explore.route) {
         if (showNeteaseDiscoveryPage) {
-            // 「新发现」二级页：chrome 换成返回+标题，避免探索搜索框叠在上面
+            // 「新发现」二级页：chrome 换成返回+标题
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -819,13 +819,25 @@ fun ExploreScreen(
                 Text(
                     text = stringResource(R.string.explore_new_discovery),
                     style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(start = 4.dp)
                 )
             }
         } else {
             Column(Modifier.fillMaxWidth()) {
                 NeriTabLargeTitleTopBar(
-                    title = stringResource(R.string.nav_explore),
+                    title = {
+                        Text(
+                            text = stringResource(R.string.nav_explore),
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
                     windowInsets = TopAppBarDefaults.windowInsets,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -839,15 +851,21 @@ fun ExploreScreen(
                             bottom = 4.dp
                         )
                 ) {
-                    // 搜索框在 chrome（采样层外）：文字/描边清晰；列表从底下滚过时被模糊
-                    AdvancedGlassSurface(
-                        role = AdvancedGlassRole.ExploreSearchOverlay,
-                        shape = ExploreSearchFieldShape,
-                        fallbackColor = MaterialTheme.colorScheme.background,
-                        modifier = Modifier
+                    // 搜索框：玻璃在底、输入在上，避免文字被糊
+                    Box(
+                        Modifier
                             .fillMaxWidth()
                             .clip(ExploreSearchFieldShape)
                     ) {
+                        AdvancedGlassSurface(
+                            role = AdvancedGlassRole.ExploreSearchOverlay,
+                            shape = ExploreSearchFieldShape,
+                            fallbackColor = MaterialTheme.colorScheme.background,
+                            tintColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.matchParentSize()
+                        ) {
+                            Spacer(modifier = Modifier.fillMaxSize())
+                        }
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { onSearchQueryChange(it) },

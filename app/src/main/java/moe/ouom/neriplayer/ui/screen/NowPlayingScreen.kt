@@ -3727,6 +3727,9 @@ fun NowPlayingScreen(
                     onDismiss = { showQualitySwitchDialog = false },
                     onSelect = { option ->
                         PlayerManager.changeCurrentPlaybackQuality(option.key)
+                        moe.ouom.neriplayer.ui.feedback.AppFeedback.show(
+                            message = "切换至：${option.label}"
+                        )
                         showQualitySwitchDialog = false
                     }
                 )
@@ -4564,12 +4567,19 @@ fun LyricBehaviorSheet(
             .windowInsetsPadding(WindowInsets.navigationBars),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(stringResource(R.string.lyrics_adjust_behavior), style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.lyrics_adjust_behavior), style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(4.dp))
 
         ListItem(
-            headlineContent = { Text(stringResource(R.string.settings_show_lyric_translation)) },
-            supportingContent = { Text(stringResource(R.string.settings_show_lyric_translation_desc)) },
+            headlineContent = { Text(stringResource(R.string.settings_show_lyric_translation), style = MaterialTheme.typography.bodyMedium) },
+            supportingContent = {
+                Text(
+                    stringResource(R.string.settings_show_lyric_translation_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
             trailingContent = {
                 Switch(
                     checked = showLyricTranslation,
@@ -4579,6 +4589,8 @@ fun LyricBehaviorSheet(
                 )
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
@@ -4588,7 +4600,7 @@ fun LyricBehaviorSheet(
         )
 
         ListItem(
-            headlineContent = { Text(stringResource(R.string.lyrics_translation_use_phonetic)) },
+            headlineContent = { Text(stringResource(R.string.lyrics_translation_use_phonetic), style = MaterialTheme.typography.bodyMedium) },
             supportingContent = {
                 Text(
                     when {
@@ -4597,7 +4609,10 @@ fun LyricBehaviorSheet(
                         !hasPhoneticLyrics ->
                             stringResource(R.string.lyrics_translation_use_phonetic_unavailable)
                         else -> stringResource(R.string.lyrics_translation_use_phonetic_desc)
-                    }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             },
             trailingContent = {
@@ -4612,6 +4627,8 @@ fun LyricBehaviorSheet(
                 )
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
@@ -4622,19 +4639,19 @@ fun LyricBehaviorSheet(
                 }
         )
 
-        Spacer(Modifier.height(16.dp))
-        Text(stringResource(R.string.lyrics_adjust_offset), style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.lyrics_adjust_offset), style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(2.dp))
         Text(
             text = "${if (currentOffset > 0) "+" else ""}${currentOffset} ms",
-            style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace),
+            style = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Monospace),
             color = when {
                 currentOffset > 0 -> Color(0xFF388E3C) // 快了 绿色
                 currentOffset < 0 -> MaterialTheme.colorScheme.error // 慢了 红色
                 else -> LocalContentColor.current
             }
         )
-        Text(stringResource(R.string.lyrics_offset_hint), style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.lyrics_offset_hint), style = MaterialTheme.typography.labelSmall)
 
         Slider(
             value = currentOffset.toFloat(),
@@ -4650,8 +4667,11 @@ fun LyricBehaviorSheet(
             valueRange = sliderMinOffset.toFloat()..sliderMaxOffset.toFloat(),
             steps = sliderSteps
         )
-        Spacer(Modifier.height(16.dp))
-        HapticTextButton(onClick = onDismiss) {
+        Spacer(Modifier.height(8.dp))
+        HapticTextButton(
+            onClick = onDismiss,
+            modifier = Modifier.heightIn(max = 40.dp)
+        ) {
             Text(stringResource(R.string.action_done))
         }
     }
@@ -5030,38 +5050,7 @@ fun EditSongInfoSheet(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // 封面链接输入框
-            OutlinedTextField(
-                value = coverUrl,
-                onValueChange = {
-                    coverUrl = it
-                    userHasEdited = true
-                    shouldRestoreCoverBase = false
-                },
-                label = { Text(stringResource(R.string.music_cover_url)) },
-                placeholder = { Text(stringResource(R.string.music_cover_url_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                trailingIcon = {
-                    HapticIconButton(
-                        onClick = {
-                            applyOriginalInfo(
-                                restoreCover = true,
-                                restoreTitle = false,
-                                restoreArtist = false,
-                                restoreLyrics = false
-                            )
-                        }
-                    ) {
-                        Icon(
-                            Icons.Outlined.Refresh,
-                            contentDescription = stringResource(R.string.music_restore_cover)
-                        )
-                    }
-                }
-            )
-
-            // 封面预览
+            // 封面预览（最上）
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
@@ -5107,23 +5096,24 @@ fun EditSongInfoSheet(
                 }
             }
 
-            // 标题输入框
+            // 封面链接输入框
             OutlinedTextField(
-                value = songName,
+                value = coverUrl,
                 onValueChange = {
-                    songName = it
+                    coverUrl = it
                     userHasEdited = true
-                    shouldRestoreTitleBase = false
+                    shouldRestoreCoverBase = false
                 },
-                label = { Text(stringResource(R.string.music_edit_title)) },
+                label = { Text(stringResource(R.string.music_cover_url)) },
+                placeholder = { Text(stringResource(R.string.music_cover_url_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 trailingIcon = {
                     HapticIconButton(
                         onClick = {
                             applyOriginalInfo(
-                                restoreCover = false,
-                                restoreTitle = true,
+                                restoreCover = true,
+                                restoreTitle = false,
                                 restoreArtist = false,
                                 restoreLyrics = false
                             )
@@ -5131,41 +5121,75 @@ fun EditSongInfoSheet(
                     ) {
                         Icon(
                             Icons.Outlined.Refresh,
-                            contentDescription = stringResource(R.string.music_restore_title)
+                            contentDescription = stringResource(R.string.music_restore_cover)
                         )
                     }
                 }
             )
 
-            // 艺术家输入框
-            OutlinedTextField(
-                value = artistName,
-                onValueChange = {
-                    artistName = it
-                    userHasEdited = true
-                    shouldRestoreArtistBase = false
-                },
-                label = { Text(stringResource(R.string.music_edit_artist)) },
+            // 标题 + 艺术家同一行
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                trailingIcon = {
-                    HapticIconButton(
-                        onClick = {
-                            applyOriginalInfo(
-                                restoreCover = false,
-                                restoreTitle = false,
-                                restoreArtist = true,
-                                restoreLyrics = false
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = songName,
+                    onValueChange = {
+                        songName = it
+                        userHasEdited = true
+                        shouldRestoreTitleBase = false
+                    },
+                    label = { Text(stringResource(R.string.music_edit_title)) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    trailingIcon = {
+                        HapticIconButton(
+                            onClick = {
+                                applyOriginalInfo(
+                                    restoreCover = false,
+                                    restoreTitle = true,
+                                    restoreArtist = false,
+                                    restoreLyrics = false
+                                )
+                            }
+                        ) {
+                            Icon(
+                                Icons.Outlined.Refresh,
+                                contentDescription = stringResource(R.string.music_restore_title)
                             )
                         }
-                    ) {
-                        Icon(
-                            Icons.Outlined.Refresh,
-                            contentDescription = stringResource(R.string.music_restore_artist)
-                        )
                     }
-                }
-            )
+                )
+
+                OutlinedTextField(
+                    value = artistName,
+                    onValueChange = {
+                        artistName = it
+                        userHasEdited = true
+                        shouldRestoreArtistBase = false
+                    },
+                    label = { Text(stringResource(R.string.music_edit_artist)) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    trailingIcon = {
+                        HapticIconButton(
+                            onClick = {
+                                applyOriginalInfo(
+                                    restoreCover = false,
+                                    restoreTitle = false,
+                                    restoreArtist = true,
+                                    restoreLyrics = false
+                                )
+                            }
+                        ) {
+                            Icon(
+                                Icons.Outlined.Refresh,
+                                contentDescription = stringResource(R.string.music_restore_artist)
+                            )
+                        }
+                    }
+                )
+            }
 
             // 编辑歌词按钮
             HapticTextButton(
@@ -5321,7 +5345,7 @@ fun EditSongInfoSheet(
         val actionButtonContainerWidth = with(LocalDensity.current) {
             LocalWindowInfo.current.containerSize.width.toDp()
         }
-        val actionButtonFontSize = if (actionButtonContainerWidth < 420.dp) 11.sp else 13.sp
+        val actionButtonFontSize = if (actionButtonContainerWidth < 420.dp) 12.sp else 14.sp
 
         // 搜索自动填充按钮（压扁一行，避免截断）
         Row(
@@ -5340,13 +5364,11 @@ fun EditSongInfoSheet(
                     .weight(1f)
                     .heightIn(max = 40.dp)
             ) {
-                Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(2.dp))
                 Text(
                     text = stringResource(R.string.music_auto_fill),
                     maxLines = 1,
                     softWrap = false,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Clip,
                     fontSize = actionButtonFontSize
                 )
             }
@@ -5364,13 +5386,11 @@ fun EditSongInfoSheet(
                     .weight(1f)
                     .heightIn(max = 40.dp)
             ) {
-                Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(2.dp))
                 Text(
                     text = stringResource(R.string.music_restore_original),
                     maxLines = 1,
                     softWrap = false,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Clip,
                     fontSize = actionButtonFontSize
                 )
             }
@@ -5395,13 +5415,11 @@ fun EditSongInfoSheet(
                     .weight(1f)
                     .heightIn(max = 40.dp)
             ) {
-                Icon(Icons.Outlined.Save, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(2.dp))
                 Text(
                     text = stringResource(R.string.music_save_changes),
                     maxLines = 1,
                     softWrap = false,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = TextOverflow.Clip,
                     fontSize = actionButtonFontSize
                 )
             }

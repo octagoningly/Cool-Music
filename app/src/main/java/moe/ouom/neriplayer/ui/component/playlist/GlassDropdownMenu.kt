@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalTextStyle
@@ -62,23 +62,24 @@ internal fun resolveGlassMenuPosition(
     offsetY: Int,
     reservedBottomPx: Int,
 ): IntOffset {
-    var x = anchor.left + offsetX
-    if (x + popupSize.width > windowSize.width) {
-        x = anchor.right - popupSize.width - offsetX
+    // 右侧按钮优先右对齐，避免弹窗甩到左边
+    var x = anchor.right - popupSize.width
+    if (x < offsetX) {
+        x = anchor.left + offsetX
     }
     if (x < 0) x = 0
     if (x + popupSize.width > windowSize.width) {
         x = (windowSize.width - popupSize.width).coerceAtLeast(0)
     }
 
-    // 1) 尽量向上
-    var y = anchor.top - popupSize.height - offsetY
+    // 1) 优先向下弹出
+    var y = anchor.bottom + offsetY
     val maxBottom = (windowSize.height - reservedBottomPx).coerceAtLeast(0)
     val maxTop = (maxBottom - popupSize.height).coerceAtLeast(0)
 
-    // 2) 向上放不下，再向下；仍不得压住底部保留区
-    if (y < offsetY) {
-        y = anchor.bottom + offsetY
+    // 2) 向下放不下，再向上；仍不得压住底部保留区
+    if (y + popupSize.height > maxBottom) {
+        y = anchor.top - popupSize.height - offsetY
     }
     if (y + popupSize.height > maxBottom) {
         y = maxTop
@@ -218,13 +219,15 @@ fun GlassDropdownMenu(
                             textAlign = TextAlign.Center
                         )
                     ) {
-                        Column(
+                        LazyColumn(
                             modifier = Modifier
                                 .padding(vertical = 4.dp)
                                 .heightIn(max = maxHeight)
-                                .verticalScroll(rememberScrollState()),
-                            content = content
-                        )
+                        ) {
+                            item {
+                                Column(content = content)
+                            }
+                        }
                     }
                 }
             }

@@ -972,37 +972,32 @@ fun ExploreScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    // 搜索源：点击只弹出换源，不拉起搜索
-                                    Surface(
-                                        shape = ExplorePrimaryTabShape,
-                                        color = MaterialTheme.colorScheme.surface.copy(alpha = tagChipUnselectedAlpha),
-                                        border = BorderStroke(
-                                            width = 1.dp,
-                                            color = MaterialTheme.colorScheme.outline.copy(alpha = tagChipBorderAlpha)
-                                        ),
-                                        modifier = Modifier.clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = ripple()
-                                        ) { sourceMenuExpanded = true }
+                                    // 搜索源：纯文字 + 小三角，点击只弹换源
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                        modifier = Modifier
+                                            .clip(ExplorePrimaryTabShape)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = ripple()
+                                            ) { sourceMenuExpanded = true }
+                                            .padding(horizontal = 4.dp, vertical = 4.dp)
                                     ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                        ) {
-                                            Text(
-                                                text = searchSourceLabel(ui.selectedSearchSource),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                maxLines = 1,
-                                                softWrap = false,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Icon(
-                                                imageVector = Icons.Filled.ArrowDropDown,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
+                                        Text(
+                                            text = searchSourceLabel(ui.selectedSearchSource),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Filled.ArrowDropDown,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(14.dp)
+                                        )
                                     }
                                     if (searchQuery.isNotEmpty()) {
                                         HapticIconButton(onClick = {
@@ -1117,8 +1112,10 @@ fun ExploreScreen(
                     Column(Modifier.padding(top = exploreFilterRowTop)) {
                     // 第一行：左侧搜索类型（歌曲/歌单/歌手），右侧搜索源按钮 —— 整组水平居中
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         ExploreSearchTypeBar(
@@ -1143,39 +1140,29 @@ fun ExploreScreen(
                             val currentTagLabel = tagLabels.getOrElse(
                                 tagKeys.indexOf(ui.selectedTag)
                             ) { tagLabels.first() }
-                            Box(modifier = Modifier.padding(start = 8.dp)) {
-                                Surface(
-                                    shape = ExplorePrimaryTabShape,
-                                    color = MaterialTheme.colorScheme.surface.copy(alpha = tagChipUnselectedAlpha),
-                                    border = BorderStroke(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.outline.copy(alpha = tagChipBorderAlpha)
-                                    ),
-                                    modifier = Modifier.clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = ripple()
-                                    ) { tagMenuExpanded = true }
+                            Box(modifier = Modifier.padding(horizontal = 4.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    modifier = Modifier
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = ripple()
+                                        ) { tagMenuExpanded = true }
+                                        .padding(horizontal = 6.dp, vertical = 4.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .height(48.dp)
-                                            .padding(horizontal = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                    ) {
-                                        Text(
-                                            text = currentTagLabel,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Filled.ArrowDropDown,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                                    Text(
+                                        text = currentTagLabel,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Filled.ArrowDropDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
+                                    )
                                 }
                                 GlassDropdownMenu(
                                     expanded = tagMenuExpanded,
@@ -1991,13 +1978,13 @@ internal fun ExploreSearchTypeBar(
     ) { displayedSource ->
         when (displayedSource) {
             SearchSource.DEFAULT -> {
-                LazyRow(
+                Row(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_DEFAULT_SEARCH_TYPE_BAR_TAG),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    itemsIndexed(DefaultExploreSearchType.entries) { _, type ->
+                    DefaultExploreSearchType.entries.forEach { type ->
                         ExploreTagChip(
                             label = defaultSearchTypeLabel(type),
                             icon = defaultSearchTypeIcon(type),
@@ -2017,13 +2004,13 @@ internal fun ExploreSearchTypeBar(
             }
 
             SearchSource.NETEASE -> {
-                LazyRow(
+                Row(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_NETEASE_SEARCH_TYPE_BAR_TAG),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    itemsIndexed(NeteaseExploreSearchType.entries) { _, type ->
+                    NeteaseExploreSearchType.entries.forEach { type ->
                         ExploreTagChip(
                             label = neteaseSearchTypeLabel(type),
                             icon = neteaseSearchTypeIcon(type),
@@ -2043,13 +2030,13 @@ internal fun ExploreSearchTypeBar(
             }
 
             SearchSource.YOUTUBE_MUSIC -> {
-                LazyRow(
+                Row(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_YOUTUBE_SEARCH_TYPE_BAR_TAG),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    itemsIndexed(YouTubeExploreSearchType.entries) { _, type ->
+                    YouTubeExploreSearchType.entries.forEach { type ->
                         ExploreTagChip(
                             label = youtubeSearchTypeLabel(type),
                             icon = youtubeSearchTypeIcon(type),
@@ -2186,28 +2173,34 @@ private fun ExploreTagChip(
     }
 
     ExploreGlassPillSurface(
-        fallbackColor = containerColor,
-        tintColor = if (selected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surface
+        fallbackColor = if (showLabel) containerColor else Color.Transparent,
+        tintColor = when {
+            !showLabel -> Color.Transparent
+            selected -> MaterialTheme.colorScheme.secondaryContainer
+            else -> MaterialTheme.colorScheme.surface
         },
         contentColor = contentColor,
-        border = BorderStroke(1.dp, borderColor),
-        shape = if (showLabel) ExplorePillShape else ExploreTypeChipShape,
-        modifier = if (showLabel) Modifier else Modifier.requiredSize(48.dp),
+        border = if (showLabel) BorderStroke(1.dp, borderColor) else null,
+        shape = ExplorePillShape,
+        modifier = Modifier,
         onClick = onClick
     ) {
         if (!showLabel && icon != null) {
-            // 外层 requiredSize(48) 已定界，内容撑满以铺满玻璃底
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
                     modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         } else {

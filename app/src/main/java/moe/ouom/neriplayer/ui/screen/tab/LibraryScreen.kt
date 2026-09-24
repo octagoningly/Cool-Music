@@ -381,7 +381,7 @@ private fun libraryListBottomPadding(): Dp {
 
 /** 顶部为浮层标题+Tab 留出起始空白，滚动后内容可进入玻璃区被采样。 */
 @Composable
-private fun libraryListTopPadding(): Dp = 128.dp
+private fun libraryListTopPadding(): Dp = 136.dp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -2621,7 +2621,7 @@ private fun LibraryInlineSearchField(
         onValueChange = onQueryChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
         placeholder = { Text(stringResource(placeholderResId)) },
         singleLine = true,
         shape = LibrarySearchFieldShape,

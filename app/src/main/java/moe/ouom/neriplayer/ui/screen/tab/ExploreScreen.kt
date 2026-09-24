@@ -801,55 +801,34 @@ fun ExploreScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
     MainTabChrome(route = moe.ouom.neriplayer.navigation.Destinations.Explore.route) {
-        NeriTabLargeTitleTopBar(
-            title = stringResource(R.string.nav_explore),
-            windowInsets = TopAppBarDefaults.windowInsets,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize(),
-        containerColor = Color.Transparent,
-        snackbarHost = {
-            NeriSnackbarHost(
-                hostState = snackbarHostState,
-                bottomPadding = miniPlayerHeight
+        Column(Modifier.fillMaxWidth()) {
+            NeriTabLargeTitleTopBar(
+                title = stringResource(R.string.nav_explore),
+                windowInsets = TopAppBarDefaults.windowInsets,
+                modifier = Modifier.fillMaxWidth()
             )
-        },
-        topBar = {}
-    ) { innerPadding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
             Column(
                 Modifier
-                    .widthIn(max = 1040.dp)
                     .fillMaxWidth()
                     .padding(
                         start = searchPanelHorizontalPadding,
                         end = searchPanelHorizontalPadding,
-                        // 仅为 chrome 标题让位；搜索框在内容区，不被挡住
-                        top = 64.dp,
-                        bottom = 8.dp
+                        top = 4.dp,
+                        bottom = 4.dp
                     )
             ) {
-                    AdvancedGlassSurface(
-                        role = AdvancedGlassRole.ExploreSearchOverlay,
-                        shape = ExploreSearchFieldShape,
-                        fallbackColor = MaterialTheme.colorScheme.background,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(ExploreSearchFieldShape)
-                    ) {
+                // 搜索框在 chrome（采样层外）：文字/描边清晰；列表从底下滚过时被模糊
+                AdvancedGlassSurface(
+                    role = AdvancedGlassRole.ExploreSearchOverlay,
+                    shape = ExploreSearchFieldShape,
+                    fallbackColor = MaterialTheme.colorScheme.background,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ExploreSearchFieldShape)
+                ) {
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = {
-                            onSearchQueryChange(it)
-                        },
+                        onValueChange = { onSearchQueryChange(it) },
                         label = {
                             Text(
                                 stringResource(
@@ -893,7 +872,40 @@ fun ExploreScreen(
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
-                    }
+                }
+            }
+        }
+    }
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize(),
+        containerColor = Color.Transparent,
+        snackbarHost = {
+            NeriSnackbarHost(
+                hostState = snackbarHostState,
+                bottomPadding = miniPlayerHeight
+            )
+        },
+        topBar = {}
+    ) { innerPadding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Column(
+                Modifier
+                    .widthIn(max = 1040.dp)
+                    .fillMaxWidth()
+                    .padding(
+                        start = searchPanelHorizontalPadding,
+                        end = searchPanelHorizontalPadding,
+                        // 标题+搜索在 chrome；列表用 contentPadding 从顶铺开以便滚入玻璃
+                        top = 0.dp,
+                        bottom = 8.dp
+                    )
+            ) {
                     if (ui.selectedSearchSource == SearchSource.NETEASE && !ui.isNeteaseLoggedIn
                     ) {
                         Spacer(Modifier.height(6.dp))
@@ -943,6 +955,8 @@ fun ExploreScreen(
                         exit = androidx.compose.animation.shrinkVertically() +
                             androidx.compose.animation.fadeOut(),
                     ) {
+                    // 为 chrome（标题+搜索）让位；收起后列表可滚入玻璃区
+                    Column(Modifier.padding(top = 136.dp)) {
                     // 第一行：左侧搜索类型（歌曲/歌单/歌手），右侧搜索源按钮 —— 整组水平居中
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1016,14 +1030,15 @@ fun ExploreScreen(
                         }
                     }
                     }
+                    }
 
                     // 类型标签行仅在「新发现」二级页展示（见 NeteaseDiscoveryPage）
                 }
 
+            // 列表从屏幕顶铺开（chrome 浮在上面），滚动后条目进入搜索框/标题玻璃区
             Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
+                    .fillMaxSize()
             ) {
                 HorizontalPager(
                     state = pagerState,
@@ -1067,7 +1082,8 @@ fun ExploreScreen(
                                     contentPadding = PaddingValues(
                                         start = searchResultHorizontalPadding,
                                         end = searchResultHorizontalPadding,
-                                        top = 8.dp,
+                                        // 让开 chrome（标题+搜索），滚动后条目可进入玻璃采样区
+                                        top = 136.dp,
                                         bottom = exploreSearchResultsBottomPadding(miniPlayerHeight)
                                     ),
                                     modifier = Modifier.fillMaxSize()

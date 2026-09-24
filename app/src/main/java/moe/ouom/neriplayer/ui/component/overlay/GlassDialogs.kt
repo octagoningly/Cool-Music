@@ -181,6 +181,8 @@ internal fun GlassAlertDialog(
     iconContentColor: androidx.compose.ui.graphics.Color = AlertDialogDefaults.iconContentColor,
     titleContentColor: androidx.compose.ui.graphics.Color = AlertDialogDefaults.titleContentColor,
     textContentColor: androidx.compose.ui.graphics.Color = AlertDialogDefaults.textContentColor,
+    maxWidth: Dp = 220.dp,
+    maxHeight: Dp = 300.dp,
 ) {
     GlassPanel(
         onDismissRequest = onDismissRequest,
@@ -188,9 +190,9 @@ internal fun GlassAlertDialog(
         shape = shape,
         role = AdvancedGlassRole.DialogPanel,
         position = GlassPanelPosition.Centered,
-        // 手机上 360 已接近全宽；对话框固定紧凑宽，内容 wrap
-        maxWidth = 220.dp,
-        maxHeight = 300.dp,
+        // 默认紧凑宽；内容多的弹窗可传更大 maxWidth/maxHeight
+        maxWidth = maxWidth,
+        maxHeight = maxHeight,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (icon != null) {

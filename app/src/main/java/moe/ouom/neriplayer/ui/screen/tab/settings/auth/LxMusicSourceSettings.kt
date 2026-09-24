@@ -95,9 +95,17 @@ internal fun SettingsLxMusicSourceDialogs(
         }
     }
 
-    if (showManageDialog) {
+    // 详情与管理弹窗互斥展示：先关管理，再弹详情；关详情后回到管理，保持连贯
+    var detailSource by remember { mutableStateOf<LxImportedSource?>(null) }
+    LaunchedEffect(showManageDialog) {
+        if (!showManageDialog) {
+            detailSource = null
+        }
+    }
+    val activeDetail = detailSource
+
+    if (showManageDialog && activeDetail == null) {
         val state by vm.uiState.collectAsStateWithLifecycleCompat()
-        var detailSource by remember { mutableStateOf<LxImportedSource?>(null) }
         var showRegistryDialog by remember { mutableStateOf(false) }
         var previousRegistryCount by remember { mutableStateOf(0) }
 
@@ -115,6 +123,9 @@ internal fun SettingsLxMusicSourceDialogs(
                 vm.clearMessage()
                 onDismissManageDialog()
             },
+            // 内容较多，适当加大面板，提升可读性
+            maxWidth = 340.dp,
+            maxHeight = 520.dp,
             confirmButton = {
                 MiuixSettingsButton(onClick = {
                     vm.clearMessage()
@@ -138,7 +149,7 @@ internal fun SettingsLxMusicSourceDialogs(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = screenHeightDp * 0.55f)
+                        .heightIn(max = screenHeightDp * 0.62f)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -226,13 +237,6 @@ internal fun SettingsLxMusicSourceDialogs(
             }
         )
 
-        detailSource?.let { source ->
-            LxSourceDetailDialog(
-                source = source,
-                onDismiss = { detailSource = null }
-            )
-        }
-
         if (showRegistryDialog) {
             LxSourceRegistryDialog(
                 generatedAt = state.registryGeneratedAt,
@@ -242,6 +246,13 @@ internal fun SettingsLxMusicSourceDialogs(
                 onDismiss = { showRegistryDialog = false }
             )
         }
+    }
+
+    activeDetail?.let { source ->
+        LxSourceDetailDialog(
+            source = source,
+            onDismiss = { detailSource = null }
+        )
     }
 
     if (showImportDialog) {
@@ -261,6 +272,7 @@ internal fun SettingsLxMusicSourceDialogs(
                 vm.clearMessage()
                 onDismissImportDialog()
             },
+            maxWidth = 320.dp,
             confirmButton = {
                 MiuixSettingsButton(
                     enabled = !state.importing && urlInput.isNotBlank(),
@@ -328,6 +340,8 @@ private fun LxSourceDetailDialog(
 ) {
     MiuixSettingsDialog(
         onDismissRequest = onDismiss,
+        maxWidth = 340.dp,
+        maxHeight = 480.dp,
         confirmButton = {
             MiuixSettingsButton(onClick = onDismiss) {
                 Text(stringResource(R.string.lx_source_close))
@@ -335,8 +349,12 @@ private fun LxSourceDetailDialog(
         },
         title = { Text(source.name) },
         text = {
+            val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = screenHeightDp * 0.58f)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 DetailRow(
@@ -496,6 +514,8 @@ private fun LxSourceRegistryDialog(
 
     MiuixSettingsDialog(
         onDismissRequest = onDismiss,
+        maxWidth = 340.dp,
+        maxHeight = 520.dp,
         confirmButton = {
             MiuixSettingsButton(onClick = onDismiss) {
                 Text(stringResource(R.string.lx_source_close))
@@ -506,7 +526,7 @@ private fun LxSourceRegistryDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = screenHeightDp * 0.58f)
+                    .heightIn(max = screenHeightDp * 0.62f)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {

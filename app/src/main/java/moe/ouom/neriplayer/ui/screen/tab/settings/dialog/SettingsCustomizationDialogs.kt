@@ -34,14 +34,17 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -62,6 +65,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -297,6 +302,8 @@ internal fun DpiSettingDialog(
 
     MiuixSettingsDialog(
         onDismissRequest = onDismiss,
+        // 三枚操作按钮需要更宽的横向空间，避免「应用」被裁切
+        maxWidth = 300.dp,
         title = { Text(stringResource(R.string.settings_ui_scale)) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -313,28 +320,68 @@ internal fun DpiSettingDialog(
                     steps = 11,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
+                // 提示文案视觉重点化：浅底色块 + 加粗主文字色
                 Text(
-                    stringResource(R.string.settings_restart_hint),
-                    style = MaterialTheme.typography.bodySmall
+                    text = stringResource(R.string.settings_restart_hint),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
                 )
             }
         },
         confirmButton = {
-            MiuixSettingsTextButton(
-                onClick = { onApply(sliderValue) },
-                text = { Text(stringResource(R.string.action_apply)) }
-            )
-        },
-        dismissButton = {
-            Row {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 MiuixSettingsTextButton(
                     onClick = { sliderValue = 1.0f },
-                    text = { Text(stringResource(R.string.action_reset)) }
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    text = {
+                        Text(
+                            text = stringResource(R.string.action_reset),
+                            maxLines = 1,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 )
                 MiuixSettingsTextButton(
                     onClick = onDismiss,
-                    text = { Text(stringResource(R.string.action_cancel)) }
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    text = {
+                        Text(
+                            text = stringResource(R.string.action_cancel),
+                            maxLines = 1,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                )
+                MiuixSettingsTextButton(
+                    onClick = { onApply(sliderValue) },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    text = {
+                        Text(
+                            text = stringResource(R.string.action_apply),
+                            maxLines = 1,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 )
             }
         }

@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -79,7 +80,9 @@ internal fun MiuixSettingsDialog(
     properties: DialogProperties = DialogProperties(
         dismissOnBackPress = true,
         dismissOnClickOutside = true
-    )
+    ),
+    maxWidth: Dp = 220.dp,
+    maxHeight: Dp = 300.dp,
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -95,7 +98,9 @@ internal fun MiuixSettingsDialog(
         titleContentColor = MaterialTheme.colorScheme.onSurface,
         textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         tonalElevation = 0.dp,
-        properties = properties
+        properties = properties,
+        maxWidth = maxWidth,
+        maxHeight = maxHeight
     )
 }
 
@@ -159,6 +164,7 @@ internal fun MiuixSettingsTextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
     text: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -176,7 +182,7 @@ internal fun MiuixSettingsTextButton(
             disabledContainerColor = Color.Transparent,
             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         ),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+        contentPadding = contentPadding
     ) {
         text()
     }

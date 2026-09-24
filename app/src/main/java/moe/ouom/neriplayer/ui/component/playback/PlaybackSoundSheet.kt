@@ -73,8 +73,8 @@ private val SPEED_QUICK_PRESETS = listOf(0.1f, 0.5f, 0.75f, 0.85f, 1.0f, 1.25f, 
 private val PITCH_QUICK_PRESETS = listOf(0.5f, 0.75f, 0.85f, 1.0f, 1.25f, 1.5f)
 private val LOUDNESS_QUICK_PRESETS = listOf(0, 300, 600, 900, 1_200, 1_500)
 private const val PLAYBACK_RATIO_SLIDER_STEPS = 0
-private const val LOUDNESS_SLIDER_STEP_MB = 50
-private const val EQUALIZER_SLIDER_STEP_MB = 50
+private const val LOUDNESS_SLIDER_STEP_MB = 10
+private const val EQUALIZER_SLIDER_STEP_MB = 25
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -389,7 +389,7 @@ fun PlaybackSoundSheet(
 private fun snapLoudnessNode(value: Int, nodes: List<Int>): Int {
     if (nodes.isEmpty()) return value
     val nearest = nodes.minByOrNull { abs(it - value) } ?: return value
-    return if (abs(nearest - value) <= 120) nearest else value
+    return if (abs(nearest - value) <= 60) nearest else value
 }
 
 @Composable
@@ -473,8 +473,8 @@ private fun PlaybackControlCard(
 private fun snapToKeyNode(value: Float, nodes: List<Float>): Float {
     if (nodes.isEmpty()) return value
     val nearest = nodes.minByOrNull { abs(it - value) } ?: return value
-    // 仅在靠近节点时吸附，避免整条都变成离散跳变
-    val threshold = 0.06f
+    // 仅在靠近节点时吸附，阈值收窄以便精细调节
+    val threshold = 0.025f
     return if (abs(nearest - value) <= threshold) nearest else value
 }
 

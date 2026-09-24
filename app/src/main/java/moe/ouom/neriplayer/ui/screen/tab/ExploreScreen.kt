@@ -973,32 +973,19 @@ fun ExploreScreen(
                                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
                                     // 搜索源：纯文字 + 小三角，点击只弹换源
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    // 仅保留居中倒三角，点击弹出换源
+                                    Icon(
+                                        imageVector = Icons.Filled.ArrowDropDown,
+                                        contentDescription = searchSourceLabel(ui.selectedSearchSource),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier
+                                            .size(22.dp)
                                             .clip(ExplorePrimaryTabShape)
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },
                                                 indication = ripple()
                                             ) { sourceMenuExpanded = true }
-                                            .padding(horizontal = 4.dp, vertical = 4.dp)
-                                    ) {
-                                        Text(
-                                            text = searchSourceLabel(ui.selectedSearchSource),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Filled.ArrowDropDown,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
+                                    )
                                     if (searchQuery.isNotEmpty()) {
                                         HapticIconButton(onClick = {
                                             onSearchQueryChange("")
@@ -1168,8 +1155,8 @@ fun ExploreScreen(
                                     expanded = tagMenuExpanded,
                                     onDismissRequest = { tagMenuExpanded = false },
                                     shape = GlassMenuShape,
-                                    maxWidth = 220.dp,
-                                    maxHeight = 320.dp,
+                                    maxWidth = 160.dp,
+                                    maxHeight = 300.dp,
                                     modifier = Modifier
                                 ) {
                                     tagKeys.forEachIndexed { index, tagKey ->

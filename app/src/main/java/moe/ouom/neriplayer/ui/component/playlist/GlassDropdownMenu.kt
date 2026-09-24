@@ -3,13 +3,14 @@ package moe.ouom.neriplayer.ui.component.playlist
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalTextStyle
@@ -157,7 +158,7 @@ fun GlassDropdownMenu(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(20.dp),
-    maxWidth: Dp = 220.dp,
+    maxWidth: Dp = 160.dp,
     maxHeight: Dp = 280.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -200,9 +201,9 @@ fun GlassDropdownMenu(
             // 收成「最宽一项」，再 clamp 到 maxWidth（开发规则：选项下拉默认 240.dp）。
             Box(
                 Modifier
-                    .widthIn(min = 140.dp, max = maxWidth)
+                    .width(IntrinsicSize.Max)
+                    .widthIn(min = 72.dp, max = maxWidth)
                     .heightIn(max = maxHeight)
-                    .fillMaxWidth()
             ) {
                 AdvancedGlassSurface(
                     role = AdvancedGlassRole.PopupMenu,
@@ -218,15 +219,13 @@ fun GlassDropdownMenu(
                             textAlign = TextAlign.Center
                         )
                     ) {
-                        LazyColumn(
+                        Column(
                             modifier = Modifier
-                                .padding(vertical = 4.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                                 .heightIn(max = maxHeight)
-                        ) {
-                            item {
-                                Column(content = content)
-                            }
-                        }
+                                .verticalScroll(rememberScrollState()),
+                            content = content
+                        )
                     }
                 }
             }

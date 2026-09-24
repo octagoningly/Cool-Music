@@ -4105,7 +4105,12 @@ fun BoxScope.MoreOptionsSheet(
         MoreOptionsPage.LISTEN_TOGETHER -> {
             SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
                 val listenTogetherScrollState = rememberScrollState()
-                Column(Modifier.fillMaxWidth().verticalScroll(listenTogetherScrollState)) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(listenTogetherScrollState)
+                ) {
                     ListenTogetherRoomPanel(
                         modifier = Modifier.fillMaxWidth(),
                         showBaseUrlEditor = false
@@ -5046,7 +5051,9 @@ fun EditSongInfoSheet(
 
         Column(
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
+                // weight 在 wrap-content 父级里会得到无限高，导致 verticalScroll 闪退
+                .heightIn(max = 300.dp)
                 .bottomSheetScrollGuard { scrollState.value == 0 }
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -5624,7 +5631,7 @@ fun EditSongInfoSheet(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .heightIn(max = 240.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     if (searchState.isLoading) {
@@ -6445,7 +6452,9 @@ private fun LyricMatchResultsSheet(
             }
 
             LazyColumn(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(

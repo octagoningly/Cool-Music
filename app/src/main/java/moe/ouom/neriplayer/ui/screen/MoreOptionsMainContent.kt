@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -113,6 +114,8 @@ internal fun MoreOptionsMainContent(
     Column(
         Modifier
             .fillMaxWidth()
+            // 必须有限高，否则 Popup/Lazy 里 verticalScroll 会无限高闪退
+            .heightIn(max = 340.dp)
             .verticalScroll(scrollState)
             .padding(bottom = 8.dp)
     ) {

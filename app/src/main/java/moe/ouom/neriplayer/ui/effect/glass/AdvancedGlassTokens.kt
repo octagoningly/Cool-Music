@@ -42,7 +42,8 @@ internal fun advancedGlassTokens(
         )
         AdvancedGlassRole.ScreenTopTab -> AdvancedGlassTokens(
             blurRadiusDp = adjustableRadiusDp ?: 24f,
-            tintAlpha = if (isDarkTheme) 0.28f else 0.34f,
+            // 顶栏要有「磨砂条」质感，叠色略高，避免采样空区时糊成脏斑
+            tintAlpha = if (isDarkTheme) 0.55f else 0.62f,
             edgeAlpha = 0.10f
         )
         AdvancedGlassRole.SettingsGroup -> AdvancedGlassTokens(

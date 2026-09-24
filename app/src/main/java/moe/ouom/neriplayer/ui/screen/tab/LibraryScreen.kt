@@ -372,17 +372,16 @@ private fun LibraryTab?.isRefreshable(): Boolean {
     }
 }
 
-/** 底部留白：模糊开时少留，让条目滚到迷你播放器下被采样；关时避开控件。 */
+/** 底部留白：始终避开迷你播放器，保证最后一项可点；滚动过程中内容仍可从玻璃下经过。 */
 @Composable
 private fun libraryListBottomPadding(): Dp {
     val mini = LocalMiniPlayerHeight.current
-    val blur = LocalAdvancedGlassController.current.isBaseBlurEnabled
-    return if (blur) 12.dp else 8.dp + mini
+    return 8.dp + mini
 }
 
 /** 顶部为浮层标题+Tab 留出起始空白，滚动后内容可进入玻璃区被采样。 */
 @Composable
-private fun libraryListTopPadding(): Dp = 152.dp
+private fun libraryListTopPadding(): Dp = 128.dp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable

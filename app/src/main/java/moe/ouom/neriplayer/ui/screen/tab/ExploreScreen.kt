@@ -801,33 +801,55 @@ fun ExploreScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
     MainTabChrome(route = moe.ouom.neriplayer.navigation.Destinations.Explore.route) {
-        Column(Modifier.fillMaxWidth()) {
-            NeriTabLargeTitleTopBar(
-                title = stringResource(R.string.nav_explore),
-                windowInsets = TopAppBarDefaults.windowInsets,
-                modifier = Modifier.fillMaxWidth()
+        NeriTabLargeTitleTopBar(
+            title = stringResource(R.string.nav_explore),
+            windowInsets = TopAppBarDefaults.windowInsets,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize(),
+        containerColor = Color.Transparent,
+        snackbarHost = {
+            NeriSnackbarHost(
+                hostState = snackbarHostState,
+                bottomPadding = miniPlayerHeight
             )
+        },
+        topBar = {}
+    ) { innerPadding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Column(
                 Modifier
+                    .widthIn(max = 1040.dp)
                     .fillMaxWidth()
                     .padding(
                         start = searchPanelHorizontalPadding,
                         end = searchPanelHorizontalPadding,
-                        top = 4.dp,
-                        bottom = 4.dp
+                        // 仅为 chrome 标题让位；搜索框在内容区，不被挡住
+                        top = 64.dp,
+                        bottom = 8.dp
                     )
             ) {
-                AdvancedGlassSurface(
-                    role = AdvancedGlassRole.ExploreSearchOverlay,
-                    shape = ExploreSearchFieldShape,
-                    fallbackColor = MaterialTheme.colorScheme.background,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(ExploreSearchFieldShape)
-                ) {
+                    AdvancedGlassSurface(
+                        role = AdvancedGlassRole.ExploreSearchOverlay,
+                        shape = ExploreSearchFieldShape,
+                        fallbackColor = MaterialTheme.colorScheme.background,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(ExploreSearchFieldShape)
+                    ) {
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { onSearchQueryChange(it) },
+                        onValueChange = {
+                            onSearchQueryChange(it)
+                        },
                         label = {
                             Text(
                                 stringResource(
@@ -871,40 +893,7 @@ fun ExploreScreen(
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
-                }
-            }
-        }
-    }
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize(),
-        containerColor = Color.Transparent,
-        snackbarHost = {
-            NeriSnackbarHost(
-                hostState = snackbarHostState,
-                bottomPadding = miniPlayerHeight
-            )
-        },
-        topBar = {}
-    ) { innerPadding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Column(
-                Modifier
-                    .widthIn(max = 1040.dp)
-                    .fillMaxWidth()
-                    .padding(
-                        start = searchPanelHorizontalPadding,
-                        end = searchPanelHorizontalPadding,
-                        // 标题+搜索在 chrome 浮层（约 140dp），内容整体下移
-                        top = 140.dp,
-                        bottom = 8.dp
-                    )
-            ) {
+                    }
                     if (ui.selectedSearchSource == SearchSource.NETEASE && !ui.isNeteaseLoggedIn
                     ) {
                         Spacer(Modifier.height(6.dp))

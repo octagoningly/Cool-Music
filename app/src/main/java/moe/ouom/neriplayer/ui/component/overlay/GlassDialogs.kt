@@ -189,7 +189,7 @@ internal fun GlassAlertDialog(
         role = AdvancedGlassRole.DialogPanel,
         position = GlassPanelPosition.Centered,
         // 手机上 360 已接近全宽；对话框固定紧凑宽，内容 wrap
-        maxWidth = 232.dp,
+        maxWidth = 220.dp,
         maxHeight = 300.dp,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -214,13 +214,23 @@ internal fun GlassAlertDialog(
                     }
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                dismissButton?.invoke()
-                confirmButton()
+            if (dismissButton == null) {
+                // 无次要按钮时：关闭居中置底，加圆角描边更突出
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    confirmButton()
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    dismissButton?.invoke()
+                    confirmButton()
+                }
             }
         }
     }

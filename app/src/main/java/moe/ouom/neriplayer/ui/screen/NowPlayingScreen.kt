@@ -4282,8 +4282,19 @@ private fun PlaybackStatsDialog(song: SongItem, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            HapticTextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_close))
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                HapticTextButton(onClick = onDismiss) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
+                    )
+                }
             }
         }
     )
@@ -4442,6 +4453,13 @@ fun NowPlayingQualityOptionsDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (selected) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                                } else {
+                                    Color.Transparent
+                                }
+                            )
                             .clickable { onSelect(option) }
                             .padding(vertical = 10.dp),
                         textAlign = TextAlign.Center,
@@ -4451,8 +4469,19 @@ fun NowPlayingQualityOptionsDialog(
             }
         },
         confirmButton = {
-            HapticTextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_close))
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                HapticTextButton(onClick = onDismiss) {
+                    Text(
+                        text = stringResource(R.string.action_close),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
+                    )
+                }
             }
         }
     )
@@ -4969,7 +4998,7 @@ fun EditSongInfoSheet(
                 .windowInsetsPadding(WindowInsets.navigationBars),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-        // 标题栏
+        // 标题栏（压扁，给中间内容让高度）
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -4977,16 +5006,20 @@ fun EditSongInfoSheet(
         ) {
             Text(
                 text = stringResource(R.string.music_edit_info),
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleSmall
             )
 
             HapticTextButton(
                 onClick = {
                     clearEditSongInfoFocus()
                     onDismiss()
-                }
+                },
+                modifier = Modifier.heightIn(max = 36.dp)
             ) {
-                Text(stringResource(R.string.action_cancel))
+                Text(
+                    text = stringResource(R.string.action_cancel),
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
 
@@ -5290,10 +5323,10 @@ fun EditSongInfoSheet(
         }
         val actionButtonFontSize = if (actionButtonContainerWidth < 420.dp) 11.sp else 13.sp
 
-        // 搜索自动填充按钮
+        // 搜索自动填充按钮（压扁一行，避免截断）
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             HapticTextButton(
                 onClick = {
@@ -5301,12 +5334,14 @@ fun EditSongInfoSheet(
                     viewModel.performSearch()
                     clearEditSongInfoFocus()
                     onOpenFullSearch()
-                    onDismiss()
+                    // 不要再 onDismiss()：那会把 secondaryPage 清成 null 回到一级菜单
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(max = 40.dp)
             ) {
-                Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(2.dp))
                 Text(
                     text = stringResource(R.string.music_auto_fill),
                     maxLines = 1,
@@ -5325,10 +5360,12 @@ fun EditSongInfoSheet(
                         restoreLyrics = true
                     )
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(max = 40.dp)
             ) {
-                Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(2.dp))
                 Text(
                     text = stringResource(R.string.music_restore_original),
                     maxLines = 1,
@@ -5354,10 +5391,12 @@ fun EditSongInfoSheet(
                         saveEditedSongInfo(writeLocalMetadata = false)
                     }
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(max = 40.dp)
             ) {
-                Icon(Icons.Outlined.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Outlined.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(2.dp))
                 Text(
                     text = stringResource(R.string.music_save_changes),
                     maxLines = 1,

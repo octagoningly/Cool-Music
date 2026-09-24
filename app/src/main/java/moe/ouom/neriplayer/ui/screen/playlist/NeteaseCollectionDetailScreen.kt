@@ -533,7 +533,8 @@ fun DetailScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = Color.Transparent
+                // 专辑页不透明，避免透出首页 chrome/推荐（从播放页进入时尤其明显）
+                color = MaterialTheme.colorScheme.background
             ) {
                 val miniPlayerHeight = LocalMiniPlayerHeight.current
                 Column {

@@ -74,7 +74,6 @@ import moe.ouom.neriplayer.data.model.stableKey
 import moe.ouom.neriplayer.data.stats.TrackStat
 import moe.ouom.neriplayer.ui.component.overlay.GlassDialogShape
 import moe.ouom.neriplayer.ui.component.playlist.GlassSheetMenuItem
-import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import moe.ouom.neriplayer.ui.viewmodel.NowPlayingViewModel
 import moe.ouom.neriplayer.ui.viewmodel.album.isNeteaseAlbumNavigationSource

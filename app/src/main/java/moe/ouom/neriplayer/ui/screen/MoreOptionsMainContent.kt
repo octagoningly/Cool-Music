@@ -1,7 +1,6 @@
 package moe.ouom.neriplayer.ui.screen
 
 import android.content.Intent
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -73,6 +72,8 @@ import moe.ouom.neriplayer.data.model.displayArtist
 import moe.ouom.neriplayer.data.model.displayName
 import moe.ouom.neriplayer.data.model.stableKey
 import moe.ouom.neriplayer.data.stats.TrackStat
+import moe.ouom.neriplayer.ui.component.overlay.GlassDialogShape
+import moe.ouom.neriplayer.ui.component.playlist.GlassSheetMenuItem
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import moe.ouom.neriplayer.ui.viewmodel.NowPlayingViewModel
@@ -140,10 +141,10 @@ internal fun MoreOptionsMainContent(
             snackbarHostState = snackbarHostState
         )
         if (PlayerManager.isBiliTrack(originalSong)) {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.bili_video_skip_manage)) },
-                leadingContent = { Icon(Icons.Outlined.SkipNext, null) },
-                modifier = Modifier.clickable(onClick = onOpenBiliVideoSkip)
+            GlassSheetMenuItem(
+                text = stringResource(R.string.bili_video_skip_manage),
+                leadingIcon = { Icon(Icons.Outlined.SkipNext, null) },
+                onClick = onOpenBiliVideoSkip
             )
         }
         ShareSongAction(
@@ -153,10 +154,10 @@ internal fun MoreOptionsMainContent(
             onDismissSheet = onDismissSheet
         )
         PlaybackStatsAction(originalSong)
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.listen_together_title)) },
-            leadingContent = { Icon(Icons.Outlined.Headphones, null) },
-            modifier = Modifier.clickable(onClick = onOpenListenTogether)
+        GlassSheetMenuItem(
+            text = stringResource(R.string.listen_together_title),
+            leadingIcon = { Icon(Icons.Outlined.Headphones, null) },
+            onClick = onOpenListenTogether
         )
     }
 }
@@ -170,34 +171,32 @@ private fun MetadataAndPlaybackActions(
     onOpenPlaybackSound: () -> Unit,
     onShowQualitySwitch: () -> Unit
 ) {
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.music_get_info)) },
-        leadingContent = { Icon(Icons.Outlined.Info, null) },
-        modifier = Modifier.clickable(
-            enabled = !isDismissing,
-            onClick = onOpenSearch
-        )
+    GlassSheetMenuItem(
+        text = stringResource(R.string.music_get_info),
+        leadingIcon = { Icon(Icons.Outlined.Info, null) },
+        enabled = !isDismissing,
+        onClick = onOpenSearch
     )
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.music_edit_info)) },
-        leadingContent = { Icon(Icons.Outlined.Edit, null) },
-        modifier = Modifier.clickable(onClick = onOpenEditInfo)
+    GlassSheetMenuItem(
+        text = stringResource(R.string.music_edit_info),
+        leadingIcon = { Icon(Icons.Outlined.Edit, null) },
+        onClick = onOpenEditInfo
     )
     if (audioInfo?.qualityOptions.orEmpty().size > 1) {
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.nowplaying_quality_switch_title)) },
-            leadingContent = { Icon(Icons.Outlined.MusicNote, null) },
+        GlassSheetMenuItem(
+            text = stringResource(R.string.nowplaying_quality_switch_title),
+            leadingIcon = { Icon(Icons.Outlined.MusicNote, null) },
             supportingContent = audioInfo?.qualityLabel
                 ?.takeIf { it.isNotBlank() }
                 ?.let { label -> { Text(label) } },
-            modifier = Modifier.clickable(onClick = onShowQualitySwitch)
+            onClick = onShowQualitySwitch
         )
     }
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.nowplaying_audio_effects_title)) },
-        leadingContent = { Icon(Icons.Outlined.Tune, null) },
+    GlassSheetMenuItem(
+        text = stringResource(R.string.nowplaying_audio_effects_title),
+        leadingIcon = { Icon(Icons.Outlined.Tune, null) },
         supportingContent = { Text(stringResource(R.string.nowplaying_audio_effects_desc)) },
-        modifier = Modifier.clickable(onClick = onOpenPlaybackSound)
+        onClick = onOpenPlaybackSound
     )
 }
 
@@ -209,10 +208,10 @@ private fun DownloadOrDetailsAction(
     onShowSongDetails: () -> Unit
 ) {
     if (isLocalSong) {
-        ListItem(
-            headlineContent = { Text(stringResource(R.string.local_song_open_details)) },
-            leadingContent = { Icon(Icons.Outlined.Info, null) },
-            modifier = Modifier.clickable(onClick = onShowSongDetails)
+        GlassSheetMenuItem(
+            text = stringResource(R.string.local_song_open_details),
+            leadingIcon = { Icon(Icons.Outlined.Info, null) },
+            onClick = onShowSongDetails
         )
         return
     }
@@ -239,11 +238,12 @@ private fun DownloadOrDetailsAction(
             status != DownloadStatus.DOWNLOADING &&
             status != DownloadStatus.WAITING_NETWORK
         ) || canCancel
-    ListItem(
-        headlineContent = { Text(stringResource(downloadActionLabel(currentTask))) },
-        leadingContent = { Icon(Icons.Outlined.Download, null) },
+    GlassSheetMenuItem(
+        text = stringResource(downloadActionLabel(currentTask)),
+        leadingIcon = { Icon(Icons.Outlined.Download, null) },
+        enabled = canClick,
         supportingContent = { DownloadProgressContent(currentTask) },
-        modifier = Modifier.clickable(enabled = canClick) {
+        onClick = {
             when (currentTask?.status) {
                 DownloadStatus.QUEUED,
                 DownloadStatus.WAITING_NETWORK,
@@ -315,14 +315,14 @@ private fun LyricsAndAlbumActions(
     onEnterAlbum: (AlbumSummary) -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.lyrics_adjust_behavior)) },
-        leadingContent = { Icon(Icons.Outlined.Timer, null) },
-        modifier = Modifier.clickable(onClick = onOpenLyricBehavior)
+    GlassSheetMenuItem(
+        text = stringResource(R.string.lyrics_adjust_behavior),
+        leadingIcon = { Icon(Icons.Outlined.Timer, null) },
+        onClick = onOpenLyricBehavior
     )
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.lyrics_font_size)) },
-        leadingContent = { Icon(Icons.Outlined.FormatSize, null) },
+    GlassSheetMenuItem(
+        text = stringResource(R.string.lyrics_font_size),
+        leadingIcon = { Icon(Icons.Outlined.FormatSize, null) },
         supportingContent = {
             Text(
                 stringResource(
@@ -332,7 +332,7 @@ private fun LyricsAndAlbumActions(
                 )
             )
         },
-        modifier = Modifier.clickable(onClick = onOpenFontSize)
+        onClick = onOpenFontSize
     )
     if (!isNeteaseAlbumNavigationSource(song)) return
 
@@ -360,9 +360,10 @@ private fun LyricsAndAlbumActions(
         }
     }
 
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.music_view_album, albumName)) },
-        leadingContent = {
+    GlassSheetMenuItem(
+        text = stringResource(R.string.music_view_album, albumName),
+        enabled = !resolvingAlbum,
+        leadingIcon = {
             if (resolvingAlbum) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
@@ -372,7 +373,7 @@ private fun LyricsAndAlbumActions(
                 Icon(Icons.Outlined.LibraryMusic, null)
             }
         },
-        modifier = Modifier.clickable(enabled = !resolvingAlbum) {
+        onClick = {
             resolvingAlbum = true
             albumResolveRequest++
         }
@@ -389,10 +390,10 @@ private fun ShareSongAction(
     val context = LocalContext.current
     val composeResources = LocalResources.current
     val coroutineScope = rememberCoroutineScope()
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.action_share)) },
-        leadingContent = { Icon(Icons.Outlined.Share, null) },
-        modifier = Modifier.clickable {
+    GlassSheetMenuItem(
+        text = stringResource(R.string.action_share),
+        leadingIcon = { Icon(Icons.Outlined.Share, null) },
+        onClick = shareClick@{
             if (song.isLocalSong()) {
                 coroutineScope.launch {
                     val shared = runCatching {
@@ -406,7 +407,7 @@ private fun ShareSongAction(
                         )
                     }
                 }
-                return@clickable
+                return@shareClick
             }
 
             val shareUrl = buildRemoteSongShareUrl(song, queue)
@@ -440,10 +441,10 @@ private fun PlaybackStatsAction(song: SongItem) {
     }
     val resolvedTrackStat = trackStat ?: return
     var showDialog by remember { mutableStateOf(false) }
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.stats_title)) },
-        leadingContent = { Icon(Icons.Outlined.BarChart, null) },
-        modifier = Modifier.clickable { showDialog = true }
+    GlassSheetMenuItem(
+        text = stringResource(R.string.stats_title),
+        leadingIcon = { Icon(Icons.Outlined.BarChart, null) },
+        onClick = { showDialog = true }
     )
     if (!showDialog) return
 
@@ -465,7 +466,7 @@ private fun PlaybackStatsAction(song: SongItem) {
         onDismissRequest = { showDialog = false },
         icon = { Icon(Icons.Outlined.BarChart, null) },
         title = { Text(stringResource(R.string.stats_title)) },
-        shape = RoundedCornerShape(28.dp),
+        shape = GlassDialogShape,
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatsCard(R.string.stats_song_first_played, firstPlayedText)

@@ -341,6 +341,7 @@ import org.burnoutcrew.reorderable.reorderable
 import java.util.Locale
 import kotlin.math.roundToInt
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
+import moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText
 
 private const val LyricsPageTransitionDurationMs = 300
 private const val CoverSourceBadgeRevealBufferMs = 120
@@ -2005,7 +2006,7 @@ fun NowPlayingScreen(
     var showAddSheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
-    var showDockMoreSheet by remember { mutableStateOf(false) }
+    var showDockMoreMenu by remember { mutableStateOf(false) }
     var showCoverPageSourceBadge by remember { mutableStateOf(false) }
     var animateCoverPageSourceBadge by remember { mutableStateOf(false) }
     var previousLyricsScreenState by remember { mutableStateOf(false) }
@@ -2090,7 +2091,6 @@ fun NowPlayingScreen(
     // 控制音量弹窗的显示
     var showVolumeSheet by remember { mutableStateOf(false) }
     val volumeSheetState = rememberModalBottomSheetState()
-    val dockMoreSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val currentLyricSourceKey = Triple(
         currentSong?.id,
@@ -3418,27 +3418,78 @@ fun NowPlayingScreen(
                                     }
                                 }
 
-                                // 其他：定时 / 加入歌单 / 音量
-                                HapticIconButton(
-                                    onClick = { showDockMoreSheet = true },
-                                    modifier = toolbarActionModifier
-                                        .sharedBounds(
-                                            rememberSharedContentState(key = "btn_dock_more"),
-                                            animatedVisibilityScope = this@AnimatedContent,
-                                            enter = EnterTransition.None,
-                                            exit = ExitTransition.None,
-                                        ).zIndex(1f)
-                                ) {
-                                    Icon(
-                                        Icons.Filled.MoreHoriz,
-                                        contentDescription = stringResource(R.string.nowplaying_dock_more),
-                                        tint = if (sleepTimerState.isActive) {
-                                            nowPlayingActiveIconColor
-                                        } else {
-                                            LocalContentColor.current
-                                        },
-                                        modifier = Modifier.size(toolbarLayout.iconSize)
-                                    )
+                                // 其他：定时 / 加入歌单 / 音量（GlassDropdownMenu，开发规则弹窗配方）
+                                Box(modifier = toolbarActionModifier) {
+                                    HapticIconButton(
+                                        onClick = { showDockMoreMenu = true },
+                                        modifier = Modifier
+                                            .sharedBounds(
+                                                rememberSharedContentState(key = "btn_dock_more"),
+                                                animatedVisibilityScope = this@AnimatedContent,
+                                                enter = EnterTransition.None,
+                                                exit = ExitTransition.None,
+                                            ).zIndex(1f)
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.MoreHoriz,
+                                            contentDescription = stringResource(R.string.nowplaying_dock_more),
+                                            tint = if (sleepTimerState.isActive) {
+                                                nowPlayingActiveIconColor
+                                            } else {
+                                                LocalContentColor.current
+                                            },
+                                            modifier = Modifier.size(toolbarLayout.iconSize)
+                                        )
+                                    }
+                                    GlassDropdownMenu(
+                                        expanded = showDockMoreMenu,
+                                        onDismissRequest = { showDockMoreMenu = false }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { GlassMenuItemText(stringResource(R.string.sleep_timer_short)) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.Outlined.Timer,
+                                                    contentDescription = null,
+                                                    tint = if (sleepTimerState.isActive) {
+                                                        nowPlayingActiveIconColor
+                                                    } else {
+                                                        LocalContentColor.current
+                                                    }
+                                                )
+                                            },
+                                            onClick = {
+                                                showDockMoreMenu = false
+                                                showSleepTimerDialog = true
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { GlassMenuItemText(stringResource(R.string.playlist_add_to)) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.AutoMirrored.Outlined.PlaylistAdd,
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            onClick = {
+                                                showDockMoreMenu = false
+                                                showAddSheet = true
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { GlassMenuItemText(stringResource(R.string.volume_control)) },
+                                            leadingIcon = {
+                                                Icon(
+                                                    Icons.AutoMirrored.Outlined.VolumeUp,
+                                                    contentDescription = null
+                                                )
+                                            },
+                                            onClick = {
+                                                showDockMoreMenu = false
+                                                showVolumeSheet = true
+                                            }
+                                        )
+                                    }
                                 }
                                     }
                                 }
@@ -3616,59 +3667,7 @@ fun NowPlayingScreen(
                 }
             }
 
-            // 底部 Docker「其他」：定时 / 加入歌单 / 音量
-            if (showDockMoreSheet) {
-                ModalBottomSheet(
-                    onDismissRequest = { showDockMoreSheet = false },
-                    sheetState = dockMoreSheetState,
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 24.dp)
-                    ) {
-                        ListItem(
-                            headlineContent = { Text(stringResource(R.string.sleep_timer_short)) },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Outlined.Timer,
-                                    contentDescription = null,
-                                    tint = if (sleepTimerState.isActive) {
-                                        nowPlayingActiveIconColor
-                                    } else {
-                                        LocalContentColor.current
-                                    }
-                                )
-                            },
-                            modifier = Modifier.clickable {
-                                showDockMoreSheet = false
-                                showSleepTimerDialog = true
-                            }
-                        )
-                        ListItem(
-                            headlineContent = { Text(stringResource(R.string.playlist_add_to)) },
-                            leadingContent = {
-                                Icon(Icons.AutoMirrored.Outlined.PlaylistAdd, contentDescription = null)
-                            },
-                            modifier = Modifier.clickable {
-                                showDockMoreSheet = false
-                                showAddSheet = true
-                            }
-                        )
-                        ListItem(
-                            headlineContent = { Text(stringResource(R.string.volume_control)) },
-                            leadingContent = {
-                                Icon(Icons.AutoMirrored.Outlined.VolumeUp, contentDescription = null)
-                            },
-                            modifier = Modifier.clickable {
-                                showDockMoreSheet = false
-                                showVolumeSheet = true
-                            }
-                        )
-                    }
-                }
-            }
+            // 底部 Docker「其他」已改为锚点 GlassDropdownMenu（见工具栏按钮）
 
             if (artistPickerCandidates.isNotEmpty()) {
                 NeteaseArtistPickerSheet(
@@ -4051,7 +4050,7 @@ fun MoreOptionsSheet(
         sheetGesturesEnabled = page != MoreOptionsPage.LISTEN_TOGETHER,
         // 开发规则：面板圆角 28 + 透明模糊（DensityScaled→Glass）
         shape = moe.ouom.neriplayer.ui.component.overlay.GlassSheetShape,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
     ) {
         BackHandler(
             enabled = page != MoreOptionsPage.MAIN

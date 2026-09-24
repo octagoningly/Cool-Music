@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +21,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -232,5 +234,43 @@ fun GlassMenuItemText(
         textAlign = TextAlign.Center,
         maxLines = maxLines,
         style = LocalTextStyle.current
+    )
+}
+
+/**
+ * 面板/底部弹窗内的菜单条目：与 [GlassDropdownMenu] 同一套视觉
+ * （图标 + 文字居中），可选副文案也居中。
+ */
+@Composable
+fun GlassSheetMenuItem(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leadingIcon: @Composable (() -> Unit)? = null,
+    supportingContent: @Composable (() -> Unit)? = null,
+) {
+    DropdownMenuItem(
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                GlassMenuItemText(text)
+                if (supportingContent != null) {
+                    CompositionLocalProvider(
+                        LocalTextStyle provides LocalTextStyle.current.copy(
+                            textAlign = TextAlign.Center
+                        )
+                    ) {
+                        supportingContent()
+                    }
+                }
+            }
+        },
+        leadingIcon = leadingIcon,
+        enabled = enabled,
+        onClick = onClick,
+        modifier = modifier
     )
 }

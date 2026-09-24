@@ -119,6 +119,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.ui.component.common.MainTabChrome
 import moe.ouom.neriplayer.ui.component.common.NeriTabLargeTitleTopBar
 import moe.ouom.neriplayer.ui.component.playlist.AddSongToPlaylistSheet
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
@@ -865,31 +866,32 @@ fun HomeScreen(
             }
         }
 
-        // 顶栏浮层：不占布局高度，列表从下面滚过时玻璃可采样
-        NeriTabLargeTitleTopBar(
-            title = appBarTitle,
-            actions = {
-                HapticIconButton(
-                    enabled = !offlineMode,
-                    onClick = {
-                        if (isInternational) {
-                            vm.refreshYtMusicHome()
-                        } else {
-                            vm.refreshNeteaseHome()
+        // 顶栏 chrome：画在捕获层外（MainTabChrome），标题不进模糊采样
+        MainTabChrome {
+            NeriTabLargeTitleTopBar(
+                title = appBarTitle,
+                actions = {
+                    HapticIconButton(
+                        enabled = !offlineMode,
+                        onClick = {
+                            if (isInternational) {
+                                vm.refreshYtMusicHome()
+                            } else {
+                                vm.refreshNeteaseHome()
+                            }
                         }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = stringResource(R.string.recommend_refresh)
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Refresh,
-                        contentDescription = stringResource(R.string.recommend_refresh)
-                    )
-                }
-            },
-            windowInsets = WindowInsets(0),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-        )
+                },
+                windowInsets = WindowInsets(0),
+                modifier = Modifier
+                    .statusBarsPadding()
+            )
+        }
 
         NeriOverlaySnackbarHost(
             hostState = snackbarHostState,

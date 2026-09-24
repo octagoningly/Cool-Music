@@ -35,6 +35,8 @@ fun NeriTabLargeTitleTopBar(
     AdvancedGlassSurface(
         role = AdvancedGlassRole.ScreenTopTab,
         shape = RectangleShape,
+        // 关模糊时用实底挡住滚过的内容；开模糊时半透明 + 采样背后列表
+        fallbackColor = MaterialTheme.colorScheme.background,
         modifier = modifier.fillMaxWidth()
     ) {
         Row(

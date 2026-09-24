@@ -52,6 +52,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -173,6 +174,7 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.ui.component.common.MainTabChrome
 import moe.ouom.neriplayer.ui.component.common.NeriTabLargeTitleTopBar
 import moe.ouom.neriplayer.core.api.bili.BiliClient
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicCreatorSummary
@@ -798,6 +800,13 @@ fun ExploreScreen(
         searchQuery.isBlank()
 
     Box(modifier = Modifier.fillMaxSize()) {
+    MainTabChrome {
+        NeriTabLargeTitleTopBar(
+            title = stringResource(R.string.nav_explore),
+            windowInsets = WindowInsets(0),
+            modifier = Modifier.statusBarsPadding()
+        )
+    }
     Scaffold(
         modifier = Modifier
             .fillMaxSize(),
@@ -808,11 +817,7 @@ fun ExploreScreen(
                 bottomPadding = miniPlayerHeight
             )
         },
-        topBar = {
-            NeriTabLargeTitleTopBar(
-                title = stringResource(R.string.nav_explore)
-            )
-        }
+        topBar = {}
     ) { innerPadding ->
         Column(
             Modifier
@@ -829,6 +834,7 @@ fun ExploreScreen(
                     AdvancedGlassSurface(
                         role = AdvancedGlassRole.ExploreSearchOverlay,
                         shape = ExploreSearchFieldShape,
+                        fallbackColor = MaterialTheme.colorScheme.background,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(ExploreSearchFieldShape)

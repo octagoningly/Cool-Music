@@ -189,6 +189,8 @@ import moe.ouom.neriplayer.navigation.Destinations
 import moe.ouom.neriplayer.navigation.LauncherShortcutAction
 import moe.ouom.neriplayer.navigation.LauncherShortcutRequest
 import moe.ouom.neriplayer.navigation.launcherShortcutMainTabRoute
+import moe.ouom.neriplayer.ui.component.common.LocalMainTabChromeSlot
+import moe.ouom.neriplayer.ui.component.common.MainTabChromeSlot
 import moe.ouom.neriplayer.ui.component.navigation.NeriBottomBar
 import moe.ouom.neriplayer.ui.component.navigation.resolveBottomBarSelectionAlpha
 import moe.ouom.neriplayer.ui.component.playback.NeriMiniPlayer
@@ -1880,6 +1882,7 @@ private fun NeriAppContent(
     }
     val currentDefaultStartDestination =
         defaultStartDestination ?: initialMainStartDestination
+    val mainTabChromeSlot = remember { MainTabChromeSlot() }
     val backgroundGlassBackdrop = rememberAdvancedGlassBackdrop()
     val contentGlassBackdrop = rememberAdvancedGlassBackdrop()
     val advancedGlassController = remember(
@@ -3363,6 +3366,7 @@ private fun NeriAppContent(
                 activeNavigationOwners = activeAdvancedGlassOwners,
                 disableStretchOverscroll = backgroundImageUri != null
             ) {
+                CompositionLocalProvider(LocalMainTabChromeSlot provides mainTabChromeSlot) {
                 Box(modifier = Modifier.fillMaxSize()) {
                 Box(
                     modifier = Modifier
@@ -4252,6 +4256,10 @@ private fun NeriAppContent(
                                     }
                                 }
 
+                                // 主 Tab chrome（顶栏/搜索/Tab）画在 content 捕获层外：
+                                // 列表可滚到其下被模糊采样，标题文字不会被一起糊掉
+                                mainTabChromeSlot.content?.invoke()
+
                                 AnimatedVisibility(
                                     visible = currentSong != null && !showNowPlaying,
                                     modifier = Modifier
@@ -4290,6 +4298,7 @@ private fun NeriAppContent(
                             }
                         }
                     }
+                }
                 }
 
                 AnimatedVisibility(

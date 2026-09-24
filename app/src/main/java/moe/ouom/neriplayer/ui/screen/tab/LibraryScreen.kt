@@ -137,6 +137,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.ui.component.common.MainTabChrome
 import moe.ouom.neriplayer.ui.component.common.NeriTabLargeTitleTopBar
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
@@ -627,12 +628,8 @@ fun LibraryScreen(
             }
         }
 
-        Column(
-            Modifier
-                .widthIn(max = 1180.dp)
-                .fillMaxWidth()
-                .padding(horizontal = pageHorizontalPadding)
-        ) {
+        MainTabChrome {
+            Column(Modifier.fillMaxWidth()) {
             // 顶栏右侧：刷新 → 播放统计 → 最近播放（排序入口一并上移，放在刷新前）
             NeriTabLargeTitleTopBar(
                 title = stringResource(R.string.library_title),
@@ -686,6 +683,7 @@ fun LibraryScreen(
                     }
                 }
             )
+            }
         }
     }
 
@@ -815,7 +813,8 @@ private fun LibraryMainTabs(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(LibraryPrimaryTabShape),
-            shape = LibraryPrimaryTabShape
+            shape = LibraryPrimaryTabShape,
+            fallbackColor = MaterialTheme.colorScheme.background
         ) {
             PrimaryScrollableTabRow(
                 selectedTabIndex = selectedTabIndex,

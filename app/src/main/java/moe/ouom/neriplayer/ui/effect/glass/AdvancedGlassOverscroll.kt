@@ -11,6 +11,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.IntrinsicMeasurable
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
@@ -248,6 +250,27 @@ private class AdvancedGlassOverscrollNode(
     private fun resistanceScalePx(): Float = with(currentValueOf(LocalDensity)) {
         OVERSCROLL_RESISTANCE_SCALE_DP.dp.toPx()
     }
+
+    // 固有测量直接返回 0，避免经 measure 触发 LazyColumn 的 NoIntrinsics 闪退
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int
+    ): Int = 0
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int
+    ): Int = 0
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int
+    ): Int = 0
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int
+    ): Int = 0
 
     override fun MeasureScope.measure(
         measurable: Measurable,

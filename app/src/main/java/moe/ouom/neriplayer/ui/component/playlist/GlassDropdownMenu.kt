@@ -3,7 +3,6 @@ package moe.ouom.neriplayer.ui.component.playlist
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -197,12 +196,11 @@ fun GlassDropdownMenu(
             onDismissRequest = onDismissRequest,
             properties = PopupProperties(focusable = true),
         ) {
-            // DropdownMenuItem 自带 fillMaxWidth；Popup 无限宽时用 IntrinsicSize.Max
+            // DropdownMenuItem 自带 fillMaxWidth；Popup 无限宽时用 widthIn
             // 收成「最宽一项」，再 clamp 到 maxWidth（开发规则：选项下拉默认 240.dp）。
             Box(
                 Modifier
-                    .width(IntrinsicSize.Max)
-                    .widthIn(max = maxWidth)
+                    .widthIn(min = 140.dp, max = maxWidth)
                     .heightIn(max = maxHeight)
             ) {
                 AdvancedGlassSurface(

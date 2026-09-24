@@ -3727,7 +3727,8 @@ fun NowPlayingScreen(
                     onDismiss = { showQualitySwitchDialog = false },
                     onSelect = { option ->
                         PlayerManager.changeCurrentPlaybackQuality(option.key)
-                        moe.ouom.neriplayer.ui.feedback.AppFeedback.show(
+                        // 与收藏「已收藏」同款提示；Toast 更稳，避免 Snackbar 宿主不在时静默
+                        moe.ouom.neriplayer.ui.feedback.AppFeedback.showToast(
                             message = "切换至：${option.label}"
                         )
                         showQualitySwitchDialog = false
@@ -5057,7 +5058,7 @@ fun EditSongInfoSheet(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(120.dp)
+                        .size(88.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable(enabled = canReplaceCoverFromLocalFile) {

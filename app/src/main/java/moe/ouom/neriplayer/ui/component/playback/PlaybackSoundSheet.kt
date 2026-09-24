@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -209,12 +211,8 @@ fun PlaybackSoundSheet(
                 Slider(
                     value = loudnessSliderValue.toFloat(),
                     onValueChange = { raw ->
-                        val normalized = ((raw / LOUDNESS_SLIDER_STEP_MB).roundToInt() * LOUDNESS_SLIDER_STEP_MB)
-                            .coerceIn(
-                                minimumValue = MIN_PLAYBACK_LOUDNESS_GAIN_MB,
-                                maximumValue = MAX_PLAYBACK_LOUDNESS_GAIN_MB
-                            )
-                        loudnessSliderValue = normalizePlaybackLoudnessGainMb(normalized)
+                        val snapped = snapLoudnessNode(raw.roundToInt(), LOUDNESS_QUICK_PRESETS)
+                        loudnessSliderValue = normalizePlaybackLoudnessGainMb(snapped)
                         onLoudnessGainChange(loudnessSliderValue, false)
                     },
                     onValueChangeFinished = {
@@ -226,21 +224,6 @@ fun PlaybackSoundSheet(
                         stepSize = LOUDNESS_SLIDER_STEP_MB
                     )
                 )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    LOUDNESS_QUICK_PRESETS.forEach { preset ->
-                        FilterChip(
-                            selected = loudnessSliderValue == preset,
-                            onClick = {
-                                loudnessSliderValue = preset
-                                onLoudnessGainChange(loudnessSliderValue, true)
-                            },
-                            label = { Text(formatPlaybackGainLabel(preset)) }
-                        )
-                    }
-                }
             }
         }
 
@@ -363,34 +346,52 @@ fun PlaybackSoundSheet(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            HapticOutlinedButton(
-                onClick = onReset,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+                modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = stringResource(R.string.nowplaying_audio_effects_reset),
-                    maxLines = 1
-                )
+                HapticTextButton(
+                    onClick = onReset,
+                    modifier = Modifier.heightIn(min = 44.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.nowplaying_audio_effects_reset),
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1
+                    )
+                }
             }
 
-            HapticTextButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+                modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = stringResource(R.string.action_done),
-                    maxLines = 1
-                )
+                HapticTextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.heightIn(min = 44.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_done),
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
+private fun snapLoudnessNode(value: Int, nodes: List<Int>): Int {
+    if (nodes.isEmpty()) return value
+    val nearest = nodes.minByOrNull { abs(it - value) } ?: return value
+    return if (abs(nearest - value) <= 120) nearest else value
+}
+
 @Composable
 private fun PlaybackControlCard(
     title: String,
@@ -421,6 +422,7 @@ private fun PlaybackControlCard(
             onDismiss = { showInputDialog = false }
         )
     }
+    val snapNodes = remember(quickPresets) { quickPresets.map(normalize) }
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)
@@ -429,8 +431,8 @@ private fun PlaybackControlCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -451,10 +453,11 @@ private fun PlaybackControlCard(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
+            // 无可见快捷钮：滑条在关键节点自动吸附（1.00x / 1.25x 等）
             Slider(
                 value = sliderValue,
-                onValueChange = {
-                    sliderValue = normalize(it)
+                onValueChange = { raw ->
+                    sliderValue = snapToKeyNode(normalize(raw), snapNodes)
                     onValueChange(sliderValue, false)
                 },
                 onValueChangeFinished = {
@@ -463,29 +466,16 @@ private fun PlaybackControlCard(
                 valueRange = range,
                 steps = steps
             )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                quickPresets.forEach { preset ->
-                    val normalizedPreset = normalize(preset)
-                    FilterChip(
-                        selected = abs(sliderValue - normalizedPreset) < 0.001f,
-                        onClick = {
-                            sliderValue = normalizedPreset
-                            onValueChange(sliderValue, true)
-                        },
-                        label = {
-                            Text(
-                                text = formatMultiplier(preset),
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                    )
-                }
-            }
         }
     }
+}
+
+private fun snapToKeyNode(value: Float, nodes: List<Float>): Float {
+    if (nodes.isEmpty()) return value
+    val nearest = nodes.minByOrNull { abs(it - value) } ?: return value
+    // 仅在靠近节点时吸附，避免整条都变成离散跳变
+    val threshold = 0.06f
+    return if (abs(nearest - value) <= threshold) nearest else value
 }
 
 @Composable

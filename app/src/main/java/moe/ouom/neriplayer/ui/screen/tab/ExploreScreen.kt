@@ -37,6 +37,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
@@ -516,6 +517,34 @@ fun ExploreScreen(
     val tagChipSelectedAlpha = if (backgroundImageUri == null) 1f else 0.86f
     val tagChipUnselectedAlpha = if (backgroundImageUri == null) 1f else 0.74f
     val tagChipBorderAlpha = if (backgroundImageUri == null) 1f else 0.58f
+    val activeListState = when {
+        searchQuery.isNotEmpty() -> searchListState
+        ui.selectedSearchSource == SearchSource.NETEASE ||
+            ui.selectedSearchSource == SearchSource.DEFAULT -> gridState
+        ui.selectedSearchSource == SearchSource.YOUTUBE_MUSIC -> youtubeGridState
+        else -> searchListState
+    }
+    val showTypeFilterLayer by remember(activeListState) {
+        derivedStateOf {
+            when (activeListState) {
+                gridState ->
+                    gridState.firstVisibleItemIndex == 0 &&
+                        gridState.firstVisibleItemScrollOffset < 48
+                youtubeGridState ->
+                    youtubeGridState.firstVisibleItemIndex == 0 &&
+                        youtubeGridState.firstVisibleItemScrollOffset < 48
+                else ->
+                    searchListState.firstVisibleItemIndex == 0 &&
+                        searchListState.firstVisibleItemScrollOffset < 48
+            }
+        }
+    }
+    // 筛选行收起时列表 contentPadding 收窄：上滑给更多视野，下拉再弹出
+    val exploreListContentTop by animateDpAsState(
+        targetValue = if (showTypeFilterLayer) 12.dp else 116.dp,
+        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        label = "exploreListContentTop"
+    )
     var previousSearchSource by remember { mutableStateOf(ui.selectedSearchSource) }
     val isExploreContentScrolled by remember(
         searchQuery,
@@ -529,7 +558,8 @@ fun ExploreScreen(
             when {
                 topAppBarState.collapsedFraction > 0f -> true
                 searchQuery.isNotBlank() -> searchListState.canScrollBackward
-                ui.selectedSearchSource == SearchSource.NETEASE -> gridState.canScrollBackward
+                ui.selectedSearchSource == SearchSource.NETEASE ||
+                    ui.selectedSearchSource == SearchSource.DEFAULT -> gridState.canScrollBackward
                 ui.selectedSearchSource == SearchSource.YOUTUBE_MUSIC -> {
                     youtubeGridState.canScrollBackward
                 }
@@ -961,27 +991,6 @@ fun ExploreScreen(
                     var sourceMenuExpanded by remember { mutableStateOf(false) }
                     var tagMenuExpanded by remember { mutableStateOf(false) }
                     val currentSearchSource = ui.selectedSearchSource
-                    val activeListState = when {
-                        searchQuery.isNotEmpty() -> searchListState
-                        ui.selectedSearchSource == SearchSource.NETEASE -> gridState
-                        ui.selectedSearchSource == SearchSource.YOUTUBE_MUSIC -> youtubeGridState
-                        else -> searchListState
-                    }
-                    val showTypeFilterLayer by remember(activeListState) {
-                        derivedStateOf {
-                            when {
-                                ui.selectedSearchSource == SearchSource.NETEASE ->
-                                    gridState.firstVisibleItemIndex == 0 &&
-                                        gridState.firstVisibleItemScrollOffset < 48
-                                ui.selectedSearchSource == SearchSource.YOUTUBE_MUSIC ->
-                                    youtubeGridState.firstVisibleItemIndex == 0 &&
-                                        youtubeGridState.firstVisibleItemScrollOffset < 48
-                                else ->
-                                    searchListState.firstVisibleItemIndex == 0 &&
-                                        searchListState.firstVisibleItemScrollOffset < 48
-                            }
-                        }
-                    }
                     androidx.compose.animation.AnimatedVisibility(
                         visible = showTypeFilterLayer,
                         enter = androidx.compose.animation.expandVertically() +
@@ -989,8 +998,8 @@ fun ExploreScreen(
                         exit = androidx.compose.animation.shrinkVertically() +
                             androidx.compose.animation.fadeOut(),
                     ) {
-                    // 为 chrome（标题+搜索）让位；收起后列表可滚入玻璃区
-                    Column(Modifier.padding(top = 136.dp)) {
+                    // 为 chrome（标题+搜索）让位；再上移约半个「探索」标题高
+                    Column(Modifier.padding(top = 116.dp)) {
                     // 第一行：左侧搜索类型（歌曲/歌单/歌手），右侧搜索源按钮 —— 整组水平居中
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1180,8 +1189,8 @@ fun ExploreScreen(
                                     contentPadding = PaddingValues(
                                         start = searchResultHorizontalPadding,
                                         end = searchResultHorizontalPadding,
-                                        // 让开 chrome（标题+搜索），滚动后条目可进入玻璃采样区
-                                        top = 136.dp,
+                                        // 筛选行可见时贴紧，收起后让开 chrome 以便滚入玻璃
+                                        top = exploreListContentTop,
                                         bottom = exploreSearchResultsBottomPadding(miniPlayerHeight)
                                     ),
                                     modifier = Modifier.fillMaxSize()
@@ -1345,7 +1354,9 @@ fun ExploreScreen(
                                 favoriteKeys = favoriteKeys,
                                 onPlay = onPlay,
                                 isTabletLayout = isTabletLayout,
-                                gridState = gridState
+                                gridState = gridState,
+                                contentTopPadding = exploreListContentTop,
+                                contentBottomPadding = 16.dp + miniPlayerHeight
                             )
                         }
                         SearchSource.BILIBILI -> {
@@ -1390,7 +1401,9 @@ fun ExploreScreen(
                 favoriteKeys = favoriteKeys,
                 onPlay = onPlay,
                 isTabletLayout = isTabletLayout,
-                gridState = gridState
+                gridState = gridState,
+                contentTopPadding = 116.dp,
+                contentBottomPadding = 16.dp + miniPlayerHeight
             )
         }
     }
@@ -2018,22 +2031,20 @@ private fun NeteaseDiscoveryPage(
     favoriteKeys: Set<String>,
     onPlay: (PlaylistSummary) -> Unit,
     isTabletLayout: Boolean = false,
-    gridState: LazyGridState
+    gridState: LazyGridState,
+    contentTopPadding: Dp = 116.dp,
+    contentBottomPadding: Dp = 16.dp
 ) {
-    val miniPlayerHeight = LocalMiniPlayerHeight.current
     val gridHorizontalPadding = if (isTabletLayout) 56.dp else 16.dp
     val gridMinCellSize = if (isTabletLayout) 170.dp else 150.dp
     val gridSpacing = if (isTabletLayout) 16.dp else 12.dp
 
-    // 独立全屏二级页：标题在 chrome（返回+新发现），这里不再重复顶栏
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = miniPlayerHeight)
-    ) {
+    // 全幅滚动：上下都能进入 chrome 玻璃采样区
+    Box(modifier = Modifier.fillMaxSize()) {
         if (ui.loading) {
             LinearProgressIndicator(
                 modifier = Modifier
+                    .align(Alignment.TopCenter)
                     .fillMaxWidth()
                     .padding(top = 6.dp)
             )
@@ -2047,12 +2058,10 @@ private fun NeteaseDiscoveryPage(
             contentPadding = PaddingValues(
                 start = gridHorizontalPadding,
                 end = gridHorizontalPadding,
-                top = 12.dp,
-                bottom = 16.dp
+                top = contentTopPadding,
+                bottom = contentBottomPadding
             ),
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+            modifier = Modifier.fillMaxSize()
         ) {
             if (ui.playlists.isNotEmpty()) {
                 items(items = ui.playlists, key = { it.id }) { playlist ->

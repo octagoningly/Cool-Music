@@ -203,11 +203,8 @@ class AdvancedGlassControllerTest {
             val renderProfile = controller.copy(advancedBlurQuality = quality).advancedBlurQuality
                 .renderProfile()
             assertEquals(AdvancedGlassBlurAlgorithm.Native, renderProfile.algorithm)
-            if (quality == AdvancedBlurQuality.UltraLow || quality == AdvancedBlurQuality.Low) {
-                assertTrue("quality=$quality", renderProfile.usesRegionLocalRendering)
-            } else {
-                assertFalse("quality=$quality", renderProfile.usesRegionLocalRendering)
-            }
+            // 弹窗真模糊统一走 RegionLocal（Default/High 不再用 FullscreenMask）
+            assertTrue("quality=$quality", renderProfile.usesRegionLocalRendering)
         }
         assertEquals(2, AdvancedGlassRenderProfile.Low.downscaleFactorFor(radiusPx = 36f))
         assertEquals(4, AdvancedGlassRenderProfile.UltraLow.downscaleFactorFor(radiusPx = 72f))

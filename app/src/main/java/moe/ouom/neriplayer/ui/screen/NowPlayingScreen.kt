@@ -343,6 +343,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 import moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText
+import moe.ouom.neriplayer.ui.component.playlist.GlassSheetMenuItem
 
 private const val LyricsPageTransitionDurationMs = 300
 private const val CoverSourceBadgeRevealBufferMs = 120
@@ -4320,27 +4321,32 @@ fun NowPlayingQualityOptionsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = {
+            Text(
+                text = title,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium
+            )
+        },
         text = {
-            Column {
+            Column(modifier = Modifier.heightIn(max = 280.dp)) {
                 options.forEach { option ->
-                    ListItem(
-                        headlineContent = { Text(option.label) },
-                        trailingContent = {
-                            if (option.key == selectedKey) {
+                    GlassSheetMenuItem(
+                        text = option.label,
+                        enabled = true,
+                        supportingContent = if (option.key == selectedKey) {
+                            {
                                 Text(
                                     text = stringResource(R.string.common_selected),
                                     color = MaterialTheme.colorScheme.primary,
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             }
+                        } else {
+                            null
                         },
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { onSelect(option) },
-                        colors = androidx.compose.material3.ListItemDefaults.colors(
-                            containerColor = Color.Transparent
-                        )
+                        onClick = { onSelect(option) }
                     )
                 }
             }

@@ -56,8 +56,10 @@ internal data class AdvancedGlassRenderProfile(
 }
 
 internal fun AdvancedBlurQuality.renderProfile(): AdvancedGlassRenderProfile = when (this) {
+    // 弹窗/Popup 真模糊依赖区域裁剪；FullscreenMask 在独立 Window 下易「只有透明」。
+    // 全部走 RegionLocal，与开发规则「AdvancedGlassSurface + region 注册」一致。
     AdvancedBlurQuality.UltraLow -> AdvancedGlassRenderProfile.UltraLow
     AdvancedBlurQuality.Low -> AdvancedGlassRenderProfile.Low
     AdvancedBlurQuality.Default,
-    AdvancedBlurQuality.High -> AdvancedGlassRenderProfile.Native
+    AdvancedBlurQuality.High -> AdvancedGlassRenderProfile.Low
 }

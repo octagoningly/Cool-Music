@@ -104,12 +104,13 @@ internal fun GlassPanel(
     shape: Shape = GlassDialogShape,
     role: AdvancedGlassRole = AdvancedGlassRole.DialogPanel,
     position: GlassPanelPosition = GlassPanelPosition.Centered,
-    maxWidth: Dp = 360.dp,
+    maxWidth: Dp = 300.dp,
     contentPadding: androidx.compose.foundation.layout.PaddingValues =
         androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 24.dp,
-            vertical = 20.dp
+            horizontal = 20.dp,
+            vertical = 16.dp
         ),
+    maxHeight: Dp = 420.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val controller = LocalAdvancedGlassController.current
@@ -130,11 +131,11 @@ internal fun GlassPanel(
             LocalGlassOverlayElevated provides true,
             LocalAdvancedGlassDepth provides 0,
         ) {
-            // 禁止 IntrinsicSize.Max：登录面板里的 TabRow/SubcomposeLayout 不支持固有测量，会闪退
+            // 内容自适应宽度/高度，禁止 fillMaxWidth 撑满（二级弹窗过大根因）
             Box(
                 Modifier
-                    .widthIn(max = maxWidth)
-                    .heightIn(max = 640.dp)
+                    .widthIn(min = 200.dp, max = maxWidth)
+                    .heightIn(max = maxHeight)
             ) {
                 AdvancedGlassSurface(
                     role = role,
@@ -144,16 +145,13 @@ internal fun GlassPanel(
                     enabled = glassActive,
                     regionBoundsOverride = boundsInMainWindow,
                     modifier = modifier
-                        .widthIn(max = maxWidth)
-                        .heightIn(max = 640.dp)
-                        .fillMaxWidth()
+                        .widthIn(min = 200.dp, max = maxWidth)
+                        .heightIn(max = maxHeight)
                 ) {
                     Column(
                         Modifier
-                            // 只钳高，不要外层 verticalScroll：面板内可能有 LazyColumn/自己的滚动，
-                            // 嵌套滚动在 Popup 无限高下会闪退
-                            .heightIn(max = 640.dp)
-                            .fillMaxWidth()
+                            .widthIn(min = 200.dp, max = maxWidth)
+                            .heightIn(max = maxHeight)
                             .padding(contentPadding),
                         content = content,
                     )
@@ -236,16 +234,17 @@ internal fun GlassModalBottomSheet(
 ) {
     GlassPanel(
         onDismissRequest = onDismissRequest,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = shape,
         role = AdvancedGlassRole.DialogPanel,
         position = GlassPanelPosition.Bottom,
-        maxWidth = 720.dp,
+        maxWidth = 340.dp,
+        maxHeight = 480.dp,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 24.dp,
-            end = 24.dp,
+            start = 20.dp,
+            end = 20.dp,
             top = 12.dp,
-            bottom = 24.dp
+            bottom = 20.dp
         ),
         content = content
     )

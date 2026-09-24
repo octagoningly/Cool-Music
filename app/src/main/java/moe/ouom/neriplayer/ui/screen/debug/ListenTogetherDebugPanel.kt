@@ -240,7 +240,7 @@ fun ListenTogetherRoomPanel(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
         )
     ) {
         if (showAdvancedDebug) {

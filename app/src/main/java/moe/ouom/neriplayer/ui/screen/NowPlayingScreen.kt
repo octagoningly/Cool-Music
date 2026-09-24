@@ -129,6 +129,9 @@ import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.outlined.Timer
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
+import moe.ouom.neriplayer.ui.component.overlay.GlassDialogShape
+import moe.ouom.neriplayer.ui.component.overlay.GlassPanel
+import moe.ouom.neriplayer.ui.component.overlay.GlassPanelPosition
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -165,6 +168,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -209,6 +213,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import moe.ouom.neriplayer.data.model.stableKey
+import java.text.SimpleDateFormat
+import java.util.Date
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.bili.resolveBiliVideoSkipTargetOptions
 import moe.ouom.neriplayer.core.api.lyrics.EditableLyricMatchRequest
@@ -250,6 +257,7 @@ import moe.ouom.neriplayer.data.model.displayCoverUrl
 import moe.ouom.neriplayer.data.model.displayName
 import moe.ouom.neriplayer.data.model.sameIdentityAs
 import moe.ouom.neriplayer.data.model.stableKey
+import moe.ouom.neriplayer.data.stats.TrackStat
 import moe.ouom.neriplayer.data.model.BiliUploaderSummary
 import moe.ouom.neriplayer.data.platform.youtube.extractYouTubeMusicVideoId
 import moe.ouom.neriplayer.data.platform.youtube.isYouTubeMusicSong
@@ -3768,7 +3776,7 @@ fun NowPlayingScreen(
                                             showAddSheet = false
                                         }
                                     }
-                                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(pl.name, style = MaterialTheme.typography.bodyLarge)
@@ -4022,6 +4030,7 @@ fun BoxScope.MoreOptionsSheet(
 ) {
     // 一级：锚点小菜单；二级：GlassModalBottomSheet（禁止塞进 IntrinsicSize 菜单，见开发规则）
     var secondaryPage by remember { mutableStateOf<MoreOptionsPage?>(null) }
+    var statsSong by remember { mutableStateOf<SongItem?>(null) }
     val currentSong by PlayerManager.currentSongFlow.collectAsStateWithLifecycle()
     val actualSong = currentSong?.takeIf { it.sameIdentityAs(originalSong) } ?: originalSong
     val isLocalSong = actualSong.isLocalSong()
@@ -4032,7 +4041,7 @@ fun BoxScope.MoreOptionsSheet(
     val currentTranslationFontScale = lyricFontScales.scaleFor(translationFontScaleTarget)
 
     GlassDropdownMenu(
-        expanded = secondaryPage == null,
+        expanded = secondaryPage == null && statsSong == null,
         onDismissRequest = onDismiss,
         shape = moe.ouom.neriplayer.ui.component.overlay.GlassMenuShape,
         maxWidth = 240.dp,
@@ -4057,6 +4066,10 @@ fun BoxScope.MoreOptionsSheet(
             onOpenFontSize = { secondaryPage = MoreOptionsPage.FONT_SIZE },
             onOpenBiliVideoSkip = { secondaryPage = MoreOptionsPage.BILI_VIDEO_SKIP },
             onOpenListenTogether = { secondaryPage = MoreOptionsPage.LISTEN_TOGETHER },
+            onOpenStats = { song ->
+                // 先关一级菜单，再弹统计（避免两层叠在一起）
+                statsSong = song
+            },
             onShowSongDetails = {
                 onDismiss()
                 onShowSongDetails(originalSong)
@@ -4077,22 +4090,17 @@ fun BoxScope.MoreOptionsSheet(
         )
     }
 
-    // 二级弹窗：DensityScaled → GlassModalBottomSheet（DialogPanel + depth0 真模糊）
+    // 播放统计：关一级后再弹居中对话框
+    statsSong?.let { song ->
+        PlaybackStatsDialog(song = song, onDismiss = { statsSong = null })
+    }
+
+    // 二级弹窗：屏幕居中 GlassPanel（圆角 28、无横杠、紧凑）
     when (val page = secondaryPage) {
         MoreOptionsPage.LISTEN_TOGETHER -> {
-            ModalBottomSheet(
-                onDismissRequest = { secondaryPage = null },
-                sheetGesturesEnabled = false
-            ) {
+            SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
                 val listenTogetherScrollState = rememberScrollState()
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .bottomSheetScrollGuard()
-                        .verticalScroll(listenTogetherScrollState)
-                        .padding(bottom = 16.dp)
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                ) {
+                Column(Modifier.fillMaxWidth().verticalScroll(listenTogetherScrollState)) {
                     ListenTogetherRoomPanel(
                         modifier = Modifier.fillMaxWidth(),
                         showBaseUrlEditor = false
@@ -4102,10 +4110,7 @@ fun BoxScope.MoreOptionsSheet(
         }
 
         MoreOptionsPage.BILI_VIDEO_SKIP -> {
-            ModalBottomSheet(
-                onDismissRequest = { secondaryPage = null },
-                sheetGesturesEnabled = false
-            ) {
+            SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
                 val currentPosition by PlayerManager.playbackPositionFlow
                     .collectAsStateWithLifecycle()
                 val isPlaying by PlayerManager.isPlayingFlow.collectAsStateWithLifecycle()
@@ -4138,10 +4143,7 @@ fun BoxScope.MoreOptionsSheet(
         }
 
         MoreOptionsPage.SEARCH -> {
-            ModalBottomSheet(
-                onDismissRequest = { secondaryPage = null },
-                sheetGesturesEnabled = false
-            ) {
+            SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
                 SongMetadataSearchContent(
                     viewModel = viewModel,
                     song = actualSong,
@@ -4158,10 +4160,7 @@ fun BoxScope.MoreOptionsSheet(
         }
 
         MoreOptionsPage.LYRIC_BEHAVIOR -> {
-            ModalBottomSheet(
-                onDismissRequest = { secondaryPage = null },
-                sheetGesturesEnabled = false
-            ) {
+            SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
                 LyricBehaviorSheet(
                     song = originalSong,
                     hasPhoneticLyrics = hasPhoneticLyrics,
@@ -4171,10 +4170,7 @@ fun BoxScope.MoreOptionsSheet(
         }
 
         MoreOptionsPage.FONT_SIZE -> {
-            ModalBottomSheet(
-                onDismissRequest = { secondaryPage = null },
-                sheetGesturesEnabled = false
-            ) {
+            SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
                 LyricFontSizeSheet(
                     currentLyricScale = currentLyricFontScale,
                     currentTranslationScale = currentTranslationFontScale,
@@ -4190,9 +4186,10 @@ fun BoxScope.MoreOptionsSheet(
         }
 
         MoreOptionsPage.EDIT_INFO -> {
-            ModalBottomSheet(
+            SecondaryGlassPanel(
                 onDismissRequest = { secondaryPage = null },
-                sheetGesturesEnabled = false
+                maxWidth = 320.dp,
+                maxHeight = 480.dp
             ) {
                 EditSongInfoSheet(
                     viewModel = viewModel,
@@ -4207,9 +4204,10 @@ fun BoxScope.MoreOptionsSheet(
         }
 
         MoreOptionsPage.PLAYBACK_SOUND -> {
-            ModalBottomSheet(
+            SecondaryGlassPanel(
                 onDismissRequest = { secondaryPage = null },
-                sheetGesturesEnabled = false
+                maxWidth = 300.dp,
+                maxHeight = 460.dp
             ) {
                 PlaybackSoundSheet(
                     state = playbackSoundState,
@@ -4229,6 +4227,102 @@ fun BoxScope.MoreOptionsSheet(
 
         MoreOptionsPage.MAIN, null -> Unit
     }
+}
+
+/** 播放统计：紧凑居中行，去掉黑色卡片底 */
+@Composable
+private fun PlaybackStatsDialog(song: SongItem, onDismiss: () -> Unit) {
+    val songKey = remember(song) { song.stableKey() }
+    val trackStat by produceState<TrackStat?>(initialValue = null, songKey) {
+        value = withContext(Dispatchers.IO) {
+            AppContainer.playbackStatsRepo.getStatForTrack(songKey)
+        }
+    }
+    val resolvedTrackStat = trackStat ?: return
+    val dateFormat = remember { SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()) }
+    val firstPlayedText = remember(resolvedTrackStat.firstPlayedAt) {
+        dateFormat.format(Date(resolvedTrackStat.firstPlayedAt))
+    }
+    val totalListenText = remember(resolvedTrackStat.totalListenMs) {
+        val totalSeconds = resolvedTrackStat.totalListenMs / 1000
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        when {
+            hours > 0 -> "${hours}h ${minutes}m"
+            minutes > 0 -> "${minutes}m"
+            else -> "${totalSeconds}s"
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(R.string.stats_title),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                StatRow(stringResource(R.string.stats_song_first_played), firstPlayedText)
+                StatRow(stringResource(R.string.stats_song_total_listen), totalListenText)
+                StatRow(
+                    stringResource(R.string.stats_song_play_count_label),
+                    pluralStringResource(
+                        R.plurals.stats_play_count_value,
+                        resolvedTrackStat.playCount,
+                        resolvedTrackStat.playCount
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            HapticTextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_close))
+            }
+        }
+    )
+}
+
+@Composable
+private fun StatRow(label: String, value: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/** 二级弹窗统一壳：屏幕居中 + 全圆角 28 + 无拖拽横杠 + 紧凑内边距 */
+@Composable
+private fun SecondaryGlassPanel(
+    onDismissRequest: () -> Unit,
+    maxWidth: androidx.compose.ui.unit.Dp = 288.dp,
+    maxHeight: androidx.compose.ui.unit.Dp = 420.dp,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    GlassPanel(
+        onDismissRequest = onDismissRequest,
+        shape = GlassDialogShape,
+        position = GlassPanelPosition.Centered,
+        maxWidth = maxWidth,
+        maxHeight = maxHeight,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = 16.dp,
+            vertical = 12.dp
+        ),
+        content = content
+    )
 }
 
 private data class NowPlayingProgressInfoSegment(
@@ -4374,7 +4468,7 @@ fun VolumeControlSheetContent() {
         modifier = Modifier
             .fillMaxWidth()
             .bottomSheetDragBlocker()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .windowInsetsPadding(WindowInsets.navigationBars),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -4432,7 +4526,7 @@ fun LyricBehaviorSheet(
         modifier = Modifier
             .fillMaxWidth()
             .bottomSheetDragBlocker()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .windowInsetsPadding(WindowInsets.navigationBars),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -4554,7 +4648,7 @@ fun LyricFontSizeSheet(
         modifier = Modifier
             .fillMaxWidth()
             .bottomSheetDragBlocker()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .windowInsetsPadding(WindowInsets.navigationBars),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -4863,7 +4957,7 @@ fun EditSongInfoSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
                 .windowInsetsPadding(WindowInsets.navigationBars),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -5373,7 +5467,7 @@ fun EditSongInfoSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.8f)
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
                     .windowInsetsPadding(WindowInsets.navigationBars),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -5915,7 +6009,7 @@ fun LyricsEditorSheet(
             .fillMaxWidth()
             .fillMaxHeight(0.9f)
             .bottomSheetScrollGuard()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
             .windowInsetsPadding(WindowInsets.navigationBars),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -6186,7 +6280,7 @@ private fun LyricMatchResultsSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.82f)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
                 .windowInsetsPadding(WindowInsets.navigationBars),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {

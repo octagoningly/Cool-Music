@@ -71,8 +71,7 @@ import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.data.model.displayArtist
 import moe.ouom.neriplayer.data.model.displayName
 import moe.ouom.neriplayer.data.model.stableKey
-import moe.ouom.neriplayer.data.stats.TrackStat
-import moe.ouom.neriplayer.ui.component.overlay.GlassDialogShape
+import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import moe.ouom.neriplayer.ui.component.playlist.GlassSheetMenuItem
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import moe.ouom.neriplayer.ui.viewmodel.NowPlayingViewModel
@@ -81,7 +80,7 @@ import moe.ouom.neriplayer.ui.viewmodel.album.neteaseAlbumDisplayName
 import moe.ouom.neriplayer.ui.viewmodel.album.resolveNeteaseAlbum
 import moe.ouom.neriplayer.ui.viewmodel.tab.AlbumSummary
 import moe.ouom.neriplayer.util.media.buildRemoteSongShareUrl
-import java.text.SimpleDateFormat
+import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -104,6 +103,7 @@ internal fun MoreOptionsMainContent(
     onOpenFontSize: () -> Unit,
     onOpenBiliVideoSkip: () -> Unit,
     onOpenListenTogether: () -> Unit,
+    onOpenStats: (SongItem) -> Unit,
     onShowSongDetails: () -> Unit,
     onShowQualitySwitch: () -> Unit,
     onEnterAlbum: (AlbumSummary) -> Unit,
@@ -152,7 +152,7 @@ internal fun MoreOptionsMainContent(
             snackbarHostState = snackbarHostState,
             onDismissSheet = onDismissSheet
         )
-        PlaybackStatsAction(originalSong)
+        PlaybackStatsAction(originalSong, onOpenStats)
         GlassSheetMenuItem(
             text = stringResource(R.string.listen_together_title),
             leadingIcon = { Icon(Icons.Outlined.Headphones, null) },
@@ -431,74 +431,12 @@ private fun ShareSongAction(
 }
 
 @Composable
-private fun PlaybackStatsAction(song: SongItem) {
-    val songKey = remember(song) { song.stableKey() }
-    val trackStat by produceState<TrackStat?>(initialValue = null, songKey) {
-        value = withContext(Dispatchers.IO) {
-            AppContainer.playbackStatsRepo.getStatForTrack(songKey)
-        }
-    }
-    val resolvedTrackStat = trackStat ?: return
-    var showDialog by remember { mutableStateOf(false) }
+private fun PlaybackStatsAction(song: SongItem, onOpenStats: (SongItem) -> Unit) {
     GlassSheetMenuItem(
         text = stringResource(R.string.stats_title),
         leadingIcon = { Icon(Icons.Outlined.BarChart, null) },
-        onClick = { showDialog = true }
-    )
-    if (!showDialog) return
-
-    val dateFormat = remember { SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()) }
-    val firstPlayedText = remember(resolvedTrackStat.firstPlayedAt) {
-        dateFormat.format(Date(resolvedTrackStat.firstPlayedAt))
-    }
-    val totalListenText = remember(resolvedTrackStat.totalListenMs) {
-        val totalSeconds = resolvedTrackStat.totalListenMs / 1000
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        when {
-            hours > 0 -> "${hours}h ${minutes}m"
-            minutes > 0 -> "${minutes}m"
-            else -> "${totalSeconds}s"
-        }
-    }
-    AlertDialog(
-        onDismissRequest = { showDialog = false },
-        icon = { Icon(Icons.Outlined.BarChart, null) },
-        title = { Text(stringResource(R.string.stats_title)) },
-        shape = GlassDialogShape,
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatsCard(R.string.stats_song_first_played, firstPlayedText)
-                StatsCard(R.string.stats_song_total_listen, totalListenText)
-                StatsCard(
-                    labelRes = R.string.stats_song_play_count_label,
-                    value = pluralStringResource(
-                        R.plurals.stats_play_count_value,
-                        resolvedTrackStat.playCount,
-                        resolvedTrackStat.playCount
-                    )
-                )
-            }
-        },
-        confirmButton = {
-            HapticTextButton(onClick = { showDialog = false }) {
-                Text(stringResource(R.string.action_close))
-            }
-        }
+        onClick = { onOpenStats(song) }
     )
 }
 
-@Composable
-private fun StatsCard(labelRes: Int, value: String) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.25f)
-        )
-    ) {
-        ListItem(
-            headlineContent = { Text(stringResource(labelRes)) },
-            supportingContent = { Text(value) }
-        )
-    }
-}
+

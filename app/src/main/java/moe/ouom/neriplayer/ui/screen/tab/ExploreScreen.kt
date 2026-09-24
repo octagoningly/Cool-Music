@@ -959,6 +959,7 @@ fun ExploreScreen(
                     }
                     Spacer(Modifier.height(8.dp))
                     var sourceMenuExpanded by remember { mutableStateOf(false) }
+                    var tagMenuExpanded by remember { mutableStateOf(false) }
                     val currentSearchSource = ui.selectedSearchSource
                     val activeListState = when {
                         searchQuery.isNotEmpty() -> searchListState
@@ -1058,6 +1059,70 @@ fun ExploreScreen(
                                             }
                                         }
                                     )
+                                }
+                            }
+                        }
+
+                        // 风格下拉：与「歌曲/歌手/歌单/在线」同一行
+                        if (
+                            (currentSearchSource == SearchSource.DEFAULT ||
+                                currentSearchSource == SearchSource.NETEASE) &&
+                            searchQuery.isBlank()
+                        ) {
+                            val currentTagLabel = tagLabels.getOrElse(
+                                tagKeys.indexOf(ui.selectedTag)
+                            ) { tagLabels.first() }
+                            Box(modifier = Modifier.padding(start = 8.dp)) {
+                                Surface(
+                                    shape = ExplorePrimaryTabShape,
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = tagChipUnselectedAlpha),
+                                    border = BorderStroke(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outline.copy(alpha = tagChipBorderAlpha)
+                                    ),
+                                    modifier = Modifier.clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = ripple()
+                                    ) { tagMenuExpanded = true }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .height(48.dp)
+                                            .padding(horizontal = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        Text(
+                                            text = currentTagLabel,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Filled.ArrowDropDown,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                GlassDropdownMenu(
+                                    expanded = tagMenuExpanded,
+                                    onDismissRequest = { tagMenuExpanded = false },
+                                    shape = GlassMenuShape,
+                                    modifier = Modifier
+                                ) {
+                                    tagKeys.forEachIndexed { index, tagKey ->
+                                        DropdownMenuItem(
+                                            text = { Text(tagLabels[index]) },
+                                            onClick = {
+                                                tagMenuExpanded = false
+                                                if (ui.selectedTag != tagKey) {
+                                                    vm.loadHighQuality(tagKey)
+                                                }
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1276,16 +1341,9 @@ fun ExploreScreen(
                         SearchSource.NETEASE -> {
                             // 老版探索首页：顶部风格分类 + 多封面网格（不进「新发现」二级页）
                             NeteaseDiscoveryPage(
-                                onBack = vm::closeNeteaseDiscovery,
                                 ui = ui,
-                                tagKeys = tagKeys,
-                                tagLabels = tagLabels,
                                 favoriteKeys = favoriteKeys,
-                                vm = vm,
                                 onPlay = onPlay,
-                                tagChipSelectedAlpha = tagChipSelectedAlpha,
-                                tagChipUnselectedAlpha = tagChipUnselectedAlpha,
-                                tagChipBorderAlpha = tagChipBorderAlpha,
                                 isTabletLayout = isTabletLayout,
                                 gridState = gridState
                             )
@@ -1328,16 +1386,9 @@ fun ExploreScreen(
             color = MaterialTheme.colorScheme.background
         ) {
             NeteaseDiscoveryPage(
-                onBack = vm::closeNeteaseDiscovery,
                 ui = ui,
-                tagKeys = tagKeys,
-                tagLabels = tagLabels,
                 favoriteKeys = favoriteKeys,
-                vm = vm,
                 onPlay = onPlay,
-                tagChipSelectedAlpha = tagChipSelectedAlpha,
-                tagChipUnselectedAlpha = tagChipUnselectedAlpha,
-                tagChipBorderAlpha = tagChipBorderAlpha,
                 isTabletLayout = isTabletLayout,
                 gridState = gridState
             )
@@ -1963,16 +2014,9 @@ internal const val EXPLORE_YOUTUBE_SEARCH_TYPE_BAR_TAG = "explore_youtube_search
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 private fun NeteaseDiscoveryPage(
-    onBack: () -> Unit,
     ui: ExploreUiState,
-    tagKeys: List<String>,
-    tagLabels: List<String>,
     favoriteKeys: Set<String>,
-    vm: ExploreViewModel,
     onPlay: (PlaylistSummary) -> Unit,
-    tagChipSelectedAlpha: Float,
-    tagChipUnselectedAlpha: Float,
-    tagChipBorderAlpha: Float,
     isTabletLayout: Boolean = false,
     gridState: LazyGridState
 ) {
@@ -1987,17 +2031,6 @@ private fun NeteaseDiscoveryPage(
             .fillMaxSize()
             .padding(bottom = miniPlayerHeight)
     ) {
-        ExploreNeteasePlaylistTagRow(
-            tagKeys = tagKeys,
-            tagLabels = tagLabels,
-            selectedTag = ui.selectedTag,
-            onTagClick = { tagKey ->
-                if (ui.selectedTag != tagKey) vm.loadHighQuality(tagKey)
-            },
-            selectedAlpha = tagChipSelectedAlpha,
-            unselectedAlpha = tagChipUnselectedAlpha,
-            borderAlpha = tagChipBorderAlpha
-        )
         if (ui.loading) {
             LinearProgressIndicator(
                 modifier = Modifier
@@ -2048,118 +2081,6 @@ private fun NeteaseDiscoveryPage(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-@OptIn(ExperimentalLayoutApi::class)
-private fun NeteaseDefaultContent(
-    gridState: LazyGridState,
-    ui: ExploreUiState,
-    tagKeys: List<String>,
-    tagLabels: List<String>,
-    favoriteKeys: Set<String>,
-    vm: ExploreViewModel,
-    onPlay: (PlaylistSummary) -> Unit,
-    tagChipSelectedAlpha: Float,
-    tagChipUnselectedAlpha: Float,
-    tagChipBorderAlpha: Float,
-    isTabletLayout: Boolean = false
-) {
-    val miniPlayerHeight = LocalMiniPlayerHeight.current
-    val gridHorizontalPadding = if (isTabletLayout) 56.dp else 16.dp
-    val gridMinCellSize = if (isTabletLayout) 170.dp else 150.dp
-    val gridSpacing = if (isTabletLayout) 16.dp else 12.dp
-    LazyVerticalGrid(
-        state = gridState,
-        columns = GridCells.Adaptive(gridMinCellSize),
-        verticalArrangement = Arrangement.spacedBy(gridSpacing),
-        horizontalArrangement = Arrangement.spacedBy(gridSpacing),
-        contentPadding = PaddingValues(
-            start = gridHorizontalPadding,
-            end = gridHorizontalPadding,
-            top = 16.dp,
-            bottom = 16.dp + miniPlayerHeight
-        ),
-    ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            if (ui.playlists.isEmpty() && ui.loading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-        }
-        if (ui.playlists.isNotEmpty()) {
-            items(items = ui.playlists, key = { it.id }) { playlist ->
-                PlaylistCard(
-                    playlist = playlist,
-                    isFavorite = favoriteKeys.contains("netease:${playlist.id}"),
-                    onClick = { onPlay(playlist) }
-                )
-            }
-        } else if (ui.loading) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-        } else if (ui.error != null) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(ui.error, color = MaterialTheme.colorScheme.error)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ExploreNeteasePlaylistTagRow(
-    tagKeys: List<String>,
-    tagLabels: List<String>,
-    selectedTag: String,
-    onTagClick: (String) -> Unit,
-    selectedAlpha: Float,
-    unselectedAlpha: Float,
-    borderAlpha: Float
-) {
-    val tagListState = rememberLazyListState()
-    val showTagStartFade by remember(tagListState) {
-        derivedStateOf { tagListState.canScrollBackward }
-    }
-    val showTagEndFade by remember(tagListState) {
-        derivedStateOf { tagListState.canScrollForward }
-    }
-    LazyRow(
-        state = tagListState,
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(max = 48.dp)
-            .padding(top = 8.dp)
-            .exploreHorizontalEdgeFade(
-                showStartFade = showTagStartFade,
-                showEndFade = showTagEndFade
-            ),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        itemsIndexed(tagKeys) { index, tagKey ->
-            ExploreTagChip(
-                label = tagLabels[index],
-                selected = selectedTag == tagKey,
-                onClick = { onTagClick(tagKey) },
-                selectedAlpha = selectedAlpha,
-                unselectedAlpha = unselectedAlpha,
-                borderAlpha = borderAlpha
-            )
         }
     }
 }

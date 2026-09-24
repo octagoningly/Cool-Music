@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +51,9 @@ fun NeriTabLargeTitleTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(windowInsets)
-                .padding(start = 20.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
+                .padding(start = 20.dp, end = 4.dp, top = 2.dp, bottom = 2.dp)
+                // 与首页/媒体库带 IconButton 的顶栏同高，避免切换 Tab 时模糊条高低不一
+                .heightIn(min = 48.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(

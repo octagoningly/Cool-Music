@@ -71,18 +71,18 @@ internal fun resolveGlassMenuPosition(
         x = (windowSize.width - popupSize.width).coerceAtLeast(0)
     }
 
-    // 1) 优先向下弹出
-    var y = anchor.bottom + offsetY
+    // 尽量向下弹出：仅当下方几乎放不下时才翻到上方
     val maxBottom = (windowSize.height - reservedBottomPx).coerceAtLeast(0)
     val maxTop = (maxBottom - popupSize.height).coerceAtLeast(0)
-
-    // 2) 向下放不下，再向上；仍不得压住底部保留区
-    if (y + popupSize.height > maxBottom) {
+    var y = anchor.bottom + offsetY
+    val roomBelow = maxBottom - y
+    if (roomBelow < popupSize.height / 3) {
         y = anchor.top - popupSize.height - offsetY
     }
     if (y + popupSize.height > maxBottom) {
         y = maxTop
     }
+    if (y < offsetY) y = offsetY
     if (y < offsetY) y = offsetY
     return IntOffset(x, y)
 }
@@ -157,8 +157,8 @@ fun GlassDropdownMenu(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(20.dp),
-    maxWidth: Dp = 240.dp,
-    maxHeight: Dp = 360.dp,
+    maxWidth: Dp = 220.dp,
+    maxHeight: Dp = 280.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val controller = LocalAdvancedGlassController.current
@@ -202,6 +202,7 @@ fun GlassDropdownMenu(
                 Modifier
                     .widthIn(min = 140.dp, max = maxWidth)
                     .heightIn(max = maxHeight)
+                    .fillMaxWidth()
             ) {
                 AdvancedGlassSurface(
                     role = AdvancedGlassRole.PopupMenu,

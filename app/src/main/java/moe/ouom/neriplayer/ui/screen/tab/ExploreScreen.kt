@@ -1168,8 +1168,8 @@ fun ExploreScreen(
                                     expanded = tagMenuExpanded,
                                     onDismissRequest = { tagMenuExpanded = false },
                                     shape = GlassMenuShape,
-                                    maxWidth = 280.dp,
-                                    maxHeight = 520.dp,
+                                    maxWidth = 220.dp,
+                                    maxHeight = 320.dp,
                                     modifier = Modifier
                                 ) {
                                     tagKeys.forEachIndexed { index, tagKey ->

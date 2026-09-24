@@ -226,7 +226,6 @@ private const val LOCAL_CATEGORY_PLAYLIST = 0
 private const val LOCAL_CATEGORY_ARTIST = 1
 private const val LIBRARY_UI_PREFS = "library_ui_preferences"
 private const val KEY_LIBRARY_TAB_ORDER = "library_tab_order"
-private const val KEY_LIBRARY_TAB_ENABLED = "library_tab_enabled"
 private const val KEY_LOCAL_ARTIST_SORT_MODE = "local_artist_sort_mode"
 private val LibraryPrimaryTabShape = RoundedCornerShape(20.dp)
 private val LibrarySearchFieldShape = RoundedCornerShape(16.dp)
@@ -277,32 +276,6 @@ private fun persistLibraryTabOrderStorage(context: Context, order: List<LibraryT
     context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
         .edit {
             putString(KEY_LIBRARY_TAB_ORDER, serializeLibraryTabOrder(order))
-        }
-}
-
-private fun serializeLibraryTabEnabled(tabs: Collection<LibraryTab>): String {
-    return tabs.joinToString(separator = ",") { it.name }
-}
-
-private fun parseLibraryTabEnabledStorage(storage: String?): Set<LibraryTab>? {
-    if (storage == null) return null
-    val names = storage.split(',').map { it.trim() }.filter { it.isNotEmpty() }
-    if (names.isEmpty()) return emptySet()
-    val byName = LibraryTab.entries.associateBy { it.name }
-    return names.mapNotNull { byName[it] }.toSet()
-}
-
-private fun readLibraryTabEnabledStorage(context: Context): Set<LibraryTab>? {
-    return parseLibraryTabEnabledStorage(
-        context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_LIBRARY_TAB_ENABLED, null)
-    )
-}
-
-private fun persistLibraryTabEnabledStorage(context: Context, enabled: Set<LibraryTab>) {
-    context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
-        .edit {
-            putString(KEY_LIBRARY_TAB_ENABLED, serializeLibraryTabEnabled(enabled))
         }
 }
 
@@ -460,26 +433,18 @@ fun LibraryScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     val youtubeEnabled by AppContainer.settingsRepo.youtubeEnabledFlow
         .collectAsStateWithLifecycle(initialValue = YouTubeFeatureGate.isEnabled())
-    var libraryTabEnabledStorage by remember {
-        mutableStateOf(
-            context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
-                .getString(KEY_LIBRARY_TAB_ENABLED, null)
-        )
-    }
-    var enabledLibraryTabs by remember(libraryTabEnabledStorage, isInternational, youtubeEnabled) {
-        mutableStateOf(
-            parseLibraryTabEnabledStorage(libraryTabEnabledStorage)
-                ?: libraryTabDisplayOrder(isInternational, youtubeEnabled).toSet()
-        )
+    var libraryTabOrderStorage by remember {
+        mutableStateOf(readLibraryTabOrderStorage(context))
     }
     var showLibraryTabOrderEditor by remember { mutableStateOf(false) }
     var pendingLibraryTabKey by remember { mutableStateOf<LibraryTab?>(null) }
 
-    val orderedTabs = remember(isInternational, youtubeEnabled, enabledLibraryTabs) {
+    val orderedTabs = remember(isInternational, youtubeEnabled, libraryTabOrderStorage) {
         libraryTabDisplayOrder(
             isInternational = isInternational,
-            youtubeEnabled = youtubeEnabled
-        ).filter { it in enabledLibraryTabs }
+            youtubeEnabled = youtubeEnabled,
+            customOrderStorage = libraryTabOrderStorage
+        )
     }
     val initialPage = remember(orderedTabs, initialTab) {
         orderedTabs.indexOf(initialTab.asVisibleLibraryTab()).takeIf { it >= 0 } ?: 0
@@ -753,6 +718,12 @@ fun LibraryScreen(
                             contentDescription = stringResource(R.string.library_recent_played)
                         )
                     }
+                    HapticIconButton(onClick = { showLibraryTabOrderEditor = true }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = stringResource(R.string.library_tab_order_cd)
+                        )
+                    }
                 }
             )
 
@@ -768,8 +739,7 @@ fun LibraryScreen(
                     scope.launch {
                         pagerState.animateScrollToPage(index)
                     }
-                },
-                onEditClick = { showLibraryTabOrderEditor = true }
+                }
             )
             }
             }
@@ -778,60 +748,34 @@ fun LibraryScreen(
     }
 
     if (showLibraryTabOrderEditor) {
-        LibraryTabVisibilityEditorDialog(
-            allTabs = libraryTabCandidateOrder(isInternational, youtubeEnabled),
-            enabledTabs = enabledLibraryTabs,
+        LibraryTabOrderEditorDialog(
+            tabs = orderedTabs,
             onDismiss = { showLibraryTabOrderEditor = false },
-            onConfirm = { nextEnabled ->
-                val current = orderedTabs.getOrNull(pagerState.currentPage)
-                enabledLibraryTabs = nextEnabled
-                persistLibraryTabEnabledStorage(context, nextEnabled)
-                pendingLibraryTabKey = current
-                libraryTabEnabledStorage = serializeLibraryTabEnabled(nextEnabled)
+            onConfirm = { newOrder ->
+                pendingLibraryTabKey = orderedTabs.getOrNull(pagerState.currentPage)
+                persistLibraryTabOrderStorage(context, newOrder)
+                libraryTabOrderStorage = serializeLibraryTabOrder(newOrder)
+                showLibraryTabOrderEditor = false
+            },
+            onReset = {
+                pendingLibraryTabKey = orderedTabs.getOrNull(pagerState.currentPage)
+                context.getSharedPreferences(LIBRARY_UI_PREFS, Context.MODE_PRIVATE)
+                    .edit { remove(KEY_LIBRARY_TAB_ORDER) }
+                libraryTabOrderStorage = null
                 showLibraryTabOrderEditor = false
             }
         )
     }
 }
 
-private fun libraryTabCandidateOrder(
-    isInternational: Boolean,
-    youtubeEnabled: Boolean
-): List<LibraryTab> {
-    val base = if (isInternational && youtubeEnabled) {
-        listOf(
-            LibraryTab.LOCAL,
-            LibraryTab.FAVORITE,
-            LibraryTab.YTMUSIC,
-            LibraryTab.NETEASE,
-            LibraryTab.BILI,
-            LibraryTab.QQMUSIC
-        )
-    } else {
-        listOf(
-            LibraryTab.LOCAL,
-            LibraryTab.FAVORITE,
-            LibraryTab.NETEASE,
-            LibraryTab.YTMUSIC,
-            LibraryTab.BILI,
-            LibraryTab.QQMUSIC
-        )
-    }
-    return if (youtubeEnabled) base else base - LibraryTab.YTMUSIC
-}
-
 @Composable
-private fun LibraryTabVisibilityEditorDialog(
-    allTabs: List<LibraryTab>,
-    enabledTabs: Set<LibraryTab>,
+private fun LibraryTabOrderEditorDialog(
+    tabs: List<LibraryTab>,
     onDismiss: () -> Unit,
-    onConfirm: (Set<LibraryTab>) -> Unit
+    onConfirm: (List<LibraryTab>) -> Unit,
+    onReset: () -> Unit
 ) {
-    val draft = remember(enabledTabs, allTabs) {
-        mutableStateListOf<LibraryTab>().apply {
-            addAll(allTabs.filter { it in enabledTabs })
-        }
-    }
+    val draft = remember(tabs) { mutableStateListOf<LibraryTab>().apply { addAll(tabs) } }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.library_tab_order_title)) },
@@ -843,42 +787,70 @@ private fun LibraryTabVisibilityEditorDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
-                    itemsIndexed(allTabs) { _, tab ->
-                        val checked = draft.contains(tab)
+                LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                    itemsIndexed(draft) { index, tab ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    if (checked) draft.remove(tab) else draft.add(tab)
-                                }
-                                .padding(vertical = 4.dp)
+                                .padding(vertical = 2.dp)
                         ) {
-                            Checkbox(
-                                checked = checked,
-                                onCheckedChange = {
-                                    if (checked) draft.remove(tab) else draft.add(tab)
-                                }
+                            Icon(
+                                imageVector = Icons.Filled.DragHandle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = stringResource(tab.labelResId),
                                 modifier = Modifier.weight(1f)
                             )
+                            HapticIconButton(
+                                onClick = {
+                                    if (index > 0) {
+                                        val item = draft.removeAt(index)
+                                        draft.add(index - 1, item)
+                                    }
+                                },
+                                enabled = index > 0
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.KeyboardArrowUp,
+                                    contentDescription = stringResource(R.string.library_tab_order_move_up)
+                                )
+                            }
+                            HapticIconButton(
+                                onClick = {
+                                    if (index < draft.lastIndex) {
+                                        val item = draft.removeAt(index)
+                                        draft.add(index + 1, item)
+                                    }
+                                },
+                                enabled = index < draft.lastIndex
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = stringResource(R.string.library_tab_order_move_down)
+                                )
+                            }
                         }
                     }
                 }
             }
         },
         confirmButton = {
-            HapticTextButton(onClick = { onConfirm(draft.toSet()) }) {
+            HapticTextButton(onClick = { onConfirm(draft.toList()) }) {
                 Text(stringResource(R.string.action_confirm))
             }
         },
         dismissButton = {
-            HapticTextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
+            Row {
+                HapticTextButton(onClick = onReset) {
+                    Text(stringResource(R.string.action_reset))
+                }
+                HapticTextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         }
     )
@@ -888,12 +860,8 @@ private fun LibraryTabVisibilityEditorDialog(
 private fun LibraryMainTabs(
     tabs: List<LibraryTab>,
     selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit,
-    onEditClick: () -> Unit
+    onTabSelected: (Int) -> Unit
 ) {
-    val primaryTabs = tabs.take(3)
-    val overflowTabs = if (tabs.size > 3) tabs.drop(3) else emptyList()
-    var moreMenuExpanded by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -903,57 +871,25 @@ private fun LibraryMainTabs(
         AdvancedGlassSurface(
             role = AdvancedGlassRole.ScreenTopTab,
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .clip(LibraryPrimaryTabShape),
             shape = LibraryPrimaryTabShape,
             fallbackColor = MaterialTheme.colorScheme.background
         ) {
             PrimaryScrollableTabRow(
-                selectedTabIndex = selectedTabIndex.coerceIn(0, (primaryTabs.size - 1).coerceAtLeast(0)),
+                selectedTabIndex = selectedTabIndex,
                 edgePadding = 8.dp,
                 containerColor = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                primaryTabs.forEachIndexed { index, tab ->
+                tabs.forEachIndexed { index, tab ->
                     Tab(
                         selected = selectedTabIndex == index,
                         onClick = { onTabSelected(index) },
                         selectedContentColor = MaterialTheme.colorScheme.primary,
                         unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         text = { Text(stringResource(tab.labelResId)) }
-                    )
-                }
-            }
-        }
-        if (overflowTabs.isNotEmpty()) {
-            Box {
-                HapticIconButton(onClick = { moreMenuExpanded = true }) {
-                    Icon(
-                        imageVector = Icons.Filled.MoreVert,
-                        contentDescription = stringResource(R.string.common_more_options)
-                    )
-                }
-                GlassDropdownMenu(
-                    expanded = moreMenuExpanded,
-                    onDismissRequest = { moreMenuExpanded = false }
-                ) {
-                    overflowTabs.forEachIndexed { overflowIndex, tab ->
-                        val tabIndex = 3 + overflowIndex
-                        DropdownMenuItem(
-                            text = { GlassMenuItemText(stringResource(tab.labelResId)) },
-                            onClick = {
-                                moreMenuExpanded = false
-                                onTabSelected(tabIndex)
-                            }
-                        )
-                    }
-                    DropdownMenuItem(
-                        text = { GlassMenuItemText(stringResource(R.string.library_tab_edit)) },
-                        onClick = {
-                            moreMenuExpanded = false
-                            onEditClick()
-                        }
                     )
                 }
             }

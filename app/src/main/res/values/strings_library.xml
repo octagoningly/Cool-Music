@@ -34,9 +34,8 @@
     <string name="library_tab_bilibili">哔哩哔哩</string>
     <string name="library_tab_qqmusic">QQ音乐</string>
     <string name="library_tab_order_cd">调整Tab顺序</string>
-    <string name="library_tab_order_title">显示的Tab</string>
-    <string name="library_tab_order_desc">勾选要在媒体库首页显示的 Tab</string>
-    <string name="library_tab_edit">编辑</string>
+    <string name="library_tab_order_title">调整Tab顺序</string>
+    <string name="library_tab_order_desc">用上下箭头调整媒体库顶部Tab顺序，保存后立即生效</string>
     <string name="library_tab_order_move_up">上移</string>
     <string name="library_tab_order_move_down">下移</string>
     <string name="library_create_playlist_default">新建歌单</string>

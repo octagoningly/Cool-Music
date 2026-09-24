@@ -198,6 +198,7 @@ import moe.ouom.neriplayer.ui.component.playback.NeriMiniPlayerDefaults
 import moe.ouom.neriplayer.ui.component.playback.resolvePlaybackWaiting
 import moe.ouom.neriplayer.ui.component.common.ThemeRevealOverlay
 import moe.ouom.neriplayer.ui.component.common.blockUnderlyingTouches
+import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassBackdropRegistrationEnabled
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassController
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassHost
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassNavigationHandoff
@@ -3366,7 +3367,11 @@ private fun NeriAppContent(
                 activeNavigationOwners = activeAdvancedGlassOwners,
                 disableStretchOverscroll = backgroundImageUri != null
             ) {
-                CompositionLocalProvider(LocalMainTabChromeSlot provides mainTabChromeSlot) {
+                // 播放页显示时禁止主 Tab/顶栏注册模糊区域，否则会把播放页顶部误糊掉
+                CompositionLocalProvider(
+                    LocalMainTabChromeSlot provides mainTabChromeSlot,
+                    LocalAdvancedGlassBackdropRegistrationEnabled provides !showNowPlaying,
+                ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                 Box(
                     modifier = Modifier

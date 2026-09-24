@@ -4334,14 +4334,19 @@ fun NowPlayingQualityOptionsDialog(
             Column {
                 options.forEach { option ->
                     val selected = option.key == selectedKey
-                    GlassSheetMenuItem(
+                    Text(
                         text = if (selected) {
                             "${option.label} · ${stringResource(R.string.common_selected)}"
                         } else {
                             option.label
                         },
-                        enabled = true,
-                        onClick = { onSelect(option) }
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelect(option) }
+                            .padding(vertical = 10.dp),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.bodyLarge
                     )
                 }
             }

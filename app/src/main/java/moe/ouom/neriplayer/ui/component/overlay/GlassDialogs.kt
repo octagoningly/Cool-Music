@@ -135,7 +135,7 @@ internal fun GlassPanel(
             // 内容自适应宽度/高度，禁止 fillMaxWidth 撑满（二级弹窗过大根因）
             Box(
                 Modifier
-                    .widthIn(min = 200.dp, max = maxWidth)
+                    .widthIn(min = 160.dp, max = maxWidth)
                     .heightIn(max = maxHeight)
             ) {
                 AdvancedGlassSurface(
@@ -146,12 +146,12 @@ internal fun GlassPanel(
                     enabled = glassActive,
                     regionBoundsOverride = boundsInMainWindow,
                     modifier = modifier
-                        .widthIn(min = 200.dp, max = maxWidth)
+                        .widthIn(min = 160.dp, max = maxWidth)
                         .heightIn(max = maxHeight)
                 ) {
                     Column(
                         Modifier
-                            .widthIn(min = 200.dp, max = maxWidth)
+                            .widthIn(min = 160.dp, max = maxWidth)
                             .heightIn(max = maxHeight)
                             .padding(contentPadding),
                         content = content,
@@ -187,8 +187,8 @@ internal fun GlassAlertDialog(
         role = AdvancedGlassRole.DialogPanel,
         position = GlassPanelPosition.Centered,
         // 手机上 360 已接近全宽；对话框固定紧凑宽，内容 wrap
-        maxWidth = 272.dp,
-        maxHeight = 360.dp,
+        maxWidth = 232.dp,
+        maxHeight = 300.dp,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (icon != null) {

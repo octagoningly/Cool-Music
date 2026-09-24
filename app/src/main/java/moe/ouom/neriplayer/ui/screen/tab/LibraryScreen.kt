@@ -381,7 +381,7 @@ private fun libraryListBottomPadding(): Dp {
 
 /** 顶部为浮层标题+Tab 留出起始空白，滚动后内容可进入玻璃区被采样。 */
 @Composable
-private fun libraryListTopPadding(): Dp = 96.dp
+private fun libraryListTopPadding(): Dp = 128.dp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -628,7 +628,7 @@ fun LibraryScreen(
             }
         }
 
-        MainTabChrome {
+        MainTabChrome(route = moe.ouom.neriplayer.navigation.Destinations.Library.route) {
             Column(Modifier.fillMaxWidth()) {
             // 顶栏右侧：刷新 → 播放统计 → 最近播放（排序入口一并上移，放在刷新前）
             NeriTabLargeTitleTopBar(

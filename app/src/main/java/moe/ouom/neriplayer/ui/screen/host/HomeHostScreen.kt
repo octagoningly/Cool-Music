@@ -48,6 +48,7 @@ import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import moe.ouom.neriplayer.ui.util.boundedMaxHeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.CancellationException
@@ -379,7 +380,7 @@ fun HomeHostScreen(
                 sceneMotion.contentScale,
                 current.navigationDepth
             ) {
-                Box(modifier = Modifier.fillMaxSize()) {
+                Box(modifier = Modifier.fillMaxSize().boundedMaxHeight(4000)) {
                     if (current == null) {
                         Box(
                             modifier = Modifier

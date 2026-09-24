@@ -4257,8 +4257,8 @@ private fun NeriAppContent(
                                 }
 
                                 // 主 Tab chrome（顶栏/搜索/Tab）画在 content 捕获层外：
-                                // 列表可滚到其下被模糊采样，标题文字不会被一起糊掉
-                                mainTabChromeSlot.content?.invoke()
+                                // 只显示当前 route，避免媒体库 chrome 残留到设置页
+                                mainTabChromeSlot.ContentFor(selectedMainTabRoute)
 
                                 AnimatedVisibility(
                                     visible = currentSong != null && !showNowPlaying,

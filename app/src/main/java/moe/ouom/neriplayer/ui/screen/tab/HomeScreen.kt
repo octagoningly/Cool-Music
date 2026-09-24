@@ -437,8 +437,8 @@ fun HomeScreen(
                         contentPadding = PaddingValues(
                             start = gridContentPadding,
                             end = gridContentPadding,
-                            // 顶栏浮层高度：初始让开，滚动后内容进入顶栏玻璃区
-                            top = gridContentPadding + 56.dp,
+                            // 顶栏浮层高度 + 状态栏：初始让开，滚动后内容进入顶栏玻璃区
+                            top = gridContentPadding + 72.dp,
                             bottom = gridContentPadding + miniPlayerHeight
                         ),
                         verticalArrangement = Arrangement.spacedBy(gridSpacing),
@@ -867,7 +867,7 @@ fun HomeScreen(
         }
 
         // 顶栏 chrome：画在捕获层外（MainTabChrome），标题不进模糊采样
-        MainTabChrome {
+        MainTabChrome(route = moe.ouom.neriplayer.navigation.Destinations.Home.route) {
             NeriTabLargeTitleTopBar(
                 title = appBarTitle,
                 actions = {

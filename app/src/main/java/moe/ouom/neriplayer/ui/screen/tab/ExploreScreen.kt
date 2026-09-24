@@ -800,7 +800,7 @@ fun ExploreScreen(
         searchQuery.isBlank()
 
     Box(modifier = Modifier.fillMaxSize()) {
-    MainTabChrome {
+    MainTabChrome(route = moe.ouom.neriplayer.navigation.Destinations.Explore.route) {
         NeriTabLargeTitleTopBar(
             title = stringResource(R.string.nav_explore),
             windowInsets = WindowInsets(0),
@@ -829,7 +829,13 @@ fun ExploreScreen(
                 Modifier
                     .widthIn(max = 1040.dp)
                     .fillMaxWidth()
-                    .padding(horizontal = searchPanelHorizontalPadding, vertical = 8.dp)
+                    .padding(
+                        start = searchPanelHorizontalPadding,
+                        end = searchPanelHorizontalPadding,
+                        // 为 chrome 标题留空，避免搜索框/结果被顶栏盖住
+                        top = 56.dp,
+                        bottom = 8.dp
+                    )
             ) {
                     AdvancedGlassSurface(
                         role = AdvancedGlassRole.ExploreSearchOverlay,

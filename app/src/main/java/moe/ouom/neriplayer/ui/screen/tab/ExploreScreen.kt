@@ -105,7 +105,6 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.MusicNote
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -574,12 +573,8 @@ fun ExploreScreen(
     LaunchedEffect(isTabActive) {
         if (!isTabActive) return@LaunchedEffect
         vm.resetToExploreHome()
-        if (
-            ui.featuredPlaylists.isEmpty() &&
-            ui.playlists.isEmpty() &&
-            !ui.neteaseDiscoveryOpen
-        ) {
-            vm.loadFeaturedPlaylist()
+        if (ui.playlists.isEmpty() && !ui.loading) {
+            vm.loadHighQuality()
         }
     }
 
@@ -637,12 +632,8 @@ fun ExploreScreen(
 
     // Initialize with default tag
     LaunchedEffect(Unit) {
-        // 首页精选走 featuredPlaylists；完整网格仅在「新发现」二级页需要
-        if (
-            ui.neteaseDiscoveryOpen &&
-            ui.selectedTag == "tag_all" &&
-            ui.playlists.isEmpty()
-        ) {
+        // 探索首页直接展示完整封面网格
+        if (ui.selectedTag == "tag_all" && ui.playlists.isEmpty()) {
             vm.loadHighQuality("tag_all")
         }
     }
@@ -1281,23 +1272,22 @@ fun ExploreScreen(
                     }
                 } else {
                     when (currentSource) {
-                        SearchSource.DEFAULT -> {
-                            NeteaseFeaturedHomeContent(
-                                ui = ui,
-                                favoriteKeys = favoriteKeys,
-                                onPlay = onPlay,
-                                onDiscover = {
-                                    vm.setSearchSource(SearchSource.NETEASE)
-                                    vm.openNeteaseDiscovery()
-                                }
-                            )
-                        }
+                        SearchSource.DEFAULT,
                         SearchSource.NETEASE -> {
-                            NeteaseFeaturedHomeContent(
+                            // 老版探索首页：顶部风格分类 + 多封面网格（不进「新发现」二级页）
+                            NeteaseDiscoveryPage(
+                                onBack = vm::closeNeteaseDiscovery,
                                 ui = ui,
+                                tagKeys = tagKeys,
+                                tagLabels = tagLabels,
                                 favoriteKeys = favoriteKeys,
+                                vm = vm,
                                 onPlay = onPlay,
-                                onDiscover = vm::openNeteaseDiscovery
+                                tagChipSelectedAlpha = tagChipSelectedAlpha,
+                                tagChipUnselectedAlpha = tagChipUnselectedAlpha,
+                                tagChipBorderAlpha = tagChipBorderAlpha,
+                                isTabletLayout = isTabletLayout,
+                                gridState = gridState
                             )
                         }
                         SearchSource.BILIBILI -> {
@@ -1969,66 +1959,6 @@ internal const val EXPLORE_SEARCH_TYPE_BAR_CONTAINER_TAG = "explore_search_type_
 internal const val EXPLORE_DEFAULT_SEARCH_TYPE_BAR_TAG = "explore_default_search_type_bar"
 internal const val EXPLORE_NETEASE_SEARCH_TYPE_BAR_TAG = "explore_netease_search_type_bar"
 internal const val EXPLORE_YOUTUBE_SEARCH_TYPE_BAR_TAG = "explore_youtube_search_type_bar"
-
-@Composable
-@OptIn(ExperimentalLayoutApi::class)
-private fun NeteaseFeaturedHomeContent(
-    ui: ExploreUiState,
-    favoriteKeys: Set<String>,
-    onPlay: (PlaylistSummary) -> Unit,
-    onDiscover: () -> Unit
-) {
-    val miniPlayerHeight = LocalMiniPlayerHeight.current
-    // 冷启动由 VM 随机定一张；首页静止展示，不自动轮播
-    val featured = remember(ui.featuredPlaylists, ui.playlists) {
-        ui.featuredPlaylists.firstOrNull() ?: ui.playlists.firstOrNull()
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = miniPlayerHeight)
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        when {
-            featured != null -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.78f)
-                        .widthIn(max = 280.dp)
-                ) {
-                    PlaylistCard(
-                        playlist = featured,
-                        isFavorite = favoriteKeys.contains("netease:${featured.id}"),
-                        onClick = { onPlay(featured) }
-                    )
-                }
-            }
-            ui.loading -> {
-                CircularProgressIndicator()
-            }
-            ui.error != null -> {
-                Text(
-                    text = ui.error.orEmpty(),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            else -> {
-                Text(
-                    text = stringResource(R.string.search_no_result),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onDiscover) {
-            Text(stringResource(R.string.explore_new_discovery))
-        }
-    }
-}
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)

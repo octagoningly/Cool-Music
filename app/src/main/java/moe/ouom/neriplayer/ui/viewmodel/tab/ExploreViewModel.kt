@@ -377,13 +377,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 // 已有数据时不再重复拉取；切换标签仍由界面显式触发 loadHighQuality。
                 val state = _uiState.value
                 if (
-                    state.featuredPlaylists.isEmpty() &&
                     state.playlists.isEmpty() &&
                     !state.loading &&
                     !state.neteaseDiscoveryOpen
                 ) {
-                    NPLogger.d(TAG, "cookieFlow updated, load featured playlist")
-                    loadFeaturedPlaylist()
+                    NPLogger.d(TAG, "cookieFlow updated, load high quality playlists")
+                    loadHighQuality()
                 }
             }
         }
@@ -906,7 +905,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     /** 进入探索 Tab 时重置：始终停在首页，不残留「新发现」二级页 */
     fun resetToExploreHome() {
         val state = _uiState.value
-        if (!state.neteaseDiscoveryOpen && state.featuredPlaylists.isNotEmpty()) {
+        if (!state.neteaseDiscoveryOpen && state.playlists.isNotEmpty()) {
             return
         }
         NPLogger.d(TAG, "resetToExploreHome: discoveryOpen=${state.neteaseDiscoveryOpen}")
@@ -914,10 +913,10 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             closeNeteaseDiscovery()
         }
         if (
-            _uiState.value.featuredPlaylists.isEmpty() &&
+            _uiState.value.playlists.isEmpty() &&
             !_uiState.value.loading
         ) {
-            loadFeaturedPlaylist()
+            loadHighQuality()
         }
     }
 

@@ -9,9 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -152,9 +150,10 @@ internal fun GlassPanel(
                 ) {
                     Column(
                         Modifier
-                            // Popup 默认无限高，必须先钳高再滚动，否则 verticalScroll 闪退
+                            // 只钳高，不要外层 verticalScroll：面板内可能有 LazyColumn/自己的滚动，
+                            // 嵌套滚动在 Popup 无限高下会闪退
                             .heightIn(max = 640.dp)
-                            .verticalScroll(rememberScrollState())
+                            .fillMaxWidth()
                             .padding(contentPadding),
                         content = content,
                     )

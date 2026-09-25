@@ -1155,7 +1155,7 @@ fun ExploreScreen(
                                     expanded = tagMenuExpanded,
                                     onDismissRequest = { tagMenuExpanded = false },
                                     shape = GlassMenuShape,
-                                    maxWidth = 160.dp,
+                                    maxWidth = 240.dp,
                                     maxHeight = 300.dp,
                                     modifier = Modifier
                                 ) {

@@ -92,7 +92,9 @@ import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
@@ -1020,11 +1022,21 @@ fun ExploreScreen(
                             modifier = Modifier
                         ) {
                             orderedSearchSources.forEach { source ->
+                                val isCurrentSource = source == ui.selectedSearchSource
                                 DropdownMenuItem(
                                     text = { Text(searchSourceLabel(source)) },
+                                    trailingIcon = {
+                                        if (isCurrentSource) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    },
                                     onClick = {
                                         sourceMenuExpanded = false
-                                        if (source != ui.selectedSearchSource) {
+                                        if (!isCurrentSource) {
                                             vm.setSearchSource(source)
                                         }
                                     }
@@ -1097,28 +1109,29 @@ fun ExploreScreen(
                     ) {
                     // 为 chrome（标题+搜索）让位；再上移约半个「探索」标题高
                     Column(Modifier.padding(top = exploreFilterRowTop)) {
-                    // 第一行：左侧搜索类型（歌曲/歌单/歌手），右侧搜索源按钮 —— 整组水平居中
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                            .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        ExploreSearchTypeBar(
-                            source = searchTypeBarSource,
-                            selectedDefaultSearchType = ui.selectedDefaultSearchType,
-                            selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
-                            selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
-                            onDefaultSearchTypeClick = vm::setDefaultSearchType,
-                            onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
-                            onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
-                            selectedAlpha = tagChipSelectedAlpha,
-                            unselectedAlpha = tagChipUnselectedAlpha,
-                            borderAlpha = tagChipBorderAlpha
-                        )
-                                                // 搜索源按钮已移到搜索框右侧
-                        // 风格下拉：与「歌曲/歌手/歌单」同一行
+                        // 类型键：仅搜索结果出现后显示，靠左
+                        if (searchQuery.isNotEmpty()) {
+                            ExploreSearchTypeBar(
+                                source = searchTypeBarSource,
+                                selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                selectedAlpha = tagChipSelectedAlpha,
+                                unselectedAlpha = tagChipUnselectedAlpha,
+                                borderAlpha = tagChipBorderAlpha
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        // 风格「全部」：靠右，字号更大
                         if (
                             (currentSearchSource == SearchSource.DEFAULT ||
                                 currentSearchSource == SearchSource.NETEASE) &&
@@ -1127,7 +1140,7 @@ fun ExploreScreen(
                             val currentTagLabel = tagLabels.getOrElse(
                                 tagKeys.indexOf(ui.selectedTag)
                             ) { tagLabels.first() }
-                            Box(modifier = Modifier.padding(horizontal = 4.dp)) {
+                            Box(modifier = Modifier.padding(start = 4.dp, end = 4.dp)) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -1136,11 +1149,11 @@ fun ExploreScreen(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = ripple()
                                         ) { tagMenuExpanded = true }
-                                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                                        .padding(horizontal = 8.dp, vertical = 6.dp)
                                 ) {
                                     Text(
                                         text = currentTagLabel,
-                                        style = MaterialTheme.typography.labelSmall,
+                                        style = MaterialTheme.typography.titleSmall,
                                         maxLines = 1,
                                         softWrap = false,
                                         overflow = TextOverflow.Ellipsis
@@ -1148,7 +1161,7 @@ fun ExploreScreen(
                                     Icon(
                                         imageVector = Icons.Filled.ArrowDropDown,
                                         contentDescription = null,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                                 GlassDropdownMenu(

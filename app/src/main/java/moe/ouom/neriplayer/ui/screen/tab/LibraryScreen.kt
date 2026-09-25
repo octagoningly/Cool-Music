@@ -49,6 +49,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
@@ -2432,11 +2433,12 @@ private fun LocalLibraryHeaderContent(
                 )
             }
         }
-        // 歌单/歌手在左，排序与 +新建 靠右
+        // 歌单/歌手在左，排序与 +新建 靠右；略上移
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 2.dp),
+                .padding(horizontal = 8.dp, vertical = 0.dp)
+                .offset(y = (-8).dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             LocalLibraryCategoryChips(
@@ -2681,7 +2683,7 @@ private fun LibraryInlineSearchField(
         onValueChange = onQueryChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 0.dp),
         placeholder = { Text(stringResource(placeholderResId)) },
         singleLine = true,
         shape = LibrarySearchFieldShape,

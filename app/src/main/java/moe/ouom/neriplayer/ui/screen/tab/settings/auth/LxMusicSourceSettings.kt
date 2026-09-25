@@ -2,6 +2,7 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.auth
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
@@ -95,34 +97,40 @@ internal fun SettingsLxMusicSourceDialogs(
         }
     }
 
-    // 详情与管理弹窗互斥展示：先关管理，再弹详情；关详情后回到管理，保持连贯
+    val state by vm.uiState.collectAsStateWithLifecycleCompat()
+    // 详情 / 清单与管理弹窗互斥：先关管理再弹下一个；关闭后回到管理，保持连贯
     var detailSource by remember { mutableStateOf<LxImportedSource?>(null) }
+    var showRegistryDialog by remember { mutableStateOf(false) }
+    var previousRegistryCount by remember { mutableStateOf(0) }
+
     LaunchedEffect(showManageDialog) {
         if (!showManageDialog) {
             detailSource = null
+            showRegistryDialog = false
         }
     }
+
+    // 清单获取成功后弹独立窗展示（此时管理窗已隐藏，避免叠层）
+    LaunchedEffect(state.registrySources.size, state.fetchingRegistry, showManageDialog) {
+        val count = state.registrySources.size
+        if (showManageDialog && !state.fetchingRegistry && count > 0 && previousRegistryCount == 0) {
+            showRegistryDialog = true
+        }
+        previousRegistryCount = count
+    }
+
     val activeDetail = detailSource
+    val activeRegistry = showRegistryDialog
+    val showManage = showManageDialog && activeDetail == null && !activeRegistry
 
-    if (showManageDialog && activeDetail == null) {
-        val state by vm.uiState.collectAsStateWithLifecycleCompat()
-        var showRegistryDialog by remember { mutableStateOf(false) }
-        var previousRegistryCount by remember { mutableStateOf(0) }
-
-        // 清单获取成功后弹独立窗展示，避免撑乱管理页
-        LaunchedEffect(state.registrySources.size, state.fetchingRegistry) {
-            val count = state.registrySources.size
-            if (!state.fetchingRegistry && count > 0 && previousRegistryCount == 0) {
-                showRegistryDialog = true
-            }
-            previousRegistryCount = count
+    if (showManage) {
+        val closeManage = {
+            vm.clearMessage()
+            onDismissManageDialog()
         }
 
         MiuixSettingsDialog(
-            onDismissRequest = {
-                vm.clearMessage()
-                onDismissManageDialog()
-            },
+            onDismissRequest = closeManage,
             // 内容较多，适当加大面板，提升可读性
             maxWidth = 340.dp,
             maxHeight = 520.dp,
@@ -135,14 +143,16 @@ internal fun SettingsLxMusicSourceDialogs(
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    vm.clearMessage()
-                    onDismissManageDialog()
-                }) {
+                TextButton(onClick = closeManage) {
                     Text(stringResource(R.string.lx_source_close))
                 }
             },
-            title = { Text(stringResource(R.string.lx_source_manage_title)) },
+            title = {
+                DialogTitleWithClose(
+                    title = stringResource(R.string.lx_source_manage_title),
+                    onClose = closeManage
+                )
+            },
             text = {
                 val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
                 // 限制正文高度，保证底部「关闭/添加」始终可见可点
@@ -236,16 +246,16 @@ internal fun SettingsLxMusicSourceDialogs(
                 }
             }
         )
+    }
 
-        if (showRegistryDialog) {
-            LxSourceRegistryDialog(
-                generatedAt = state.registryGeneratedAt,
-                entries = state.registrySources,
-                importing = state.importing,
-                onImport = vm::importFromUrl,
-                onDismiss = { showRegistryDialog = false }
-            )
-        }
+    if (activeRegistry) {
+        LxSourceRegistryDialog(
+            generatedAt = state.registryGeneratedAt,
+            entries = state.registrySources,
+            importing = state.importing,
+            onImport = vm::importFromUrl,
+            onDismiss = { showRegistryDialog = false }
+        )
     }
 
     activeDetail?.let { source ->
@@ -330,6 +340,33 @@ internal fun SettingsLxMusicSourceDialogs(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun DialogTitleWithClose(
+    title: String,
+    onClose: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(horizontal = 36.dp)
+        )
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .size(36.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = stringResource(R.string.action_close)
+            )
+        }
     }
 }
 
@@ -521,7 +558,12 @@ private fun LxSourceRegistryDialog(
                 Text(stringResource(R.string.lx_source_close))
             }
         },
-        title = { Text(stringResource(R.string.lx_source_registry_title)) },
+        title = {
+            DialogTitleWithClose(
+                title = stringResource(R.string.lx_source_registry_title),
+                onClose = onDismiss
+            )
+        },
         text = {
             Column(
                 modifier = Modifier

@@ -923,6 +923,7 @@ private val SettingSearchAliases = mapOf(
     "cloud_music_lyric_default_offset_ms" to listOf("netease lyrics offset", "wy geci pianyi"),
     "qq_music_lyric_default_offset_ms" to listOf("qq lyrics offset", "qq geci pianyi"),
     "bypass_proxy" to listOf("proxy", "vpn", "direct", "daili"),
+    "github_sync_use_proxy" to listOf("github", "proxy", "sync", "daili", "tongbu"),
     "download_directory_uri" to listOf("folder", "path", "saf", "xiazai mulu"),
     "download_file_name_template" to listOf("filename", "template", "mingming"),
     "download_metadata_post_processing_enabled" to listOf("taglib", "metadata", "lyrics embed"),

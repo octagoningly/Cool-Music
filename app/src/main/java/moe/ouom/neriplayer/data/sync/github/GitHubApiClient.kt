@@ -67,7 +67,7 @@ class GitHubApiClient(
 ) {
     private val appContext = context.applicationContext
 
-    private val client: OkHttpClient = AppContainer.sharedOkHttpClient
+    private val client: OkHttpClient = AppContainer.githubOkHttpClient
     private val gson = Gson()
 
     companion object {

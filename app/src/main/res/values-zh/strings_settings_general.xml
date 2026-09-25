@@ -16,6 +16,8 @@
     <string name="settings_network">网络设置</string>
     <string name="settings_bypass_proxy">绕过系统代理</string>
     <string name="settings_bypass_proxy_desc">应用内网络请求不走系统代理</string>
+    <string name="settings_github_sync_use_proxy">GitHub同步时走代理</string>
+    <string name="settings_github_sync_use_proxy_desc">GitHub 同步请求使用系统代理</string>
     <string name="settings_restart_hint">修改后可能需要重启应用以获得最佳效果</string>
     <string name="settings_expand_network">网络连接与代理选项</string>
     <string name="settings_about_desc">版本信息、项目主页和开发者模式</string>

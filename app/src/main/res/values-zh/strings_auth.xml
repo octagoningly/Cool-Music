@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Login & Auth -->
     <string name="login_title">登录</string>
@@ -61,7 +61,7 @@
     <string name="auth_cookie_invalid">未解析到合法 Cookie 项</string>
     <string name="auth_cookie_empty">Cookie 为空</string>
     <string name="settings_netease_auto_source_switch">网易云自动换源</string>
-    <string name="settings_netease_auto_source_switch_desc">默认关闭；开启后，网易云歌曲无权限或仅返回试听片段时，自动在哔哩哔哩查找音源</string>
+    <string name="settings_netease_auto_source_switch_desc">开启后，网易云歌曲无权限或仅返回试听片段时，优先自动匹配在线音源，最后查找哔哩哔哩音源</string>
     <string name="settings_lx_source_cover_fallback">音源封面</string>
     <string name="settings_lx_source_cover_fallback_desc">开启后，歌曲没有封面时自动使用在线音源返回的封面图</string>
     <string name="settings_lx_online_search_engines">在线搜索</string>
@@ -146,4 +146,5 @@
     <string name="login_paste_bili_cookie_hint">粘贴 Cookie（例如：SESSDATA=…; bili_jct=…）</string>
     <string name="login_paste_youtube_cookie_hint">粘贴 Cookie 或浏览器请求头（需包含 Cookie）</string>
     <string name="settings_cookie_input_hint">请输入 Cookie</string>
+    <string name="settings_lx_online_search_engines_count">%d 个引擎</string>
 </resources>

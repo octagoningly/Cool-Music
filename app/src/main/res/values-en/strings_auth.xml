@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Login & Auth -->
     <string name="login_title">Login</string>
@@ -61,7 +61,7 @@
     <string name="auth_cookie_invalid">No valid Cookie found</string>
     <string name="auth_cookie_empty">Cookie is empty</string>
     <string name="settings_netease_auto_source_switch">NetEase Auto Source Switch</string>
-    <string name="settings_netease_auto_source_switch_desc">Off by default. When enabled, search Bilibili automatically when a NetEase song is unavailable or only returns a preview clip.</string>
+    <string name="settings_netease_auto_source_switch_desc">When enabled, if a NetEase song is unavailable or only returns a preview clip, prefer matching an online music source first, then fall back to Bilibili.</string>
     <string name="settings_lx_source_cover_fallback">Source cover</string>
     <string name="settings_lx_source_cover_fallback_desc">When a song has no cover, use the cover returned by the online music source</string>
     <string name="settings_lx_online_search_engines">Online search</string>
@@ -212,4 +212,5 @@
     <string name="login_paste_bili_cookie_hint">Paste Cookie (e.g.: SESSDATA=…; bili_jct=…)</string>
     <string name="login_paste_youtube_cookie_hint">Paste Cookie or browser request headers (must include Cookie)</string>
     <string name="settings_cookie_input_hint">Please enter Cookie</string>
+    <string name="settings_lx_online_search_engines_count">%d engines</string>
 </resources>

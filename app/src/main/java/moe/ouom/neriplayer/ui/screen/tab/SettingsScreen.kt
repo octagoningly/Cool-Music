@@ -52,6 +52,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -60,12 +61,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.AltRoute
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.BrightnessAuto
 import androidx.compose.material.icons.outlined.Brightness4
 import androidx.compose.material.icons.outlined.Colorize
 import androidx.compose.material.icons.outlined.DashboardCustomize
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.History
@@ -80,6 +83,7 @@ import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Subtitles
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.ZoomInMap
@@ -89,6 +93,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -124,6 +129,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -486,6 +492,8 @@ fun SettingsScreen(
     onYouTubeQualityChange: (String) -> Unit,
     biliPreferredQuality: String,
     onBiliQualityChange: (String) -> Unit,
+    lxPreferredQuality: String = "128k",
+    onLxQualityChange: (String) -> Unit = {},
     mobileDataFollowDefaultAudioQuality: Boolean,
     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
     mobileDataNeteaseAudioQuality: String,
@@ -682,6 +690,7 @@ fun SettingsScreen(
     var showNeteaseSheet by remember { mutableStateOf(false) }
     var showYouTubeQualityDialog by remember { mutableStateOf(false) }
     var showBiliQualityDialog by remember { mutableStateOf(false) }
+    var showLxQualityDialog by remember { mutableStateOf(false) }
     var showMobileDataNeteaseQualityDialog by remember { mutableStateOf(false) }
     var showMobileDataYouTubeQualityDialog by remember { mutableStateOf(false) }
     var showMobileDataBiliQualityDialog by remember { mutableStateOf(false) }
@@ -1753,6 +1762,39 @@ fun SettingsScreen(
                             onHighlightFinished = onSettingsHighlightFinished,
                             onClick = { onBypassProxyChange(!bypassProxy) }
                         )
+
+                        val githubSyncUseProxy by AppContainer.settingsRepo.githubSyncUseProxyFlow
+                            .collectAsState(initial = true)
+                        AutoSettingsListItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.GITHUB_SYNC_USE_PROXY
+                            ),
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Sync,
+                                    contentDescription = stringResource(
+                                        R.string.settings_github_sync_use_proxy
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            trailingContent = {
+                                MiuixSettingsSwitch(
+                                    checked = githubSyncUseProxy,
+                                    onCheckedChange = { enabled ->
+                                        scope.launch {
+                                            AppContainer.settingsRepo.setGithubSyncUseProxy(enabled)
+                                        }
+                                    }
+                                )
+                            },
+                            onClick = {
+                                scope.launch {
+                                    AppContainer.settingsRepo.setGithubSyncUseProxy(!githubSyncUseProxy)
+                                }
+                            }
+                        )
                     }
                 }
 
@@ -2044,7 +2086,10 @@ fun SettingsScreen(
                                 Text(
                                     text = lxEngineSummary(lxOnlineSearchEnginesRaw),
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 120.dp)
                                 )
                             },
                             highlightTargetId = settingsHighlightTargetId,
@@ -2120,6 +2165,10 @@ fun SettingsScreen(
                             biliQualityLabel = biliQualityLabel,
                             biliPreferredQuality = biliPreferredQuality,
                             onBiliQualityChange = onBiliQualityChange,
+                            lxPreferredQuality = lxPreferredQuality,
+                            onLxQualityChange = onLxQualityChange,
+                            showLxQualityDialog = showLxQualityDialog,
+                            onShowLxQualityDialogChange = { showLxQualityDialog = it },
                             mobileDataFollowDefaultAudioQuality = mobileDataFollowDefaultAudioQuality,
                             onMobileDataFollowDefaultAudioQualityChange =
                                 onMobileDataFollowDefaultAudioQualityChange,
@@ -3335,15 +3384,32 @@ private fun ThemePaletteStyleSelector(
         MiuixSettingsDialog(
             onDismissRequest = { showStyleDialog = false },
             maxWidth = 320.dp,
-            maxHeight = 480.dp,
-            title = { Text(stringResource(R.string.settings_theme_palette_style)) },
+            maxHeight = 520.dp,
+            title = {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.settings_theme_palette_style),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = 36.dp)
+                    )
+                    IconButton(
+                        onClick = { showStyleDialog = false },
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.action_close)
+                        )
+                    }
+                }
+            },
             text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 320.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
+                // 六项一次显示完，避免再滚动
+                Column(modifier = Modifier.fillMaxWidth()) {
                     options.forEach { option ->
                         MiuixSettingsChoiceRow(
                             title = stringResource(option.labelRes),
@@ -3745,8 +3811,24 @@ private fun SettingsPersonalizationPageContent(
 
             LazyAnimatedVisibility(visible = backgroundImageUri != null) {
                 Column {
-                    MiuixSettingsTextButton(onClick = onClearBackgroundImage) {
-                        Text(stringResource(R.string.background_clear))
+                    // 清除入口做成整行醒目按钮，避免淹没在列表里
+                    MiuixSettingsOutlinedButton(
+                        onClick = onClearBackgroundImage,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.background_clear),
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
 
                     AutoSettingsListItem(
@@ -4560,12 +4642,18 @@ private fun SettingsLoginExpandedContent(
 @Composable
 private fun lxEngineSummary(raw: String): String {
     val engines = parseLxOnlineSearchEngines(raw)
-    return buildList {
+    val names = buildList {
         if (LX_QQ_PLATFORM_ID in engines) add(stringResource(R.string.settings_lx_online_search_engines_tx))
         if (LX_KUGOU_PLATFORM_ID in engines) add(stringResource(R.string.settings_lx_online_search_engines_kg))
         if (LX_KUWO_PLATFORM_ID in engines) add(stringResource(R.string.settings_lx_online_search_engines_kw))
         if (LX_NETEASE_PLATFORM_ID in engines) add(stringResource(R.string.settings_lx_online_search_engines_wy))
-    }.joinToString(" · ").ifBlank { stringResource(R.string.settings_lx_online_search_engines) }
+    }
+    // 引擎多时用数量摘要，避免把设置项行拉得过长
+    return when {
+        names.isEmpty() -> stringResource(R.string.settings_lx_online_search_engines)
+        names.size <= 2 -> names.joinToString(" · ")
+        else -> stringResource(R.string.settings_lx_online_search_engines_count, names.size)
+    }
 }
 
 @Composable

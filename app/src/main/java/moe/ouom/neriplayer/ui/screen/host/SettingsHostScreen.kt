@@ -114,6 +114,8 @@ fun SettingsHostScreen(
     onYouTubeQualityChange: (String) -> Unit,
     biliPreferredQuality: String,
     onBiliQualityChange: (String) -> Unit,
+    lxPreferredQuality: String = "128k",
+    onLxQualityChange: (String) -> Unit = {},
     mobileDataFollowDefaultAudioQuality: Boolean,
     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
     mobileDataNeteaseAudioQuality: String,
@@ -387,6 +389,8 @@ fun SettingsHostScreen(
                             onYouTubeQualityChange = onYouTubeQualityChange,
                             biliPreferredQuality = biliPreferredQuality,
                             onBiliQualityChange = onBiliQualityChange,
+                            lxPreferredQuality = lxPreferredQuality,
+                            onLxQualityChange = onLxQualityChange,
                             mobileDataFollowDefaultAudioQuality =
                                 mobileDataFollowDefaultAudioQuality,
                             onMobileDataFollowDefaultAudioQualityChange =

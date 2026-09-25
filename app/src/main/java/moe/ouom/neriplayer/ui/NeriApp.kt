@@ -1924,6 +1924,7 @@ private fun NeriAppContent(
     val preferredQuality by repo.audioQualityFlow.collectAsStateWithLifecycle(initialValue = "exhigh")
     val youtubePreferredQuality by repo.youtubeAudioQualityFlow.collectAsStateWithLifecycle(initialValue = "high")
     val biliPreferredQuality by repo.biliAudioQualityFlow.collectAsStateWithLifecycle(initialValue = "high")
+    val lxPreferredQuality by repo.lxAudioQualityFlow.collectAsStateWithLifecycle(initialValue = "128k")
     val mobileDataFollowDefaultAudioQuality by repo.mobileDataFollowDefaultAudioQualityFlow.collectAsStateWithLifecycle(
         initialValue = startupPlaybackPreferences.mobileDataFollowDefaultAudioQuality
     )
@@ -2876,6 +2877,8 @@ private fun NeriAppContent(
                         },
                         biliPreferredQuality = biliPreferredQuality,
                         onBiliQualityChange = { scope.launch { repo.setBiliAudioQuality(it) } },
+                        lxPreferredQuality = lxPreferredQuality,
+                        onLxQualityChange = { scope.launch { repo.setLxAudioQuality(it) } },
                         mobileDataFollowDefaultAudioQuality =
                             mobileDataFollowDefaultAudioQuality,
                         onMobileDataFollowDefaultAudioQualityChange = { enabled ->

@@ -142,7 +142,7 @@ class SettingsRepository(private val context: Context) {
         dataStoreSettingFlow { it[SettingsKeys.BILI_AUDIO_QUALITY] ?: "high" }
 
     val lxAudioQualityFlow: Flow<String> =
-        dataStoreSettingFlow { it[SettingsKeys.LX_AUDIO_QUALITY] ?: "320k" }
+        dataStoreSettingFlow { it[SettingsKeys.LX_AUDIO_QUALITY] ?: "128k" }
 
     val mobileDataFollowDefaultAudioQualityFlow: Flow<Boolean> =
         dataStoreSettingFlow { prefs ->
@@ -362,6 +362,13 @@ class SettingsRepository(private val context: Context) {
 
     val bypassProxyFlow: Flow<Boolean> =
         dataStoreSettingFlow { it[SettingsKeys.BYPASS_PROXY] ?: true }
+
+    val githubSyncUseProxyFlow: Flow<Boolean> =
+        settingFlow(AutoSettingsSchema.network.githubSyncUseProxy)
+
+    suspend fun setGithubSyncUseProxy(enabled: Boolean) {
+        setSetting(AutoSettingsSchema.network.githubSyncUseProxy, enabled)
+    }
 
     val backgroundImageUriFlow: Flow<String?> =
         dataStoreSettingFlow { it[SettingsKeys.BACKGROUND_IMAGE_URI] }

@@ -32,7 +32,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -64,6 +66,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.download.DEFAULT_DOWNLOAD_FILE_NAME_TEMPLATE
@@ -619,9 +622,18 @@ internal fun SettingsStorageCacheSection(
     if (showDownloadFileNameDialog.value) {
         MiuixSettingsDialog(
             onDismissRequest = ::dismissDownloadFileNameDialog,
+            // 高度加 1.1 倍、宽度加 1.2 倍，保证底部「重置/取消/完成」完整
+            maxWidth = 264.dp,
+            maxHeight = 330.dp,
             title = { Text(stringResource(R.string.settings_download_file_name_format)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 200.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Text(stringResource(R.string.settings_download_file_name_format_desc))
                     MiuixSettingsTextField(
                         value = pendingDownloadFileNameTemplate,
@@ -648,33 +660,60 @@ internal fun SettingsStorageCacheSection(
                 }
             },
             confirmButton = {
-                MiuixSettingsTextButton(
-                    onClick = {
-                        onDownloadFileNameTemplateChange(
-                            normalizeDownloadFileNameTemplate(pendingDownloadFileNameTemplate)
-                        )
-                        showDownloadFileNameDialog.value = false
-                    },
-                    enabled = canApplyDownloadFileNameTemplate
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(stringResource(R.string.action_apply))
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MiuixSettingsTextButton(
                         onClick = {
                             pendingDownloadFileNameTemplate = DEFAULT_DOWNLOAD_FILE_NAME_TEMPLATE
                             onDownloadFileNameTemplateChange(null)
                             showDownloadFileNameDialog.value = false
                         },
-                        enabled = currentSavedTemplate != DEFAULT_DOWNLOAD_FILE_NAME_TEMPLATE
-                    ) {
-                        Text(stringResource(R.string.action_reset))
-                    }
-                    MiuixSettingsTextButton(onClick = ::dismissDownloadFileNameDialog) {
-                        Text(stringResource(R.string.action_cancel))
-                    }
+                        enabled = currentSavedTemplate != DEFAULT_DOWNLOAD_FILE_NAME_TEMPLATE,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
+                        text = {
+                            Text(
+                                text = stringResource(R.string.action_reset),
+                                maxLines = 1,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    )
+                    MiuixSettingsTextButton(
+                        onClick = ::dismissDownloadFileNameDialog,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
+                        text = {
+                            Text(
+                                text = stringResource(R.string.action_cancel),
+                                maxLines = 1,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    )
+                    MiuixSettingsTextButton(
+                        onClick = {
+                            onDownloadFileNameTemplateChange(
+                                normalizeDownloadFileNameTemplate(pendingDownloadFileNameTemplate)
+                            )
+                            showDownloadFileNameDialog.value = false
+                        },
+                        enabled = canApplyDownloadFileNameTemplate,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
+                        text = {
+                            Text(
+                                text = stringResource(R.string.action_apply),
+                                maxLines = 1,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    )
                 }
             }
         )

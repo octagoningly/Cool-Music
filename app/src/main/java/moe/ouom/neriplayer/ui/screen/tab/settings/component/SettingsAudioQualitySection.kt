@@ -93,6 +93,8 @@ internal fun SettingsAudioQualitySection(
     biliQualityLabel: String,
     biliPreferredQuality: String,
     onBiliQualityChange: (String) -> Unit,
+    lxPreferredQuality: String = "128k",
+    onLxQualityChange: (String) -> Unit = {},
     mobileDataFollowDefaultAudioQuality: Boolean,
     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
     mobileDataNeteaseQualityLabel: String,
@@ -110,6 +112,8 @@ internal fun SettingsAudioQualitySection(
     onShowYouTubeQualityDialogChange: (Boolean) -> Unit,
     showBiliQualityDialog: Boolean,
     onShowBiliQualityDialogChange: (Boolean) -> Unit,
+    showLxQualityDialog: Boolean = false,
+    onShowLxQualityDialogChange: (Boolean) -> Unit = {},
     showMobileDataNeteaseQualityDialog: Boolean,
     onShowMobileDataNeteaseQualityDialogChange: (Boolean) -> Unit,
     showMobileDataYouTubeQualityDialog: Boolean,
@@ -177,6 +181,25 @@ internal fun SettingsAudioQualitySection(
                 preferredQuality = biliPreferredQuality,
                 iconRes = R.drawable.ic_bilibili,
                 onClick = { onShowBiliQualityDialogChange(true) },
+                highlightTargetId = highlightTargetId,
+                highlightPulse = highlightPulse,
+                onHighlightFinished = onHighlightFinished
+            )
+
+            // 在线音源（LX）默认音质
+            val lxQualityLabel = when (lxPreferredQuality) {
+                "128k" -> "128kbps"
+                "320k" -> "320kbps"
+                "flac" -> "FLAC"
+                "flac24bit" -> "FLAC 24bit"
+                else -> lxPreferredQuality
+            }
+            AudioQualityListItem(
+                setting = AutoSettingsMetadata.requireSetting(AutoSettingsKeys.LX_AUDIO_QUALITY),
+                valueLabel = lxQualityLabel,
+                preferredQuality = lxPreferredQuality,
+                iconRes = R.drawable.ic_netease_cloud_music,
+                onClick = { onShowLxQualityDialogChange(true) },
                 highlightTargetId = highlightTargetId,
                 highlightPulse = highlightPulse,
                 onHighlightFinished = onHighlightFinished
@@ -324,6 +347,24 @@ internal fun SettingsAudioQualitySection(
                 if (level == BILI_DOLBY_QUALITY && biliPreferredQuality != level) {
                     audioQualityNotice = AudioQualityNotice.BiliDolby
                 }
+            }
+        )
+    }
+
+    if (showLxQualityDialog) {
+        QualityOptionsDialog(
+            title = stringResource(R.string.quality_lx_default),
+            selectedValue = lxPreferredQuality,
+            options = listOf(
+                "128k" to "128kbps",
+                "320k" to "320kbps",
+                "flac" to "FLAC",
+                "flac24bit" to "FLAC 24bit"
+            ),
+            onDismiss = { onShowLxQualityDialogChange(false) },
+            onSelect = { level ->
+                onLxQualityChange(level)
+                onShowLxQualityDialogChange(false)
             }
         )
     }

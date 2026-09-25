@@ -90,6 +90,7 @@ import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureDisabledException
 import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.util.network.DynamicProxySelector
+import moe.ouom.neriplayer.util.network.GitHubSyncProxySelector
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -342,6 +343,13 @@ object AppContainer {
         configureSharedOkHttpClient(clientBuilder).build()
     }
 
+    // GitHub 同步专用客户端: 由 GitHubSyncProxySelector 决定是否走系统代理
+    val githubOkHttpClient by lazy {
+        sharedOkHttpClient.newBuilder()
+            .proxySelector(GitHubSyncProxySelector)
+            .build()
+    }
+
     // 网络客户端
     val neteaseClient by lazy {
         NeteaseClient().also { client ->
@@ -544,6 +552,7 @@ object AppContainer {
     private fun primeProxySetting() {
         val initialBootstrapSettings = readBootstrapSettingsSnapshotSync(application)
         DynamicProxySelector.bypassProxy = initialBootstrapSettings.bypassProxy
+        GitHubSyncProxySelector.useSystemProxy = true
         YouTubeFeatureGate.update(initialBootstrapSettings.youtubeEnabled)
         ManagedDownloadStorage.primeSettings(
             directoryUri = initialBootstrapSettings.downloadDirectoryUri,
@@ -605,6 +614,13 @@ object AppContainer {
                 sharedOkHttpClient.connectionPool.evictAll()
                 neteaseClient.evictConnections()
                 AudioDownloadManager.notifyRecoveryOpportunity("proxy_changed")
+            }
+            .launchIn(scope)
+
+        settingsRepo.githubSyncUseProxyFlow
+            .onEach { enabled ->
+                GitHubSyncProxySelector.useSystemProxy = enabled
+                githubOkHttpClient.connectionPool.evictAll()
             }
             .launchIn(scope)
 

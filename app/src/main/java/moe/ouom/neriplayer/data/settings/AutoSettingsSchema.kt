@@ -341,7 +341,7 @@ object AutoSettingsSchema {
         @AutoSetting(
             key = "lx_audio_quality",
             type = SettingValueType.String,
-            defaultString = "320k",
+            defaultString = "128k",
             order = 35,
             ui = SettingUiType.Custom,
             access = SettingAccessMode.KeyOnly
@@ -1296,6 +1296,15 @@ object AutoSettingsSchema {
             titleRes = R.string.settings_bypass_proxy,
             descriptionRes = R.string.settings_bypass_proxy_desc
         )
+
+        @AutoSetting(order = 20)
+        val githubSyncUseProxy = autoSwitchSetting(
+            key = "github_sync_use_proxy",
+            defaultValue = true,
+            titleRes = R.string.settings_github_sync_use_proxy,
+            descriptionRes = R.string.settings_github_sync_use_proxy_desc,
+            icon = AutoSettingIcon.Sync
+        )
     }
 
     /*
@@ -1489,7 +1498,7 @@ object AutoSettingsSchema {
         @AutoSetting(
             key = "playback_fade_in",
             type = SettingValueType.Boolean,
-            defaultBoolean = true,
+            defaultBoolean = false,
             order = 10,
             ui = SettingUiType.Custom,
             access = SettingAccessMode.KeyOnly

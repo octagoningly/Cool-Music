@@ -16,6 +16,8 @@
     <string name="settings_network">Network</string>
     <string name="settings_bypass_proxy">Bypass Proxy</string>
     <string name="settings_bypass_proxy_desc">Ignore system proxy</string>
+    <string name="settings_github_sync_use_proxy">Proxy for GitHub Sync</string>
+    <string name="settings_github_sync_use_proxy_desc">Route GitHub sync requests through the system proxy</string>
     <string name="settings_restart_hint">May need to restart app for best effect</string>
     <string name="settings_expand_network">Network and proxy options</string>
     <string name="settings_about_desc">Version, project home, and developer mode</string>

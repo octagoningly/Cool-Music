@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-24T23:26:57Z",
+  "generatedAt": "2026-09-25T23:38:00Z",
   "minimumHealthyChannels": 1,
   "probeSong": {
     "name": "晴天",
@@ -21,7 +21,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:22:39Z"
+      "lastValidatedAt": "2026-09-25T23:33:36Z"
     },
     {
       "name": "lx-玉宁熙-Pro",
@@ -32,10 +32,9 @@
       "version": "v1.2.2",
       "sourcePage": "",
       "healthyChannels": [
-        "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:18:09Z"
+      "lastValidatedAt": "2026-09-25T23:27:37Z"
     },
     {
       "name": "lx-玉宁熙-Pro",
@@ -46,10 +45,9 @@
       "version": "v1.2.2",
       "sourcePage": "",
       "healthyChannels": [
-        "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:23:16Z"
+      "lastValidatedAt": "2026-09-25T23:33:57Z"
     },
     {
       "name": "全豆要[聚合音源]",
@@ -65,7 +63,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:19:39Z"
+      "lastValidatedAt": "2026-09-25T23:29:24Z"
     },
     {
       "name": "全豆要[聚合音源]",
@@ -81,7 +79,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:19:53Z"
+      "lastValidatedAt": "2026-09-25T23:29:39Z"
     },
     {
       "name": "全豆要[聚合音源]",
@@ -97,7 +95,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:25:06Z"
+      "lastValidatedAt": "2026-09-25T23:35:56Z"
     },
     {
       "name": "全豆要[聚合音源]",
@@ -113,37 +111,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:26:05Z"
-    },
-    {
-      "name": "墨澜聚合音源",
-      "kind": "js",
-      "url": "https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/V260810/%E6%8E%A8%E8%8D%90/%E5%A2%A8%E6%BE%9C%E8%81%9A%E5%90%88%E9%9F%B3%E6%BA%90%20v2.0.0.js",
-      "description": "全平台支持flac，酷狗、QQ、网易支持母带（全用的是别人的接口，类似于全豆要）",
-      "author": "白姬9527(2449067834)",
-      "version": "2.0.0",
-      "sourcePage": "",
-      "healthyChannels": [
-        "kw",
-        "kg",
-        "tx"
-      ],
-      "lastValidatedAt": "2026-09-24T23:21:17Z"
-    },
-    {
-      "name": "墨澜聚合音源",
-      "kind": "js",
-      "url": "https://raw.githubusercontent.com/guoyue2010/lxmusic-/main/V260817/%E6%8E%A8%E8%8D%90/%E5%A2%A8%E6%BE%9C%E8%81%9A%E5%90%88%E9%9F%B3%E6%BA%90%20v2.0.0.js",
-      "description": "全平台支持flac，酷狗、QQ、网易支持母带（全用的是别人的接口，类似于全豆要）",
-      "author": "白姬9527(2449067834)",
-      "version": "2.0.0",
-      "sourcePage": "",
-      "healthyChannels": [
-        "kw",
-        "kg",
-        "tx"
-      ],
-      "lastValidatedAt": "2026-09-24T23:22:21Z"
+      "lastValidatedAt": "2026-09-25T23:37:22Z"
     },
     {
       "name": "屿溪-终章",
@@ -158,7 +126,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:16:55Z"
+      "lastValidatedAt": "2026-09-25T23:26:03Z"
     },
     {
       "name": "幻音音源",
@@ -173,7 +141,7 @@
         "kw",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:24:40Z"
+      "lastValidatedAt": "2026-09-25T23:35:30Z"
     },
     {
       "name": "忆音音源",
@@ -187,7 +155,7 @@
         "wy",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:26:31Z"
+      "lastValidatedAt": "2026-09-25T23:37:48Z"
     },
     {
       "name": "念心音源",
@@ -203,7 +171,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:17:14Z"
+      "lastValidatedAt": "2026-09-25T23:26:22Z"
     },
     {
       "name": "念心音源",
@@ -219,7 +187,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:20:05Z"
+      "lastValidatedAt": "2026-09-25T23:29:51Z"
     },
     {
       "name": "念心音源",
@@ -235,7 +203,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:25:50Z"
+      "lastValidatedAt": "2026-09-25T23:37:06Z"
     },
     {
       "name": "星海音乐源",
@@ -247,10 +215,9 @@
       "sourcePage": "",
       "healthyChannels": [
         "kw",
-        "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:16:23Z"
+      "lastValidatedAt": "2026-09-25T23:25:26Z"
     },
     {
       "name": "星海音乐源",
@@ -262,10 +229,9 @@
       "sourcePage": "",
       "healthyChannels": [
         "kw",
-        "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:16:40Z"
+      "lastValidatedAt": "2026-09-25T23:25:45Z"
     },
     {
       "name": "星海音乐源",
@@ -277,10 +243,9 @@
       "sourcePage": "",
       "healthyChannels": [
         "kw",
-        "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:21:36Z"
+      "lastValidatedAt": "2026-09-25T23:32:03Z"
     },
     {
       "name": "星海音乐源",
@@ -292,10 +257,9 @@
       "sourcePage": "",
       "healthyChannels": [
         "kw",
-        "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:23:36Z"
+      "lastValidatedAt": "2026-09-25T23:34:24Z"
     },
     {
       "name": "星澜聚合音源 (StellarWave)",
@@ -306,12 +270,11 @@
       "version": "v3.2.0",
       "sourcePage": "",
       "healthyChannels": [
-        "wy",
         "kw",
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:17:29Z"
+      "lastValidatedAt": "2026-09-25T23:26:37Z"
     },
     {
       "name": "西瓜聚合源",
@@ -324,7 +287,7 @@
       "healthyChannels": [
         "kw"
       ],
-      "lastValidatedAt": "2026-09-24T23:18:29Z"
+      "lastValidatedAt": "2026-09-25T23:28:04Z"
     },
     {
       "name": "长青SVIP音源",
@@ -340,7 +303,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:24:26Z"
+      "lastValidatedAt": "2026-09-25T23:35:17Z"
     },
     {
       "name": "音乐下载器",
@@ -356,7 +319,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:26:17Z"
+      "lastValidatedAt": "2026-09-25T23:37:34Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -372,7 +335,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:20:47Z"
+      "lastValidatedAt": "2026-09-25T23:30:49Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -388,7 +351,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:21:02Z"
+      "lastValidatedAt": "2026-09-25T23:31:04Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -404,7 +367,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:21:50Z"
+      "lastValidatedAt": "2026-09-25T23:32:19Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -420,7 +383,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:22:06Z"
+      "lastValidatedAt": "2026-09-25T23:32:34Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -436,7 +399,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:23:50Z"
+      "lastValidatedAt": "2026-09-25T23:34:39Z"
     },
     {
       "name": "👖裤佬SVIP音源",
@@ -452,7 +415,7 @@
         "kg",
         "tx"
       ],
-      "lastValidatedAt": "2026-09-24T23:24:04Z"
+      "lastValidatedAt": "2026-09-25T23:34:54Z"
     }
   ]
 }

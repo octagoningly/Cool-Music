@@ -229,7 +229,7 @@ internal fun SettingsStorageCacheSection(
                                 text = stringResource(R.string.settings_download_directory_hint),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.outline,
-                                maxLines = 2,
+                                maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             if (!downloadDirectoryChangeEnabled) {

@@ -83,6 +83,7 @@ internal fun MiuixSettingsDialog(
     ),
     maxWidth: Dp = 220.dp,
     maxHeight: Dp = 300.dp,
+    yOffset: Dp = 0.dp,
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -100,7 +101,8 @@ internal fun MiuixSettingsDialog(
         tonalElevation = 0.dp,
         properties = properties,
         maxWidth = maxWidth,
-        maxHeight = maxHeight
+        maxHeight = maxHeight,
+        yOffset = yOffset
     )
 }
 

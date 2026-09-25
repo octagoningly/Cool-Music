@@ -59,6 +59,7 @@ internal enum class GlassPanelPosition {
  */
 private class GlassPanelPositionProvider(
     private val position: GlassPanelPosition,
+    private val yOffsetPx: Int = 0,
     private val onBoundsInMainWindow: (Rect) -> Unit,
 ) : PopupPositionProvider {
     override fun calculatePosition(
@@ -70,9 +71,9 @@ private class GlassPanelPositionProvider(
         val x = ((windowSize.width - popupContentSize.width) / 2).coerceAtLeast(0)
         val y = when (position) {
             GlassPanelPosition.Centered ->
-                ((windowSize.height - popupContentSize.height) / 2).coerceAtLeast(0)
+                ((windowSize.height - popupContentSize.height) / 2 + yOffsetPx).coerceAtLeast(0)
             GlassPanelPosition.Bottom ->
-                (windowSize.height - popupContentSize.height).coerceAtLeast(0)
+                (windowSize.height - popupContentSize.height + yOffsetPx).coerceAtLeast(0)
         }
         onBoundsInMainWindow(
             Rect(
@@ -113,13 +114,16 @@ internal fun GlassPanel(
             vertical = 16.dp
         ),
     maxHeight: Dp = 420.dp,
+    yOffset: Dp = 0.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val controller = LocalAdvancedGlassController.current
     val glassActive = controller.isBaseBlurEnabled
     var boundsInMainWindow by remember { mutableStateOf<Rect?>(null) }
-    val positionProvider = remember(position) {
-        GlassPanelPositionProvider(position) { boundsInMainWindow = it }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val yOffsetPx = with(density) { yOffset.roundToPx() }
+    val positionProvider = remember(position, yOffsetPx) {
+        GlassPanelPositionProvider(position, yOffsetPx) { boundsInMainWindow = it }
     }
 
     Popup(
@@ -183,6 +187,7 @@ internal fun GlassAlertDialog(
     textContentColor: androidx.compose.ui.graphics.Color = AlertDialogDefaults.textContentColor,
     maxWidth: Dp = 220.dp,
     maxHeight: Dp = 300.dp,
+    yOffset: Dp = 0.dp,
 ) {
     GlassPanel(
         onDismissRequest = onDismissRequest,
@@ -193,6 +198,7 @@ internal fun GlassAlertDialog(
         // 默认紧凑宽；内容多的弹窗可传更大 maxWidth/maxHeight
         maxWidth = maxWidth,
         maxHeight = maxHeight,
+        yOffset = yOffset,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (icon != null) {

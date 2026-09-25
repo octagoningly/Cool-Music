@@ -76,6 +76,7 @@ internal fun DensityScaledAlertDialog(
     properties: DialogProperties = DialogProperties(),
     maxWidth: Dp = 220.dp,
     maxHeight: Dp = 300.dp,
+    yOffset: Dp = 0.dp,
 ) {
     // 统一走 GlassAlertDialog：圆角 28 + 高级透明模糊（设置 → 动效 → 高级模糊 / 模糊度）
     GlassAlertDialog(
@@ -92,6 +93,7 @@ internal fun DensityScaledAlertDialog(
         textContentColor = textContentColor,
         maxWidth = maxWidth,
         maxHeight = maxHeight,
+        yOffset = yOffset,
     )
 }
 

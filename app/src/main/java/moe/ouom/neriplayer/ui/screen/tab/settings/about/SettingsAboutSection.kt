@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.ui.screen.tab.settings.about
+package moe.ouom.neriplayer.ui.screen.tab.settings.about
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -23,6 +23,7 @@
  * Updated: 2026/3/23
  */
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -58,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import moe.ouom.neriplayer.BuildConfig
@@ -148,8 +150,10 @@ private fun SettingsAboutIntroItem(
     if (showBuildInfoDialog) {
         MiuixSettingsDialog(
             onDismissRequest = { showBuildInfoDialog = false },
-            maxWidth = 340.dp,
-            maxHeight = 420.dp,
+            // 约 0.85 倍紧凑尺寸；整体上移约三行字高
+            maxWidth = 288.dp,
+            maxHeight = 357.dp,
+            yOffset = (-48).dp,
             title = {
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Text(
@@ -176,9 +180,10 @@ private fun SettingsAboutIntroItem(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 280.dp)
+                        .heightIn(max = 220.dp)
+                        .padding(start = 2.dp, end = 2.dp)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     BuildInfoRow(
                         label = stringResource(R.string.common_version),
@@ -201,9 +206,7 @@ private fun SettingsAboutIntroItem(
                 }
             },
             confirmButton = {
-                MiuixSettingsTextButton(onClick = { showBuildInfoDialog = false }) {
-                    Text(stringResource(R.string.action_close))
-                }
+                // 仅保留右上角 X，避免双重关闭
             }
         )
     }
@@ -219,6 +222,7 @@ private fun BuildInfoRow(
         modifier = Modifier
             .fillMaxWidth()
             .settingsItemClickable(onClick = onClick)
+            .padding(horizontal = 2.dp)
     ) {
         Text(
             text = label,
@@ -227,7 +231,13 @@ private fun BuildInfoRow(
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
+            // 从左对齐完整展示；版本号允许两行
+            textAlign = TextAlign.Start,
+            maxLines = 2,
+            softWrap = true,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }

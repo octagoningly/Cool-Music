@@ -257,6 +257,7 @@ internal fun SettingsBackupRestoreSection(
                 onToggle = { localBackupExpanded = !localBackupExpanded }
             )
             AnimatedVisibility(visible = localBackupExpanded) {
+            Column(Modifier.fillMaxWidth()) {
             ListItem(
                 leadingContent = {
                     Icon(
@@ -497,6 +498,7 @@ internal fun SettingsBackupRestoreSection(
                 }
             }
             }
+            }
 
             }
 
@@ -553,6 +555,7 @@ internal fun SettingsBackupRestoreSection(
                 onToggle = { gitHubSyncExpanded = !gitHubSyncExpanded }
             )
             AnimatedVisibility(visible = gitHubSyncExpanded) {
+            Column(Modifier.fillMaxWidth()) {
             ListItem(
                 leadingContent = {
                     Icon(
@@ -706,6 +709,7 @@ internal fun SettingsBackupRestoreSection(
                 onHighlightFinished = onHighlightFinished
             )
             }
+            }
 
             }
 
@@ -723,6 +727,7 @@ internal fun SettingsBackupRestoreSection(
                 onToggle = { webDavSyncExpanded = !webDavSyncExpanded }
             )
             AnimatedVisibility(visible = webDavSyncExpanded) {
+            Column(Modifier.fillMaxWidth()) {
             ListItem(
                 leadingContent = {
                     Icon(
@@ -842,6 +847,7 @@ internal fun SettingsBackupRestoreSection(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
+            }
             }
             }
 

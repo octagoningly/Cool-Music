@@ -1,7 +1,10 @@
 package moe.ouom.neriplayer.ui.screen.tab.settings.about
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Update
@@ -21,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.BuildConfig
@@ -276,18 +280,46 @@ internal fun SettingsAboutUpdateItem() {
                     }
                 },
                 confirmButton = {
-                    MiuixSettingsTextButton(
-                        onClick = {
-                            AppUpdateInstaller.openReleasesPage(context)
-                            state = AppUpdateUiState.Idle
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text(stringResource(R.string.about_update_open_releases))
-                    }
-                },
-                dismissButton = {
-                    MiuixSettingsTextButton(onClick = { state = AppUpdateUiState.Idle }) {
-                        Text(stringResource(R.string.action_cancel))
+                        MiuixSettingsTextButton(
+                            onClick = { state = AppUpdateUiState.Idle },
+                            modifier = Modifier.weight(1f),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                horizontal = 8.dp,
+                                vertical = 8.dp
+                            ),
+                            text = {
+                                Text(
+                                    text = stringResource(R.string.action_cancel),
+                                    maxLines = 1,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        )
+                        // 主操作按钮约 1.5 倍宽
+                        MiuixSettingsTextButton(
+                            onClick = {
+                                AppUpdateInstaller.openReleasesPage(context)
+                                state = AppUpdateUiState.Idle
+                            },
+                            modifier = Modifier.weight(1.5f),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                horizontal = 8.dp,
+                                vertical = 8.dp
+                            ),
+                            text = {
+                                Text(
+                                    text = stringResource(R.string.about_update_open_releases),
+                                    maxLines = 1,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        )
                     }
                 }
             )

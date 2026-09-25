@@ -42,15 +42,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.AltRoute
@@ -3298,28 +3304,65 @@ private fun ThemePaletteStyleSelector(
         ThemeOption("Monochrome", R.string.settings_theme_style_monochrome, R.string.settings_theme_style_monochrome_desc),
         ThemeOption("Fidelity", R.string.settings_theme_style_fidelity, R.string.settings_theme_style_fidelity_desc)
     )
+    var showStyleDialog by remember { mutableStateOf(false) }
+    val currentLabel = options.firstOrNull { it.value == normalizedStyle }
+        ?.let { stringResource(it.labelRes) }
+        ?: stringResource(R.string.settings_theme_style_tonal_spot)
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.settings_theme_palette_style),
-            modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 2.dp),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface
+    ListItem(
+        modifier = modifier.clickable { showStyleDialog = true },
+        headlineContent = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(stringResource(R.string.settings_theme_palette_style))
+                Text(
+                    text = currentLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        supportingContent = {
+            Text(stringResource(R.string.settings_theme_palette_style_desc))
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+
+    if (showStyleDialog) {
+        MiuixSettingsDialog(
+            onDismissRequest = { showStyleDialog = false },
+            maxWidth = 320.dp,
+            maxHeight = 480.dp,
+            title = { Text(stringResource(R.string.settings_theme_palette_style)) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    options.forEach { option ->
+                        MiuixSettingsChoiceRow(
+                            title = stringResource(option.labelRes),
+                            subtitle = stringResource(option.descriptionRes),
+                            selected = normalizedStyle == option.value,
+                            onClick = {
+                                onStyleChange(option.value)
+                                showStyleDialog = false
+                            }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                MiuixSettingsTextButton(onClick = { showStyleDialog = false }) {
+                    Text(stringResource(R.string.action_close))
+                }
+            }
         )
-        Text(
-            text = stringResource(R.string.settings_theme_palette_style_desc),
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        options.forEach { option ->
-            MiuixSettingsChoiceRow(
-                title = stringResource(option.labelRes),
-                subtitle = stringResource(option.descriptionRes),
-                selected = normalizedStyle == option.value,
-                onClick = { onStyleChange(option.value) }
-            )
-        }
     }
 }
 
@@ -4540,13 +4583,23 @@ private fun LxOnlineSearchEngineDialog(
     )
     MiuixSettingsDialog(
         onDismissRequest = onDismiss,
+        // 稍微拉高，保证最后一个平台与底部按钮完整露出
+        maxWidth = 300.dp,
+        maxHeight = 420.dp,
         title = { Text(stringResource(R.string.settings_lx_online_search_engines)) },
         text = {
-            Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 280.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
                 Text(
                     text = stringResource(R.string.settings_lx_online_search_engines_desc),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
                 labels.forEach { (id, titleRes) ->
                     Row(
@@ -4555,28 +4608,56 @@ private fun LxOnlineSearchEngineDialog(
                             .clickable {
                                 draft = if (id in draft) draft - id else draft + id
                             }
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
                             checked = id in draft,
                             onCheckedChange = { checked ->
                                 draft = if (checked) draft + id else draft - id
-                            }
+                            },
+                            modifier = Modifier.size(28.dp)
                         )
-                        Text(text = stringResource(titleRes))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(titleRes),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             }
         },
         confirmButton = {
-            MiuixSettingsTextButton(onClick = { onConfirm(draft) }) {
-                Text(stringResource(R.string.action_confirm))
-            }
-        },
-        dismissButton = {
-            MiuixSettingsTextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                MiuixSettingsTextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    text = {
+                        Text(
+                            text = stringResource(R.string.action_cancel),
+                            maxLines = 1,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                )
+                MiuixSettingsTextButton(
+                    onClick = { onConfirm(draft) },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    text = {
+                        Text(
+                            text = stringResource(R.string.action_apply),
+                            maxLines = 1,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                )
             }
         }
     )

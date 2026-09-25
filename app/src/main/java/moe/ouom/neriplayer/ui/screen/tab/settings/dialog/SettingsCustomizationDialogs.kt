@@ -50,6 +50,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -96,7 +97,31 @@ internal fun ColorPickerDialog(
 
     MiuixSettingsDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_select_color)) },
+        // 约默认 220×300 的 1.4 倍，取色盘与滑杆更舒展
+        maxWidth = 308.dp,
+        maxHeight = 420.dp,
+        title = {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.settings_select_color),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 36.dp)
+                )
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.action_close)
+                    )
+                }
+            }
+        },
         text = {
             Column(
                 modifier = Modifier

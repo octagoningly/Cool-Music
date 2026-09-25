@@ -868,6 +868,7 @@ private fun LibraryMainTabs(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
+            .offset(y = 8.dp)
     ) {
         AdvancedGlassSurface(
             role = AdvancedGlassRole.ScreenTopTab,
@@ -2438,7 +2439,7 @@ private fun LocalLibraryHeaderContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 0.dp)
-                .offset(y = (-8).dp),
+                .offset(y = 0.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             LocalLibraryCategoryChips(
@@ -2683,7 +2684,7 @@ private fun LibraryInlineSearchField(
         onValueChange = onQueryChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 0.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 0.dp),
         placeholder = { Text(stringResource(placeholderResId)) },
         singleLine = true,
         shape = LibrarySearchFieldShape,

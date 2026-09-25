@@ -83,6 +83,10 @@ class AutoSettingsGeneratedTest {
             "silent_github_sync_failure" in booleanKeyNames
         )
         assertTrue(
+            "github sync proxy switch should be exportable",
+            "github_sync_use_proxy" in booleanKeyNames
+        )
+        assertTrue(
             "key-only setting should still be exportable",
             "dynamic_color" in booleanKeyNames
         )

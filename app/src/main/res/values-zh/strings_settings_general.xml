@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Settings / General -->
     <string name="settings_title">设置</string>
@@ -281,7 +281,7 @@
     <string name="settings_download_directory">下载目录</string>
     <string name="settings_download_directory_desc">歌曲、歌词和封面会保存到这里</string>
     <string name="settings_download_directory_current">当前：%1$s</string>
-    <string name="settings_download_directory_hint">建议使用应用私有目录，性能更稳</string>
+    <string name="settings_download_directory_hint">建议使用默认应用私有目录。</string>
     <string name="settings_download_directory_choose">选择目录</string>
     <string name="settings_download_directory_reset">恢复默认目录</string>
     <string name="settings_download_directory_reset_desc">改回应用自己的下载位置</string>

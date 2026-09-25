@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Settings / General -->
     <string name="settings_title">Settings</string>
@@ -281,7 +281,7 @@
     <string name="settings_download_directory">Download Directory</string>
     <string name="settings_download_directory_desc">Songs, lyrics, and covers will be saved here</string>
     <string name="settings_download_directory_current">Current: %1$s</string>
-    <string name="settings_download_directory_hint">App private folder is usually more stable</string>
+    <string name="settings_download_directory_hint">Recommend using the default app private folder.</string>
     <string name="settings_download_directory_choose">Choose Folder</string>
     <string name="settings_download_directory_reset">Restore Default Folder</string>
     <string name="settings_download_directory_reset_desc">Switch back to the app private download folder</string>

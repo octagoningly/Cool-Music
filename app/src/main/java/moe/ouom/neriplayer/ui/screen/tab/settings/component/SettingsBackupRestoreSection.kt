@@ -129,6 +129,9 @@ internal fun SettingsBackupRestoreSection(
     onHighlightFinished: (() -> Unit)? = null
 ) {
     fun shouldShowCard(index: Int): Boolean = cardIndex == null || cardIndex == index
+            var localBackupExpanded by remember { mutableStateOf(false) }
+            var gitHubSyncExpanded by remember { mutableStateOf(false) }
+            var webDavSyncExpanded by remember { mutableStateOf(false) }
 
     if (showHeader) {
         ExpandableHeader(
@@ -249,8 +252,11 @@ internal fun SettingsBackupRestoreSection(
             ) {
             MiuixSettingsSectionIntro(
                 title = stringResource(R.string.settings_backup_local_section),
-                description = stringResource(R.string.settings_backup_local_section_desc)
+                description = stringResource(R.string.settings_backup_local_section_desc),
+                expanded = localBackupExpanded,
+                onToggle = { localBackupExpanded = !localBackupExpanded }
             )
+            AnimatedVisibility(visible = localBackupExpanded) {
             ListItem(
                 leadingContent = {
                     Icon(
@@ -490,6 +496,7 @@ internal fun SettingsBackupRestoreSection(
                     )
                 }
             }
+            }
 
             }
 
@@ -541,9 +548,11 @@ internal fun SettingsBackupRestoreSection(
             ) {
             MiuixSettingsSectionIntro(
                 title = stringResource(R.string.settings_backup_github_section),
-                description = stringResource(R.string.settings_backup_github_section_desc)
+                description = stringResource(R.string.settings_backup_github_section_desc),
+                expanded = gitHubSyncExpanded,
+                onToggle = { gitHubSyncExpanded = !gitHubSyncExpanded }
             )
-
+            AnimatedVisibility(visible = gitHubSyncExpanded) {
             ListItem(
                 leadingContent = {
                     Icon(
@@ -696,6 +705,7 @@ internal fun SettingsBackupRestoreSection(
                 highlightPulse = highlightPulse,
                 onHighlightFinished = onHighlightFinished
             )
+            }
 
             }
 
@@ -708,9 +718,11 @@ internal fun SettingsBackupRestoreSection(
             ) {
             MiuixSettingsSectionIntro(
                 title = stringResource(R.string.settings_backup_webdav_section),
-                description = stringResource(R.string.settings_backup_webdav_section_desc)
+                description = stringResource(R.string.settings_backup_webdav_section_desc),
+                expanded = webDavSyncExpanded,
+                onToggle = { webDavSyncExpanded = !webDavSyncExpanded }
             )
-
+            AnimatedVisibility(visible = webDavSyncExpanded) {
             ListItem(
                 leadingContent = {
                     Icon(
@@ -830,6 +842,7 @@ internal fun SettingsBackupRestoreSection(
                         color = MaterialTheme.colorScheme.error
                     )
                 }
+            }
             }
 
             }

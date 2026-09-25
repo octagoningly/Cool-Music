@@ -1,4 +1,4 @@
-package moe.ouom.neriplayer.ui.screen.tab.settings.about
+﻿package moe.ouom.neriplayer.ui.screen.tab.settings.about
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -23,16 +23,22 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.about
  * Updated: 2026/3/23
  */
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +52,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -84,21 +91,32 @@ internal fun SettingsAboutContent(
     onCopyValue: (String) -> Unit,
     onOpenGitHubRepo: () -> Unit
 ) {
-    SettingsAboutIntroItem()
-    SettingsOriginalAuthorItem()
-    SettingsAboutUpdateItem()
-    SettingsBuildUuidItem(onCopyValue)
-    SettingsVersionItem(
+    SettingsAboutIntroItem(
         devModeEnabled = devModeEnabled,
         onVersionClick = onVersionClick,
         onCopyValue = onCopyValue
     )
-    SettingsBuildTimeItem(onCopyValue)
+    SettingsOriginalAuthorItem()
+    SettingsAboutUpdateItem()
     SettingsGitHubItem(onOpenGitHubRepo = onOpenGitHubRepo)
 }
 
 @Composable
-private fun SettingsAboutIntroItem() {
+private fun SettingsAboutIntroItem(
+    devModeEnabled: Boolean,
+    onVersionClick: () -> Unit,
+    onCopyValue: (String) -> Unit
+) {
+    var showBuildInfoDialog by remember { mutableStateOf(false) }
+    val suffix = if (devModeEnabled) {
+        " (${stringResource(R.string.settings_version_debug_suffix)})"
+    } else {
+        ""
+    }
+    val versionName = "${BuildConfig.VERSION_NAME}$suffix"
+    val buildUuid = BuildConfig.BUILD_UUID
+    val buildTime = convertTimestampToDate(BuildConfig.BUILD_TIMESTAMP)
+
     ListItem(
         leadingContent = {
             Icon(
@@ -114,8 +132,104 @@ private fun SettingsAboutIntroItem() {
             )
         },
         supportingContent = { Text(stringResource(R.string.about_app_footer)) },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        modifier = Modifier
+            .heightIn(min = 68.dp)
+            .settingsItemClickable { showBuildInfoDialog = true },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
     )
+
+    if (showBuildInfoDialog) {
+        MiuixSettingsDialog(
+            onDismissRequest = { showBuildInfoDialog = false },
+            maxWidth = 340.dp,
+            maxHeight = 420.dp,
+            title = {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.settings_about),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = 36.dp)
+                    )
+                    IconButton(
+                        onClick = { showBuildInfoDialog = false },
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.action_close)
+                        )
+                    }
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 280.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
+                ) {
+                    BuildInfoRow(
+                        label = stringResource(R.string.common_version),
+                        value = versionName,
+                        onClick = {
+                            onCopyValue(versionName)
+                            onVersionClick()
+                        }
+                    )
+                    BuildInfoRow(
+                        label = stringResource(R.string.settings_build_uuid),
+                        value = buildUuid,
+                        onClick = { onCopyValue(buildUuid) }
+                    )
+                    BuildInfoRow(
+                        label = stringResource(R.string.common_build_time),
+                        value = buildTime,
+                        onClick = { onCopyValue(buildTime) }
+                    )
+                }
+            },
+            confirmButton = {
+                MiuixSettingsTextButton(onClick = { showBuildInfoDialog = false }) {
+                    Text(stringResource(R.string.action_close))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun BuildInfoRow(
+    label: String,
+    value: String,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .settingsItemClickable(onClick = onClick)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
 }
 
 @Composable
@@ -161,21 +275,41 @@ private fun SettingsOriginalAuthorItem() {
     if (showDetailDialog) {
         MiuixSettingsDialog(
             onDismissRequest = { showDetailDialog = false },
+            // 尽量一次显示完整声明
+            maxWidth = 340.dp,
+            maxHeight = 480.dp,
             confirmButton = {
                 MiuixSettingsTextButton(onClick = { showDetailDialog = false }) {
                     Text(stringResource(R.string.about_original_author_confirm))
                 }
             },
             title = {
-                Text(
-                    text = stringResource(R.string.about_original_author_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.about_original_author_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = 36.dp)
+                    )
+                    IconButton(
+                        onClick = { showDetailDialog = false },
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.action_close)
+                        )
+                    }
+                }
             },
             text = {
                 Column(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .heightIn(max = 360.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
@@ -206,94 +340,6 @@ private fun SettingsOriginalAuthorItem() {
             }
         )
     }
-}
-
-@Composable
-private fun SettingsBuildUuidItem(onCopyValue: (String) -> Unit) {
-    val buildUuid = BuildConfig.BUILD_UUID
-
-    ListItem(
-        leadingContent = {
-            Icon(
-                imageVector = Icons.Outlined.Verified,
-                contentDescription = stringResource(R.string.settings_build_uuid),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        },
-        headlineContent = {
-            Text(
-                text = stringResource(R.string.settings_build_uuid),
-                style = MaterialTheme.typography.titleMedium
-            )
-        },
-        supportingContent = { Text(buildUuid) },
-        modifier = Modifier.settingsItemClickable {
-            onCopyValue(buildUuid)
-        },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    )
-}
-
-@Composable
-private fun SettingsVersionItem(
-    devModeEnabled: Boolean,
-    onVersionClick: () -> Unit,
-    onCopyValue: (String) -> Unit
-) {
-    val suffix = if (devModeEnabled) {
-        " (${stringResource(R.string.settings_version_debug_suffix)})"
-    } else {
-        ""
-    }
-    val versionName = "${BuildConfig.VERSION_NAME}$suffix"
-
-    ListItem(
-        leadingContent = {
-            Icon(
-                imageVector = Icons.Outlined.Update,
-                contentDescription = stringResource(R.string.settings_version),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        },
-        headlineContent = {
-            Text(
-                text = stringResource(R.string.common_version),
-                style = MaterialTheme.typography.titleMedium
-            )
-        },
-        supportingContent = { Text(versionName) },
-        modifier = Modifier.settingsItemClickable {
-            onCopyValue(versionName)
-            onVersionClick()
-        },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    )
-}
-
-@Composable
-private fun SettingsBuildTimeItem(onCopyValue: (String) -> Unit) {
-    val buildTime = convertTimestampToDate(BuildConfig.BUILD_TIMESTAMP)
-
-    ListItem(
-        leadingContent = {
-            Icon(
-                imageVector = Icons.Outlined.Timer,
-                contentDescription = stringResource(R.string.settings_build_time),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
-        },
-        headlineContent = {
-            Text(
-                text = stringResource(R.string.common_build_time),
-                style = MaterialTheme.typography.titleMedium
-            )
-        },
-        supportingContent = { Text(buildTime) },
-        modifier = Modifier.settingsItemClickable {
-            onCopyValue(buildTime)
-        },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    )
 }
 
 @Composable

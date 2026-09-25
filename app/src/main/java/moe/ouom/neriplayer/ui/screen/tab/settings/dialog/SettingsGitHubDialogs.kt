@@ -235,8 +235,16 @@ internal fun SettingsGitHubDialogs(
     if (showClearGitHubConfigDialog) {
         MiuixSettingsDialog(
             onDismissRequest = { onShowClearGitHubConfigDialogChange(false) },
+            // 加宽，避免说明文字挤成方块
+            maxWidth = 300.dp,
+            maxHeight = 360.dp,
             title = { Text(stringResource(R.string.sync_clear_config)) },
-            text = { Text(stringResource(R.string.sync_clear_config_desc)) },
+            text = {
+                Text(
+                    text = stringResource(R.string.sync_clear_config_desc),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
             confirmButton = {
                 MiuixSettingsTextButton(
                     onClick = {

@@ -3,6 +3,7 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.dialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -68,11 +69,15 @@ internal fun SettingsWebDavDialogs(
 
         MiuixSettingsDialog(
             onDismissRequest = dismissConfigDialog,
+            // 加宽加高，完整显示服务器/用户名/密码/路径各行
+            maxWidth = 320.dp,
+            maxHeight = 520.dp,
             title = { Text(stringResource(R.string.webdav_sync_title)) },
             text = {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(max = 360.dp)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {

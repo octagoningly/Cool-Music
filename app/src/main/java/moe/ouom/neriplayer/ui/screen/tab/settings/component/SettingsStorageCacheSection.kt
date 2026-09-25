@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.download.DEFAULT_DOWNLOAD_FILE_NAME_TEMPLATE
@@ -213,20 +214,23 @@ internal fun SettingsStorageCacheSection(
                         )
                     },
                     supportingContent = {
-                        Column {
-                            Text(stringResource(R.string.settings_download_directory_desc))
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 text = stringResource(
                                     R.string.settings_download_directory_current,
                                     currentDownloadDirectorySummary
                                 ),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = stringResource(R.string.settings_download_directory_hint),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline
+                                color = MaterialTheme.colorScheme.outline,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                             if (!downloadDirectoryChangeEnabled) {
                                 Text(
@@ -240,12 +244,11 @@ internal fun SettingsStorageCacheSection(
                         }
                     },
                     trailingContent = {
-                        MiuixSettingsTextButton(
-                            onClick = onPickDownloadDirectory,
-                            enabled = downloadDirectoryChangeEnabled
-                        ) {
-                            Text(stringResource(R.string.settings_download_directory_choose))
-                        }
+                        Text(
+                            text = stringResource(R.string.settings_download_directory_choose),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     },
                     modifier = Modifier
                         .settingsHighlightTarget(

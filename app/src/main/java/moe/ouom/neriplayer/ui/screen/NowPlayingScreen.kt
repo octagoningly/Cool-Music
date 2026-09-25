@@ -4049,7 +4049,8 @@ fun BoxScope.MoreOptionsSheet(
         onDismissRequest = onDismiss,
         shape = moe.ouom.neriplayer.ui.component.overlay.GlassMenuShape,
         maxWidth = 240.dp,
-        maxHeight = 360.dp,
+        // 菜单项较多，加高到可完整展示，避免再滚动
+        maxHeight = 640.dp,
     ) {
         BackHandler(enabled = true) { onDismiss() }
 

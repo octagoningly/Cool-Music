@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.ui.component.playlist
+package moe.ouom.neriplayer.ui.component.playlist
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -159,7 +159,8 @@ fun GlassDropdownMenu(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(20.dp),
     maxWidth: Dp = 240.dp,
-    maxHeight: Dp = 280.dp,
+    // 歌曲列表可达 8 项（含本地详情/分享），默认加高避免截断
+    maxHeight: Dp = 440.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val controller = LocalAdvancedGlassController.current

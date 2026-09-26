@@ -1,5 +1,11 @@
 package moe.ouom.neriplayer.ui.component.overlay
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,23 +21,32 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassBackdropRegistrationEnabled
@@ -51,6 +66,49 @@ internal val GlassSheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.
 internal enum class GlassPanelPosition {
     Centered,
     Bottom
+}
+
+/**
+ * 设置弹窗「强 Q 弹」：中心爆开（行程大、过冲明显、震荡 2～3 次）。
+ *
+ * 比三点菜单更夸张一档，但仍是缩放+淡入，不旋转。
+ * 底部面板改为自下弹入并过冲落位。设置 → 动效 → 连贯反馈 关闭时保持瞬时开合。
+ */
+internal object GlassDialogMotion {
+    const val EnterFadeMs = 180
+    const val ExitFadeMs = 140
+
+    /** 中心弹出起点缩放（行程大，一眼能看出弹出） */
+    const val EnterScaleFrom = 0.68f
+    const val ExitScaleTo = 0.88f
+
+    /** 底部面板：从下方滑入的相对距离（弹簧可过冲到上方） */
+    const val SheetSlideFraction = 0.40f
+
+    /** 强 Q 弹：damping 0.40，过冲约 15%+，肉眼可见多次回弹 */
+    val EnterTransformSpring = spring<Float>(
+        dampingRatio = 0.40f,
+        stiffness = Spring.StiffnessMedium,
+    )
+
+    val ExitTransformSpring = spring<Float>(
+        dampingRatio = 0.72f,
+        stiffness = Spring.StiffnessMedium,
+    )
+
+    /** progress: 0=收起, 1=展开；弹簧可 >1（过冲）或 <1（回弹不足） */
+    fun appearScale(expanding: Boolean, progress: Float): Float =
+        if (expanding) {
+            lerp(EnterScaleFrom, 1f, progress)
+        } else {
+            lerp(ExitScaleTo, 1f, progress)
+        }
+
+    /** 仅底部面板：相对高度的 Y 位移；progress>1 时过冲到上方 */
+    fun appearSlideYFraction(isBottomSheet: Boolean, progress: Float): Float {
+        if (!isBottomSheet) return 0f
+        return SheetSlideFraction * (1f - progress)
+    }
 }
 
 /**
@@ -99,6 +157,8 @@ private fun glassDialogFallbackColor(glassActive: Boolean) =
 /**
  * 通用玻璃面板：圆角 + 半透明底 + 细边，模糊开时走 [AdvancedGlassSurface] 真模糊，
  * 关时退 [fallbackColor] 实底。开关/模糊度：设置 → 动效 → 高级模糊 / 模糊度。
+ *
+ * 开合动效：设置 → 动效 → 连贯反馈（见 [GlassDialogMotion]）。
  */
 @Composable
 internal fun GlassPanel(
@@ -119,6 +179,9 @@ internal fun GlassPanel(
 ) {
     val controller = LocalAdvancedGlassController.current
     val glassActive = controller.isBaseBlurEnabled
+    val coherentFeedbackEnabled by AppContainer.settingsRepo
+        .coherentFeedbackEnabledFlow
+        .collectAsState(initial = false)
     var boundsInMainWindow by remember { mutableStateOf<Rect?>(null) }
     val density = androidx.compose.ui.platform.LocalDensity.current
     val yOffsetPx = with(density) { yOffset.roundToPx() }
@@ -126,9 +189,75 @@ internal fun GlassPanel(
         GlassPanelPositionProvider(position, yOffsetPx) { boundsInMainWindow = it }
     }
 
+    val scope = rememberCoroutineScope()
+    val transformProgress = remember { Animatable(if (coherentFeedbackEnabled) 0f else 1f) }
+    val opacityProgress = remember { Animatable(if (coherentFeedbackEnabled) 0f else 1f) }
+    var contentAlive by remember { mutableStateOf(true) }
+    var dismissing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (!coherentFeedbackEnabled) {
+            transformProgress.snapTo(1f)
+            opacityProgress.snapTo(1f)
+            return@LaunchedEffect
+        }
+        transformProgress.snapTo(0f)
+        opacityProgress.snapTo(0f)
+        coroutineScope {
+            launch {
+                transformProgress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = GlassDialogMotion.EnterTransformSpring,
+                )
+            }
+            launch {
+                opacityProgress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(
+                        durationMillis = GlassDialogMotion.EnterFadeMs,
+                        easing = FastOutSlowInEasing,
+                    ),
+                )
+            }
+        }
+    }
+
+    val animatedDismiss: () -> Unit = {
+        if (!dismissing) {
+            dismissing = true
+            if (!coherentFeedbackEnabled) {
+                onDismissRequest()
+            } else {
+                scope.launch {
+                    coroutineScope {
+                        launch {
+                            transformProgress.animateTo(
+                                targetValue = 0f,
+                                animationSpec = GlassDialogMotion.ExitTransformSpring,
+                            )
+                        }
+                        launch {
+                            opacityProgress.animateTo(
+                                targetValue = 0f,
+                                animationSpec = tween(
+                                    durationMillis = GlassDialogMotion.ExitFadeMs,
+                                    easing = FastOutLinearInEasing,
+                                ),
+                            )
+                        }
+                    }
+                    contentAlive = false
+                    onDismissRequest()
+                }
+            }
+        }
+    }
+
+    if (!contentAlive) return
+
     Popup(
         popupPositionProvider = positionProvider,
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = animatedDismiss,
         properties = PopupProperties(focusable = true),
     ) {
         // 弹窗可能从 SettingsGroup/Section 等玻璃面内弹出，depth>0 会禁止采样。
@@ -143,6 +272,22 @@ internal fun GlassPanel(
                 Modifier
                     .widthIn(min = 160.dp, max = maxWidth)
                     .heightIn(max = maxHeight)
+                    .graphicsLayer {
+                        val t = transformProgress.value
+                        // 居中弹窗：中心爆开；底部面板：贴底边（y=1）长出
+                        transformOrigin = when (position) {
+                            GlassPanelPosition.Centered -> TransformOrigin(0.5f, 0.5f)
+                            GlassPanelPosition.Bottom -> TransformOrigin(0.5f, 1f)
+                        }
+                        val scale = GlassDialogMotion.appearScale(expanding = !dismissing, t)
+                        scaleX = scale
+                        scaleY = scale
+                        alpha = opacityProgress.value
+                        translationY = GlassDialogMotion.appearSlideYFraction(
+                            isBottomSheet = position == GlassPanelPosition.Bottom,
+                            progress = t,
+                        ) * size.height
+                    }
             ) {
                 AdvancedGlassSurface(
                     role = role,

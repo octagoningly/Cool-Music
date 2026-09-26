@@ -65,11 +65,17 @@ object NowPlayingExpandMotion {
     )
 
     /**
-     * 电影感缓动（skydoves Shared Bounds Expansion 风格，~500ms）。
-     * 封面 bounds 默认走这条，比弹簧更稳、更像推轨。
+     * 电影感缓动（skydoves Shared Bounds Expansion 风格）。
+     * 展开偏慢有分量；收回更快，避免「页面都没了封面还在飞」。
      */
     val CoverBoundsTween = tween<androidx.compose.ui.geometry.Rect>(
         durationMillis = 480,
+        easing = FastOutSlowInEasing
+    )
+
+    /** 封面收回（变小）：明显快于展开，跟抽屉回收同步收束 */
+    val CoverBoundsCollapseTween = tween<androidx.compose.ui.geometry.Rect>(
+        durationMillis = 280,
         easing = FastOutSlowInEasing
     )
 
@@ -91,20 +97,21 @@ object NowPlayingExpandMotion {
         stiffness = Spring.StiffnessMediumLow
     )
 
-    /** 播放页抽屉（连贯反馈开启时的强化版） */
+    /** 播放页抽屉：入场弹簧有分量；回收用稍长的缓动，动画走完整 */
     val ExpandEnterSlideSpec = spring<IntOffset>(
         dampingRatio = 0.86f,
         stiffness = Spring.StiffnessMediumLow
     )
 
-    val ExpandExitSlideSpec = spring<IntOffset>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessMedium
+    val ExpandExitSlideSpec = tween<IntOffset>(
+        durationMillis = 420,
+        easing = FastOutSlowInEasing
     )
 
-    // —— 强化抽屉：整页上滑更有分量 ——
+    // —— 强化抽屉 ——
     const val HeroEnterFadeMs = 320
-    const val HeroExitFadeMs = 220
+    /** 回收淡出略长于原先，避免页面瞬间消失 */
+    const val HeroExitFadeMs = 280
     const val HeroEnterFromScale = 0.96f
     const val HeroExitToScale = 0.98f
 
@@ -114,7 +121,7 @@ object NowPlayingExpandMotion {
     )
 
     const val ExpandEnterFadeMs = 280
-    const val ExpandExitFadeMs = 220
+    const val ExpandExitFadeMs = 280
     const val MiniPlayerExitFadeMs = 160
     const val MiniPlayerExitScale = 0.92f
 
@@ -208,8 +215,14 @@ fun SharedTransitionScope.coverSharedModifier(
         .sharedElement(
             sharedContentState = sharedContentState,
             animatedVisibilityScope = animatedVisibilityScope,
-            // 电影感 480ms 缓动（skydoves Shared Bounds 风格）
-            boundsTransform = { _, _ -> NowPlayingExpandMotion.CoverBoundsTween },
+            // 展开慢、收回快：目标比初始更小 → 回收，避免封面孤零零拖在页面后面
+            boundsTransform = { initialBounds, targetBounds ->
+                if (targetBounds.width < initialBounds.width) {
+                    NowPlayingExpandMotion.CoverBoundsCollapseTween
+                } else {
+                    NowPlayingExpandMotion.CoverBoundsTween
+                }
+            },
             renderInOverlayDuringTransition = true,
             zIndexInOverlay = 8f,
             clipInOverlayDuringTransition = overlayClip

@@ -1021,26 +1021,42 @@ fun ExploreScreen(
                             shape = GlassMenuShape,
                             modifier = Modifier
                         ) {
+                            // 标题：说明该菜单用途
+                            Text(
+                                text = stringResource(R.string.explore_search_source_picker_title),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
                             orderedSearchSources.forEach { source ->
                                 val isCurrentSource = source == ui.selectedSearchSource
-                                DropdownMenuItem(
-                                    text = { Text(searchSourceLabel(source)) },
-                                    trailingIcon = {
-                                        if (isCurrentSource) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Check,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    },
+                                moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
                                     onClick = {
                                         sourceMenuExpanded = false
                                         if (!isCurrentSource) {
                                             vm.setSearchSource(source)
                                         }
                                     }
-                                )
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
+                                            searchSourceLabel(source)
+                                        )
+                                        if (isCurrentSource) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Icon(
+                                                imageVector = Icons.Filled.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

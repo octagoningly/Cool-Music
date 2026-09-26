@@ -2716,11 +2716,8 @@ private fun LocalArtistSortMenuItem(
     text: String,
     onClick: () -> Unit
 ) {
-    DropdownMenuItem(
-        text = {
-            GlassMenuItemText(text)
-        },
-        leadingIcon = {
+    moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             if (selected) {
                 Icon(
                     imageVector = Icons.Filled.Check,
@@ -2729,9 +2726,10 @@ private fun LocalArtistSortMenuItem(
             } else {
                 Spacer(modifier = Modifier.size(24.dp))
             }
-        },
-        onClick = onClick
-    )
+            Spacer(modifier = Modifier.width(8.dp))
+            GlassMenuItemText(text)
+        }
+    }
 }
 
 @Composable

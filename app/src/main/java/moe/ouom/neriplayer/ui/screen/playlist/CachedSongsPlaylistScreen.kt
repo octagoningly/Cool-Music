@@ -250,35 +250,28 @@ fun CachedSongsPlaylistScreen(
                                 GlassDropdownMenu(
                                     expanded = cacheModeMenuExpanded,
                                     onDismissRequest = { cacheModeMenuExpanded = false },
-                                    shape = RoundedCornerShape(20.dp),
-                                    modifier = Modifier.widthIn(min = 148.dp)
+                                    shape = RoundedCornerShape(20.dp)
                                 ) {
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(R.string.cached_songs_filter_complete),
-                                                modifier = Modifier.fillMaxWidth(),
-                                                textAlign = TextAlign.Center
-                                            )
-                                        },
+                                    moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
                                         onClick = {
                                             onlyComplete = true
                                             cacheModeMenuExpanded = false
                                         }
-                                    )
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(R.string.cached_songs_filter_all),
-                                                modifier = Modifier.fillMaxWidth(),
-                                                textAlign = TextAlign.Center
-                                            )
-                                        },
+                                    ) {
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
+                                            stringResource(R.string.cached_songs_filter_complete)
+                                        )
+                                    }
+                                    moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
                                         onClick = {
                                             onlyComplete = false
                                             cacheModeMenuExpanded = false
                                         }
-                                    )
+                                    ) {
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
+                                            stringResource(R.string.cached_songs_filter_all)
+                                        )
+                                    }
                                 }
                             }
 
@@ -300,42 +293,31 @@ fun CachedSongsPlaylistScreen(
                                 GlassDropdownMenu(
                                     expanded = artistMenuExpanded,
                                     onDismissRequest = { artistMenuExpanded = false },
-                                    shape = RoundedCornerShape(20.dp),
-                                    modifier = Modifier.widthIn(max = 240.dp)
+                                    shape = RoundedCornerShape(20.dp)
                                 ) {
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(R.string.cached_songs_filter_all_artists),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                style = MaterialTheme.typography.bodyLarge,
-                                                textAlign = TextAlign.Center,
-                                                modifier = Modifier.fillMaxWidth()
-                                            )
-                                        },
+                                    moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
                                         onClick = {
                                             selectedArtist = null
                                             artistMenuExpanded = false
                                         }
-                                    )
+                                    ) {
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
+                                            stringResource(R.string.cached_songs_filter_all_artists),
+                                            maxLines = 1
+                                        )
+                                    }
                                     artistOptions.forEach { artist ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    artist,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    textAlign = TextAlign.Center,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                )
-                                            },
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
                                             onClick = {
                                                 selectedArtist = artist
                                                 artistMenuExpanded = false
                                             }
-                                        )
+                                        ) {
+                                            moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
+                                                artist,
+                                                maxLines = 1
+                                            )
+                                        }
                                     }
                                 }
                             }

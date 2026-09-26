@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Explore & Tags -->
     <string name="genre_pop">Pop</string>
@@ -64,4 +64,5 @@
     <string name="explore_export_to_playlist">Export to Playlist</string>
     <string name="explore_collapse">Collapse</string>
     <string name="explore_expand">Expand More</string>
+    <string name="explore_search_source_picker_title">Search source</string>
 </resources>

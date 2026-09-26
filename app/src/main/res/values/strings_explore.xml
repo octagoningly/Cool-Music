@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Explore & Tags -->
     <string name="genre_pop">流行</string>
@@ -64,4 +64,5 @@
     <string name="explore_export_to_playlist">导出到歌单</string>
     <string name="explore_collapse">收起</string>
     <string name="explore_expand">展开更多</string>
+    <string name="explore_search_source_picker_title">搜索源选择</string>
 </resources>

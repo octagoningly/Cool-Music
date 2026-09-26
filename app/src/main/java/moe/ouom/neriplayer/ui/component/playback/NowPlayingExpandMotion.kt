@@ -6,6 +6,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -19,6 +20,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -29,9 +31,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
@@ -49,9 +54,21 @@ object NowPlayingExpandMotion {
     const val COVER_SHARED_KEY = "np_expand_cover"
 
     val CoverBoundsSpring = spring<androidx.compose.ui.geometry.Rect>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
+        // 参考 SwiftAnimPlayground Hero：轻微回弹更有“落位”感，比 NoBouncy 更灵动
+        dampingRatio = 0.82f,
         stiffness = Spring.StiffnessMediumLow
     )
+
+    /** 备选：更接近 skydoves Shared Bounds Expansion 的 500ms 缓动（可切换试手感） */
+    val CoverBoundsTween = tween<androidx.compose.ui.geometry.Rect>(
+        durationMillis = 480,
+        easing = FastOutSlowInEasing
+    )
+
+    /** 飞行时的抬升阴影（dp），参考 SwiftUI-experiments drag transform 的 dragging shadow */
+    val CoverFlyShadowDp = 10.dp
+    val CoverMiniCornerRadiusDp = 8.dp
+    val CoverLargeCornerRadiusDp = 24.dp
 
     val CoverBoundsSpringFloat = spring<Float>(
         dampingRatio = Spring.DampingRatioNoBouncy,
@@ -106,19 +123,34 @@ fun shouldUseNowPlayingExpandSharedMotion(coherentFeedbackEnabled: Boolean): Boo
 @androidx.compose.runtime.Composable
 fun SharedTransitionScope.coverSharedModifier(
     enabled: Boolean,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope
-): androidx.compose.ui.Modifier {
-    return if (!enabled) {
-        androidx.compose.ui.Modifier
-    } else {
-        androidx.compose.ui.Modifier.sharedBounds(
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope,
+    cornerRadius: Dp = NowPlayingExpandMotion.CoverMiniCornerRadiusDp,
+    shadowElevation: Dp = NowPlayingExpandMotion.CoverFlyShadowDp
+): Modifier {
+    if (!enabled) return Modifier
+    val shape = RoundedCornerShape(cornerRadius)
+    val overlayClip = remember(cornerRadius) { OverlayClip(shape) }
+    return Modifier
+        // 专辑封面是「同一张图」的缩放/位移，必须用 sharedElement：
+        // sharedBounds 会对进出内容做 fadeIn/fadeOut，看起来像两张图交叉溶解，不够连贯。
+        // 参考：compose-animation 文档 + compose-animations Shared Bounds 示例中的 shape 同步。
+        .sharedElement(
             sharedContentState = rememberSharedContentState(
                 key = NowPlayingExpandMotion.COVER_SHARED_KEY
             ),
             animatedVisibilityScope = animatedVisibilityScope,
-            boundsTransform = { _, _ -> NowPlayingExpandMotion.CoverBoundsSpring }
+            boundsTransform = { _, _ -> NowPlayingExpandMotion.CoverBoundsSpring },
+            renderInOverlayDuringTransition = true,
+            zIndexInOverlay = 8f,
+            clipInOverlayDuringTransition = overlayClip
         )
-    }
+        // 圆角 8dp→24dp 随 sharedElement 一起变形；阴影在飞行中有抬升感
+        .clip(shape)
+        .shadow(
+            elevation = shadowElevation,
+            shape = shape,
+            clip = false
+        )
 }
 
 /**

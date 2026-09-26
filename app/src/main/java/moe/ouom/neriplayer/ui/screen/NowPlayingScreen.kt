@@ -1890,7 +1890,8 @@ fun NowPlayingScreen(
             with(scope) {
                 coverSharedModifier(
                     enabled = expandCoverSharedEnabled,
-                    animatedVisibilityScope = visibilityScope
+                    animatedVisibilityScope = visibilityScope,
+                    cornerRadius = NowPlayingExpandMotion.CoverLargeCornerRadiusDp
                 )
             }
         }

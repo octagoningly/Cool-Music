@@ -296,7 +296,8 @@ fun NeriMiniPlayer(
             with(scope) {
                 coverSharedModifier(
                     enabled = expandCoverSharedEnabled,
-                    animatedVisibilityScope = visibilityScope
+                    animatedVisibilityScope = visibilityScope,
+                    cornerRadius = NowPlayingExpandMotion.CoverMiniCornerRadiusDp
                 )
             }
         }

@@ -665,6 +665,13 @@ object PlayerManager {
     internal var currentGenericUrlPrefetchJob: Job? = null
     internal var currentGenericUrlPrefetchKey: String? = null
     @Volatile
+    internal var playbackPrecacheConfig = moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheConfig()
+    internal var currentPlaybackPrecacheJob: Job? = null
+    internal var currentPlaybackPrecacheScenario:
+        moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheScenario? = null
+    internal var currentPlaybackPrecacheKeys: Set<String> = emptySet()
+    internal val recentNextSkipTimestamps = mutableListOf<Long>()
+    @Volatile
     internal var playbackRequestToken = 0L
     @Volatile
     internal var loadedMediaRequestToken = 0L

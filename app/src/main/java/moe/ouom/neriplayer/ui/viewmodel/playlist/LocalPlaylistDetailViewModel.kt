@@ -1,4 +1,5 @@
 package moe.ouom.neriplayer.ui.viewmodel.playlist
+import moe.ouom.neriplayer.core.player.prefetch.precacheSongList
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -25,6 +26,7 @@ package moe.ouom.neriplayer.ui.viewmodel.playlist
 
 
 import android.app.Application
+import moe.ouom.neriplayer.core.player.PlayerManager
 import android.net.Uri
 import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
@@ -230,11 +232,18 @@ class LocalPlaylistDetailViewModel(application: Application) : AndroidViewModel(
                 return@launch
             }
             repo.playlists.collect { list ->
+                val resolvedPlaylist = list.firstOrNull { it.id == id }
                 _uiState.value = LocalPlaylistDetailUiState(
-                    playlist = list.firstOrNull { it.id == id },
+                    playlist = resolvedPlaylist,
                     isResolved = true,
                     requestedPlaylistId = id
                 )
+                resolvedPlaylist?.songs?.let { songs ->
+                    PlayerManager.precacheSongList(
+                        songs = songs,
+                        scenario = moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheScenario.PLAYLIST_OPEN
+                    )
+                }
             }
         }
     }

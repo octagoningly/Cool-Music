@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Settings / General -->
     <string name="settings_title">Settings</string>
@@ -248,6 +248,20 @@
     <string name="settings_allow_mixed_playback_desc">Do not take audio focus so other apps can play</string>
     <string name="settings_preempt_audio_focus">Preempt Audio Focus</string>
     <string name="settings_preempt_audio_focus_desc">Take audio focus when the main screen opens and playback is idle, making headset controls more likely to target NeriPlayer</string>
+    <string name="settings_playback_precache">Playback pre-cache</string>
+    <string name="settings_playback_precache_desc">Fetch a short audio prefix before playback to cut start delay</string>
+    <string name="settings_playback_precache_app_launch">Preload on launch</string>
+    <string name="settings_playback_precache_app_launch_desc">On cold/warm start while paused, preload the last song on the mini player</string>
+    <string name="settings_playback_precache_next_track">Preload next track</string>
+    <string name="settings_playback_precache_next_track_desc">While playing, preload 3–5s of the next track; rapid skips preload 1.3s of more tracks</string>
+    <string name="settings_playback_precache_recent_list">Preload recent list</string>
+    <string name="settings_playback_precache_recent_list_desc">Preload several songs from the recent queue for quicker resume</string>
+    <string name="settings_playback_precache_playlist_open">Preload on playlist open</string>
+    <string name="settings_playback_precache_playlist_open_desc">When a playlist opens, preload prefixes of its top songs</string>
+    <string name="settings_playback_precache_home_recommend">Preload home recommendations</string>
+    <string name="settings_playback_precache_home_recommend_desc">After home recommendations load, preload prefixes of top songs</string>
+    <string name="settings_playback_precache_search">Preload search results</string>
+    <string name="settings_playback_precache_search_desc">After songs appear in search, preload prefixes of the first few</string>
     <string name="settings_lyrics_blur">Blur</string>
     <string name="settings_lyrics_font_size">Lyrics Font Size</string>
     <string name="settings_lyrics_cover_lyric_font_size">Cover lyric font</string>

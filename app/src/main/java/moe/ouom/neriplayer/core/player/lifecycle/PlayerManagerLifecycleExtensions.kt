@@ -1302,6 +1302,31 @@ internal fun PlayerManager.initializeImpl(
             }
         }
         ioScope.launch {
+            val autoSettings = moe.ouom.neriplayer.data.settings.generated.AutoSettingsRepository(app)
+            kotlinx.coroutines.flow.combine(
+                autoSettings.playbackPrecacheEnabledFlow,
+                autoSettings.playbackPrecacheAppLaunchFlow,
+                autoSettings.playbackPrecacheNextTrackFlow,
+                autoSettings.playbackPrecacheRecentListFlow,
+                autoSettings.playbackPrecachePlaylistOpenFlow,
+                autoSettings.playbackPrecacheHomeRecommendFlow,
+                autoSettings.playbackPrecacheSearchFlow
+            ) { flags ->
+                moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheConfig(
+                    masterEnabled = flags[0],
+                    appLaunchEnabled = flags[1],
+                    nextTrackEnabled = flags[2],
+                    recentListEnabled = flags[3],
+                    playlistOpenEnabled = flags[4],
+                    homeRecommendEnabled = flags[5],
+                    searchEnabled = flags[6]
+                )
+            }.collect { config ->
+                playbackPrecacheConfig = config
+            }
+        }
+
+        ioScope.launch {
             settingsRepo.rememberLongFormPlaybackProgressFlow.collect { enabled ->
                 rememberLongFormPlaybackProgressEnabled = enabled
             }

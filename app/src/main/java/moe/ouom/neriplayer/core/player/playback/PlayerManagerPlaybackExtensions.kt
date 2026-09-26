@@ -63,6 +63,11 @@ import moe.ouom.neriplayer.core.player.prefetch.cancelGenericUrlPrefetchUnlessRe
 import moe.ouom.neriplayer.core.player.prefetch.cancelYouTubePrefetchForPlaybackDemand
 import moe.ouom.neriplayer.core.player.prefetch.clearPlaybackDemandCacheKey
 import moe.ouom.neriplayer.core.player.prefetch.kickoffYouTubePlaybackIntentWarmup
+import moe.ouom.neriplayer.core.player.prefetch.isRapidNextSkipping
+import moe.ouom.neriplayer.core.player.prefetch.noteNextSkipClick
+import moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecachePolicy
+import moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheScenario
+import moe.ouom.neriplayer.core.player.prefetch.precacheSongList
 import moe.ouom.neriplayer.core.player.prefetch.replacePlaybackDemandCacheKey
 import moe.ouom.neriplayer.core.player.resolver.youtube.YouTubeSeekRefreshPolicy
 import moe.ouom.neriplayer.core.player.service.AudioPlayerService
@@ -1906,6 +1911,21 @@ internal fun PlayerManager.nextImpl(
         positionMs = _playbackPositionMs.value,
         force = force
     )
+    noteNextSkipClick()
+    if (isRapidNextSkipping()) {
+        val rapidWindow = PlaybackPrecachePolicy.selectPrefetchWindow(
+            queueSize = currentPlaylist.size,
+            startIndex = currentIndex.coerceAtLeast(0),
+            rapidSkip = true,
+            repeatAll = repeatModeSetting == Player.REPEAT_MODE_ALL
+        )
+        precacheSongList(
+            songs = rapidWindow.mapNotNull { currentPlaylist.getOrNull(it) },
+            scenario = PlaybackPrecacheScenario.NEXT_TRACK,
+            maxSongs = PlaybackPrecachePolicy.RAPID_SKIP_MAX_SONGS,
+            prefixMs = PlaybackPrecachePolicy.RAPID_SKIP_PREFIX_MS
+        )
+    }
 }
 
 internal fun PlayerManager.previousImpl(

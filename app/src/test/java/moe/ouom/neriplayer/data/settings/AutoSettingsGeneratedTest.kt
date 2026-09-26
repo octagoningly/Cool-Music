@@ -174,6 +174,18 @@ class AutoSettingsGeneratedTest {
             "dynamic island lyrics switch should be exportable",
             "dynamic_island_lyrics_enabled" in booleanKeyNames
         )
+        assertTrue(
+            "playback precache master switch should be exportable",
+            "playback_precache_enabled" in booleanKeyNames
+        )
+        assertTrue(
+            "playback precache next track should be exportable",
+            "playback_precache_next_track" in booleanKeyNames
+        )
+        assertTrue(
+            "playback precache recent list should be exportable",
+            "playback_precache_recent_list" in booleanKeyNames
+        )
     }
 
     @Test

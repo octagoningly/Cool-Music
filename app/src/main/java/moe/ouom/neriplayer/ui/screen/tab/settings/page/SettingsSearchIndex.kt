@@ -242,6 +242,13 @@ private fun playbackCardIndex(targetId: String): Int {
         "setting:preempt_audio_focus" -> 1
         "setting:playback_fade_in" -> 2
         "setting:playback_crossfade_next" -> 3
+        "setting:playback_precache_enabled",
+        "setting:playback_precache_app_launch",
+        "setting:playback_precache_next_track",
+        "setting:playback_precache_recent_list",
+        "setting:playback_precache_playlist_open",
+        "setting:playback_precache_home_recommend",
+        "setting:playback_precache_search" -> 4
         else -> 0
     }
 }

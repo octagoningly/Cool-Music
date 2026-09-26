@@ -1,4 +1,5 @@
 package moe.ouom.neriplayer.ui.viewmodel.tab
+import moe.ouom.neriplayer.core.player.prefetch.precacheSongList
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -46,6 +47,7 @@ import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.netease.mergeNeteaseSessionCookies
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicHomeShelf
 import moe.ouom.neriplayer.core.di.AppContainer
+import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthBundle
 import moe.ouom.neriplayer.data.auth.youtube.buildRefreshObserverFingerprint
 import moe.ouom.neriplayer.data.model.SongItem
@@ -938,6 +940,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 NPLogger.d(
                     TAG,
                     "$name success: source=$source, count=${result.items.size}"
+                )
+                PlayerManager.precacheSongList(
+                    songs = result.items,
+                    scenario = moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheScenario.HOME_RECOMMEND
                 )
                 HomeNeteaseSongSectionState(
                     source = source,

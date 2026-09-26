@@ -52,6 +52,10 @@ internal fun resolveGenericMediaPrefetchCacheKey(
 
 internal fun PlayerManager.prefetchNextGenericTrackUrl() {
     if (!isApplicationInitialized()) return
+    if (!precacheEnabledForScenario(PlaybackPrecacheScenario.NEXT_TRACK)) {
+        cancelGenericUrlPrefetch(reason = "next_track_precache_disabled")
+        return
+    }
 
     if (player.shuffleModeEnabled || repeatModeSetting == Player.REPEAT_MODE_ONE) {
         cancelGenericUrlPrefetch(reason = "non_sequential_playback_mode")
@@ -171,28 +175,31 @@ private suspend fun PlayerManager.prefetchGenericTrackMedia(
         CachePrefetchReadiness.UNAVAILABLE -> return
         CachePrefetchReadiness.READY_FOR_PREFETCH -> Unit
     }
+    val targetBytes = PlaybackPrecachePolicy.prefixBytes(
+        prefixMs = PlaybackPrecachePolicy.NEXT_TRACK_PREFIX_MS,
+        contentLength = result.expectedContentLength,
+        durationMs = result.durationMs ?: song.durationMs,
+        bitrateKbps = result.audioInfo.bitrateKbps
+    )
     val prefetchedBytes = runCatching {
         prefetchIntoPlayerCache(
             url = result.url,
             cacheKey = mediaCacheKey,
-            targetBytes = resolveGenericMediaPrefetchBytes(result.expectedContentLength)
+            targetBytes = targetBytes
         )
     }.getOrElse { error ->
         NPLogger.w(
             "NERI-PlayerManager",
-            "generic media prefetch failed: song=${song.name}, key=$mediaCacheKey, " +
-            "error=${error.message}"
+            "generic media prefetch failed: song=" + song.name + ", key=" + mediaCacheKey + ", error=" + error.message
         )
         return
     }
     NPLogger.d(
         "NERI-PlayerManager",
-        "generic media prefetch finished: song=${song.name}, key=$mediaCacheKey, " +
-            "prefetchedBytes=$prefetchedBytes, targetBytes=" +
-            resolveGenericMediaPrefetchBytes(result.expectedContentLength)
+        "generic media prefetch finished: song=" + song.name + ", key=" + mediaCacheKey +
+            ", prefetchedBytes=" + prefetchedBytes + ", targetBytes=" + targetBytes
     )
 }
-
 internal fun PlayerManager.cancelGenericUrlPrefetch(reason: String) {
     val activeJob = currentGenericUrlPrefetchJob
     if (activeJob?.isActive == true) {

@@ -1,4 +1,6 @@
 package moe.ouom.neriplayer.core.startup.player
+import moe.ouom.neriplayer.core.player.prefetch.precacheRecentQueue
+import moe.ouom.neriplayer.core.player.prefetch.precacheAppLaunchCurrentSong
 
 import android.app.Application
 import android.content.Context
@@ -34,6 +36,10 @@ internal class PlayerStartupBootstrapper(
         )
         LegacyJsonCleanupScheduler.schedule(app, "player-bootstrap")
         NPLogger.d("NERI-App", "PlayerManager.initialize called")
+        runCatching {
+            PlayerManager.precacheAppLaunchCurrentSong()
+            PlayerManager.precacheRecentQueue()
+        }
         NPLogger.d(
             "NERI-App",
             "Player bootstrap state hasItems=${PlayerManager.hasItems()} " +

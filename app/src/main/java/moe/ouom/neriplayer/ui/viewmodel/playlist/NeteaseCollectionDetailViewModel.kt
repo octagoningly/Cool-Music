@@ -1,4 +1,5 @@
 package moe.ouom.neriplayer.ui.viewmodel.playlist
+import moe.ouom.neriplayer.core.player.prefetch.precacheSongList
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -41,6 +42,7 @@ import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.netease.mergeNeteaseSessionCookies
 import moe.ouom.neriplayer.core.di.AppContainer
+import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.data.platform.netease.CachedNeteaseArtist
 import moe.ouom.neriplayer.data.platform.netease.CachedNeteasePlaylistDetail
 import moe.ouom.neriplayer.data.platform.netease.CachedNeteasePlaylistHeader
@@ -413,6 +415,10 @@ class NeteaseCollectionDetailViewModel(application: Application) : AndroidViewMo
                 error = null,
                 header = displayHeader,
                 tracks = tracks
+            )
+            PlayerManager.precacheSongList(
+                songs = tracks,
+                scenario = moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheScenario.PLAYLIST_OPEN
             )
             withContext(Dispatchers.IO) {
                 if (!isCurrentPlaylistLoad(playlist, loadGeneration, radarCacheContext)) {

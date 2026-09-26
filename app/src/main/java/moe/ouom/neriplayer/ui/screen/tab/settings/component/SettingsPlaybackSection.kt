@@ -43,6 +43,10 @@ import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BluetoothAudio
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.FastForward
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Headphones
@@ -139,6 +143,27 @@ internal fun SettingsPlaybackSection(
     onHighlightFinished: (() -> Unit)? = null
 ) {
     val biliSponsorBlockEnabled by autoSettingsRepository.biliSponsorBlockEnabledFlow.collectAsState(
+        initial = false
+    )
+    val playbackPrecacheEnabled by autoSettingsRepository.playbackPrecacheEnabledFlow.collectAsState(
+        initial = true
+    )
+    val playbackPrecacheAppLaunch by autoSettingsRepository.playbackPrecacheAppLaunchFlow.collectAsState(
+        initial = false
+    )
+    val playbackPrecacheNextTrack by autoSettingsRepository.playbackPrecacheNextTrackFlow.collectAsState(
+        initial = true
+    )
+    val playbackPrecacheRecentList by autoSettingsRepository.playbackPrecacheRecentListFlow.collectAsState(
+        initial = true
+    )
+    val playbackPrecachePlaylistOpen by autoSettingsRepository.playbackPrecachePlaylistOpenFlow.collectAsState(
+        initial = false
+    )
+    val playbackPrecacheHomeRecommend by autoSettingsRepository.playbackPrecacheHomeRecommendFlow.collectAsState(
+        initial = false
+    )
+    val playbackPrecacheSearch by autoSettingsRepository.playbackPrecacheSearchFlow.collectAsState(
         initial = false
     )
     fun shouldShowCard(index: Int): Boolean = cardIndex == null || cardIndex == index
@@ -529,6 +554,242 @@ internal fun SettingsPlaybackSection(
                             title = stringResource(R.string.settings_playback_crossfade_out_duration),
                             durationMs = playbackCrossfadeOutDurationMs,
                             onDurationChange = onPlaybackCrossfadeOutDurationMsChange
+                        )
+                    }
+                }
+            }
+
+            if (cardIndex == null) DetailSectionGap(showHeader)
+            if (shouldShowCard(4)) DetailSectionCard(
+                showCard = !showHeader,
+                highlighted = false,
+                highlightPulse = highlightPulse,
+                onHighlightFinished = onHighlightFinished
+            ) {
+                MiuixSettingsSectionIntro(
+                    title = stringResource(R.string.settings_playback_precache),
+                    description = stringResource(R.string.settings_playback_precache_desc)
+                )
+
+                PlaybackSwitchItem(
+                    setting = AutoSettingsMetadata.requireSetting(
+                        AutoSettingsKeys.PLAYBACK_PRECACHE_ENABLED
+                    ),
+                    checked = playbackPrecacheEnabled,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Bolt,
+                            contentDescription = stringResource(R.string.settings_playback_precache),
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    onToggle = {
+                        scope.launch {
+                            autoSettingsRepository.setPlaybackPrecacheEnabled(!playbackPrecacheEnabled)
+                        }
+                    },
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            autoSettingsRepository.setPlaybackPrecacheEnabled(enabled)
+                        }
+                    },
+                    highlightTargetId = highlightTargetId,
+                    highlightPulse = highlightPulse,
+                    onHighlightFinished = onHighlightFinished
+                )
+
+                LazyAnimatedVisibility(visible = playbackPrecacheEnabled) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+                    ) {
+                        PlaybackSwitchItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.PLAYBACK_PRECACHE_APP_LAUNCH
+                            ),
+                            checked = playbackPrecacheAppLaunch,
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.PlayArrow,
+                                    contentDescription = stringResource(
+                                        R.string.settings_playback_precache_app_launch
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onToggle = {
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecacheAppLaunch(
+                                        !playbackPrecacheAppLaunch
+                                    )
+                                }
+                            },
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecacheAppLaunch(enabled)
+                                }
+                            },
+                            highlightTargetId = highlightTargetId,
+                            highlightPulse = highlightPulse,
+                            onHighlightFinished = onHighlightFinished
+                        )
+                        PlaybackSwitchItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.PLAYBACK_PRECACHE_NEXT_TRACK
+                            ),
+                            checked = playbackPrecacheNextTrack,
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.FastForward,
+                                    contentDescription = stringResource(
+                                        R.string.settings_playback_precache_next_track
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onToggle = {
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecacheNextTrack(
+                                        !playbackPrecacheNextTrack
+                                    )
+                                }
+                            },
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecacheNextTrack(enabled)
+                                }
+                            },
+                            highlightTargetId = highlightTargetId,
+                            highlightPulse = highlightPulse,
+                            onHighlightFinished = onHighlightFinished
+                        )
+                        PlaybackSwitchItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.PLAYBACK_PRECACHE_RECENT_LIST
+                            ),
+                            checked = playbackPrecacheRecentList,
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.History,
+                                    contentDescription = stringResource(
+                                        R.string.settings_playback_precache_recent_list
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onToggle = {
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecacheRecentList(
+                                        !playbackPrecacheRecentList
+                                    )
+                                }
+                            },
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecacheRecentList(enabled)
+                                }
+                            },
+                            highlightTargetId = highlightTargetId,
+                            highlightPulse = highlightPulse,
+                            onHighlightFinished = onHighlightFinished
+                        )
+                        PlaybackSwitchItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.PLAYBACK_PRECACHE_PLAYLIST_OPEN
+                            ),
+                            checked = playbackPrecachePlaylistOpen,
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
+                                    contentDescription = stringResource(
+                                        R.string.settings_playback_precache_playlist_open
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onToggle = {
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecachePlaylistOpen(
+                                        !playbackPrecachePlaylistOpen
+                                    )
+                                }
+                            },
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecachePlaylistOpen(enabled)
+                                }
+                            },
+                            highlightTargetId = highlightTargetId,
+                            highlightPulse = highlightPulse,
+                            onHighlightFinished = onHighlightFinished
+                        )
+                        PlaybackSwitchItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.PLAYBACK_PRECACHE_HOME_RECOMMEND
+                            ),
+                            checked = playbackPrecacheHomeRecommend,
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Home,
+                                    contentDescription = stringResource(
+                                        R.string.settings_playback_precache_home_recommend
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onToggle = {
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecacheHomeRecommend(
+                                        !playbackPrecacheHomeRecommend
+                                    )
+                                }
+                            },
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecacheHomeRecommend(enabled)
+                                }
+                            },
+                            highlightTargetId = highlightTargetId,
+                            highlightPulse = highlightPulse,
+                            onHighlightFinished = onHighlightFinished
+                        )
+                        PlaybackSwitchItem(
+                            setting = AutoSettingsMetadata.requireSetting(
+                                AutoSettingsKeys.PLAYBACK_PRECACHE_SEARCH
+                            ),
+                            checked = playbackPrecacheSearch,
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Search,
+                                    contentDescription = stringResource(
+                                        R.string.settings_playback_precache_search
+                                    ),
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onToggle = {
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecacheSearch(
+                                        !playbackPrecacheSearch
+                                    )
+                                }
+                            },
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    autoSettingsRepository.setPlaybackPrecacheSearch(enabled)
+                                }
+                            },
+                            highlightTargetId = highlightTargetId,
+                            highlightPulse = highlightPulse,
+                            onHighlightFinished = onHighlightFinished
                         )
                     }
                 }

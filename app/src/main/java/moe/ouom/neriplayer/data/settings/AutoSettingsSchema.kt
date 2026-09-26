@@ -1970,5 +1970,62 @@ object AutoSettingsSchema {
             titleRes = R.string.settings_preempt_audio_focus,
             descriptionRes = R.string.settings_preempt_audio_focus_desc
         )
+
+        @AutoSetting(order = 190)
+        val playbackPrecacheEnabled = autoSwitchSetting(
+            key = "playback_precache_enabled",
+            defaultValue = true,
+            titleRes = R.string.settings_playback_precache,
+            descriptionRes = R.string.settings_playback_precache_desc,
+            icon = AutoSettingIcon.Bolt
+        )
+
+        @AutoSetting(order = 191)
+        val playbackPrecacheAppLaunch = autoSwitchSetting(
+            key = "playback_precache_app_launch",
+            defaultValue = false,
+            titleRes = R.string.settings_playback_precache_app_launch,
+            descriptionRes = R.string.settings_playback_precache_app_launch_desc
+        )
+
+        @AutoSetting(order = 192)
+        val playbackPrecacheNextTrack = autoSwitchSetting(
+            key = "playback_precache_next_track",
+            defaultValue = true,
+            titleRes = R.string.settings_playback_precache_next_track,
+            descriptionRes = R.string.settings_playback_precache_next_track_desc
+        )
+
+        @AutoSetting(order = 193)
+        val playbackPrecacheRecentList = autoSwitchSetting(
+            key = "playback_precache_recent_list",
+            defaultValue = true,
+            titleRes = R.string.settings_playback_precache_recent_list,
+            descriptionRes = R.string.settings_playback_precache_recent_list_desc
+        )
+
+        @AutoSetting(order = 194)
+        val playbackPrecachePlaylistOpen = autoSwitchSetting(
+            key = "playback_precache_playlist_open",
+            defaultValue = false,
+            titleRes = R.string.settings_playback_precache_playlist_open,
+            descriptionRes = R.string.settings_playback_precache_playlist_open_desc
+        )
+
+        @AutoSetting(order = 195)
+        val playbackPrecacheHomeRecommend = autoSwitchSetting(
+            key = "playback_precache_home_recommend",
+            defaultValue = false,
+            titleRes = R.string.settings_playback_precache_home_recommend,
+            descriptionRes = R.string.settings_playback_precache_home_recommend_desc
+        )
+
+        @AutoSetting(order = 196)
+        val playbackPrecacheSearch = autoSwitchSetting(
+            key = "playback_precache_search",
+            defaultValue = false,
+            titleRes = R.string.settings_playback_precache_search,
+            descriptionRes = R.string.settings_playback_precache_search_desc
+        )
     }
 }

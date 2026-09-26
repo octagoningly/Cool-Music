@@ -17,11 +17,12 @@ private const val MEDIA_PREFETCH_MIN_BYTES = 256L * 1024L
 internal suspend fun PlayerManager.prefetchIntoPlayerCache(
     url: String,
     cacheKey: String,
-    targetBytes: Long
+    targetBytes: Long,
+    minBytes: Long = MEDIA_PREFETCH_MIN_BYTES
 ): Long = withContext(Dispatchers.IO) {
     val mediaCache = cache ?: return@withContext 0L
     val upstreamFactory = conditionalHttpFactory ?: return@withContext 0L
-    val requestedBytes = targetBytes.coerceAtLeast(MEDIA_PREFETCH_MIN_BYTES)
+    val requestedBytes = targetBytes.coerceAtLeast(minBytes)
     if (playbackDemandArbiter.shouldYieldPrefetch(cacheKey)) {
         return@withContext 0L
     }

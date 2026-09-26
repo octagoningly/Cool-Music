@@ -1,4 +1,5 @@
 package moe.ouom.neriplayer.ui
+import moe.ouom.neriplayer.core.player.prefetch.precacheAppLaunchCurrentSong
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -2082,6 +2083,7 @@ private fun NeriAppContent(
                         foreground = true,
                         reason = "lifecycle_resume"
                     )
+                    PlayerManager.precacheAppLaunchCurrentSong()
                     coverArtRefreshToken += 1
                     if (!PlayerManager.isUsbExclusiveNativePlaybackStable()) {
                         updateStartupAudioFocus("lifecycle_resume")

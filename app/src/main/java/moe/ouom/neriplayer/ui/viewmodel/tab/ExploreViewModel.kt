@@ -43,6 +43,8 @@ import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchResult
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchResultType
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.core.player.PlayerManager
+import moe.ouom.neriplayer.core.player.prefetch.precacheSongList
 import moe.ouom.neriplayer.core.player.PlayerManager.biliClient
 import moe.ouom.neriplayer.core.player.PlayerManager.neteaseClient
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.searchLxDefaultSongs
@@ -523,6 +525,14 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private fun precacheSearchSongs(songs: List<SongItem>) {
+        if (songs.isEmpty()) return
+        PlayerManager.precacheSongList(
+            songs = songs,
+            scenario = moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheScenario.SEARCH
+        )
+    }
+
     fun loadMoreSearchResults() {
         val state = _uiState.value
         val source = state.selectedSearchSource
@@ -584,6 +594,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 }
                 updateSearchStateIfCurrent(requestVersion, source) {
                     val merged = mergeExploreSearchResults(it.searchItems, result.items)
+                    precacheSearchSongs(searchSongItems(merged))
                     it.copy(
                         searching = false,
                         searchLoadingMore = false,
@@ -660,6 +671,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         searchHasMore = result.hasMore
                     )
                 }
+                precacheSearchSongs(result.songs)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -698,6 +710,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         searchHasMore = result.hasMore
                     )
                 }
+                precacheSearchSongs(result.songs)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -983,6 +996,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         searchHasMore = result.hasMore
                     )
                 }
+                precacheSearchSongs(result.songs)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

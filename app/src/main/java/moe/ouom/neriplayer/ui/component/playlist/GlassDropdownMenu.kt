@@ -76,7 +76,8 @@ internal fun resolveGlassMenuPosition(
     var y = anchor.bottom + offsetY
     val roomBelow = maxBottom - y
     if (roomBelow < popupSize.height) {
-        y = anchor.top - popupSize.height - offsetY
+        // 上弹时额外上移，避免与底部 Dock/工具栏重叠
+        y = anchor.top - popupSize.height - offsetY - 72
     }
     if (y + popupSize.height > maxBottom) {
         y = maxTop

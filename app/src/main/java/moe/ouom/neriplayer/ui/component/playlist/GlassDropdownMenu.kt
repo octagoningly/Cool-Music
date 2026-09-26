@@ -3,6 +3,8 @@ package moe.ouom.neriplayer.ui.component.playlist
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,6 +57,8 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import kotlin.math.roundToInt
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
@@ -74,18 +78,38 @@ import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
  * 设置 → 动效 → 连贯反馈（`coherent_feedback_enabled`）关闭时保持原瞬时开合。
  */
 object GlassMenuMotion {
-    const val EnterDurationMs = 180
-    const val ExitDurationMs = 120
-    const val EnterScaleFrom = 0.86f
+    /** 淡入淡出时长（透明度不跟弹簧过冲，避免闪一下） */
+    const val EnterFadeMs = 180
+    const val ExitFadeMs = 120
+
+    const val EnterScaleFrom = 0.76f
     const val ExitScaleTo = 0.92f
 
     /** 相对菜单高度的微位移比例（从按钮方向长出） */
-    const val SlideFraction = 0.08f
+    const val SlideFraction = 0.10f
+
+    /**
+     * Q 弹：欠阻尼弹簧，冲过 1.0 再回弹不足，震荡几次收住。
+     * damping 0.48 → 约 2～3 次肉眼可见的过冲/回弹。
+     */
+    val EnterTransformSpring = spring<Float>(
+        dampingRatio = 0.48f,
+        stiffness = Spring.StiffnessMedium,
+    )
+
+    /** 收回：仍带一点弹性，但不明显过冲 */
+    val ExitTransformSpring = spring<Float>(
+        dampingRatio = 0.72f,
+        stiffness = Spring.StiffnessMedium,
+    )
 
     fun transformOrigin(opensUpward: Boolean): TransformOrigin =
         if (opensUpward) TransformOrigin(1f, 1f) else TransformOrigin(1f, 0f)
 
-    /** progress: 0=收起, 1=展开；展开从 EnterScaleFrom，收回停在 ExitScaleTo */
+    /**
+     * progress: 0=收起, 1=展开；弹簧可 >1（过冲）或 <1（回弹不足）。
+     * 展开从 EnterScaleFrom 到 1，收回从 1 到 ExitScaleTo。
+     */
     fun appearScale(expanded: Boolean, progress: Float): Float =
         if (expanded) {
             lerp(EnterScaleFrom, 1f, progress)
@@ -274,29 +298,52 @@ fun GlassDropdownMenu(
         return
     }
 
-    val progress = remember { Animatable(0f) }
+    val transformProgress = remember { Animatable(0f) }
+    val opacityProgress = remember { Animatable(0f) }
     var contentAlive by remember { mutableStateOf(false) }
 
     LaunchedEffect(expanded) {
         if (expanded) {
             contentAlive = true
-            progress.snapTo(0f)
-            progress.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = GlassMenuMotion.EnterDurationMs,
-                    easing = FastOutSlowInEasing,
-                ),
-            )
+            transformProgress.snapTo(0f)
+            opacityProgress.snapTo(0f)
+            coroutineScope {
+                // 变换走 Q 弹弹簧（可过冲/震荡）；透明度单独淡入，不跟着过冲
+                launch {
+                    transformProgress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = GlassMenuMotion.EnterTransformSpring,
+                    )
+                }
+                launch {
+                    opacityProgress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(
+                            durationMillis = GlassMenuMotion.EnterFadeMs,
+                            easing = FastOutSlowInEasing,
+                        ),
+                    )
+                }
+            }
         } else {
             if (!contentAlive) return@LaunchedEffect
-            progress.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(
-                    durationMillis = GlassMenuMotion.ExitDurationMs,
-                    easing = FastOutLinearInEasing,
-                ),
-            )
+            coroutineScope {
+                launch {
+                    transformProgress.animateTo(
+                        targetValue = 0f,
+                        animationSpec = GlassMenuMotion.ExitTransformSpring,
+                    )
+                }
+                launch {
+                    opacityProgress.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(
+                            durationMillis = GlassMenuMotion.ExitFadeMs,
+                            easing = FastOutLinearInEasing,
+                        ),
+                    )
+                }
+            }
             contentAlive = false
         }
     }
@@ -314,12 +361,12 @@ fun GlassDropdownMenu(
         glassActive = glassActive,
         menuBoundsInMainWindow = menuBoundsInMainWindow,
         modifier = Modifier.graphicsLayer {
-            val t = progress.value
+            val t = transformProgress.value
             transformOrigin = GlassMenuMotion.transformOrigin(opensUpward)
             val scale = GlassMenuMotion.appearScale(expanded, t)
             scaleX = scale
             scaleY = scale
-            alpha = t
+            alpha = opacityProgress.value
             translationY = GlassMenuMotion.appearSlideYFraction(opensUpward, t) * size.height
         },
         content = content,

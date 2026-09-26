@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.ui.component.playlist
+package moe.ouom.neriplayer.ui.component.playlist
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -76,12 +76,12 @@ internal fun resolveGlassMenuPosition(
         x = (windowSize.width - popupSize.width).coerceAtLeast(0)
     }
 
-    // 优先向下弹出；下方放不下整颗菜单则翻到上方（避免贴底栏/进度条重叠）
+    // 优先向下弹出；下方几乎放不下才翻到上方
     val maxBottom = (windowSize.height - reservedBottomPx).coerceAtLeast(0)
     val maxTop = (maxBottom - popupSize.height).coerceAtLeast(0)
     var y = anchor.bottom + offsetY
     val roomBelow = maxBottom - y
-    if (roomBelow < popupSize.height) {
+    if (roomBelow < minOf(popupSize.height / 4, 96)) {
         // 上弹时额外上移，避免与底部 Dock/工具栏重叠
         y = anchor.top - popupSize.height - offsetY - 72
     }
@@ -227,6 +227,7 @@ fun GlassDropdownMenu(
                                 .widthIn(min = 112.dp, max = maxWidth)
                                 .heightIn(max = maxHeight)
                                 .verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                             content = content
                         )
                     }
@@ -237,7 +238,7 @@ fun GlassDropdownMenu(
 }
 
 /**
- * 下拉菜单文案：居中，宽度跟内容走。
+ * 下拉菜单文案：居中，字号与列表操作一致，宽度跟内容走。
  */
 @Composable
 fun GlassMenuItemText(
@@ -250,7 +251,7 @@ fun GlassMenuItemText(
         modifier = modifier,
         textAlign = TextAlign.Center,
         maxLines = maxLines,
-        style = LocalTextStyle.current
+        style = MaterialTheme.typography.bodyLarge
     )
 }
 

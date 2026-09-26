@@ -85,8 +85,8 @@ object GlassMenuMotion {
     const val EnterScaleFrom = 0.76f
     const val ExitScaleTo = 0.92f
 
-    /** 相对菜单高度的微位移比例（从按钮方向长出） */
-    const val SlideFraction = 0.10f
+    /** 微位移比例：从远离 ⋮ 的一侧靠拢，避免弹出过程中盖住按钮 */
+    const val SlideFraction = 0.08f
 
     /**
      * Q 弹：欠阻尼弹簧，冲过 1.0 再回弹不足，震荡几次收住。
@@ -103,8 +103,14 @@ object GlassMenuMotion {
         stiffness = Spring.StiffnessMedium,
     )
 
-    fun transformOrigin(opensUpward: Boolean): TransformOrigin =
-        if (opensUpward) TransformOrigin(1f, 1f) else TransformOrigin(1f, 0f)
+    /**
+     * 缩放原点：贴在靠近 ⋮ 的那一角。
+     * 菜单在按钮左侧 → 右缘靠按钮（pivotX=1）；右侧 → 左缘（pivotX=0）。
+     */
+    fun transformOrigin(opensUpward: Boolean, menuLeftOfAnchor: Boolean): TransformOrigin {
+        val pivotX = if (menuLeftOfAnchor) 1f else 0f
+        return if (opensUpward) TransformOrigin(pivotX, 1f) else TransformOrigin(pivotX, 0f)
+    }
 
     /**
      * progress: 0=收起, 1=展开；弹簧可 >1（过冲）或 <1（回弹不足）。
@@ -117,10 +123,19 @@ object GlassMenuMotion {
             lerp(ExitScaleTo, 1f, progress)
         }
 
-    /** progress: 0=收起, 1=展开；返回相对菜单高度的 Y 位移（px 由调用方乘 height） */
-    fun appearSlideYFraction(opensUpward: Boolean, progress: Float): Float {
-        val fromButton = if (opensUpward) SlideFraction else -SlideFraction
-        return fromButton * (1f - progress)
+    /**
+     * progress: 0=收起, 1=展开；返回相对宽/高的位移比例。
+     * 从**远离锚点按钮**的一侧靠拢，弹出过程不经过 ⋮。
+     */
+    fun appearSlideFractions(
+        opensUpward: Boolean,
+        menuLeftOfAnchor: Boolean,
+        progress: Float,
+    ): androidx.compose.ui.geometry.Offset {
+        val t = 1f - progress
+        val dx = if (menuLeftOfAnchor) -SlideFraction * t else SlideFraction * t
+        val dy = if (opensUpward) -SlideFraction * t else SlideFraction * t
+        return androidx.compose.ui.geometry.Offset(dx, dy)
     }
 }
 
@@ -133,8 +148,22 @@ internal fun glassMenuOpensUpward(
     popupSize: IntSize,
 ): Boolean = position.y + popupSize.height <= anchor.top + 1
 
+/** 菜单是否在锚点按钮左侧（右侧 ⋮ 常用，弹窗避开按钮本身）。 */
+internal fun glassMenuLeftOfAnchor(
+    position: IntOffset,
+    popupSize: IntSize,
+    anchor: IntRect,
+): Boolean {
+    val menuCenterX = position.x + popupSize.width / 2
+    val anchorCenterX = (anchor.left + anchor.right) / 2
+    return menuCenterX <= anchorCenterX
+}
+
 /**
- * 菜单定位：优先向下弹出；下方几乎放不下才翻到上方（上弹时额外上移避让底栏）。
+ * 菜单定位：**避开锚点按钮**（歌曲行右侧 ⋮ 不被弹窗盖住）。
+ *
+ * 横向优先放到按钮左侧（右侧三点时按钮仍露出）；放不下再试右侧，
+ * 再退回按钮下方右对齐。纵向优先向下留空隙，几乎放不下才上弹。
  * 返回主窗口坐标，供玻璃区域注册。
  */
 internal fun resolveGlassMenuPosition(
@@ -145,29 +174,63 @@ internal fun resolveGlassMenuPosition(
     offsetY: Int,
     reservedBottomPx: Int,
 ): IntOffset {
-    // 右侧按钮优先右对齐，避免弹窗甩到左边
-    var x = anchor.right - popupSize.width
-    if (x < offsetX) {
-        x = anchor.left + offsetX
-    }
-    if (x < 0) x = 0
-    if (x + popupSize.width > windowSize.width) {
-        x = (windowSize.width - popupSize.width).coerceAtLeast(0)
-    }
+    // 与 ⋮ 的最小空隙，保证按钮不被盖住
+    val gapX = maxOf(offsetX, 12)
+    val gapY = maxOf(offsetY, 12)
+    val edgeMargin = 8
 
-    // 优先向下弹出；下方几乎放不下才翻到上方
     val maxBottom = (windowSize.height - reservedBottomPx).coerceAtLeast(0)
     val maxTop = (maxBottom - popupSize.height).coerceAtLeast(0)
-    var y = anchor.bottom + offsetY
+
+    // —— 横向：优先整块放到按钮左侧，⋮ 留在弹窗外 ——
+    var x = anchor.left - popupSize.width - gapX
+    if (x < edgeMargin) {
+        // 放不下再试按钮右侧
+        x = anchor.right + gapX
+    }
+    if (x < edgeMargin || x + popupSize.width > windowSize.width - edgeMargin) {
+        // 再退回：与按钮右对齐（原策略）
+        x = anchor.right - popupSize.width
+    }
+    if (x < edgeMargin) x = edgeMargin
+    if (x + popupSize.width > windowSize.width - edgeMargin) {
+        x = (windowSize.width - edgeMargin - popupSize.width).coerceAtLeast(edgeMargin)
+    }
+
+    // —— 纵向：优先向下留空隙；下方几乎放不下才翻到上方 ——
+    var y = anchor.bottom + gapY
     val roomBelow = maxBottom - y
     if (roomBelow < minOf(popupSize.height / 4, 96)) {
         // 上弹时额外上移，避免与底部 Dock/工具栏重叠
-        y = anchor.top - popupSize.height - offsetY - 72
+        y = anchor.top - popupSize.height - gapY - 72
     }
     if (y + popupSize.height > maxBottom) {
         y = maxTop
     }
-    if (y < offsetY) y = offsetY
+    if (y < edgeMargin) y = edgeMargin
+
+    // —— 兜底：仍与按钮相交则推开，保证 ⋮ 不被挡 ——
+    val overlapsAnchor =
+        x < anchor.right && x + popupSize.width > anchor.left &&
+            y < anchor.bottom && y + popupSize.height > anchor.top
+    if (overlapsAnchor) {
+        val below = anchor.bottom + gapY
+        val above = anchor.top - popupSize.height - gapY
+        y = when {
+            below + popupSize.height <= maxBottom -> below
+            above >= edgeMargin -> above
+            else -> y
+        }
+        // 横向也再拉开一点
+        val left = anchor.left - popupSize.width - gapX
+        val right = anchor.right + gapX
+        x = when {
+            left >= edgeMargin -> left
+            right + popupSize.width <= windowSize.width - edgeMargin -> right
+            else -> x
+        }
+    }
+
     return IntOffset(x, y)
 }
 
@@ -191,7 +254,7 @@ internal fun glassMenuBoundsInMainWindow(
 private class GlassMenuPositionProvider(
     private val contentOffset: DpOffset,
     private val reservedBottomPx: () -> Int,
-    private val onMenuPlacement: (bounds: Rect, opensUpward: Boolean) -> Unit,
+    private val onMenuPlacement: (bounds: Rect, opensUpward: Boolean, menuLeftOfAnchor: Boolean) -> Unit,
 ) : PopupPositionProvider {
     private var density: Density = Density(1f)
 
@@ -220,7 +283,16 @@ private class GlassMenuPositionProvider(
             anchor = anchorBounds,
             popupSize = popupContentSize,
         )
-        onMenuPlacement(glassMenuBoundsInMainWindow(position, popupContentSize), opensUpward)
+        val menuLeftOfAnchor = glassMenuLeftOfAnchor(
+            position = position,
+            popupSize = popupContentSize,
+            anchor = anchorBounds,
+        )
+        onMenuPlacement(
+            glassMenuBoundsInMainWindow(position, popupContentSize),
+            opensUpward,
+            menuLeftOfAnchor,
+        )
         return position
     }
 }
@@ -261,6 +333,7 @@ fun GlassDropdownMenu(
         .collectAsState(initial = false)
     var menuBoundsInMainWindow by remember { mutableStateOf<Rect?>(null) }
     var opensUpward by remember { mutableStateOf(false) }
+    var menuLeftOfAnchor by remember { mutableStateOf(true) }
 
     val fallbackColor = if (glassActive) {
         // 玻璃开启时的半透明底：要能透出模糊，又保证文字可读
@@ -273,9 +346,10 @@ fun GlassDropdownMenu(
         GlassMenuPositionProvider(
             contentOffset = DpOffset(0.dp, 8.dp),
             reservedBottomPx = { with(density) { reservedBottom.roundToPx() } },
-            onMenuPlacement = { bounds, up ->
+            onMenuPlacement = { bounds, up, leftOfAnchor ->
                 menuBoundsInMainWindow = bounds
                 opensUpward = up
+                menuLeftOfAnchor = leftOfAnchor
             },
         ).also { it.attach(density) }
     }
@@ -362,12 +436,14 @@ fun GlassDropdownMenu(
         menuBoundsInMainWindow = menuBoundsInMainWindow,
         modifier = Modifier.graphicsLayer {
             val t = transformProgress.value
-            transformOrigin = GlassMenuMotion.transformOrigin(opensUpward)
+            transformOrigin = GlassMenuMotion.transformOrigin(opensUpward, menuLeftOfAnchor)
             val scale = GlassMenuMotion.appearScale(expanded, t)
             scaleX = scale
             scaleY = scale
             alpha = opacityProgress.value
-            translationY = GlassMenuMotion.appearSlideYFraction(opensUpward, t) * size.height
+            val slide = GlassMenuMotion.appearSlideFractions(opensUpward, menuLeftOfAnchor, t)
+            translationX = slide.x * size.width
+            translationY = slide.y * size.height
         },
         content = content,
     )

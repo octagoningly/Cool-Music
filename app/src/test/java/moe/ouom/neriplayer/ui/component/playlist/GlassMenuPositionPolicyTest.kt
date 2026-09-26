@@ -13,81 +13,81 @@ class GlassMenuPositionPolicyTest {
     private val menu = IntSize(400, 600)
     private val reservedBottom = 200
 
+    private fun pos(
+        anchor: IntRect,
+        menuSize: IntSize = menu,
+        reserved: Int = reservedBottom,
+        offsetY: Int = 8,
+    ): IntOffset = resolveGlassMenuPosition(
+        anchor = anchor,
+        windowSize = window,
+        popupSize = menuSize,
+        offsetX = 0,
+        offsetY = offsetY,
+        reservedBottomPx = reserved,
+    )
+
     @Test
-    fun opensDownwardWhenRoomBelow() {
-        val anchor = IntRect(left = 200, top = 1200, right = 280, bottom = 1280)
-        val pos = resolveGlassMenuPosition(
-            anchor = anchor,
-            windowSize = window,
-            popupSize = menu,
-            offsetX = 0,
-            offsetY = 8,
-            reservedBottomPx = reservedBottom,
+    fun songMoreVertPrefersLeftOfButtonSoDotsStayVisible() {
+        // 歌曲行右侧 ⋮：约 x=980..1030
+        val anchor = IntRect(left = 980, top = 1200, right = 1030, bottom = 1250)
+        val p = pos(anchor)
+        // 弹窗整体在按钮左侧，不挡住 ⋮
+        assertTrue("menu right=${p.x + menu.width} should be <= anchor.left", p.x + menu.width <= anchor.left)
+        assertFalse(glassMenuLeftOfAnchor(p, menu, anchor).not())
+        assertTrue(glassMenuLeftOfAnchor(p, menu, anchor))
+        // 也不与按钮相交
+        assertFalse(
+            p.x < anchor.right && p.x + menu.width > anchor.left &&
+                p.y < anchor.bottom && p.y + menu.height > anchor.top
         )
-        // 优先向下：贴锚点底 + offset
-        assertEquals(1280 + 8, pos.y)
-        assertEquals(200, pos.x)
-        assertFalse(glassMenuOpensUpward(pos, anchor, menu))
+    }
+
+    @Test
+    fun midScreenFallsBackToRightAlignBelowWhenLeftFits() {
+        // 居中偏左的锚点：左侧放 400 宽仍可
+        val anchor = IntRect(left = 200, top = 1200, right = 280, bottom = 1280)
+        val p = pos(anchor)
+        // 优先左侧：x = 200 - 400 - 12 = -212 放不下 → 试右侧 x=280+12=292
+        assertEquals(280 + 12, p.x)
+        assertEquals(1280 + 12, p.y)
+        assertFalse(glassMenuLeftOfAnchor(p, menu, anchor))
     }
 
     @Test
     fun flipsUpwardWhenRoomBelowIsTight() {
-        // 下方几乎放不下：roomBelow < min(h/4, 96)
-        val anchor = IntRect(left = 100, top = 2020, right = 180, bottom = 2100)
-        val pos = resolveGlassMenuPosition(
-            anchor = anchor,
-            windowSize = window,
-            popupSize = menu,
-            offsetX = 0,
-            offsetY = 8,
-            reservedBottomPx = reservedBottom,
-        )
-        // 上弹：anchor.top - height - offset - 72（避让 Dock）
-        assertEquals(2020 - 600 - 8 - 72, pos.y)
-        assertTrue(glassMenuOpensUpward(pos, anchor, menu))
+        val anchor = IntRect(left = 980, top = 2020, right = 1030, bottom = 2100)
+        val p = pos(anchor)
+        // 上弹时也在按钮左侧
+        assertTrue(p.x + menu.width <= anchor.left)
+        assertTrue(glassMenuOpensUpward(p, anchor, menu))
     }
 
     @Test
-    fun downwardWhenNoRoomAboveStillAvoidsMiniPlayer() {
-        // 锚点很靠上，空间充足优先向下
-        val anchor = IntRect(left = 100, top = 40, right = 180, bottom = 120)
-        val pos = resolveGlassMenuPosition(
-            anchor = anchor,
-            windowSize = window,
-            popupSize = menu,
-            offsetX = 0,
-            offsetY = 8,
-            reservedBottomPx = reservedBottom,
-        )
-        val maxBottom = window.height - reservedBottom
-        assertTrue(pos.y + menu.height <= maxBottom)
-        assertTrue(pos.y >= 8)
-        // 向下时贴着锚点底
-        assertEquals(120 + 8, pos.y)
+    fun neverOverlapsAnchorEvenWhenClamped() {
+        val anchor = IntRect(left = 500, top = 1100, right = 560, bottom = 1160)
+        val p = pos(anchor)
+        val overlaps =
+            p.x < anchor.right && p.x + menu.width > anchor.left &&
+                p.y < anchor.bottom && p.y + menu.height > anchor.top
+        assertFalse("menu $p overlaps anchor $anchor", overlaps)
     }
 
     @Test
     fun neverOverlapsReservedBottomEvenWhenAnchorIsLow() {
-        val anchor = IntRect(left = 100, top = 2000, right = 180, bottom = 2080)
-        val pos = resolveGlassMenuPosition(
-            anchor = anchor,
-            windowSize = window,
-            popupSize = menu,
-            offsetX = 0,
-            offsetY = 8,
-            reservedBottomPx = reservedBottom,
-        )
+        val anchor = IntRect(left = 980, top = 2000, right = 1030, bottom = 2080)
+        val p = pos(anchor)
         val maxBottom = window.height - reservedBottom
         assertTrue(
-            "menu bottom ${pos.y + menu.height} must be <= $maxBottom",
-            pos.y + menu.height <= maxBottom
+            "menu bottom ${p.y + menu.height} must be <= $maxBottom",
+            p.y + menu.height <= maxBottom
         )
     }
 
     @Test
     fun menuBoundsMatchPosition() {
-        val pos = IntOffset(30, 40)
-        val bounds = glassMenuBoundsInMainWindow(pos, menu)
+        val p = IntOffset(30, 40)
+        val bounds = glassMenuBoundsInMainWindow(p, menu)
         assertEquals(30f, bounds.left)
         assertEquals(40f, bounds.top)
         assertEquals(430f, bounds.right)

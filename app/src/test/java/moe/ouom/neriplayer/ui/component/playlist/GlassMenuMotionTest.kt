@@ -8,10 +8,8 @@ import org.junit.Test
 class GlassMenuMotionTest {
     @Test
     fun enterSpringIsUnderdampedForVisibleBounce() {
-        // Q 弹：欠阻尼，会过冲并震荡
         assertTrue(GlassMenuMotion.EnterTransformSpring.dampingRatio < 1f)
         assertTrue(GlassMenuMotion.EnterTransformSpring.dampingRatio in 0.35f..0.65f)
-        // 收回更稳，但仍略带弹性
         assertTrue(GlassMenuMotion.ExitTransformSpring.dampingRatio < 1f)
         assertTrue(
             GlassMenuMotion.ExitTransformSpring.dampingRatio >
@@ -27,53 +25,64 @@ class GlassMenuMotionTest {
 
     @Test
     fun appearScaleEndpointsMatchRecipe() {
-        // 展开起点
         assertEquals(GlassMenuMotion.EnterScaleFrom, GlassMenuMotion.appearScale(true, 0f), 1e-4f)
         assertEquals(1f, GlassMenuMotion.appearScale(true, 1f), 1e-4f)
-        // 收回：progress 1→0
         assertEquals(1f, GlassMenuMotion.appearScale(false, 1f), 1e-4f)
         assertEquals(GlassMenuMotion.ExitScaleTo, GlassMenuMotion.appearScale(false, 0f), 1e-4f)
     }
 
     @Test
     fun appearScaleOvershootsPastTargetWhenSpringPassesOne() {
-        // 弹簧 progress>1 → scale>1（冲过预定位置）
         val overshoot = GlassMenuMotion.appearScale(true, 1.15f)
         assertTrue("overshoot scale=$overshoot", overshoot > 1f)
-        // 回弹不足 progress<1 → scale<1
         val undershoot = GlassMenuMotion.appearScale(true, 0.88f)
         assertTrue("undershoot scale=$undershoot", undershoot < 1f)
     }
 
     @Test
-    fun slideComesFromButtonSide() {
-        // 下弹：从上方（负 Y）长出
-        assertTrue(GlassMenuMotion.appearSlideYFraction(opensUpward = false, progress = 0f) < 0f)
-        assertEquals(0f, GlassMenuMotion.appearSlideYFraction(false, 1f), 1e-4f)
-        // 上弹：从下方（正 Y）长出
-        assertTrue(GlassMenuMotion.appearSlideYFraction(opensUpward = true, progress = 0f) > 0f)
-        assertEquals(0f, GlassMenuMotion.appearSlideYFraction(true, 1f), 1e-4f)
-        // 过冲时位移越过 0 到另一侧
-        assertTrue(GlassMenuMotion.appearSlideYFraction(false, 1.1f) > 0f)
+    fun slideComesFromSideAwayFromMoreButton() {
+        // 下弹 + 菜单在按钮左侧：从更左、更下靠拢（不经过 ⋮）
+        val enter = GlassMenuMotion.appearSlideFractions(
+            opensUpward = false,
+            menuLeftOfAnchor = true,
+            progress = 0f,
+        )
+        assertTrue("dx=${enter.x} should be < 0", enter.x < 0f)
+        assertTrue("dy=${enter.y} should be > 0", enter.y > 0f)
+
+        // 上弹 + 左侧：从更左、更上靠拢
+        val up = GlassMenuMotion.appearSlideFractions(
+            opensUpward = true,
+            menuLeftOfAnchor = true,
+            progress = 0f,
+        )
+        assertTrue(up.x < 0f)
+        assertTrue(up.y < 0f)
+
+        // 落位后位移为 0
+        val settled = GlassMenuMotion.appearSlideFractions(false, true, 1f)
+        assertEquals(0f, settled.x, 1e-4f)
+        assertEquals(0f, settled.y, 1e-4f)
     }
 
     @Test
-    fun transformOriginFollowsOpenDirection() {
-        // 下弹 TopEnd：贴右上角（三点按钮侧）
-        assertEquals(1f, GlassMenuMotion.transformOrigin(false).pivotFractionX, 1e-4f)
-        assertEquals(0f, GlassMenuMotion.transformOrigin(false).pivotFractionY, 1e-4f)
-        // 上弹 BottomEnd：贴右下角
-        assertEquals(1f, GlassMenuMotion.transformOrigin(true).pivotFractionX, 1e-4f)
-        assertEquals(1f, GlassMenuMotion.transformOrigin(true).pivotFractionY, 1e-4f)
+    fun transformOriginFacesTheMoreButton() {
+        // 菜单在按钮左侧 → 右缘朝向按钮
+        val left = GlassMenuMotion.transformOrigin(opensUpward = false, menuLeftOfAnchor = true)
+        assertEquals(1f, left.pivotFractionX, 1e-4f)
+        assertEquals(0f, left.pivotFractionY, 1e-4f)
+        // 菜单在按钮右侧 → 左缘朝向按钮
+        val right = GlassMenuMotion.transformOrigin(opensUpward = true, menuLeftOfAnchor = false)
+        assertEquals(0f, right.pivotFractionX, 1e-4f)
+        assertEquals(1f, right.pivotFractionY, 1e-4f)
     }
 
     @Test
     fun scaleTravelIsLargeEnoughToShowBounce() {
-        // 行程太短的话弹簧过冲会看不出来
         val travel = 1f - GlassMenuMotion.EnterScaleFrom
         assertTrue("travel=$travel", travel >= 0.18f)
         assertTrue(GlassMenuMotion.ExitScaleTo in 0.85f..0.98f)
-        assertTrue(GlassMenuMotion.SlideFraction in 0.05f..0.18f)
+        assertTrue(GlassMenuMotion.SlideFraction in 0.02f..0.15f)
         assertFalse(GlassMenuMotion.EnterScaleFrom >= 1f)
     }
 }

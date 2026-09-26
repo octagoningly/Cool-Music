@@ -4,6 +4,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -13,7 +14,7 @@ class GlassMenuPositionPolicyTest {
     private val reservedBottom = 200
 
     @Test
-    fun prefersOpeningUpwardAboveAnchor() {
+    fun opensDownwardWhenRoomBelow() {
         val anchor = IntRect(left = 200, top = 1200, right = 280, bottom = 1280)
         val pos = resolveGlassMenuPosition(
             anchor = anchor,
@@ -23,14 +24,32 @@ class GlassMenuPositionPolicyTest {
             offsetY = 8,
             reservedBottomPx = reservedBottom,
         )
-        // 向上：anchor.top - height - offset
-        assertEquals(1200 - 600 - 8, pos.y)
+        // 优先向下：贴锚点底 + offset
+        assertEquals(1280 + 8, pos.y)
         assertEquals(200, pos.x)
+        assertFalse(glassMenuOpensUpward(pos, anchor, menu))
+    }
+
+    @Test
+    fun flipsUpwardWhenRoomBelowIsTight() {
+        // 下方几乎放不下：roomBelow < min(h/4, 96)
+        val anchor = IntRect(left = 100, top = 2020, right = 180, bottom = 2100)
+        val pos = resolveGlassMenuPosition(
+            anchor = anchor,
+            windowSize = window,
+            popupSize = menu,
+            offsetX = 0,
+            offsetY = 8,
+            reservedBottomPx = reservedBottom,
+        )
+        // 上弹：anchor.top - height - offset - 72（避让 Dock）
+        assertEquals(2020 - 600 - 8 - 72, pos.y)
+        assertTrue(glassMenuOpensUpward(pos, anchor, menu))
     }
 
     @Test
     fun downwardWhenNoRoomAboveStillAvoidsMiniPlayer() {
-        // 锚点很靠上，向上放不下
+        // 锚点很靠上，空间充足优先向下
         val anchor = IntRect(left = 100, top = 40, right = 180, bottom = 120)
         val pos = resolveGlassMenuPosition(
             anchor = anchor,
@@ -73,5 +92,14 @@ class GlassMenuPositionPolicyTest {
         assertEquals(40f, bounds.top)
         assertEquals(430f, bounds.right)
         assertEquals(640f, bounds.bottom)
+    }
+
+    @Test
+    fun opensUpwardWhenMenuSitsAboveAnchor() {
+        val anchor = IntRect(left = 200, top = 1200, right = 280, bottom = 1280)
+        val above = IntOffset(200, 592)
+        assertTrue(glassMenuOpensUpward(above, anchor, menu))
+        val below = IntOffset(200, 1288)
+        assertFalse(glassMenuOpensUpward(below, anchor, menu))
     }
 }

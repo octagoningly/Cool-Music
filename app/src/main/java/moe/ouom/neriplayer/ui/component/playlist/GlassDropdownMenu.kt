@@ -1,5 +1,9 @@
 package moe.ouom.neriplayer.ui.component.playlist
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,6 +25,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +38,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
@@ -42,10 +50,12 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import kotlin.math.roundToInt
+import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassBackdropRegistrationEnabled
@@ -55,7 +65,52 @@ import moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 
 /**
- * 菜单定位：优先向上弹出；向下时不允许进入底部保留区（迷你播放器 + 底栏）。
+ * 「三点」溢出菜单的锚点缩放淡入（连贯反馈开启时）。
+ *
+ * 参考 compose-animations Example2 的 scale+fade+TransformOrigin，
+ * 以及系统 Menu「从按钮角落长出」的语义：原点贴右上角（下弹）或右下角（上弹），
+ * 叠加约 8% 高度的微位移。关闭更快，与封面收回快于展开一致。
+ *
+ * 设置 → 动效 → 连贯反馈（`coherent_feedback_enabled`）关闭时保持原瞬时开合。
+ */
+object GlassMenuMotion {
+    const val EnterDurationMs = 180
+    const val ExitDurationMs = 120
+    const val EnterScaleFrom = 0.86f
+    const val ExitScaleTo = 0.92f
+
+    /** 相对菜单高度的微位移比例（从按钮方向长出） */
+    const val SlideFraction = 0.08f
+
+    fun transformOrigin(opensUpward: Boolean): TransformOrigin =
+        if (opensUpward) TransformOrigin(1f, 1f) else TransformOrigin(1f, 0f)
+
+    /** progress: 0=收起, 1=展开；展开从 EnterScaleFrom，收回停在 ExitScaleTo */
+    fun appearScale(expanded: Boolean, progress: Float): Float =
+        if (expanded) {
+            lerp(EnterScaleFrom, 1f, progress)
+        } else {
+            lerp(ExitScaleTo, 1f, progress)
+        }
+
+    /** progress: 0=收起, 1=展开；返回相对菜单高度的 Y 位移（px 由调用方乘 height） */
+    fun appearSlideYFraction(opensUpward: Boolean, progress: Float): Float {
+        val fromButton = if (opensUpward) SlideFraction else -SlideFraction
+        return fromButton * (1f - progress)
+    }
+}
+
+/**
+ * 菜单是否向上弹出（内容在锚点上方）。用于选 TransformOrigin / 微位移方向。
+ */
+internal fun glassMenuOpensUpward(
+    position: IntOffset,
+    anchor: IntRect,
+    popupSize: IntSize,
+): Boolean = position.y + popupSize.height <= anchor.top + 1
+
+/**
+ * 菜单定位：优先向下弹出；下方几乎放不下才翻到上方（上弹时额外上移避让底栏）。
  * 返回主窗口坐标，供玻璃区域注册。
  */
 internal fun resolveGlassMenuPosition(
@@ -112,7 +167,7 @@ internal fun glassMenuBoundsInMainWindow(
 private class GlassMenuPositionProvider(
     private val contentOffset: DpOffset,
     private val reservedBottomPx: () -> Int,
-    private val onMenuBoundsInMainWindow: (Rect) -> Unit,
+    private val onMenuPlacement: (bounds: Rect, opensUpward: Boolean) -> Unit,
 ) : PopupPositionProvider {
     private var density: Density = Density(1f)
 
@@ -136,7 +191,12 @@ private class GlassMenuPositionProvider(
             offsetY = offsetY,
             reservedBottomPx = reservedBottomPx(),
         )
-        onMenuBoundsInMainWindow(glassMenuBoundsInMainWindow(position, popupContentSize))
+        val opensUpward = glassMenuOpensUpward(
+            position = position,
+            anchor = anchorBounds,
+            popupSize = popupContentSize,
+        )
+        onMenuPlacement(glassMenuBoundsInMainWindow(position, popupContentSize), opensUpward)
         return position
     }
 }
@@ -149,6 +209,7 @@ private class GlassMenuPositionProvider(
  * 2. 菜单本体透明，只叠 tint，模糊从背后透出
  *
  * 开关/模糊度：设置 → 动效 → 高级模糊 / 模糊度。
+ * 开合动效：设置 → 动效 → 连贯反馈（见 [GlassMenuMotion]）。
  *
  * 用法（任意 Composable 作用域）：
  * ```
@@ -171,7 +232,11 @@ fun GlassDropdownMenu(
     val glassActive = controller.isBaseBlurEnabled
     val density = LocalDensity.current
     val reservedBottom = LocalMiniPlayerHeight.current
+    val coherentFeedbackEnabled by AppContainer.settingsRepo
+        .coherentFeedbackEnabledFlow
+        .collectAsState(initial = false)
     var menuBoundsInMainWindow by remember { mutableStateOf<Rect?>(null) }
+    var opensUpward by remember { mutableStateOf(false) }
 
     val fallbackColor = if (glassActive) {
         // 玻璃开启时的半透明底：要能透出模糊，又保证文字可读
@@ -184,12 +249,97 @@ fun GlassDropdownMenu(
         GlassMenuPositionProvider(
             contentOffset = DpOffset(0.dp, 8.dp),
             reservedBottomPx = { with(density) { reservedBottom.roundToPx() } },
-            onMenuBoundsInMainWindow = { menuBoundsInMainWindow = it },
+            onMenuPlacement = { bounds, up ->
+                menuBoundsInMainWindow = bounds
+                opensUpward = up
+            },
         ).also { it.attach(density) }
     }
 
-    if (!expanded) return
+    // 连贯反馈关闭：保持原瞬时开合
+    if (!coherentFeedbackEnabled) {
+        if (!expanded) return
+        GlassMenuPopup(
+            expanded = expanded,
+            onDismissRequest = onDismissRequest,
+            positionProvider = positionProvider,
+            shape = shape,
+            maxWidth = maxWidth,
+            maxHeight = maxHeight,
+            fallbackColor = fallbackColor,
+            glassActive = glassActive,
+            menuBoundsInMainWindow = menuBoundsInMainWindow,
+            content = content,
+        )
+        return
+    }
 
+    val progress = remember { Animatable(0f) }
+    var contentAlive by remember { mutableStateOf(false) }
+
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            contentAlive = true
+            progress.snapTo(0f)
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = GlassMenuMotion.EnterDurationMs,
+                    easing = FastOutSlowInEasing,
+                ),
+            )
+        } else {
+            if (!contentAlive) return@LaunchedEffect
+            progress.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(
+                    durationMillis = GlassMenuMotion.ExitDurationMs,
+                    easing = FastOutLinearInEasing,
+                ),
+            )
+            contentAlive = false
+        }
+    }
+
+    if (!expanded && !contentAlive) return
+
+    GlassMenuPopup(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        positionProvider = positionProvider,
+        shape = shape,
+        maxWidth = maxWidth,
+        maxHeight = maxHeight,
+        fallbackColor = fallbackColor,
+        glassActive = glassActive,
+        menuBoundsInMainWindow = menuBoundsInMainWindow,
+        modifier = Modifier.graphicsLayer {
+            val t = progress.value
+            transformOrigin = GlassMenuMotion.transformOrigin(opensUpward)
+            val scale = GlassMenuMotion.appearScale(expanded, t)
+            scaleX = scale
+            scaleY = scale
+            alpha = t
+            translationY = GlassMenuMotion.appearSlideYFraction(opensUpward, t) * size.height
+        },
+        content = content,
+    )
+}
+
+@Composable
+private fun GlassMenuPopup(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    positionProvider: GlassMenuPositionProvider,
+    shape: Shape,
+    maxWidth: Dp,
+    maxHeight: Dp,
+    fallbackColor: Color,
+    glassActive: Boolean,
+    menuBoundsInMainWindow: Rect?,
+    content: @Composable ColumnScope.() -> Unit,
+    modifier: Modifier = Modifier,
+) {
     // 两层玻璃重叠时（菜单盖住 MiniPlayer/底栏），抬升标记让下层玻璃减淡；
     // depth 归零 + 强制允许注册，避免被外层「播放页禁用主 Tab 注册」误伤。
     CompositionLocalProvider(
@@ -204,7 +354,7 @@ fun GlassDropdownMenu(
         ) {
             // 内容包住文字；widthIn 只做上下限，避免被量成一字或撑满
             Box(
-                Modifier
+                modifier
                     .heightIn(max = maxHeight)
             ) {
                 AdvancedGlassSurface(

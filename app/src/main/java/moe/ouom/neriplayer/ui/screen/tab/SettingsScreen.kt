@@ -1799,7 +1799,7 @@ fun SettingsScreen(
                 }
 
                 SettingsPage.Playback -> {
-                    for (cardIndex in 0..3) {
+                    for (cardIndex in 0..4) {
                         item(key = "${selectedPage.name}:card:$cardIndex") {
                             SettingsPlaybackSection(
                                 expanded = true,

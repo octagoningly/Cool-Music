@@ -7,7 +7,6 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,52 +30,52 @@ fun GlassSongActionsMenuContent(
     onToggleFavorite: () -> Unit,
     onCopySongInfo: () -> Unit,
 ) {
-    DropdownMenuItem(
-        text = { GlassMenuItemText(stringResourceCompatPlayKeepQueue()) },
+    GlassMenuActionItem(
+        onClick = onPlayKeepQueue,
         leadingIcon = {
             Icon(
                 imageVector = Icons.Filled.PlayCircle,
                 contentDescription = null
             )
-        },
-        onClick = onPlayKeepQueue
-    )
-    DropdownMenuItem(
-        text = { GlassMenuItemText(stringResourceCompatPlayNext()) },
+        }
+    ) {
+        GlassMenuItemText(stringResourceCompatPlayKeepQueue())
+    }
+    GlassMenuActionItem(
+        onClick = onPlayNext,
         leadingIcon = {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
                 contentDescription = null
             )
-        },
-        onClick = onPlayNext
-    )
-    DropdownMenuItem(
-        text = { GlassMenuItemText(stringResourceCompatAddQueue()) },
+        }
+    ) {
+        GlassMenuItemText(stringResourceCompatPlayNext())
+    }
+    GlassMenuActionItem(
+        onClick = onAddToQueueEnd,
         leadingIcon = {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
                 contentDescription = null
             )
-        },
-        onClick = onAddToQueueEnd
-    )
-    DropdownMenuItem(
-        text = { GlassMenuItemText(stringResourceCompatAddPlaylist()) },
+        }
+    ) {
+        GlassMenuItemText(stringResourceCompatAddQueue())
+    }
+    GlassMenuActionItem(
+        onClick = onAddToPlaylist,
         leadingIcon = {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
                 contentDescription = null
             )
-        },
-        onClick = onAddToPlaylist
-    )
-    DropdownMenuItem(
-        text = {
-            GlassMenuItemText(
-                stringResourceCompatFavorite(if (isFavorite) FavoriteAction.Remove else FavoriteAction.Add)
-            )
-        },
+        }
+    ) {
+        GlassMenuItemText(stringResourceCompatAddPlaylist())
+    }
+    GlassMenuActionItem(
+        onClick = onToggleFavorite,
         leadingIcon = {
             Icon(
                 imageVector = if (isFavorite) {
@@ -91,19 +90,23 @@ fun GlassSongActionsMenuContent(
                     MaterialTheme.colorScheme.onSurface
                 }
             )
-        },
-        onClick = onToggleFavorite
-    )
-    DropdownMenuItem(
-        text = { GlassMenuItemText(stringResourceCompatCopyInfo()) },
+        }
+    ) {
+        GlassMenuItemText(
+            stringResourceCompatFavorite(if (isFavorite) FavoriteAction.Remove else FavoriteAction.Add)
+        )
+    }
+    GlassMenuActionItem(
+        onClick = onCopySongInfo,
         leadingIcon = {
             Icon(
                 imageVector = Icons.Outlined.ContentCopy,
                 contentDescription = null
             )
-        },
-        onClick = onCopySongInfo
-    )
+        }
+    ) {
+        GlassMenuItemText(stringResourceCompatCopyInfo())
+    }
 }
 
 internal enum class FavoriteAction { Add, Remove }

@@ -3532,12 +3532,13 @@ fun NowPlayingScreen(
                                     }
                                     GlassDropdownMenu(
                                         expanded = showDockMoreMenu,
-                                        onDismissRequest = { showDockMoreMenu = false },
-                                        // 刚好包住「添加到歌单」等文案
-                                        maxWidth = 152.dp
+                                        onDismissRequest = { showDockMoreMenu = false }
                                     ) {
-                                        DropdownMenuItem(
-                                            text = { GlassMenuItemText(stringResource(R.string.sleep_timer_short)) },
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
+                                            onClick = {
+                                                showDockMoreMenu = false
+                                                showSleepTimerDialog = true
+                                            },
                                             leadingIcon = {
                                                 Icon(
                                                     Icons.Outlined.Timer,
@@ -3548,38 +3549,44 @@ fun NowPlayingScreen(
                                                         LocalContentColor.current
                                                     }
                                                 )
-                                            },
+                                            }
+                                        ) {
+                                            moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
+                                                stringResource(R.string.sleep_timer_short)
+                                            )
+                                        }
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
                                             onClick = {
                                                 showDockMoreMenu = false
-                                                showSleepTimerDialog = true
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { GlassMenuItemText(stringResource(R.string.playlist_add_to)) },
+                                                showAddSheet = true
+                                            },
                                             leadingIcon = {
                                                 Icon(
                                                     Icons.AutoMirrored.Outlined.PlaylistAdd,
                                                     contentDescription = null
                                                 )
-                                            },
+                                            }
+                                        ) {
+                                            moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
+                                                stringResource(R.string.playlist_add_to)
+                                            )
+                                        }
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
                                             onClick = {
                                                 showDockMoreMenu = false
-                                                showAddSheet = true
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { GlassMenuItemText(stringResource(R.string.volume_control)) },
+                                                showVolumeSheet = true
+                                            },
                                             leadingIcon = {
                                                 Icon(
                                                     Icons.AutoMirrored.Outlined.VolumeUp,
                                                     contentDescription = null
                                                 )
-                                            },
-                                            onClick = {
-                                                showDockMoreMenu = false
-                                                showVolumeSheet = true
                                             }
-                                        )
+                                        ) {
+                                            moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
+                                                stringResource(R.string.volume_control)
+                                            )
+                                        }
                                     }
                                 }
                                     }

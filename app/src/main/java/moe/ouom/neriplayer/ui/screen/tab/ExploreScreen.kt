@@ -1173,15 +1173,18 @@ fun ExploreScreen(
                                     modifier = Modifier
                                 ) {
                                     tagKeys.forEachIndexed { index, tagKey ->
-                                        DropdownMenuItem(
-                                            text = { Text(tagLabels[index]) },
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
                                             onClick = {
                                                 tagMenuExpanded = false
                                                 if (ui.selectedTag != tagKey) {
                                                     vm.loadHighQuality(tagKey)
                                                 }
                                             }
-                                        )
+                                        ) {
+                                            moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
+                                                tagLabels[index]
+                                            )
+                                        }
                                     }
                                 }
                             }

@@ -1,16 +1,21 @@
-package moe.ouom.neriplayer.ui.component.playlist
+﻿package moe.ouom.neriplayer.ui.component.playlist
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -196,8 +202,7 @@ fun GlassDropdownMenu(
             onDismissRequest = onDismissRequest,
             properties = PopupProperties(focusable = true),
         ) {
-            // 禁止 IntrinsicSize.Max：DropdownMenuItem 固有宽常为 0，会把菜单压成一字宽。
-            // 只用 widthIn 收宽（默认 140..maxWidth），文字保持横排可读。
+            // 内容包住文字；widthIn 只做上下限，避免被量成一字或撑满
             Box(
                 Modifier
                     .heightIn(max = maxHeight)
@@ -219,7 +224,7 @@ fun GlassDropdownMenu(
                         Column(
                             modifier = Modifier
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
-                                .widthIn(min = 120.dp, max = maxWidth)
+                                .widthIn(min = 112.dp, max = maxWidth)
                                 .heightIn(max = maxHeight)
                                 .verticalScroll(rememberScrollState()),
                             content = content
@@ -232,7 +237,7 @@ fun GlassDropdownMenu(
 }
 
 /**
- * 下拉菜单文案：居中 + 自适应省略（开发规则：下拉菜单文字居中）。
+ * 下拉菜单文案：居中，宽度跟内容走。
  */
 @Composable
 fun GlassMenuItemText(
@@ -242,11 +247,38 @@ fun GlassMenuItemText(
 ) {
     Text(
         text = text,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
         textAlign = TextAlign.Center,
         maxLines = maxLines,
         style = LocalTextStyle.current
     )
+}
+
+/**
+ * 包住内容的菜单条目：图标 + 文案刚好撑开，不被拉成固定宽。
+ */
+@Composable
+fun GlassMenuActionItem(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leadingIcon: @Composable (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        if (leadingIcon != null) {
+            leadingIcon()
+            Spacer(modifier = Modifier.width(10.dp))
+        }
+        content()
+    }
 }
 
 /**
@@ -262,27 +294,23 @@ fun GlassSheetMenuItem(
     leadingIcon: @Composable (() -> Unit)? = null,
     supportingContent: @Composable (() -> Unit)? = null,
 ) {
-    DropdownMenuItem(
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                GlassMenuItemText(text)
-                if (supportingContent != null) {
-                    CompositionLocalProvider(
-                        LocalTextStyle provides LocalTextStyle.current.copy(
-                            textAlign = TextAlign.Center
-                        )
-                    ) {
-                        supportingContent()
-                    }
+    GlassMenuActionItem(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        leadingIcon = leadingIcon
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            GlassMenuItemText(text)
+            if (supportingContent != null) {
+                CompositionLocalProvider(
+                    LocalTextStyle provides LocalTextStyle.current.copy(
+                        textAlign = TextAlign.Center
+                    )
+                ) {
+                    supportingContent()
                 }
             }
-        },
-        leadingIcon = leadingIcon,
-        enabled = enabled,
-        onClick = onClick,
-        modifier = modifier
-    )
+        }
+    }
 }

@@ -2233,21 +2233,23 @@ private fun LocalPlaylistList(
                                         expanded = showMenu,
                                         onDismissRequest = { showMenu = false }
                                     ) {
-                                        DropdownMenuItem(
-                                            text = { GlassMenuItemText(stringResource(R.string.action_rename)) },
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
                                             onClick = {
                                                 showMenu = false
                                                 renameText = pl.name.take(maxNameLength)
                                                 showRenameDialog = true
                                             }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { GlassMenuItemText(stringResource(R.string.action_delete)) },
+                                        ) {
+                                            GlassMenuItemText(stringResource(R.string.action_rename))
+                                        }
+                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
                                             onClick = {
                                                 showMenu = false
                                                 showDeleteDialog = true
                                             }
-                                        )
+                                        ) {
+                                            GlassMenuItemText(stringResource(R.string.action_delete))
+                                        }
                                     }
                                 }
                             }

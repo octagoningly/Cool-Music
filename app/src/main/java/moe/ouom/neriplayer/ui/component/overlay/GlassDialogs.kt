@@ -289,10 +289,11 @@ internal fun GlassPanel(
         ) {
             // 弹窗可能从 SettingsGroup/Section 等玻璃面内弹出，depth>0 会禁止采样。
         // Popup 是独立前景层，必须按 depth=0 注册，才能真正模糊背后内容。
+        // 退场时立刻停注册：模糊挂在主窗口区域上，不随面板 alpha 消失，否则内容没了还留一块糊。
         CompositionLocalProvider(
             LocalGlassOverlayElevated provides true,
             LocalAdvancedGlassDepth provides 0,
-            LocalAdvancedGlassBackdropRegistrationEnabled provides true,
+            LocalAdvancedGlassBackdropRegistrationEnabled provides !dismissing,
         ) {
             // 内容自适应宽度/高度，禁止 fillMaxWidth 撑满（二级弹窗过大根因）
             Box(
@@ -322,7 +323,8 @@ internal fun GlassPanel(
                     fallbackColor = glassDialogFallbackColor(glassActive),
                     tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     enabled = glassActive,
-                    regionBoundsOverride = boundsInMainWindow,
+                    // 退场时传空矩形，触发 region.remove，避免主窗口残留下模糊块
+                    regionBoundsOverride = if (dismissing) Rect.Zero else boundsInMainWindow,
                     modifier = modifier
                         .widthIn(min = 160.dp, max = maxWidth)
                         .heightIn(max = maxHeight)

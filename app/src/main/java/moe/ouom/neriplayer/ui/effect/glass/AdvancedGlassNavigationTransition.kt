@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.Transition
 import androidx.compose.animation.core.animateFloat
@@ -74,9 +75,10 @@ internal fun isolatedAdvancedGlassVerticalTransition(
     forward: Boolean
 ): ContentTransform {
     val direction = if (forward) 1 else -1
-    val animationSpec = advancedGlassNavigationSpringSpec()
-    return slideInVertically(animationSpec) { fullHeight -> direction * fullHeight } togetherWith
-        slideOutVertically(animationSpec) { fullHeight -> -direction * fullHeight }
+    // 旧页退场更快：媒体库顶栏等 chrome 不再在进详情后多挂约 0.5s
+    val exitSpec = tween<IntOffset>(durationMillis = 160, easing = FastOutLinearInEasing)
+    return slideInVertically(advancedGlassNavigationSpringSpec()) { fullHeight -> direction * fullHeight } togetherWith
+        slideOutVertically(exitSpec) { fullHeight -> -direction * fullHeight }
 }
 
 internal fun buildAdvancedGlassDrawerTransition(
@@ -133,15 +135,14 @@ internal fun <S> Transition<S>.animateAdvancedGlassSceneMotion(
     if (coherentFeedbackEnabled) {
         return AdvancedGlassSceneMotion.None
     }
+    val forward = navigationDepth(targetState) > navigationDepth(currentState)
+    val durationMillis = if (forward) {
+        DRAWER_NAVIGATION_OPEN_DURATION_MS
+    } else {
+        DRAWER_NAVIGATION_CLOSE_DURATION_MS
+    }
     val revealTopFraction by animateFloat(
         transitionSpec = {
-            val durationMillis = if (
-                navigationDepth(targetState) > navigationDepth(initialState)
-            ) {
-                DRAWER_NAVIGATION_OPEN_DURATION_MS
-            } else {
-                DRAWER_NAVIGATION_CLOSE_DURATION_MS
-            }
             tween(durationMillis = durationMillis, easing = FastOutSlowInEasing)
         },
         label = "${label}_reveal"
@@ -149,18 +150,12 @@ internal fun <S> Transition<S>.animateAdvancedGlassSceneMotion(
         resolveAdvancedGlassDrawerSceneMotion(
             sceneState = sceneState,
             activeState = transitionState,
-            navigationDepth = navigationDepth
+            navigationDepth = navigationDepth,
+            forward = forward
         ).revealTopFraction
     }
     val contentTranslationYFraction by animateFloat(
         transitionSpec = {
-            val durationMillis = if (
-                navigationDepth(targetState) > navigationDepth(initialState)
-            ) {
-                DRAWER_NAVIGATION_OPEN_DURATION_MS
-            } else {
-                DRAWER_NAVIGATION_CLOSE_DURATION_MS
-            }
             tween(durationMillis = durationMillis, easing = FastOutSlowInEasing)
         },
         label = "${label}_content_translation"
@@ -168,18 +163,12 @@ internal fun <S> Transition<S>.animateAdvancedGlassSceneMotion(
         resolveAdvancedGlassDrawerSceneMotion(
             sceneState = sceneState,
             activeState = transitionState,
-            navigationDepth = navigationDepth
+            navigationDepth = navigationDepth,
+            forward = forward
         ).contentTranslationYFraction
     }
     val contentScale by animateFloat(
         transitionSpec = {
-            val durationMillis = if (
-                navigationDepth(targetState) > navigationDepth(initialState)
-            ) {
-                DRAWER_NAVIGATION_OPEN_DURATION_MS
-            } else {
-                DRAWER_NAVIGATION_CLOSE_DURATION_MS
-            }
             tween(durationMillis = durationMillis, easing = FastOutSlowInEasing)
         },
         label = "${label}_content_scale"
@@ -187,7 +176,8 @@ internal fun <S> Transition<S>.animateAdvancedGlassSceneMotion(
         resolveAdvancedGlassDrawerSceneMotion(
             sceneState = sceneState,
             activeState = transitionState,
-            navigationDepth = navigationDepth
+            navigationDepth = navigationDepth,
+            forward = forward
         ).contentScale
     }
     return AdvancedGlassSceneMotion(
@@ -200,17 +190,27 @@ internal fun <S> Transition<S>.animateAdvancedGlassSceneMotion(
 internal fun <S> resolveAdvancedGlassDrawerSceneMotion(
     sceneState: S,
     activeState: S,
-    navigationDepth: (S) -> Int
+    navigationDepth: (S) -> Int,
+    forward: Boolean
 ): AdvancedGlassSceneMotion {
     if (sceneState == activeState) {
         return AdvancedGlassSceneMotion.None
     }
+    val sceneDepth = navigationDepth(sceneState)
+    val activeDepth = navigationDepth(activeState)
     return when {
-        navigationDepth(sceneState) < navigationDepth(activeState) -> AdvancedGlassSceneMotion(
-            revealTopFraction = 0f,
+        // 被更深页面盖住（如媒体库 → 歌单详情）
+        sceneDepth < activeDepth && forward -> AdvancedGlassSceneMotion(
+            // 从顶部裁掉：旧「媒体库 / 分类」顶栏立刻让位，不再多挂 0.5s
+            revealTopFraction = 1f,
             contentTranslationYFraction = DRAWER_BACKGROUND_SINK_FRACTION,
             contentScale = DRAWER_RECESSED_CONTENT_SCALE
         )
+        // 关闭详情时底层列表已在下方完整待命
+        sceneDepth < activeDepth -> AdvancedGlassSceneMotion.None
+        // 进入更深页：直接整页覆盖，避免从下往上揭开时露出旧顶栏
+        forward -> AdvancedGlassSceneMotion.None
+        // 退出更深页：从顶部收起
         else -> AdvancedGlassSceneMotion(
             revealTopFraction = 1f,
             contentTranslationYFraction = 1f,

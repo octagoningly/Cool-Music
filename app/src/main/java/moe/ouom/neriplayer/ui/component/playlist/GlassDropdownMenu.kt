@@ -160,10 +160,10 @@ internal fun glassMenuLeftOfAnchor(
 }
 
 /**
- * 菜单定位：**避开锚点按钮**（歌曲行右侧 ⋮ 不被弹窗盖住）。
+ * 菜单定位：**贴近锚点按钮**（重命名/删除等 ⋮ 菜单），同时不盖住按钮本身。
  *
- * 横向优先放到按钮左侧（右侧三点时按钮仍露出）；放不下再试右侧，
- * 再退回按钮下方右对齐。纵向优先向下留空隙，几乎放不下才上弹。
+ * 默认在按钮下方右对齐（经典下拉，离按钮近）；空间不够才上弹。
+ * 仍与按钮保持最小空隙，兜底保证不与 ⋮ 相交。
  * 返回主窗口坐标，供玻璃区域注册。
  */
 internal fun resolveGlassMenuPosition(
@@ -174,30 +174,25 @@ internal fun resolveGlassMenuPosition(
     offsetY: Int,
     reservedBottomPx: Int,
 ): IntOffset {
-    // 与 ⋮ 的最小空隙，保证按钮不被盖住
-    val gapX = maxOf(offsetX, 12)
-    val gapY = maxOf(offsetY, 12)
+    // 与 ⋮ 的空隙：够看清按钮即可，不要拉太远
+    val gapX = maxOf(offsetX, 8)
+    val gapY = maxOf(offsetY, 8)
     val edgeMargin = 8
 
     val maxBottom = (windowSize.height - reservedBottomPx).coerceAtLeast(0)
     val maxTop = (maxBottom - popupSize.height).coerceAtLeast(0)
 
-    // —— 横向：优先整块放到按钮左侧，⋮ 留在弹窗外 ——
-    var x = anchor.left - popupSize.width - gapX
+    // —— 横向：与按钮右对齐（贴近 ⋮，经典下拉） ——
+    var x = anchor.right - popupSize.width
     if (x < edgeMargin) {
-        // 放不下再试按钮右侧
-        x = anchor.right + gapX
-    }
-    if (x < edgeMargin || x + popupSize.width > windowSize.width - edgeMargin) {
-        // 再退回：与按钮右对齐（原策略）
-        x = anchor.right - popupSize.width
+        x = anchor.left + gapX
     }
     if (x < edgeMargin) x = edgeMargin
     if (x + popupSize.width > windowSize.width - edgeMargin) {
         x = (windowSize.width - edgeMargin - popupSize.width).coerceAtLeast(edgeMargin)
     }
 
-    // —— 纵向：优先向下留空隙；下方几乎放不下才翻到上方 ——
+    // —— 纵向：优先向下贴着按钮；下方几乎放不下才翻到上方 ——
     var y = anchor.bottom + gapY
     val roomBelow = maxBottom - y
     if (roomBelow < minOf(popupSize.height / 4, 96)) {
@@ -220,14 +215,6 @@ internal fun resolveGlassMenuPosition(
             below + popupSize.height <= maxBottom -> below
             above >= edgeMargin -> above
             else -> y
-        }
-        // 横向也再拉开一点
-        val left = anchor.left - popupSize.width - gapX
-        val right = anchor.right + gapX
-        x = when {
-            left >= edgeMargin -> left
-            right + popupSize.width <= windowSize.width - edgeMargin -> right
-            else -> x
         }
     }
 

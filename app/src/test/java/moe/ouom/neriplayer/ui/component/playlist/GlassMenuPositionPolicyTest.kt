@@ -28,15 +28,14 @@ class GlassMenuPositionPolicyTest {
     )
 
     @Test
-    fun songMoreVertPrefersLeftOfButtonSoDotsStayVisible() {
+    fun songMoreVertMenuStaysCloseBelowButton() {
         // 歌曲行右侧 ⋮：约 x=980..1030
         val anchor = IntRect(left = 980, top = 1200, right = 1030, bottom = 1250)
         val p = pos(anchor)
-        // 弹窗整体在按钮左侧，不挡住 ⋮
-        assertTrue("menu right=${p.x + menu.width} should be <= anchor.left", p.x + menu.width <= anchor.left)
-        assertFalse(glassMenuLeftOfAnchor(p, menu, anchor).not())
-        assertTrue(glassMenuLeftOfAnchor(p, menu, anchor))
-        // 也不与按钮相交
+        // 贴在按钮下方右对齐（不要太远）
+        assertEquals(1030 - menu.width, p.x)
+        assertEquals(1250 + 8, p.y)
+        // 不挡住 ⋮
         assertFalse(
             p.x < anchor.right && p.x + menu.width > anchor.left &&
                 p.y < anchor.bottom && p.y + menu.height > anchor.top
@@ -44,23 +43,21 @@ class GlassMenuPositionPolicyTest {
     }
 
     @Test
-    fun midScreenFallsBackToRightAlignBelowWhenLeftFits() {
-        // 居中偏左的锚点：左侧放 400 宽仍可
+    fun midScreenOpensDownwardRightAligned() {
+        // 窄菜单可与按钮右对齐且不触边
+        val narrow = IntSize(160, 400)
         val anchor = IntRect(left = 200, top = 1200, right = 280, bottom = 1280)
-        val p = pos(anchor)
-        // 优先左侧：x = 200 - 400 - 12 = -212 放不下 → 试右侧 x=280+12=292
-        assertEquals(280 + 12, p.x)
-        assertEquals(1280 + 12, p.y)
-        assertFalse(glassMenuLeftOfAnchor(p, menu, anchor))
+        val p = pos(anchor, menuSize = narrow)
+        assertEquals(280 - narrow.width, p.x)
+        assertEquals(1280 + 8, p.y)
     }
 
     @Test
     fun flipsUpwardWhenRoomBelowIsTight() {
         val anchor = IntRect(left = 980, top = 2020, right = 1030, bottom = 2100)
         val p = pos(anchor)
-        // 上弹时也在按钮左侧
-        assertTrue(p.x + menu.width <= anchor.left)
         assertTrue(glassMenuOpensUpward(p, anchor, menu))
+        assertEquals(1030 - menu.width, p.x)
     }
 
     @Test

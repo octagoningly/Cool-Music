@@ -112,27 +112,50 @@ class AdvancedGlassNavigationTransitionTest {
     }
 
     @Test
-    fun drawerMotionKeepsTheOldPagePositionFixedWhileRecedingItsContent() {
+    fun openDetailHidesLibraryChromeFromTopInsteadOfLeavingItVisible() {
+        // 打开详情：旧列表从顶部裁掉，避免「媒体库」顶栏多挂 0.5s
         val recededList = resolveAdvancedGlassDrawerSceneMotion(
             sceneState = 0,
             activeState = 1,
-            navigationDepth = { it }
+            navigationDepth = { it },
+            forward = true
         )
         val enteringDetail = resolveAdvancedGlassDrawerSceneMotion(
             sceneState = 1,
             activeState = 0,
-            navigationDepth = { it }
+            navigationDepth = { it },
+            forward = true
         )
 
-        assertEquals(0f, recededList.revealTopFraction)
+        assertEquals(1f, recededList.revealTopFraction)
         assertEquals(
             DRAWER_BACKGROUND_SINK_FRACTION,
             recededList.contentTranslationYFraction
         )
         assertEquals(DRAWER_RECESSED_CONTENT_SCALE, recededList.contentScale)
-        assertEquals(1f, enteringDetail.revealTopFraction)
-        assertEquals(1f, enteringDetail.contentTranslationYFraction)
+        // 进入详情整页覆盖，不再从下往上揭开露出旧顶栏
+        assertEquals(0f, enteringDetail.revealTopFraction)
+        assertEquals(0f, enteringDetail.contentTranslationYFraction)
         assertEquals(1f, enteringDetail.contentScale)
+    }
+
+    @Test
+    fun closeDetailKeepsUnderlyingListReadyAndClipsDetailFromTop() {
+        val underlyingList = resolveAdvancedGlassDrawerSceneMotion(
+            sceneState = 0,
+            activeState = 1,
+            navigationDepth = { it },
+            forward = false
+        )
+        val exitingDetail = resolveAdvancedGlassDrawerSceneMotion(
+            sceneState = 1,
+            activeState = 0,
+            navigationDepth = { it },
+            forward = false
+        )
+
+        assertEquals(AdvancedGlassSceneMotion.None, underlyingList)
+        assertEquals(1f, exitingDetail.revealTopFraction)
         assertEquals(0f, DRAWER_BACKGROUND_SINK_FRACTION)
         assertEquals(0.98f, DRAWER_RECESSED_CONTENT_SCALE)
     }
@@ -142,12 +165,14 @@ class AdvancedGlassNavigationTransitionTest {
         val intermediateDownloadManager = resolveAdvancedGlassDrawerSceneMotion(
             sceneState = 1,
             activeState = 0,
-            navigationDepth = { it }
+            navigationDepth = { it },
+            forward = false
         )
         val restoredSettingsPage = resolveAdvancedGlassDrawerSceneMotion(
             sceneState = 0,
             activeState = 0,
-            navigationDepth = { it }
+            navigationDepth = { it },
+            forward = false
         )
 
         assertEquals(1f, intermediateDownloadManager.revealTopFraction)

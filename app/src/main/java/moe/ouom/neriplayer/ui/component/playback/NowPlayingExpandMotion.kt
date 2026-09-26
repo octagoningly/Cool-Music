@@ -8,6 +8,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -22,9 +23,11 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -33,6 +36,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -40,6 +44,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -59,7 +64,10 @@ object NowPlayingExpandMotion {
         stiffness = Spring.StiffnessMediumLow
     )
 
-    /** 备选：更接近 skydoves Shared Bounds Expansion 的 500ms 缓动（可切换试手感） */
+    /**
+     * 电影感缓动（skydoves Shared Bounds Expansion 风格，~500ms）。
+     * 封面 bounds 默认走这条，比弹簧更稳、更像推轨。
+     */
     val CoverBoundsTween = tween<androidx.compose.ui.geometry.Rect>(
         durationMillis = 480,
         easing = FastOutSlowInEasing
@@ -70,26 +78,39 @@ object NowPlayingExpandMotion {
     val CoverMiniCornerRadiusDp = 8.dp
     val CoverLargeCornerRadiusDp = 24.dp
 
+    /** 落位：展开结束后轻微 1.04→1.0 收束 */
+    val CoverSettleFromScale = 1.04f
+    val CoverSettleDelayMs = 70
+    val CoverSettleSpring = spring<Float>(
+        dampingRatio = 0.72f,
+        stiffness = Spring.StiffnessMediumLow
+    )
+
     val CoverBoundsSpringFloat = spring<Float>(
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = Spring.StiffnessMediumLow
     )
 
-    /** 播放页入场：略快于原 300ms 抽屉，弹簧更有重量 */
-    val ExpandEnterSlideSpec = spring<IntOffset>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessMediumLow
+    /** 播放页抽屉：与封面 480ms 对齐，FastOutSlowIn 更像实体面板 */
+    val ExpandEnterSlideSpec = tween<IntOffset>(
+        durationMillis = 420,
+        easing = FastOutSlowInEasing
     )
 
-    val ExpandExitSlideSpec = spring<IntOffset>(
-        dampingRatio = Spring.DampingRatioNoBouncy,
-        stiffness = Spring.StiffnessMedium
+    val ExpandExitSlideSpec = tween<IntOffset>(
+        durationMillis = 360,
+        easing = FastOutSlowInEasing
     )
 
-    const val ExpandEnterFadeMs = 220
-    const val ExpandExitFadeMs = 180
+    const val ExpandEnterFadeMs = 240
+    const val ExpandExitFadeMs = 200
     const val MiniPlayerExitFadeMs = 160
     const val MiniPlayerExitScale = 0.92f
+
+    /** 背景轻微后退（连贯反馈描述的抽屉感） */
+    const val BackgroundRecedeScale = 0.96f
+    const val BackgroundRecedeAlpha = 0.72f
+    const val BackgroundRecedeDurationMs = 320
 
     // —— 方案 B：跟手 ——
     /** 松手关闭：位移超过高度比例 或 甩动速度超过该值 (px/s) */
@@ -103,6 +124,19 @@ object NowPlayingExpandMotion {
     const val StaggerControlsDelayMs = 160
     const val StaggerDurationMs = 280
 }
+
+/**
+ * 封面 SharedContentState 桥：供跟手关闭时把甩动速度交给共享元素动画
+ * （Compose `prepareTransitionWithInitialVelocity`）。
+ */
+@Stable
+class ExpandCoverSharedBridge {
+    @OptIn(ExperimentalSharedTransitionApi::class)
+    var sharedContentState: SharedTransitionScope.SharedContentState? = null
+}
+
+val LocalExpandCoverSharedBridge =
+    staticCompositionLocalOf { ExpandCoverSharedBridge() }
 
 /**
  * SharedTransition 作用域：由 NeriApp 包裹 MiniPlayer 与 NowPlaying 后提供。
@@ -130,27 +164,76 @@ fun SharedTransitionScope.coverSharedModifier(
     if (!enabled) return Modifier
     val shape = RoundedCornerShape(cornerRadius)
     val overlayClip = remember(cornerRadius) { OverlayClip(shape) }
+    val sharedContentState = rememberSharedContentState(
+        key = NowPlayingExpandMotion.COVER_SHARED_KEY
+    )
+    val bridge = LocalExpandCoverSharedBridge.current
+    remember(sharedContentState) { bridge.sharedContentState = sharedContentState }
     return Modifier
         // 专辑封面是「同一张图」的缩放/位移，必须用 sharedElement：
         // sharedBounds 会对进出内容做 fadeIn/fadeOut，看起来像两张图交叉溶解，不够连贯。
-        // 参考：compose-animation 文档 + compose-animations Shared Bounds 示例中的 shape 同步。
         .sharedElement(
-            sharedContentState = rememberSharedContentState(
-                key = NowPlayingExpandMotion.COVER_SHARED_KEY
-            ),
+            sharedContentState = sharedContentState,
             animatedVisibilityScope = animatedVisibilityScope,
-            boundsTransform = { _, _ -> NowPlayingExpandMotion.CoverBoundsSpring },
+            // 电影感 480ms 缓动（skydoves Shared Bounds 风格）
+            boundsTransform = { _, _ -> NowPlayingExpandMotion.CoverBoundsTween },
             renderInOverlayDuringTransition = true,
             zIndexInOverlay = 8f,
             clipInOverlayDuringTransition = overlayClip
         )
-        // 圆角 8dp→24dp 随 sharedElement 一起变形；阴影在飞行中有抬升感
         .clip(shape)
         .shadow(
             elevation = shadowElevation,
             shape = shape,
             clip = false
         )
+}
+
+/**
+ * 封面落位：展开后 1.04→1.0 轻微收束（挂在封面内容上，避免和 sharedElement 抢变换）。
+ */
+@androidx.compose.runtime.Composable
+fun Modifier.coverSettleScale(enabled: Boolean): Modifier {
+    if (!enabled) return this
+    var settled by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (settled) 1f else NowPlayingExpandMotion.CoverSettleFromScale,
+        animationSpec = NowPlayingExpandMotion.CoverSettleSpring,
+        label = "cover_settle"
+    )
+    LaunchedEffect(Unit) {
+        delay(NowPlayingExpandMotion.CoverSettleDelayMs.toLong())
+        settled = true
+    }
+    return this.graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }
+}
+
+/**
+ * 主界面背景轻微后退（抽屉打开时的层次感），由连贯反馈开关控制。
+ */
+@androidx.compose.runtime.Composable
+fun Modifier.nowPlayingBackgroundRecede(
+    enabled: Boolean,
+    nowPlayingVisible: Boolean
+): Modifier {
+    if (!enabled) return this
+    val progress by animateFloatAsState(
+        targetValue = if (nowPlayingVisible) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = NowPlayingExpandMotion.BackgroundRecedeDurationMs,
+            easing = FastOutSlowInEasing
+        ),
+        label = "np_bg_recede"
+    )
+    return this.graphicsLayer {
+        val scale = 1f - (1f - NowPlayingExpandMotion.BackgroundRecedeScale) * progress
+        scaleX = scale
+        scaleY = scale
+        alpha = 1f - (1f - NowPlayingExpandMotion.BackgroundRecedeAlpha) * progress
+    }
 }
 
 /**
@@ -225,16 +308,19 @@ class NowPlayingDismissDragState internal constructor() {
     internal fun onDragStopped(
         velocityY: Float,
         scope: CoroutineScope,
-        onDismiss: () -> Unit
+        onDismiss: () -> Unit,
+        onDismissWithVelocity: ((Float) -> Unit)? = null
     ) {
         val threshold = heightPx * NowPlayingExpandMotion.DismissDistanceRatio
         val shouldDismiss =
             offset.value >= threshold || velocityY >= NowPlayingExpandMotion.DismissVelocityPxPerSec
         scope.launch {
             if (shouldDismiss) {
+                // 先把甩动速度交给封面共享元素，再收起页面（速度交接）
+                onDismissWithVelocity?.invoke(velocityY)
                 offset.animateTo(
                     targetValue = heightPx.coerceAtLeast(offset.value + 1f),
-                    animationSpec = tween(durationMillis = 220)
+                    animationSpec = tween(durationMillis = 200)
                 )
                 onDismiss()
             } else {
@@ -265,6 +351,7 @@ fun Modifier.nowPlayingDismissDrag(
     if (!enabled) return this
     val scope = rememberCoroutineScope()
     val currentOnDismiss by rememberUpdatedState(onDismiss)
+    val bridge = LocalExpandCoverSharedBridge.current
     val draggableState = androidx.compose.foundation.gestures.rememberDraggableState { delta ->
         state.onDragDelta(delta, scope)
     }
@@ -274,7 +361,17 @@ fun Modifier.nowPlayingDismissDrag(
             state = draggableState,
             orientation = Orientation.Vertical,
             onDragStopped = { velocity ->
-                state.onDragStopped(velocity, scope, currentOnDismiss)
+                state.onDragStopped(
+                    velocityY = velocity,
+                    scope = scope,
+                    onDismiss = currentOnDismiss,
+                    onDismissWithVelocity = { v ->
+                        @OptIn(ExperimentalSharedTransitionApi::class)
+                        bridge.sharedContentState?.prepareTransitionWithInitialVelocity(
+                            androidx.compose.ui.unit.Velocity(0f, v)
+                        )
+                    }
+                )
             }
         )
 }

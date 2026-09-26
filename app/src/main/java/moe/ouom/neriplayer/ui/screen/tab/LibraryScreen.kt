@@ -98,6 +98,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -3074,12 +3075,11 @@ private fun NeteaseCategoryTabs(
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
-        AdvancedGlassSurface(
-            role = AdvancedGlassRole.ScreenTopTab,
-            modifier = Modifier.fillMaxWidth(),
+        // 列表捕获层内禁止 AdvancedGlassSurface 自采样，否则分类文字会被一起糊掉
+        Surface(
             shape = RoundedCornerShape(24.dp),
-            fallbackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-            tintColor = MaterialTheme.colorScheme.surfaceVariant
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            modifier = Modifier.fillMaxWidth()
         ) {
             PrimaryTabRow(
                 selectedTabIndex = selectedCategory,
@@ -3689,12 +3689,11 @@ private fun FavoritePlaylistList(
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                AdvancedGlassSurface(
-                    role = AdvancedGlassRole.ScreenTopTab,
-                    modifier = Modifier.fillMaxWidth(),
+                // 列表捕获层内禁止 AdvancedGlassSurface 自采样，否则分类文字会被一起糊掉
+                Surface(
                     shape = RoundedCornerShape(24.dp),
-                    fallbackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-                    tintColor = MaterialTheme.colorScheme.surfaceVariant
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     PrimaryTabRow(
                         selectedTabIndex = selectedFavoriteCategory,

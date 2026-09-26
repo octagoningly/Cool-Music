@@ -48,6 +48,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -195,10 +196,13 @@ import moe.ouom.neriplayer.ui.component.common.LocalMainTabChromeSlot
 import moe.ouom.neriplayer.ui.component.common.MainTabChromeSlot
 import moe.ouom.neriplayer.ui.component.navigation.NeriBottomBar
 import moe.ouom.neriplayer.ui.component.navigation.resolveBottomBarSelectionAlpha
+import moe.ouom.neriplayer.ui.component.playback.ExpandCoverSharedBridge
+import moe.ouom.neriplayer.ui.component.playback.LocalExpandCoverSharedBridge
 import moe.ouom.neriplayer.ui.component.playback.NeriMiniPlayer
 import moe.ouom.neriplayer.ui.component.playback.NeriMiniPlayerDefaults
 import moe.ouom.neriplayer.ui.component.playback.miniPlayerExpandEnterTransition
 import moe.ouom.neriplayer.ui.component.playback.miniPlayerExpandExitTransition
+import moe.ouom.neriplayer.ui.component.playback.nowPlayingBackgroundRecede
 import moe.ouom.neriplayer.ui.component.playback.nowPlayingExpandEnterTransition
 import moe.ouom.neriplayer.ui.component.playback.nowPlayingExpandExitTransition
 import moe.ouom.neriplayer.ui.component.playback.resolvePlaybackWaiting
@@ -3385,7 +3389,18 @@ private fun NeriAppContent(
                 // MiniPlayer ↔ NowPlaying 封面共享元素（连贯反馈开启时）
                 SharedTransitionLayout {
                 val nowPlayingExpandSharedScope = this
-                Box(modifier = Modifier.fillMaxSize()) {
+                CompositionLocalProvider(
+                    LocalExpandCoverSharedBridge provides remember { ExpandCoverSharedBridge() }
+                ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        // 连贯反馈：播放页打开时主界面轻微后退，形成抽屉层次
+                        .nowPlayingBackgroundRecede(
+                            enabled = coherentFeedbackEnabled,
+                            nowPlayingVisible = showNowPlaying
+                        )
+                ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -4597,10 +4612,19 @@ private fun NeriAppContent(
                                     )
                                 }
                             } else if (effectiveDynamicBackgroundEnabled) {
+                                val hyperBackgroundAlpha by animateFloatAsState(
+                                    targetValue = 0.80f,
+                                    animationSpec = if (coherentFeedbackEnabled) {
+                                        tween(durationMillis = 480, easing = FastOutSlowInEasing)
+                                    } else {
+                                        snap()
+                                    },
+                                    label = "hyper_background_alpha"
+                                )
                                 HyperBackground(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .graphicsLayer { alpha = 0.80f },
+                                        .graphicsLayer { alpha = hyperBackgroundAlpha },
                                     isDark = true,
                                     coverUrl = nowPlayingCoverUrl,
                                     refreshKey = coverArtRefreshToken,
@@ -4652,6 +4676,8 @@ private fun NeriAppContent(
                         }
                     }
                     }
+                }
+                // LocalExpandCoverSharedBridge 收口
                 }
                 // SharedTransitionLayout 收口（MiniPlayer ↔ NowPlaying 共享元素）
                 }

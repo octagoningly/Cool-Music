@@ -304,6 +304,7 @@ import moe.ouom.neriplayer.ui.component.playback.SleepTimerDialog
 import moe.ouom.neriplayer.ui.component.playback.WaveformSlider
 import moe.ouom.neriplayer.ui.component.playback.ExpandStaggerContainer
 import moe.ouom.neriplayer.ui.component.playback.NowPlayingExpandMotion
+import moe.ouom.neriplayer.ui.component.playback.coverSettleScale
 import moe.ouom.neriplayer.ui.component.playback.coverSharedModifier
 import moe.ouom.neriplayer.ui.component.playback.nowPlayingDismissDrag
 import moe.ouom.neriplayer.ui.component.playback.rememberNowPlayingDismissDragState
@@ -3149,7 +3150,9 @@ fun NowPlayingScreen(
                                     contentDescription = currentSong?.customName
                                         ?: currentSong?.name
                                         ?: "",
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .coverSettleScale(enabled = expandCoverSharedEnabled)
                                 )
                             }
 

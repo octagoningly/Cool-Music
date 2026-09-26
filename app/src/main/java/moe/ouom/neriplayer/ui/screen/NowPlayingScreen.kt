@@ -3532,7 +3532,8 @@ fun NowPlayingScreen(
                                     }
                                     GlassDropdownMenu(
                                         expanded = showDockMoreMenu,
-                                        onDismissRequest = { showDockMoreMenu = false }
+                                        onDismissRequest = { showDockMoreMenu = false },
+                                        maxWidth = 168.dp
                                     ) {
                                         DropdownMenuItem(
                                             text = { GlassMenuItemText(stringResource(R.string.sleep_timer_short)) },

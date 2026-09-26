@@ -70,18 +70,17 @@ internal fun resolveGlassMenuPosition(
         x = (windowSize.width - popupSize.width).coerceAtLeast(0)
     }
 
-    // 尽量向下弹出：仅当下方几乎放不下时才翻到上方
+    // 优先向下弹出；下方放不下整颗菜单则翻到上方（避免贴底栏/进度条重叠）
     val maxBottom = (windowSize.height - reservedBottomPx).coerceAtLeast(0)
     val maxTop = (maxBottom - popupSize.height).coerceAtLeast(0)
     var y = anchor.bottom + offsetY
     val roomBelow = maxBottom - y
-    if (roomBelow < popupSize.height / 3) {
+    if (roomBelow < popupSize.height) {
         y = anchor.top - popupSize.height - offsetY
     }
     if (y + popupSize.height > maxBottom) {
         y = maxTop
     }
-    if (y < offsetY) y = offsetY
     if (y < offsetY) y = offsetY
     return IntOffset(x, y)
 }
@@ -156,7 +155,7 @@ fun GlassDropdownMenu(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(20.dp),
-    maxWidth: Dp = 240.dp,
+    maxWidth: Dp = 200.dp,
     // 歌曲列表可达 8 项（含本地详情/分享），默认加高避免截断
     maxHeight: Dp = 440.dp,
     content: @Composable ColumnScope.() -> Unit,
@@ -219,7 +218,7 @@ fun GlassDropdownMenu(
                         Column(
                             modifier = Modifier
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
-                                .widthIn(min = 140.dp, max = maxWidth)
+                                .widthIn(min = 120.dp, max = maxWidth)
                                 .heightIn(max = maxHeight)
                                 .verticalScroll(rememberScrollState()),
                             content = content

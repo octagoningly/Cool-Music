@@ -3,11 +3,9 @@ package moe.ouom.neriplayer.ui.component.playlist
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -198,8 +196,8 @@ fun GlassDropdownMenu(
             onDismissRequest = onDismissRequest,
             properties = PopupProperties(focusable = true),
         ) {
-            // 测宽与滚动分层：内层 width(IntrinsicSize.Max) 收成「最宽一项」，
-            // 外层才 verticalScroll。禁止同层（宽度会量成 0，文字竖排）。
+            // 禁止 IntrinsicSize.Max：DropdownMenuItem 固有宽常为 0，会把菜单压成一字宽。
+            // 只用 widthIn 收宽（默认 140..maxWidth），文字保持横排可读。
             Box(
                 Modifier
                     .heightIn(max = maxHeight)
@@ -221,16 +219,11 @@ fun GlassDropdownMenu(
                         Column(
                             modifier = Modifier
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .widthIn(min = 140.dp, max = maxWidth)
                                 .heightIn(max = maxHeight)
                                 .verticalScroll(rememberScrollState()),
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .width(IntrinsicSize.Max)
-                                    .widthIn(min = 80.dp, max = maxWidth),
-                                content = content
-                            )
-                        }
+                            content = content
+                        )
                     }
                 }
             }

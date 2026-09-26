@@ -75,24 +75,25 @@ internal enum class GlassPanelPosition {
  * 底部面板改为自下弹入并过冲落位。设置 → 动效 → 连贯反馈 关闭时保持瞬时开合。
  */
 internal object GlassDialogMotion {
-    const val EnterFadeMs = 180
-    const val ExitFadeMs = 140
+    const val EnterFadeMs = 220
+    const val ExitFadeMs = 160
 
     /** 中心弹出起点缩放（行程大，一眼能看出弹出） */
-    const val EnterScaleFrom = 0.68f
-    const val ExitScaleTo = 0.88f
+    const val EnterScaleFrom = 0.55f
+    const val ExitScaleTo = 0.82f
 
-    /** 底部面板：从下方滑入的相对距离（弹簧可过冲到上方） */
-    const val SheetSlideFraction = 0.40f
+    /** 居中弹窗微位移（相对高度），底部面板更大 */
+    const val CenterSlideFraction = 0.18f
+    const val SheetSlideFraction = 0.55f
 
-    /** 强 Q 弹：damping 0.40，过冲约 15%+，肉眼可见多次回弹 */
+    /** 强 Q 弹：damping 0.32，过冲大、震荡久，必须「有感觉」 */
     val EnterTransformSpring = spring<Float>(
-        dampingRatio = 0.40f,
-        stiffness = Spring.StiffnessMedium,
+        dampingRatio = 0.32f,
+        stiffness = Spring.StiffnessMediumLow,
     )
 
     val ExitTransformSpring = spring<Float>(
-        dampingRatio = 0.72f,
+        dampingRatio = 0.70f,
         stiffness = Spring.StiffnessMedium,
     )
 
@@ -104,10 +105,13 @@ internal object GlassDialogMotion {
             lerp(ExitScaleTo, 1f, progress)
         }
 
-    /** 仅底部面板：相对高度的 Y 位移；progress>1 时过冲到上方 */
+    /**
+     * 相对高度的 Y 位移；progress>1 时过冲到另一侧。
+     * 居中：从下方 18% 长出；底部面板：从更下方滑入。
+     */
     fun appearSlideYFraction(isBottomSheet: Boolean, progress: Float): Float {
-        if (!isBottomSheet) return 0f
-        return SheetSlideFraction * (1f - progress)
+        val from = if (isBottomSheet) SheetSlideFraction else CenterSlideFraction
+        return from * (1f - progress)
     }
 }
 
@@ -190,17 +194,23 @@ internal fun GlassPanel(
     }
 
     val scope = rememberCoroutineScope()
-    val transformProgress = remember { Animatable(if (coherentFeedbackEnabled) 0f else 1f) }
-    val opacityProgress = remember { Animatable(if (coherentFeedbackEnabled) 0f else 1f) }
+    // 先保持 0，等连贯反馈真实值到达后再决定「立刻显示」还是「弹出」
+    val transformProgress = remember { Animatable(0f) }
+    val opacityProgress = remember { Animatable(0f) }
     var contentAlive by remember { mutableStateOf(true) }
     var dismissing by remember { mutableStateOf(false) }
+    var enterStarted by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
+    // 不能只依赖初始 false：DataStore 是异步的，第一帧几乎总是 initial=false，
+    // 若 LaunchedEffect(Unit) 在此时短路，开关就算打开也永远不播动画。
+    LaunchedEffect(coherentFeedbackEnabled) {
         if (!coherentFeedbackEnabled) {
             transformProgress.snapTo(1f)
             opacityProgress.snapTo(1f)
             return@LaunchedEffect
         }
+        if (enterStarted || dismissing) return@LaunchedEffect
+        enterStarted = true
         transformProgress.snapTo(0f)
         opacityProgress.snapTo(0f)
         coroutineScope {

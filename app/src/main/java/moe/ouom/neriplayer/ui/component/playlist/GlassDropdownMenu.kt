@@ -452,10 +452,11 @@ private fun GlassMenuPopup(
 ) {
     // 两层玻璃重叠时（菜单盖住 MiniPlayer/底栏），抬升标记让下层玻璃减淡；
     // depth 归零 + 强制允许注册，避免被外层「播放页禁用主 Tab 注册」误伤。
+    // 退场立刻停注册：模糊挂在主窗口区域，不随菜单 alpha 消失，否则内容没了还留一块糊。
     CompositionLocalProvider(
         LocalGlassOverlayElevated provides true,
         LocalAdvancedGlassDepth provides 0,
-        LocalAdvancedGlassBackdropRegistrationEnabled provides true,
+        LocalAdvancedGlassBackdropRegistrationEnabled provides expanded,
     ) {
         Popup(
             popupPositionProvider = positionProvider,
@@ -473,7 +474,7 @@ private fun GlassMenuPopup(
                     fallbackColor = fallbackColor,
                     tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     enabled = glassActive,
-                    regionBoundsOverride = menuBoundsInMainWindow,
+                    regionBoundsOverride = if (expanded) menuBoundsInMainWindow else Rect.Zero,
                 ) {
                     // 开发规则：下拉菜单文字居中
                     CompositionLocalProvider(

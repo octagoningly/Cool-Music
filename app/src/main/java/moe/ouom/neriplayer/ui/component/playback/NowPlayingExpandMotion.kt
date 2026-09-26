@@ -80,7 +80,7 @@ object NowPlayingExpandMotion {
     )
 
     /** 飞行时的抬升阴影（dp），参考 SwiftUI-experiments drag transform 的 dragging shadow */
-    val CoverFlyShadowDp = 10.dp
+    val CoverFlyShadowDp = 6.dp
     val CoverMiniCornerRadiusDp = 8.dp
     val CoverLargeCornerRadiusDp = 24.dp
 
@@ -125,8 +125,8 @@ object NowPlayingExpandMotion {
     const val MiniPlayerExitFadeMs = 160
     const val MiniPlayerExitScale = 0.92f
 
-    /** 背景轻微后退（抽屉打开时的层次感） */
-    const val BackgroundRecedeScale = 0.94f
+    /** 背景轻度后退：只做透明度，避免与播放页展开叠全屏 scale（掉帧主因之一） */
+    const val BackgroundRecedeScale = 1.0f
     const val BackgroundRecedeAlpha = 0.65f
     const val BackgroundRecedeDurationMs = 360
 
@@ -327,14 +327,12 @@ fun rememberFavoriteHeartPopScale(
  */
 fun nowPlayingExpandEnterTransition(coherentFeedbackEnabled: Boolean): EnterTransition? {
     if (!shouldUseNowPlayingExpandSharedMotion(coherentFeedbackEnabled)) return null
+    // 不做整页 scaleIn：全屏 graphicsLayer 缩放 + 玻璃/歌词/封面同帧最掉帧
     return slideInVertically(
         animationSpec = NowPlayingExpandMotion.ExpandEnterSlideSpec,
         initialOffsetY = { fullHeight -> fullHeight }
     ) + fadeIn(
         animationSpec = tween(durationMillis = NowPlayingExpandMotion.HeroEnterFadeMs)
-    ) + scaleIn(
-        initialScale = NowPlayingExpandMotion.HeroEnterFromScale,
-        animationSpec = NowPlayingExpandMotion.HeroEnterSpring
     )
 }
 
@@ -344,9 +342,6 @@ fun nowPlayingExpandExitTransition(coherentFeedbackEnabled: Boolean): ExitTransi
         animationSpec = NowPlayingExpandMotion.ExpandExitSlideSpec,
         targetOffsetY = { fullHeight -> fullHeight }
     ) + fadeOut(
-        animationSpec = tween(durationMillis = NowPlayingExpandMotion.HeroExitFadeMs)
-    ) + scaleOut(
-        targetScale = NowPlayingExpandMotion.HeroExitToScale,
         animationSpec = tween(durationMillis = NowPlayingExpandMotion.HeroExitFadeMs)
     )
 }

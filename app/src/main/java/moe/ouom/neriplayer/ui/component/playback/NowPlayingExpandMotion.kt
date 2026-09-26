@@ -123,6 +123,28 @@ object NowPlayingExpandMotion {
     const val StaggerTitleDelayMs = 80
     const val StaggerControlsDelayMs = 160
     const val StaggerDurationMs = 280
+
+    // —— 爱心收藏 pop（放大回弹） ——
+    /** 收藏时冲高到的缩放 */
+    const val HeartPopPeakScale = 1.28f
+    /** 取消收藏时轻压 */
+    const val HeartUnlikeDipScale = 0.90f
+    /** 连贯反馈关闭时的轻量峰值 */
+    const val HeartPopPeakScaleLight = 1.10f
+    const val HeartUnlikeDipScaleLight = 0.95f
+
+    val HeartPopSpring = spring<Float>(
+        dampingRatio = 0.48f,
+        stiffness = Spring.StiffnessMediumLow
+    )
+    val HeartPopSettleSpring = spring<Float>(
+        dampingRatio = 0.55f,
+        stiffness = Spring.StiffnessMediumLow
+    )
+    val HeartUnlikeSpring = spring<Float>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMedium
+    )
 }
 
 /**
@@ -234,6 +256,44 @@ fun Modifier.nowPlayingBackgroundRecede(
         scaleY = scale
         alpha = 1f - (1f - NowPlayingExpandMotion.BackgroundRecedeAlpha) * progress
     }
+}
+
+/**
+ * 爱心收藏点击：放大回弹（无扩散环）。
+ * - 收藏：冲到 [NowPlayingExpandMotion.HeartPopPeakScale] 再弹簧落回 1
+ * - 取消：轻压到 dip 再回弹
+ * - [coherentFeedbackEnabled] 关闭时用轻量峰值
+ *
+ * @param pulse 递增触发器（点一次 +1）；0 表示尚未交互
+ */
+@androidx.compose.runtime.Composable
+fun rememberFavoriteHeartPopScale(
+    pulse: Int,
+    willFavorite: Boolean,
+    coherentFeedbackEnabled: Boolean
+): Float {
+    val scale = remember { Animatable(1f) }
+    LaunchedEffect(pulse) {
+        if (pulse <= 0) return@LaunchedEffect
+        if (willFavorite) {
+            val peak = if (coherentFeedbackEnabled) {
+                NowPlayingExpandMotion.HeartPopPeakScale
+            } else {
+                NowPlayingExpandMotion.HeartPopPeakScaleLight
+            }
+            scale.animateTo(peak, animationSpec = NowPlayingExpandMotion.HeartPopSpring)
+            scale.animateTo(1f, animationSpec = NowPlayingExpandMotion.HeartPopSettleSpring)
+        } else {
+            val dip = if (coherentFeedbackEnabled) {
+                NowPlayingExpandMotion.HeartUnlikeDipScale
+            } else {
+                NowPlayingExpandMotion.HeartUnlikeDipScaleLight
+            }
+            scale.animateTo(dip, animationSpec = tween(durationMillis = 90))
+            scale.animateTo(1f, animationSpec = NowPlayingExpandMotion.HeartUnlikeSpring)
+        }
+    }
+    return scale.value
 }
 
 /**

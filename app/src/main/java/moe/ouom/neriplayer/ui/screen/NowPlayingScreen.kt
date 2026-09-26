@@ -307,6 +307,7 @@ import moe.ouom.neriplayer.ui.component.playback.NowPlayingExpandMotion
 import moe.ouom.neriplayer.ui.component.playback.coverSettleScale
 import moe.ouom.neriplayer.ui.component.playback.coverSharedModifier
 import moe.ouom.neriplayer.ui.component.playback.nowPlayingDismissDrag
+import moe.ouom.neriplayer.ui.component.playback.rememberFavoriteHeartPopScale
 import moe.ouom.neriplayer.ui.component.playback.rememberNowPlayingDismissDragState
 import moe.ouom.neriplayer.ui.component.playback.resolvePlaybackWaiting
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetDragBlocker
@@ -2023,6 +2024,15 @@ fun NowPlayingScreen(
         }
     }
     val isFavorite = favOverride ?: isFavoriteComputed
+    val coherentFeedbackEnabled by settingsRepo.coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
+    var favoriteHeartPulse by remember { mutableStateOf(0) }
+    var favoriteHeartWillFav by remember { mutableStateOf(true) }
+    val favoriteHeartScale = rememberFavoriteHeartPopScale(
+        pulse = favoriteHeartPulse,
+        willFavorite = favoriteHeartWillFav,
+        coherentFeedbackEnabled = coherentFeedbackEnabled
+    )
 
     val queue by PlayerManager.currentQueueFlow.collectAsStateWithLifecycle()
     val queueDisplayRevision by PlayerManager.currentQueueDisplayRevisionFlow.collectAsStateWithLifecycle()
@@ -2983,6 +2993,8 @@ fun NowPlayingScreen(
                                 onClick = {
                                     val song = currentSong ?: return@HapticIconButton
                                     val willFav = nextFavoriteStateAfterTap(isFavorite)
+                                    favoriteHeartWillFav = willFav
+                                    favoriteHeartPulse += 1
                                     launchWithLocalSyncWarning(
                                         song = song,
                                         actionLabel = composeResources.getString(R.string.favorite_add),
@@ -3002,7 +3014,12 @@ fun NowPlayingScreen(
                                 Icon(
                                     imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                     contentDescription = if (isFavorite) stringResource(R.string.nowplaying_favorited) else stringResource(R.string.nowplaying_favorite),
-                                    modifier = Modifier.size(nowPlayingTopActionIconSize),
+                                    modifier = Modifier
+                                        .size(nowPlayingTopActionIconSize)
+                                        .graphicsLayer {
+                                            scaleX = favoriteHeartScale
+                                            scaleY = favoriteHeartScale
+                                        },
                                     tint = if (isFavorite) {
                                         Color(0xFFE53935)
                                     } else {

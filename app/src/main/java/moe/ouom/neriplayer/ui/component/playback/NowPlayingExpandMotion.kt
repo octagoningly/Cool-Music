@@ -91,7 +91,7 @@ object NowPlayingExpandMotion {
         stiffness = Spring.StiffnessMediumLow
     )
 
-    /** 播放页抽屉：与封面 480ms 对齐，FastOutSlowIn 更像实体面板 */
+    /** 播放页抽屉（开关关闭时的原路径仍由调用方 tween 控制） */
     val ExpandEnterSlideSpec = tween<IntOffset>(
         durationMillis = 420,
         easing = FastOutSlowInEasing
@@ -100,6 +100,18 @@ object NowPlayingExpandMotion {
     val ExpandExitSlideSpec = tween<IntOffset>(
         durationMillis = 360,
         easing = FastOutSlowInEasing
+    )
+
+    // —— 方案 A：Hero 展开（连贯反馈开启时替代整页抽屉） ——
+    /** 页面本体只做淡入 + 轻微放大，位移交给封面 sharedElement */
+    const val HeroEnterFadeMs = 420
+    const val HeroExitFadeMs = 280
+    const val HeroEnterFromScale = 0.94f
+    const val HeroExitToScale = 0.96f
+
+    val HeroEnterSpring = spring<Float>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMediumLow
     )
 
     const val ExpandEnterFadeMs = 240
@@ -298,27 +310,27 @@ fun rememberFavoriteHeartPopScale(
 
 /**
  * 连贯反馈开启时的播放页转场；关闭时返回 null 表示使用调用处原有 enter/exit。
+ *
+ * 方案 A「Hero 展开」：封面走 sharedElement 连续放大，页面本体**不整页上滑**，
+ * 只做淡入 + 轻微 scale，标题/控件再错落出现。
  */
 fun nowPlayingExpandEnterTransition(coherentFeedbackEnabled: Boolean): EnterTransition? {
     if (!shouldUseNowPlayingExpandSharedMotion(coherentFeedbackEnabled)) return null
-    return slideInVertically(
-        animationSpec = NowPlayingExpandMotion.ExpandEnterSlideSpec,
-        initialOffsetY = { fullHeight -> fullHeight }
-    ) + fadeIn(
-        animationSpec = tween(durationMillis = NowPlayingExpandMotion.ExpandEnterFadeMs)
+    return fadeIn(
+        animationSpec = tween(durationMillis = NowPlayingExpandMotion.HeroEnterFadeMs)
     ) + scaleIn(
-        initialScale = 0.98f,
-        animationSpec = NowPlayingExpandMotion.CoverBoundsSpringFloat
+        initialScale = NowPlayingExpandMotion.HeroEnterFromScale,
+        animationSpec = NowPlayingExpandMotion.HeroEnterSpring
     )
 }
 
 fun nowPlayingExpandExitTransition(coherentFeedbackEnabled: Boolean): ExitTransition? {
     if (!shouldUseNowPlayingExpandSharedMotion(coherentFeedbackEnabled)) return null
-    return slideOutVertically(
-        animationSpec = NowPlayingExpandMotion.ExpandExitSlideSpec,
-        targetOffsetY = { fullHeight -> fullHeight }
-    ) + fadeOut(
-        animationSpec = tween(durationMillis = NowPlayingExpandMotion.ExpandExitFadeMs)
+    return fadeOut(
+        animationSpec = tween(durationMillis = NowPlayingExpandMotion.HeroExitFadeMs)
+    ) + scaleOut(
+        targetScale = NowPlayingExpandMotion.HeroExitToScale,
+        animationSpec = tween(durationMillis = NowPlayingExpandMotion.HeroExitFadeMs)
     )
 }
 

@@ -409,6 +409,10 @@ fun NeriMiniPlayer(
                     }
                 )
             }
+            .miniPlayerExpandSwipe(
+                enabled = expandCoverSharedEnabled,
+                onExpand = onExpand
+            )
             .clickable { onExpand() },
         shape = shape,
         fallbackColor = MaterialTheme.colorScheme.secondaryContainer,

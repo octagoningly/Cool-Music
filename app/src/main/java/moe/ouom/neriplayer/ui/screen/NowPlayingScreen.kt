@@ -302,7 +302,11 @@ import moe.ouom.neriplayer.ui.component.playback.PlaybackSourceType
 import moe.ouom.neriplayer.ui.component.playback.rememberDelayedPlaybackWaiting
 import moe.ouom.neriplayer.ui.component.playback.SleepTimerDialog
 import moe.ouom.neriplayer.ui.component.playback.WaveformSlider
+import moe.ouom.neriplayer.ui.component.playback.ExpandStaggerContainer
+import moe.ouom.neriplayer.ui.component.playback.NowPlayingExpandMotion
 import moe.ouom.neriplayer.ui.component.playback.coverSharedModifier
+import moe.ouom.neriplayer.ui.component.playback.nowPlayingDismissDrag
+import moe.ouom.neriplayer.ui.component.playback.rememberNowPlayingDismissDragState
 import moe.ouom.neriplayer.ui.component.playback.resolvePlaybackWaiting
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetDragBlocker
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
@@ -2770,14 +2774,33 @@ fun NowPlayingScreen(
                 // 播放页面
                 val horizontalPadding = if (isLandscape) 16.dp else 20.dp
                 val verticalPadding = if (isLandscape) 8.dp else 12.dp
+                val dismissDragState = rememberNowPlayingDismissDragState()
                 var contentModifier = Modifier
                     .fillMaxSize()
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = horizontalPadding, vertical = verticalPadding)
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures { _, dragAmount -> if (dragAmount > 60) onNavigateUp() }
+                    .nowPlayingDismissDrag(
+                        enabled = expandCoverSharedEnabled,
+                        state = dismissDragState,
+                        onDismiss = onNavigateUp
+                    )
+                    .graphicsLayer {
+                        val height = dismissDragState.heightPx.takeIf { it > 0f } ?: 1f
+                        translationY = dismissDragState.offsetY
+                        alpha = (1f - (dismissDragState.offsetY / height) * 0.4f).coerceIn(0.55f, 1f)
                     }
+                    .then(
+                        if (expandCoverSharedEnabled) {
+                            Modifier
+                        } else {
+                            Modifier.pointerInput(Unit) {
+                                detectVerticalDragGestures { _, dragAmount ->
+                                    if (dragAmount > 60) onNavigateUp()
+                                }
+                            }
+                        }
+                    )
 
                 // 手机或竖屏下, 左滑进入歌词页
                 if (!useWideLandscapeLayout && lyrics.isNotEmpty()) {
@@ -3167,13 +3190,18 @@ fun NowPlayingScreen(
                     Spacer(Modifier.height(16.dp))
 
                     // 标题
+                    val titleStaggerDelayMs = if (expandCoverSharedEnabled) {
+                        NowPlayingExpandMotion.StaggerTitleDelayMs
+                    } else {
+                        150
+                    }
                     AnimatedVisibility(
                         visible = contentVisible,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                         enter = slideInVertically(
-                            animationSpec = tween(durationMillis = 400, delayMillis = 150),
+                            animationSpec = tween(durationMillis = 400, delayMillis = titleStaggerDelayMs),
                             initialOffsetY = { it / 4 }
-                        ) + fadeIn(animationSpec = tween(durationMillis = 400, delayMillis = 150))
+                        ) + fadeIn(animationSpec = tween(durationMillis = 400, delayMillis = titleStaggerDelayMs))
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             BoxWithConstraints {
@@ -3256,7 +3284,13 @@ fun NowPlayingScreen(
                     }
 
                     if (!nowPlayingControlsAtBottom) {
-                        mainPlaybackControls()
+                        ExpandStaggerContainer(
+                            enabled = expandCoverSharedEnabled,
+                            visible = contentVisible,
+                            delayMillis = NowPlayingExpandMotion.StaggerControlsDelayMs
+                        ) {
+                            mainPlaybackControls()
+                        }
                     }
 
                     // 手机/竖屏, 内嵌迷你歌词
@@ -3301,7 +3335,13 @@ fun NowPlayingScreen(
                             nowPlayingProgressSection()
                             Spacer(Modifier.height(if (useWideLandscapeLayout) 14.dp else 10.dp))
                         }
-                        mainPlaybackControls()
+                        ExpandStaggerContainer(
+                            enabled = expandCoverSharedEnabled,
+                            visible = contentVisible,
+                            delayMillis = NowPlayingExpandMotion.StaggerControlsDelayMs
+                        ) {
+                            mainPlaybackControls()
+                        }
                         Spacer(Modifier.height(4.dp))
                     }
 

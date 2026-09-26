@@ -32,4 +32,21 @@ class NowPlayingExpandMotionTest {
         assertTrue(miniPlayerExpandExitTransition(coherentFeedbackEnabled = true) != null)
         assertTrue(miniPlayerExpandEnterTransition(coherentFeedbackEnabled = true) != null)
     }
+
+    @Test
+    fun `dismiss thresholds stay in usable range`() {
+        assertTrue(NowPlayingExpandMotion.DismissDistanceRatio in 0.15f..0.45f)
+        assertTrue(NowPlayingExpandMotion.DismissVelocityPxPerSec >= 800f)
+        assertTrue(NowPlayingExpandMotion.ExpandSwipeUpThresholdDp in 24f..96f)
+    }
+
+    @Test
+    fun `stagger delays are ordered cover title then controls`() {
+        assertTrue(NowPlayingExpandMotion.StaggerTitleDelayMs >= 0)
+        assertTrue(
+            NowPlayingExpandMotion.StaggerControlsDelayMs >
+                NowPlayingExpandMotion.StaggerTitleDelayMs
+        )
+        assertTrue(NowPlayingExpandMotion.StaggerDurationMs in 150..500)
+    }
 }

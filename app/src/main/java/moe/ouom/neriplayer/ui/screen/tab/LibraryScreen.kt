@@ -83,6 +83,8 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.History
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -137,6 +139,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -1945,8 +1948,10 @@ private fun LocalPlaylistList(
             }
 
             if (showDeleteSelectedConfirm) {
-                AlertDialog(
+                MiuixSettingsDialog(
                     onDismissRequest = { showDeleteSelectedConfirm = false },
+                    maxWidth = 300.dp,
+                    maxHeight = 280.dp,
                     title = { Text(stringResource(R.string.dialog_confirm_delete)) },
                     text = {
                         Text(
@@ -1958,18 +1963,40 @@ private fun LocalPlaylistList(
                         )
                     },
                     confirmButton = {
-                        HapticTextButton(
-                            onClick = {
-                                val idsToDelete = selectedIds.toList()
-                                exitSelection()
-                                onDelete(idsToDelete)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            MiuixSettingsTextButton(
+                                onClick = { showDeleteSelectedConfirm = false },
+                                modifier = Modifier.weight(1f),
+                                text = {
+                                    Text(
+                                        text = stringResource(R.string.action_cancel),
+                                        maxLines = 1,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            )
+                            Button(
+                                onClick = {
+                                    val idsToDelete = selectedIds.toList()
+                                    exitSelection()
+                                    onDelete(idsToDelete)
+                                },
+                                modifier = Modifier
+                                    .weight(1.35f)
+                                    .height(40.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                )
+                            ) {
+                                Text(stringResource(R.string.action_delete), maxLines = 1)
                             }
-                        ) { Text(stringResource(R.string.action_delete)) }
-                    },
-                    dismissButton = {
-                        HapticTextButton(
-                            onClick = { showDeleteSelectedConfirm = false }
-                        ) { Text(stringResource(R.string.action_cancel)) }
+                        }
                     }
                 )
             }
@@ -2262,25 +2289,53 @@ private fun LocalPlaylistList(
                 }
 
                 if (showDeleteDialog) {
-                    AlertDialog(
+                    MiuixSettingsDialog(
                         onDismissRequest = { showDeleteDialog = false },
+                        maxWidth = 300.dp,
+                        maxHeight = 280.dp,
                         title = { Text(stringResource(R.string.action_delete)) },
                         text = {
                             Text(stringResource(R.string.library_delete_playlist_confirm, displayName))
                         },
                         confirmButton = {
-                            HapticTextButton(
-                                onClick = {
-                                    val playlistId = pl.id
-                                    showDeleteDialog = false
-                                    onDelete(listOf(playlistId))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                MiuixSettingsTextButton(
+                                    onClick = { showDeleteDialog = false },
+                                    modifier = Modifier.weight(1f),
+                                    text = {
+                                        Text(
+                                            text = stringResource(R.string.action_cancel),
+                                            maxLines = 1,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                )
+                                // 删除操作强调：错误色实心 + 略宽
+                                Button(
+                                    onClick = {
+                                        val playlistId = pl.id
+                                        showDeleteDialog = false
+                                        onDelete(listOf(playlistId))
+                                    },
+                                    modifier = Modifier
+                                        .weight(1.35f)
+                                        .height(40.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = MaterialTheme.colorScheme.onError
+                                    )
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.action_delete),
+                                        maxLines = 1
+                                    )
                                 }
-                            ) { Text(stringResource(R.string.action_delete)) }
-                        },
-                        dismissButton = {
-                            HapticTextButton(
-                                onClick = { showDeleteDialog = false }
-                            ) { Text(stringResource(R.string.action_cancel)) }
+                            }
                         }
                     )
                 }
@@ -4064,8 +4119,10 @@ private fun FavoritePlaylistList(
     }
 
     if (showDeleteSelectedConfirm) {
-        AlertDialog(
+        MiuixSettingsDialog(
             onDismissRequest = { showDeleteSelectedConfirm = false },
+            maxWidth = 300.dp,
+            maxHeight = 280.dp,
             title = { Text(stringResource(R.string.dialog_confirm_delete)) },
             text = {
                 Text(
@@ -4077,21 +4134,41 @@ private fun FavoritePlaylistList(
                 )
             },
             confirmButton = {
-                HapticTextButton(
-                    onClick = {
-                        val targets = reorderableFavorites.filter { favoriteKey(it) in selectedKeys }
-                        scope.launch {
-                            targets.forEach { favoriteRepo.removeFavorite(it.id, it.source) }
-                            exitEditMode()
-                        }
-                    }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(stringResource(R.string.action_delete))
-                }
-            },
-            dismissButton = {
-                HapticTextButton(onClick = { showDeleteSelectedConfirm = false }) {
-                    Text(stringResource(R.string.action_cancel))
+                    MiuixSettingsTextButton(
+                        onClick = { showDeleteSelectedConfirm = false },
+                        modifier = Modifier.weight(1f),
+                        text = {
+                            Text(
+                                text = stringResource(R.string.action_cancel),
+                                maxLines = 1,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    )
+                    Button(
+                        onClick = {
+                            val targets = reorderableFavorites.filter { favoriteKey(it) in selectedKeys }
+                            scope.launch {
+                                targets.forEach { favoriteRepo.removeFavorite(it.id, it.source) }
+                                exitEditMode()
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1.35f)
+                            .height(40.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        )
+                    ) {
+                        Text(stringResource(R.string.action_delete), maxLines = 1)
+                    }
                 }
             }
         )

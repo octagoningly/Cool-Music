@@ -31,6 +31,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import moe.ouom.neriplayer.ui.component.overlay.LocalGlassDialogAnimateExit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -114,10 +118,11 @@ internal fun MiuixSettingsButton(
     content: @Composable RowScope.() -> Unit
 ) {
     val context = LocalContext.current
+    val click = rememberDialogAwareClick(onClick)
     Button(
         onClick = {
             context.performHapticFeedback()
-            onClick()
+            click()
         },
         modifier = modifier.height(44.dp),
         enabled = enabled,
@@ -161,8 +166,32 @@ internal fun MiuixSettingsOutlinedButton(
     )
 }
 
+/**
+ * 弹窗内点击：先播退场再执行业务关闭（对应 RN `exiting={FadeOut}`）。
+ * 不在弹窗内时直接 [onClick]。
+ */
 @Composable
-internal fun MiuixSettingsTextButton(
+internal fun rememberDialogAwareClick(onClick: () -> Unit): () -> Unit {
+    val animateExit = LocalGlassDialogAnimateExit.current
+    val scope = rememberCoroutineScope()
+    val currentOnClick = androidx.compose.runtime.rememberUpdatedState(onClick)
+    return remember(animateExit, scope) {
+        {
+            val exit = animateExit
+            if (exit != null) {
+                scope.launch {
+                    exit()
+                    currentOnClick.value()
+                }
+            } else {
+                currentOnClick.value()
+            }
+        }
+    }
+}
+
+@Composable
+fun MiuixSettingsTextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -170,10 +199,11 @@ internal fun MiuixSettingsTextButton(
     text: @Composable () -> Unit
 ) {
     val context = LocalContext.current
+    val click = rememberDialogAwareClick(onClick)
     TextButton(
         onClick = {
             context.performHapticFeedback()
-            onClick()
+            click()
         },
         modifier = modifier.height(40.dp),
         enabled = enabled,
@@ -433,13 +463,14 @@ internal fun MiuixSettingsChoiceRow(
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
     }
+    val click = rememberDialogAwareClick(onClick)
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(MiuixControlShape)
             .clickable(enabled = enabled) {
                 context.performHapticFeedback()
-                onClick()
+                click()
             }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,

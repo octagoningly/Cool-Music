@@ -75,8 +75,8 @@ internal enum class GlassPanelPosition {
  * 底部面板改为自下弹入并过冲落位。设置 → 动效 → 连贯反馈 关闭时保持瞬时开合。
  */
 internal object GlassDialogMotion {
-    const val EnterFadeMs = 220
-    const val ExitFadeMs = 160
+    const val EnterFadeMs = 176
+    const val ExitFadeMs = 128
 
     /** 中心弹出起点缩放（行程大，一眼能看出弹出） */
     const val EnterScaleFrom = 0.55f
@@ -86,15 +86,18 @@ internal object GlassDialogMotion {
     const val CenterSlideFraction = 0.18f
     const val SheetSlideFraction = 0.55f
 
-    /** 强 Q 弹：damping 0.32，过冲大、震荡久，必须「有感觉」 */
+    /**
+     * 强 Q 弹，时长约原 0.8 倍。
+     * 弹簧时长 ∝ 1/√stiffness，故 stiffness = MediumLow(400) / 0.8² ≈ 625。
+     */
     val EnterTransformSpring = spring<Float>(
         dampingRatio = 0.32f,
-        stiffness = Spring.StiffnessMediumLow,
+        stiffness = 625f,
     )
 
     val ExitTransformSpring = spring<Float>(
         dampingRatio = 0.70f,
-        stiffness = Spring.StiffnessMedium,
+        stiffness = 900f,
     )
 
     /** progress: 0=收起, 1=展开；弹簧可 >1（过冲）或 <1（回弹不足） */
@@ -114,6 +117,13 @@ internal object GlassDialogMotion {
         return from * (1f - progress)
     }
 }
+
+/**
+ * 弹窗内控件关闭时先播退场再卸载（参考 RN `exiting={FadeOut}`）。
+ * 为 null 表示不在弹窗内，直接走原 onClick。
+ */
+internal val LocalGlassDialogAnimateExit =
+    androidx.compose.runtime.staticCompositionLocalOf<(suspend () -> Unit)?> { null }
 
 /**
  * 主窗口坐标系定位。`calculatePosition()` 返回值即弹窗在父窗口（主窗口）的坐标，
@@ -232,45 +242,52 @@ internal fun GlassPanel(
         }
     }
 
-    val animatedDismiss: () -> Unit = {
+    // 先播退场，再让调用方卸载/业务关闭（对应 RN exiting={FadeOut}）
+    val animateExit: suspend () -> Unit = {
         if (!dismissing) {
             dismissing = true
-            if (!coherentFeedbackEnabled) {
-                onDismissRequest()
-            } else {
-                scope.launch {
-                    coroutineScope {
-                        launch {
-                            transformProgress.animateTo(
-                                targetValue = 0f,
-                                animationSpec = GlassDialogMotion.ExitTransformSpring,
-                            )
-                        }
-                        launch {
-                            opacityProgress.animateTo(
-                                targetValue = 0f,
-                                animationSpec = tween(
-                                    durationMillis = GlassDialogMotion.ExitFadeMs,
-                                    easing = FastOutLinearInEasing,
-                                ),
-                            )
-                        }
+            if (coherentFeedbackEnabled) {
+                coroutineScope {
+                    launch {
+                        transformProgress.animateTo(
+                            targetValue = 0f,
+                            animationSpec = GlassDialogMotion.ExitTransformSpring,
+                        )
                     }
-                    contentAlive = false
-                    onDismissRequest()
+                    launch {
+                        opacityProgress.animateTo(
+                            targetValue = 0f,
+                            animationSpec = tween(
+                                durationMillis = GlassDialogMotion.ExitFadeMs,
+                                easing = FastOutLinearInEasing,
+                            ),
+                        )
+                    }
                 }
+            } else {
+                transformProgress.snapTo(0f)
+                opacityProgress.snapTo(0f)
             }
+            contentAlive = false
+        }
+    }
+
+    val animatedDismiss: () -> Unit = {
+        scope.launch {
+            animateExit()
+            onDismissRequest()
         }
     }
 
     if (!contentAlive) return
 
-    Popup(
-        popupPositionProvider = positionProvider,
-        onDismissRequest = animatedDismiss,
-        properties = PopupProperties(focusable = true),
-    ) {
-        // 弹窗可能从 SettingsGroup/Section 等玻璃面内弹出，depth>0 会禁止采样。
+    CompositionLocalProvider(LocalGlassDialogAnimateExit provides animateExit) {
+        Popup(
+            popupPositionProvider = positionProvider,
+            onDismissRequest = animatedDismiss,
+            properties = PopupProperties(focusable = true),
+        ) {
+            // 弹窗可能从 SettingsGroup/Section 等玻璃面内弹出，depth>0 会禁止采样。
         // Popup 是独立前景层，必须按 depth=0 注册，才能真正模糊背后内容。
         CompositionLocalProvider(
             LocalGlassOverlayElevated provides true,
@@ -319,6 +336,7 @@ internal fun GlassPanel(
                     )
                 }
             }
+        }
         }
     }
 }

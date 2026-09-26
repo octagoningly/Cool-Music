@@ -15,6 +15,9 @@ class GlassDialogMotionTest {
             GlassDialogMotion.ExitTransformSpring.dampingRatio >
                 GlassDialogMotion.EnterTransformSpring.dampingRatio
         )
+        // 时长约原 0.8 倍：stiffness ≈ 400 / 0.8²
+        assertTrue(GlassDialogMotion.EnterTransformSpring.stiffness in 550f..750f)
+        assertTrue(GlassDialogMotion.ExitTransformSpring.stiffness > GlassDialogMotion.EnterTransformSpring.stiffness)
     }
 
     @Test

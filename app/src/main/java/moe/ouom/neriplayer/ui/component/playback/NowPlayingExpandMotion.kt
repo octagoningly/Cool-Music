@@ -91,38 +91,37 @@ object NowPlayingExpandMotion {
         stiffness = Spring.StiffnessMediumLow
     )
 
-    /** 播放页抽屉（开关关闭时的原路径仍由调用方 tween 控制） */
-    val ExpandEnterSlideSpec = tween<IntOffset>(
-        durationMillis = 420,
-        easing = FastOutSlowInEasing
+    /** 播放页抽屉（连贯反馈开启时的强化版） */
+    val ExpandEnterSlideSpec = spring<IntOffset>(
+        dampingRatio = 0.86f,
+        stiffness = Spring.StiffnessMediumLow
     )
 
-    val ExpandExitSlideSpec = tween<IntOffset>(
-        durationMillis = 360,
-        easing = FastOutSlowInEasing
+    val ExpandExitSlideSpec = spring<IntOffset>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMedium
     )
 
-    // —— 方案 A：Hero 展开（连贯反馈开启时替代整页抽屉） ——
-    /** 页面本体只做淡入 + 轻微放大，位移交给封面 sharedElement */
-    const val HeroEnterFadeMs = 420
-    const val HeroExitFadeMs = 280
-    const val HeroEnterFromScale = 0.94f
-    const val HeroExitToScale = 0.96f
+    // —— 强化抽屉：整页上滑更有分量 ——
+    const val HeroEnterFadeMs = 320
+    const val HeroExitFadeMs = 220
+    const val HeroEnterFromScale = 0.96f
+    const val HeroExitToScale = 0.98f
 
     val HeroEnterSpring = spring<Float>(
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = Spring.StiffnessMediumLow
     )
 
-    const val ExpandEnterFadeMs = 240
-    const val ExpandExitFadeMs = 200
+    const val ExpandEnterFadeMs = 280
+    const val ExpandExitFadeMs = 220
     const val MiniPlayerExitFadeMs = 160
     const val MiniPlayerExitScale = 0.92f
 
-    /** 背景轻微后退（连贯反馈描述的抽屉感） */
-    const val BackgroundRecedeScale = 0.96f
-    const val BackgroundRecedeAlpha = 0.72f
-    const val BackgroundRecedeDurationMs = 320
+    /** 背景轻微后退（抽屉打开时的层次感） */
+    const val BackgroundRecedeScale = 0.94f
+    const val BackgroundRecedeAlpha = 0.65f
+    const val BackgroundRecedeDurationMs = 360
 
     // —— 方案 B：跟手 ——
     /** 松手关闭：位移超过高度比例 或 甩动速度超过该值 (px/s) */
@@ -311,12 +310,14 @@ fun rememberFavoriteHeartPopScale(
 /**
  * 连贯反馈开启时的播放页转场；关闭时返回 null 表示使用调用处原有 enter/exit。
  *
- * 方案 A「Hero 展开」：封面走 sharedElement 连续放大，页面本体**不整页上滑**，
- * 只做淡入 + 轻微 scale，标题/控件再错落出现。
+ * 强化抽屉：整页从底部弹簧上推 + 淡入 + 轻微放大，封面仍走 sharedElement。
  */
 fun nowPlayingExpandEnterTransition(coherentFeedbackEnabled: Boolean): EnterTransition? {
     if (!shouldUseNowPlayingExpandSharedMotion(coherentFeedbackEnabled)) return null
-    return fadeIn(
+    return slideInVertically(
+        animationSpec = NowPlayingExpandMotion.ExpandEnterSlideSpec,
+        initialOffsetY = { fullHeight -> fullHeight }
+    ) + fadeIn(
         animationSpec = tween(durationMillis = NowPlayingExpandMotion.HeroEnterFadeMs)
     ) + scaleIn(
         initialScale = NowPlayingExpandMotion.HeroEnterFromScale,
@@ -326,7 +327,10 @@ fun nowPlayingExpandEnterTransition(coherentFeedbackEnabled: Boolean): EnterTran
 
 fun nowPlayingExpandExitTransition(coherentFeedbackEnabled: Boolean): ExitTransition? {
     if (!shouldUseNowPlayingExpandSharedMotion(coherentFeedbackEnabled)) return null
-    return fadeOut(
+    return slideOutVertically(
+        animationSpec = NowPlayingExpandMotion.ExpandExitSlideSpec,
+        targetOffsetY = { fullHeight -> fullHeight }
+    ) + fadeOut(
         animationSpec = tween(durationMillis = NowPlayingExpandMotion.HeroExitFadeMs)
     ) + scaleOut(
         targetScale = NowPlayingExpandMotion.HeroExitToScale,

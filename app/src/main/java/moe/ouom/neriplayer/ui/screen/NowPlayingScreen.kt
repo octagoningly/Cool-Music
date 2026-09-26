@@ -302,6 +302,7 @@ import moe.ouom.neriplayer.ui.component.playback.PlaybackSourceType
 import moe.ouom.neriplayer.ui.component.playback.rememberDelayedPlaybackWaiting
 import moe.ouom.neriplayer.ui.component.playback.SleepTimerDialog
 import moe.ouom.neriplayer.ui.component.playback.WaveformSlider
+import moe.ouom.neriplayer.ui.component.playback.coverSharedModifier
 import moe.ouom.neriplayer.ui.component.playback.resolvePlaybackWaiting
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetDragBlocker
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
@@ -1876,7 +1877,20 @@ fun NowPlayingScreen(
     resolvedCoverUrl: String? = null,
     visualCoverUrl: String? = null,
     playbackSongKey: String? = null,
+    expandSharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
+    expandAnimatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    expandCoverSharedEnabled: Boolean = false,
 ) {
+    val coverExpandSharedModifier: Modifier = expandSharedTransitionScope?.let { scope ->
+        expandAnimatedVisibilityScope?.let { visibilityScope ->
+            with(scope) {
+                coverSharedModifier(
+                    enabled = expandCoverSharedEnabled,
+                    animatedVisibilityScope = visibilityScope
+                )
+            }
+        }
+    } ?: Modifier
     val coverLyricFontScale = lyricFontScales.coverLyric
     val coverTranslationFontScale = lyricFontScales.coverTranslation
     val currentSong by PlayerManager.currentSongFlow.collectAsStateWithLifecycle()
@@ -3041,6 +3055,7 @@ fun NowPlayingScreen(
                             modifier = Modifier
                                 .align(Alignment.Center)
                                 .size(coverSize)
+                                .then(coverExpandSharedModifier)
                         ) {
                             Box(
                                 modifier = Modifier

@@ -43,6 +43,8 @@ import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -195,6 +197,10 @@ import moe.ouom.neriplayer.ui.component.navigation.NeriBottomBar
 import moe.ouom.neriplayer.ui.component.navigation.resolveBottomBarSelectionAlpha
 import moe.ouom.neriplayer.ui.component.playback.NeriMiniPlayer
 import moe.ouom.neriplayer.ui.component.playback.NeriMiniPlayerDefaults
+import moe.ouom.neriplayer.ui.component.playback.miniPlayerExpandEnterTransition
+import moe.ouom.neriplayer.ui.component.playback.miniPlayerExpandExitTransition
+import moe.ouom.neriplayer.ui.component.playback.nowPlayingExpandEnterTransition
+import moe.ouom.neriplayer.ui.component.playback.nowPlayingExpandExitTransition
 import moe.ouom.neriplayer.ui.component.playback.resolvePlaybackWaiting
 import moe.ouom.neriplayer.ui.component.common.ThemeRevealOverlay
 import moe.ouom.neriplayer.ui.component.common.blockUnderlyingTouches
@@ -1391,6 +1397,7 @@ private fun StartupGlassGateOverlay(
     )
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun NeriAppContent(
     initialThemeSnapshot: ThemePreferenceSnapshot = ThemePreferenceSnapshot(),
@@ -3375,6 +3382,9 @@ private fun NeriAppContent(
                     LocalMainTabChromeSlot provides mainTabChromeSlot,
                     LocalAdvancedGlassBackdropRegistrationEnabled provides !showNowPlaying,
                 ) {
+                // MiniPlayer ↔ NowPlaying 封面共享元素（连贯反馈开启时）
+                SharedTransitionLayout {
+                val nowPlayingExpandSharedScope = this
                 Box(modifier = Modifier.fillMaxSize()) {
                 Box(
                     modifier = Modifier
@@ -4286,15 +4296,18 @@ private fun NeriAppContent(
                                             bottom = bottomBarLayoutInsets.miniPlayerBottomPadding
                                         )
                                         .zIndex(MINI_PLAYER_OVERLAY_Z_INDEX),
-                                enter = slideInVertically(
-                                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                                    initialOffsetY = { it / 2 }
-                                ) + fadeIn(animationSpec = tween(durationMillis = 180)),
-                                exit = slideOutVertically(
-                                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-                                    targetOffsetY = { it / 2 }
-                                ) + fadeOut(animationSpec = tween(durationMillis = 120))
+                                    enter = miniPlayerExpandEnterTransition(coherentFeedbackEnabled)
+                                        ?: slideInVertically(
+                                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                                            initialOffsetY = { it / 2 }
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 180)),
+                                    exit = miniPlayerExpandExitTransition(coherentFeedbackEnabled)
+                                        ?: slideOutVertically(
+                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                            targetOffsetY = { it / 2 }
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 120))
                                 ) {
+                                    val miniPlayerExpandVisibilityScope = this
                                     NeriMiniPlayer(
                                     title = currentSong?.displayName()
                                         ?: composeResources.getString(R.string.nowplaying_no_playback),
@@ -4310,7 +4323,10 @@ private fun NeriAppContent(
                                     enableBlur = effectiveAdvancedBlurEnabled,
                                     offlineMode = offlineMode,
                                     isPlaybackWaiting = isPlaybackWaiting,
-                                    isAudioRouteMuted = isAudioRouteMuted
+                                    isAudioRouteMuted = isAudioRouteMuted,
+                                    expandSharedTransitionScope = nowPlayingExpandSharedScope,
+                                    expandAnimatedVisibilityScope = miniPlayerExpandVisibilityScope,
+                                    expandCoverSharedEnabled = coherentFeedbackEnabled
                                     )
                                 }
                             }
@@ -4321,15 +4337,18 @@ private fun NeriAppContent(
 
                 AnimatedVisibility(
                     visible = showNowPlaying,
-                    enter = slideInVertically(
-                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-                        initialOffsetY = { fullHeight -> fullHeight }
-                    ) + fadeIn(animationSpec = tween(durationMillis = 150)),
-                    exit = slideOutVertically(
-                        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
-                        targetOffsetY = { fullHeight -> fullHeight }
-                    ) + fadeOut(animationSpec = tween(durationMillis = 150))
+                    enter = nowPlayingExpandEnterTransition(coherentFeedbackEnabled)
+                        ?: slideInVertically(
+                            animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                            initialOffsetY = { fullHeight -> fullHeight }
+                        ) + fadeIn(animationSpec = tween(durationMillis = 150)),
+                    exit = nowPlayingExpandExitTransition(coherentFeedbackEnabled)
+                        ?: slideOutVertically(
+                            animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+                            targetOffsetY = { fullHeight -> fullHeight }
+                        ) + fadeOut(animationSpec = tween(durationMillis = 150))
                 ) {
+                    val nowPlayingExpandVisibilityScope = this
                     // 播放页及其弹窗必须允许注册模糊区域（主 Tab 侧已关掉，避免误糊页面）
                     CompositionLocalProvider(
                         LocalAdvancedGlassBackdropRegistrationEnabled provides true,
@@ -4624,12 +4643,17 @@ private fun NeriAppContent(
                                     offlineMode = offlineMode,
                                     resolvedCoverUrl = displayCoverUrl,
                                     visualCoverUrl = playbackVisualCoverUrl,
-                                    playbackSongKey = currentSongKey
+                                    playbackSongKey = currentSongKey,
+                                    expandSharedTransitionScope = nowPlayingExpandSharedScope,
+                                    expandAnimatedVisibilityScope = nowPlayingExpandVisibilityScope,
+                                    expandCoverSharedEnabled = coherentFeedbackEnabled
                                 )
                             }
                         }
                     }
                     }
+                }
+                // SharedTransitionLayout 收口（MiniPlayer ↔ NowPlaying 共享元素）
                 }
 
                 val revealOrigin = themeRevealOriginWindow

@@ -23,6 +23,9 @@ package moe.ouom.neriplayer.ui.component.playback
  * Created: 2025/8/8
  */
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -267,6 +270,7 @@ internal fun EllipsizingMiniPlayerText(
     )
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun NeriMiniPlayer(
     title: String,
@@ -282,8 +286,21 @@ fun NeriMiniPlayer(
     enableBlur: Boolean = true,
     offlineMode: Boolean = false,
     isPlaybackWaiting: Boolean = false,
-    isAudioRouteMuted: Boolean = false
+    isAudioRouteMuted: Boolean = false,
+    expandSharedTransitionScope: SharedTransitionScope? = null,
+    expandAnimatedVisibilityScope: AnimatedVisibilityScope? = null,
+    expandCoverSharedEnabled: Boolean = false
 ) {
+    val coverSharedModifier: Modifier = expandSharedTransitionScope?.let { scope ->
+        expandAnimatedVisibilityScope?.let { visibilityScope ->
+            with(scope) {
+                coverSharedModifier(
+                    enabled = expandCoverSharedEnabled,
+                    animatedVisibilityScope = visibilityScope
+                )
+            }
+        }
+    } ?: Modifier
     val shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     val context = LocalContext.current
     val overlayElevated = moe.ouom.neriplayer.ui.effect.glass.LocalGlassOverlayElevated.current
@@ -421,6 +438,7 @@ fun NeriMiniPlayer(
                 Box(
                     modifier = Modifier
                         .size(40.dp)
+                        .then(coverSharedModifier)
                         .background(
                             color = if (displayedCoverUrl != null || requestedCoverUrl != null) {
                                 Color.Transparent

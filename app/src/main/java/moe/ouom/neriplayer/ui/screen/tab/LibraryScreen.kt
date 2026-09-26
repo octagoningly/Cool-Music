@@ -2257,6 +2257,9 @@ private fun LocalPlaylistList(
                 if (showRenameDialog) {
                     MiuixSettingsDialog(
                         onDismissRequest = { showRenameDialog = false },
+                        // 与删除确认弹窗尺寸统一
+                        maxWidth = 300.dp,
+                        maxHeight = 280.dp,
                         title = { Text(stringResource(R.string.action_rename)) },
                         text = {
                             MiuixSettingsDialogContent(verticalSpacing = 12.dp) {

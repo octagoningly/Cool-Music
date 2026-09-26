@@ -1983,7 +1983,7 @@ object AutoSettingsSchema {
         @AutoSetting(order = 191)
         val playbackPrecacheAppLaunch = autoSwitchSetting(
             key = "playback_precache_app_launch",
-            defaultValue = false,
+            defaultValue = true,
             titleRes = R.string.settings_playback_precache_app_launch,
             descriptionRes = R.string.settings_playback_precache_app_launch_desc
         )
@@ -1999,7 +1999,7 @@ object AutoSettingsSchema {
         @AutoSetting(order = 193)
         val playbackPrecacheRecentList = autoSwitchSetting(
             key = "playback_precache_recent_list",
-            defaultValue = true,
+            defaultValue = false,
             titleRes = R.string.settings_playback_precache_recent_list,
             descriptionRes = R.string.settings_playback_precache_recent_list_desc
         )

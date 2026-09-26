@@ -29,9 +29,9 @@ enum class PlaybackPrecacheScenario {
 
 data class PlaybackPrecacheConfig(
     val masterEnabled: Boolean = true,
-    val appLaunchEnabled: Boolean = false,
+    val appLaunchEnabled: Boolean = true,
     val nextTrackEnabled: Boolean = true,
-    val recentListEnabled: Boolean = true,
+    val recentListEnabled: Boolean = false,
     val playlistOpenEnabled: Boolean = false,
     val homeRecommendEnabled: Boolean = false,
     val searchEnabled: Boolean = false

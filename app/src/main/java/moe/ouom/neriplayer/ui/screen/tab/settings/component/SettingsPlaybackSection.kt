@@ -149,13 +149,13 @@ internal fun SettingsPlaybackSection(
         initial = true
     )
     val playbackPrecacheAppLaunch by autoSettingsRepository.playbackPrecacheAppLaunchFlow.collectAsState(
-        initial = false
+        initial = true
     )
     val playbackPrecacheNextTrack by autoSettingsRepository.playbackPrecacheNextTrackFlow.collectAsState(
         initial = true
     )
     val playbackPrecacheRecentList by autoSettingsRepository.playbackPrecacheRecentListFlow.collectAsState(
-        initial = true
+        initial = false
     )
     val playbackPrecachePlaylistOpen by autoSettingsRepository.playbackPrecachePlaylistOpenFlow.collectAsState(
         initial = false

@@ -131,11 +131,11 @@ class PlaybackPrecachePolicyTest {
     }
 
     @Test
-    fun defaultConfigEnablesNextAndRecentOnly() {
+    fun defaultConfigEnablesNextAndAppLaunchOnly() {
         val config = PlaybackPrecacheConfig()
         assertTrue(config.isEnabled(PlaybackPrecacheScenario.NEXT_TRACK))
-        assertTrue(config.isEnabled(PlaybackPrecacheScenario.RECENT_LIST))
-        assertFalse(config.isEnabled(PlaybackPrecacheScenario.APP_LAUNCH))
+        assertTrue(config.isEnabled(PlaybackPrecacheScenario.APP_LAUNCH))
+        assertFalse(config.isEnabled(PlaybackPrecacheScenario.RECENT_LIST))
         assertFalse(config.isEnabled(PlaybackPrecacheScenario.PLAYLIST_OPEN))
         assertFalse(config.isEnabled(PlaybackPrecacheScenario.HOME_RECOMMEND))
         assertFalse(config.isEnabled(PlaybackPrecacheScenario.SEARCH))

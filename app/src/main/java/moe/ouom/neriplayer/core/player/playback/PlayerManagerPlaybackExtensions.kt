@@ -1869,13 +1869,7 @@ internal fun PlayerManager.nextImpl(
         "NERI-PlayerManager",
         "next requested: force=$force, source=$commandSource, isShuffle=$isShuffle, currentIndex=$currentIndex, queueSize=${currentPlaylist.size}, transitionFade=$useTransitionFade, stack=[${debugStackHint()}]"
     )
-    val hasNextTrack = currentIndex < currentPlaylist.lastIndex ||
-        force ||
-        repeatModeSetting == Player.REPEAT_MODE_ALL
-    if (!hasNextTrack) {
-        NPLogger.d("NERI-Player", "Already at the end of the playlist.")
-        return
-    }
+    // 末曲按「下一首」也循环到第一首，不再卡住
     if (requestUsbExclusiveLoudPlaybackConfirmation(
             commandSource = commandSource,
             bypassWarning = bypassLoudVolumeWarning,
@@ -1895,13 +1889,9 @@ internal fun PlayerManager.nextImpl(
     if (currentIndex < currentPlaylist.lastIndex) {
         currentIndex++
     } else {
-        if (force || repeatModeSetting == Player.REPEAT_MODE_ALL) {
-            if (!reshuffleCurrentQueueForRepeatAllCycle()) {
-                currentIndex = 0
-            }
-        } else {
-            NPLogger.d("NERI-Player", "Already at the end of the playlist.")
-            return
+        // 播放列表末尾：回到第一首（随机队列则重新洗牌）
+        if (!reshuffleCurrentQueueForRepeatAllCycle()) {
+            currentIndex = 0
         }
     }
     playAtIndex(
@@ -2083,7 +2073,8 @@ internal fun PlayerManager.cyclePlaybackOrderImpl(
             nextShuffle = false
             nextRepeat = Player.REPEAT_MODE_ALL
         }
-        repeatMode == Player.REPEAT_MODE_ALL -> {
+        repeatMode == Player.REPEAT_MODE_ALL || repeatMode == Player.REPEAT_MODE_OFF -> {
+            // OFF 与 ALL 同档，避免出现「啥也不选」第四态
             nextShuffle = false
             nextRepeat = Player.REPEAT_MODE_ONE
         }

@@ -24,6 +24,8 @@ package moe.ouom.neriplayer.ui.component.playback
  */
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -58,11 +60,13 @@ fun SleepTimerDialog(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
         icon = { Icon(Icons.Default.Timer, contentDescription = null) },
         title = { Text(stringResource(R.string.sleep_timer_title)) },
-        // 加宽避免「其他模式」区文案换行；贴在 Dock 上方
+        // 加宽避免「其他模式」区文案换行；底边贴 Dock 上方
         maxWidth = 300.dp,
         maxHeight = 520.dp,
         position = moe.ouom.neriplayer.ui.component.overlay.GlassPanelPosition.Bottom,
-        yOffset = -120.dp,
+        yOffset = -(androidx.compose.foundation.layout.WindowInsets.navigationBars
+            .asPaddingValues()
+            .calculateBottomPadding() + 64.dp),
         text = {
             Column(
                 modifier = Modifier

@@ -611,8 +611,8 @@ internal fun resolvePlaybackOrderMode(
 ): PlaybackOrderMode = when {
     shuffleEnabled -> PlaybackOrderMode.SHUFFLE
     repeatMode == Player.REPEAT_MODE_ONE -> PlaybackOrderMode.REPEAT_ONE
-    repeatMode == Player.REPEAT_MODE_ALL -> PlaybackOrderMode.REPEAT_ALL
-    else -> PlaybackOrderMode.SEQUENTIAL
+    // 无循环也显示列表循环，去掉「啥也不选」的第四态
+    else -> PlaybackOrderMode.REPEAT_ALL
 }
 
 internal data class NowPlayingMainControlsLayout(
@@ -2204,9 +2204,9 @@ fun NowPlayingScreen(
     var showVolumeSheet by remember { mutableStateOf(false) }
     val volumeSheetState = rememberModalBottomSheetState()
 
-    val currentLyricSourceKey = Triple(
+    // 只按歌曲身份重置；mediaUri 更新时保留已有歌词，避免开播瞬间被清空再等重载
+    val currentLyricSourceKey = Pair(
         currentSong?.id,
-        currentSong?.mediaUri,
         currentSong?.localFilePath
     )
     var lyrics by remember(currentLyricSourceKey) { mutableStateOf<List<LyricEntry>>(emptyList()) }

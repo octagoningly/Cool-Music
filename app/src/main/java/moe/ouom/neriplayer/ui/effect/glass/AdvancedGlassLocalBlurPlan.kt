@@ -106,13 +106,18 @@ internal fun resolveAdvancedGlassLocalBlurPlan(
                     LocalBlurMergeCandidate(
                         index = index,
                         bounds = mergedBounds,
-                        costRatio = mergedBounds.expandedArea(inputPaddingPx) / separateArea
+                        costRatio = mergedBounds.expandedArea(inputPaddingPx) / separateArea,
+                        overlapsGroup = groupBounds.intersects(candidateBounds)
                     )
                 }
                 .filter { candidate ->
-                    candidate.costRatio <= maximumMergedInputAreaRatio.toDouble()
+                    // 重叠区域必须并组，否则两套 clip 交错会把重叠处糊成透明
+                    candidate.overlapsGroup ||
+                        candidate.costRatio <= maximumMergedInputAreaRatio.toDouble()
                 }
-                .minByOrNull(LocalBlurMergeCandidate::costRatio)
+                .minByOrNull { candidate ->
+                    if (candidate.overlapsGroup) -1.0 else candidate.costRatio
+                }
                 ?: break
             groupedRegions += pending.removeAt(next.index)
             groupBounds = next.bounds
@@ -134,8 +139,12 @@ internal fun resolveAdvancedGlassLocalBlurPlan(
 private data class LocalBlurMergeCandidate(
     val index: Int,
     val bounds: AdvancedGlassLocalBlurBounds,
-    val costRatio: Double
+    val costRatio: Double,
+    val overlapsGroup: Boolean = false
 )
+
+private fun AdvancedGlassLocalBlurBounds.intersects(other: AdvancedGlassLocalBlurBounds): Boolean =
+    left < other.right && right > other.left && top < other.bottom && bottom > other.top
 
 private fun AdvancedGlassRenderRegion.hasValidBounds(): Boolean =
     left.isFinite() && top.isFinite() && right.isFinite() && bottom.isFinite() &&

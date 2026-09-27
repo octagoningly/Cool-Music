@@ -158,8 +158,8 @@ private class GlassPanelPositionProvider(
 @Composable
 private fun glassDialogFallbackColor(glassActive: Boolean) =
     if (glassActive) {
-        // 与 GlassDropdownMenu 同档半透明底，避免二级弹窗发黑
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f)
+        // 嵌套在玻璃面板上时保持足够不透明，避免与底层模糊叠成透明
+        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.86f)
     } else {
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
@@ -359,13 +359,14 @@ internal fun GlassAlertDialog(
     maxWidth: Dp = 220.dp,
     maxHeight: Dp = 300.dp,
     yOffset: Dp = 0.dp,
+    position: GlassPanelPosition = GlassPanelPosition.Centered,
 ) {
     GlassPanel(
         onDismissRequest = onDismissRequest,
         modifier = modifier,
         shape = shape,
         role = AdvancedGlassRole.DialogPanel,
-        position = GlassPanelPosition.Centered,
+        position = position,
         // 默认紧凑宽；内容多的弹窗可传更大 maxWidth/maxHeight
         maxWidth = maxWidth,
         maxHeight = maxHeight,

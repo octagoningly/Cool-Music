@@ -4529,9 +4529,10 @@ private fun SecondaryGlassPanel(
     GlassPanel(
         onDismissRequest = onDismissRequest,
         shape = GlassDialogShape,
-        position = GlassPanelPosition.Centered,
+        position = GlassPanelPosition.Bottom,
         maxWidth = maxWidth,
         maxHeight = maxHeight,
+        yOffset = -QueueSheetDockGap,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             horizontal = 16.dp,
             vertical = 12.dp
@@ -5724,14 +5725,23 @@ fun EditSongInfoSheet(
                 showSearchResults = false
             },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            sheetGesturesEnabled = false
+            sheetGesturesEnabled = false,
+            dragHandle = null,
+            shape = GlassDialogShape,
+            panelPosition = GlassPanelPosition.Bottom,
+            panelYOffset = -QueueSheetDockGap,
+            panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 12.dp,
+                bottom = 16.dp
+            )
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.8f)
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-                    .windowInsetsPadding(WindowInsets.navigationBars),
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // 标题栏

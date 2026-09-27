@@ -45,8 +45,17 @@ fun AddSongToPlaylistSheet(
 
     DensityScaledModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        sheetGesturesEnabled = false
+        shape = moe.ouom.neriplayer.ui.component.overlay.GlassDialogShape,
+        sheetGesturesEnabled = false,
+        dragHandle = null,
+        panelPosition = moe.ouom.neriplayer.ui.component.overlay.GlassPanelPosition.Bottom,
+        panelYOffset = -64.dp,
+        panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 12.dp,
+            bottom = 16.dp
+        )
     ) {
         Column(
             modifier = Modifier

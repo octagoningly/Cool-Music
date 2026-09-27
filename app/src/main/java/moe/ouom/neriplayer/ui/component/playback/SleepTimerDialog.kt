@@ -58,6 +58,11 @@ fun SleepTimerDialog(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
         icon = { Icon(Icons.Default.Timer, contentDescription = null) },
         title = { Text(stringResource(R.string.sleep_timer_title)) },
+        // 加宽避免「其他模式」区文案换行；贴在 Dock 上方
+        maxWidth = 300.dp,
+        maxHeight = 520.dp,
+        position = moe.ouom.neriplayer.ui.component.overlay.GlassPanelPosition.Bottom,
+        yOffset = -120.dp,
         text = {
             Column(
                 modifier = Modifier

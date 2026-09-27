@@ -4,10 +4,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,8 +17,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -251,38 +247,4 @@ fun TrackChangeCoverStack(
             cover(incomingUrl, incomingKey)
         }
     }
-}
-
-/**
- * 落位涟漪：从封面中心撑开。
- */
-@Composable
-fun CoverSettleRipple(
-    pulse: Int,
-    origin: Offset,
-    modifier: Modifier = Modifier,
-) {
-    val progress = remember { Animatable(0f) }
-    LaunchedEffect(pulse) {
-        if (pulse <= 0) return@LaunchedEffect
-        progress.snapTo(0f)
-        progress.animateTo(1f, TrackChangeCoverMotion.RippleSpec)
-    }
-    if (pulse <= 0) return
-    val t = progress.value
-    if (t <= 0f || t >= 1f) return
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .graphicsLayer {
-                val scale = lerp(0.12f, TrackChangeCoverMotion.RippleScaleTo, t)
-                transformOrigin = TransformOrigin(0.5f, 0.5f)
-                scaleX = scale
-                scaleY = scale
-                alpha = (1f - t) * 0.5f
-                translationX = origin.x - size.width / 2f
-                translationY = origin.y - size.height / 2f
-            }
-            .background(color = Color.White.copy(alpha = 0.28f), shape = CircleShape)
-    )
 }

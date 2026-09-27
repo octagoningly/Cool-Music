@@ -310,7 +310,6 @@ import moe.ouom.neriplayer.ui.component.playback.ExpandStaggerContainer
 import moe.ouom.neriplayer.ui.component.playback.NowPlayingExpandMotion
 import moe.ouom.neriplayer.ui.component.playback.coverSettleScale
 import moe.ouom.neriplayer.ui.component.playback.TrackChangeCoverStack
-import moe.ouom.neriplayer.ui.component.playback.CoverSettleRipple
 import moe.ouom.neriplayer.ui.component.playback.coverSharedModifier
 import moe.ouom.neriplayer.ui.component.playback.nowPlayingDismissDrag
 import moe.ouom.neriplayer.ui.component.playback.rememberFavoriteHeartPopScale
@@ -2078,8 +2077,6 @@ fun NowPlayingScreen(
     val actualCoverUrl = resolvedCoverUrl ?: visualCoverUrl
     val currentCoverUrl = visualCoverUrl ?: actualCoverUrl
     val coverSongKey = playbackSongKey ?: currentSong?.stableKey()
-    var trackChangeRipplePulse by remember { mutableIntStateOf(0) }
-    var coverCenterInRoot by remember { mutableStateOf(Offset.Zero) }
     val coverPreviewOnTapEnabled = shouldOpenNowPlayingCoverPreviewOnTap(currentSong)
     val coverPreviewOnLongPressEnabled =
         shouldOpenNowPlayingCoverPreviewOnLongPress(currentSong)
@@ -3238,9 +3235,7 @@ fun NowPlayingScreen(
                                     songKey = coverSongKey,
                                     enabled = expandCoverSharedEnabled,
                                     backgroundReveal = trackChangeBackgroundReveal,
-                                    onSettled = { trackChangeRipplePulse += 1 },
-                                    onCoverCenterInRoot = { coverCenterInRoot = it },
-                                    modifier = Modifier
+                                                                                                            modifier = Modifier
                                         .fillMaxSize()
                                         .zIndex(2f)
                                         .coverSettleScale(enabled = expandCoverSharedEnabled),
@@ -3258,12 +3253,6 @@ fun NowPlayingScreen(
                                     )
                                 }
                             }
-
-                            CoverSettleRipple(
-                                pulse = trackChangeRipplePulse,
-                                origin = coverCenterInRoot,
-                                modifier = Modifier.fillMaxSize(),
-                            )
 
                             val coverPageSourceBadgeScale by animateFloatAsState(
                                 targetValue = if (showCoverPageSourceBadge && playbackSourceType != null) {

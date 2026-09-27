@@ -288,12 +288,9 @@ fun LibraryHostScreen(
     LaunchedEffect(selected) {
         if (selected != null) {
             skipDetailCloseAnimation = false
-            libraryChromeHidden = true
-        } else {
-            // 等关闭动画收完再显示顶栏，避免列表抽动
-            delay(420)
-            libraryChromeHidden = false
         }
+        // 立刻跟 selected 同步：进详情藏顶栏（含玻璃），返回马上恢复，不拖一拍
+        libraryChromeHidden = selected != null
     }
 
     PredictiveBackHandler(enabled = selected != null) { progress ->

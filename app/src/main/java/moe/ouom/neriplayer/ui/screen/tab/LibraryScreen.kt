@@ -712,6 +712,7 @@ fun LibraryScreen(
             }
         }
 
+        if (!chromeHidden) {
         MainTabChrome(
             route = moe.ouom.neriplayer.navigation.Destinations.Library.route,
         ) {
@@ -788,6 +789,7 @@ fun LibraryScreen(
             }
             }
             }
+        }
         }
     }
     }

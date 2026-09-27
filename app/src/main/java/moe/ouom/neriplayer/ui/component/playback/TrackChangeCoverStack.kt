@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -185,10 +186,6 @@ fun TrackChangeCoverStack(
     var animToken by remember { mutableIntStateOf(0) }
     var widthPx by remember { mutableStateOf(1f) }
     var heightPx by remember { mutableStateOf(1f) }
-    // 位移与缩放分轨：缩放更长、尾段缓速；入厂再分轨，旧封面先走
-    val slideProgress = remember { Animatable(1f) }
-    val incomingSlideProgress = remember { Animatable(1f) }
-    val scaleProgress = remember { Animatable(1f) }
     // 同帧交换：LaunchedEffect 会晚一帧，入厂槽首帧仍画旧封面
     val lastCoverIds = remember {
         object {
@@ -208,18 +205,30 @@ fun TrackChangeCoverStack(
         backgroundReveal?.let { rev ->
             rev.fromCoverUrl = fromUrl
             rev.toCoverUrl = coverUrl
+            // 同帧置 0，避免首帧新底整屏盖上来
+            rev.progress = 0f
+            rev.settle = 0f
             rev.active = true
         }
         animToken += 1
     }
 
+    // 进度用 animToken 重建，且必须写在 token 递增之后：
+    // 若晚一帧，入厂还停在终点=1，封面会先闪成新封面再拉回
+    val coverAnimSettled = animToken == 0
+    val slideProgress = remember(animToken) {
+        Animatable(if (coverAnimSettled) 1f else 0f)
+    }
+    val incomingSlideProgress = remember(animToken) {
+        Animatable(if (coverAnimSettled) 1f else 0f)
+    }
+    val scaleProgress = remember(animToken) {
+        Animatable(if (coverAnimSettled) 1f else 0f)
+    }
+
     LaunchedEffect(animToken) {
         if (animToken == 0) return@LaunchedEffect
-        slideProgress.snapTo(0f)
-        incomingSlideProgress.snapTo(0f)
-        scaleProgress.snapTo(0f)
-        backgroundReveal?.progress?.snapTo(0f)
-        backgroundReveal?.settle?.snapTo(0f)
+        // 进度已在同帧重建为 0，这里只负责播
         coroutineScope {
             // 旧封面先飞出
             launch { slideProgress.animateTo(1f, TrackChangeCoverMotion.SlideSpec) }
@@ -233,16 +242,15 @@ fun TrackChangeCoverStack(
                 scaleProgress.animateTo(1f, TrackChangeCoverMotion.ScaleSettleSpec)
             }
             launch {
-                // 等新封面更稳一点，背景再涟漪；到边界后再震荡回弹
+                // 等新封面更稳一点，背景再涟漪（回弹已去掉）
                 kotlinx.coroutines.delay(TrackChangeCoverMotion.BackgroundRevealDelayMs)
-                backgroundReveal?.progress?.animateTo(
-                    1f,
-                    TrackChangeCoverMotion.BackgroundRevealSpec,
-                )
-                backgroundReveal?.settle?.animateTo(
-                    1f,
-                    TrackChangeCoverMotion.RevealSettleSpec,
-                )
+                androidx.compose.animation.core.animate(
+                    initialValue = 0f,
+                    targetValue = 1f,
+                    animationSpec = TrackChangeCoverMotion.BackgroundRevealSpec,
+                ) { value, _ ->
+                    backgroundReveal?.progress = value
+                }
             }
         }
         outgoingUrl = null
@@ -250,8 +258,8 @@ fun TrackChangeCoverStack(
         backgroundReveal?.let {
             it.active = false
             it.fromCoverUrl = null
-            it.progress?.snapTo(1f)
-            it.settle?.snapTo(1f)
+            it.progress = 1f
+            it.settle = 1f
         }
         onSettled()
     }
@@ -279,47 +287,52 @@ fun TrackChangeCoverStack(
     ) {
         val hasOutgoing = outgoingUrl != null || outgoingKey != null
         // 在 graphicsLayer 内读 Animatable，避免每帧重组
-        if (hasOutgoing) {
+        // 固定 key：if 插入 outgoing 时避免和入厂槽抢身份
+        key("track_outgoing") {
+            if (hasOutgoing) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            clip = false
+                            val sp = slideProgress.value
+                            val s = TrackChangeCoverMotion.outgoingScale(sp)
+                            scaleX = s
+                            scaleY = s
+                            translationX = TrackChangeCoverMotion.outgoingTranslationX(sp, widthPx, forward)
+                            translationY = TrackChangeCoverMotion.outgoingTranslationY(sp, heightPx)
+                            alpha = TrackChangeCoverMotion.outgoingAlpha(sp)
+                        }
+                        .clip(cornerRadius)
+                ) {
+                    cover(outgoingUrl, outgoingKey)
+                }
+            }
+        }
+
+        key("track_incoming") {
             Box(
                 Modifier
                     .fillMaxSize()
                     .graphicsLayer {
                         clip = false
-                        val sp = slideProgress.value
-                        val s = TrackChangeCoverMotion.outgoingScale(sp)
+                        val sp = incomingSlideProgress.value
+                        val zp = scaleProgress.value
+                        val s = TrackChangeCoverMotion.incomingScale(zp)
                         scaleX = s
                         scaleY = s
-                        translationX = TrackChangeCoverMotion.outgoingTranslationX(sp, widthPx, forward)
-                        translationY = TrackChangeCoverMotion.outgoingTranslationY(sp, heightPx)
-                        alpha = TrackChangeCoverMotion.outgoingAlpha(sp)
+                        translationX = TrackChangeCoverMotion.incomingTranslationX(sp, widthPx, forward)
+                        translationY = TrackChangeCoverMotion.incomingTranslationY(sp, heightPx)
+                        alpha = if (hasOutgoing) {
+                            TrackChangeCoverMotion.incomingAlpha(sp)
+                        } else {
+                            1f
+                        }
                     }
                     .clip(cornerRadius)
             ) {
-                cover(outgoingUrl, outgoingKey)
+                cover(incomingUrl, incomingKey)
             }
-        }
-
-        Box(
-            Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    clip = false
-                    val sp = incomingSlideProgress.value
-                    val zp = scaleProgress.value
-                    val s = TrackChangeCoverMotion.incomingScale(zp)
-                    scaleX = s
-                    scaleY = s
-                    translationX = TrackChangeCoverMotion.incomingTranslationX(sp, widthPx, forward)
-                    translationY = TrackChangeCoverMotion.incomingTranslationY(sp, heightPx)
-                    alpha = if (hasOutgoing) {
-                        TrackChangeCoverMotion.incomingAlpha(sp)
-                    } else {
-                        1f
-                    }
-                }
-                .clip(cornerRadius)
-        ) {
-            cover(incomingUrl, incomingKey)
         }
     }
 }

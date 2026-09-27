@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import moe.ouom.neriplayer.ui.component.playback.TrackChangeBackgroundRevealState
 import moe.ouom.neriplayer.ui.component.playback.TrackChangeCoverMotion
 import moe.ouom.neriplayer.ui.component.playback.expandRevealRect
-import moe.ouom.neriplayer.ui.component.playback.scaleRectFromCenter
 
 /**
  * HyperBackground + 切歌涟漪揭示。
@@ -40,16 +39,16 @@ fun HyperBackgroundReveal(
     offlineMode: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val progress = reveal.progress.value
-    val settle = reveal.settle.value
+    val progress = reveal.progress
+    val settle = reveal.settle
     val density = LocalDensity.current
     var windowSize by remember { mutableStateOf(IntSize.Zero) }
 
     val fromUrl = reveal.fromCoverUrl
     val toUrl = reveal.toCoverUrl ?: currentCoverUrl
     val transitionLive = reveal.active && fromUrl != null && fromUrl != toUrl
-    // 扩散中（progress<1）或边界震荡中（settle<1）都要裁切
-    val clipping = transitionLive && (progress < 1f || settle < 1f)
+    // 扩散中才裁切；回弹已去掉
+    val clipping = transitionLive && progress < 1f
     val bottomUrl = if (transitionLive) fromUrl else toUrl
 
     Box(
@@ -76,20 +75,15 @@ fun HyperBackgroundReveal(
                 window.center.y + 2f,
             )
         val cornerPx = with(density) { TrackChangeCoverMotion.RevealCornerRadiusDp.dp.toPx() }
-        // 扩散阶段 bleed 把圆角角点推出屏幕；震荡阶段收回一点，让回缩看得见
-        val bleedPx = if (progress < 1f) cornerPx else cornerPx * 0.2f
+        // 扩散阶段 bleed 把圆角角点推出屏幕
+        val bleedPx = cornerPx
         val expanded = expandRevealRect(
             cover = cover,
             progress = progress.coerceAtMost(1f),
             window = window,
             bleedPx = bleedPx,
         )
-        val ringScale = if (clipping && progress >= 1f) {
-            TrackChangeCoverMotion.revealBoundaryRing(settle)
-        } else {
-            1f
-        }
-        val revealed = scaleRectFromCenter(expanded, ringScale)
+        val revealed = expanded
 
         // 上层：新底。始终挂载；扩散/震荡时做圆角裁切
         Box(

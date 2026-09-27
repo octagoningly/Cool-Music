@@ -1,23 +1,33 @@
 package moe.ouom.neriplayer.ui.component.playback
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.util.lerp
 
 /**
  * 切歌背景揭示状态：飞出/飞入阶段锁旧底，新封面入轨后按封面矩形向外涟漪揭示新底。
- * [settle] 在扩到边界后跑阻尼震荡（0=刚到边界，1=静止）。
+ * [progress]/[settle] 用普通 float state，切歌同帧可置 0（Animatable.snapTo 要挂起，会晚一帧）。
  */
 @Stable
 class TrackChangeBackgroundRevealState {
     /** 0=完全旧背景，1=完全新背景 */
-    val progress = Animatable(1f)
+    private val progressState = mutableFloatStateOf(1f)
+    var progress: Float
+        get() = progressState.floatValue
+        set(value) {
+            progressState.floatValue = value
+        }
 
     /** 边界震荡相位；1f 表示已静止（不震） */
-    val settle = Animatable(1f)
+    private val settleState = mutableFloatStateOf(1f)
+    var settle: Float
+        get() = settleState.floatValue
+        set(value) {
+            settleState.floatValue = value
+        }
 
     var fromCoverUrl: String? = null
     var toCoverUrl: String? = null

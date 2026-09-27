@@ -213,6 +213,7 @@ import org.burnoutcrew.reorderable.detectReorder
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
+import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassBackdropRegistrationEnabled
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 import moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText
 
@@ -714,6 +715,10 @@ fun LibraryScreen(
         MainTabChrome(
             route = moe.ouom.neriplayer.navigation.Destinations.Library.route,
         ) {
+            // 顶栏隐藏时同步停玻璃区域注册，否则文字没了还留一块模糊
+            CompositionLocalProvider(
+                LocalAdvancedGlassBackdropRegistrationEnabled provides !chromeHidden
+            ) {
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -767,7 +772,7 @@ fun LibraryScreen(
             )
 
             AnimatedVisibility(
-                visible = showLibraryTabs,
+                visible = showLibraryTabs && !chromeHidden,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut(),
             ) {
@@ -780,6 +785,7 @@ fun LibraryScreen(
                     }
                 }
             )
+            }
             }
             }
         }

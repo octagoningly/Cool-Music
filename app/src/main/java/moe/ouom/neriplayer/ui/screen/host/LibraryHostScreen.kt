@@ -29,6 +29,10 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.ExitTransition
@@ -57,6 +61,7 @@ import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.geometry.Rect
@@ -66,6 +71,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.ui.screen.artist.NeteaseArtistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.LocalArtistDetailScreen
@@ -195,8 +201,11 @@ fun LibraryHostScreen(
     }
     // 歌单卡片容器展开：记录点击卡片在窗口中的位置/尺寸
     var openOrigin by remember { mutableStateOf<Rect?>(null) }
-    var openScale by remember { mutableStateOf(1f) }
+    // 用封面缩略图矩形做容器展开源（横竖都能拉开）
+    var openScaleX by remember { mutableStateOf(1f) }
+    var openScaleY by remember { mutableStateOf(1f) }
     var openPivot by remember { mutableStateOf(TransformOrigin.Center) }
+    var libraryChromeHidden by remember { mutableStateOf(false) }
     var skipDetailCloseAnimation by rememberSaveable { mutableStateOf(false) }
     var pendingScrollSource by rememberSaveable {
         mutableStateOf<LibraryScrollSource?>(null)
@@ -279,6 +288,11 @@ fun LibraryHostScreen(
     LaunchedEffect(selected) {
         if (selected != null) {
             skipDetailCloseAnimation = false
+            libraryChromeHidden = true
+        } else {
+            // 等关闭动画收完再显示顶栏，避免列表抽动
+            delay(420)
+            libraryChromeHidden = false
         }
     }
 
@@ -421,42 +435,65 @@ fun LibraryHostScreen(
                     openOrigin != null &&
                     coherentFeedbackEnabled
                 ) {
-                    // 从歌单卡片矩形撑开到全屏（容器展开）
-                    val scale = openScale
+                    // 从封面缩略图矩形容器展开到全屏（横竖都能看出）
+                    val sx = openScaleX
+                    val sy = openScaleY
                     val pivot = openPivot
-                    scaleIn(
-                        initialScale = scale,
-                        transformOrigin = pivot,
+                    val fromRight = pivot.pivotFractionX >= 0.5f
+                    val fromBottom = pivot.pivotFractionY >= 0.5f
+                    expandHorizontally(
+                        expandFrom = if (fromRight) Alignment.End else Alignment.Start,
+                        initialWidth = { fullWidth -> (fullWidth * sx).toInt().coerceAtLeast(1) },
+                        animationSpec = tween(
+                            durationMillis = 520,
+                            easing = FastOutSlowInEasing,
+                        )
+                    ) + expandVertically(
+                        expandFrom = if (fromBottom) Alignment.Bottom else Alignment.Top,
+                        initialHeight = { fullHeight ->
+                            (fullHeight * sy).toInt().coerceAtLeast(1)
+                        },
                         animationSpec = tween(
                             durationMillis = 520,
                             easing = FastOutSlowInEasing,
                         )
                     ) + fadeIn(
                         animationSpec = tween(
-                            durationMillis = 380,
+                            durationMillis = 360,
                             easing = FastOutSlowInEasing,
                         )
                     ) togetherWith fadeOut(
-                        animationSpec = tween(durationMillis = 300)
+                        animationSpec = tween(durationMillis = 220)
                     )
                 } else if (
                     targetState == null &&
                     openOrigin != null &&
                     coherentFeedbackEnabled
                 ) {
-                    // 返回：收回到卡片位置
-                    val scale = openScale
+                    val sx = openScaleX
+                    val sy = openScaleY
                     val pivot = openPivot
+                    val fromRight = pivot.pivotFractionX >= 0.5f
+                    val fromBottom = pivot.pivotFractionY >= 0.5f
                     EnterTransition.None togetherWith (
-                        fadeOut(
-                            animationSpec = tween(durationMillis = 320)
-                        ) + scaleOut(
-                            targetScale = scale,
-                            transformOrigin = pivot,
+                        shrinkHorizontally(
+                            shrinkTowards = if (fromRight) Alignment.End else Alignment.Start,
+                            targetWidth = { fullWidth -> (fullWidth * sx).toInt().coerceAtLeast(1) },
                             animationSpec = tween(
-                                durationMillis = 420,
+                                durationMillis = 380,
                                 easing = FastOutSlowInEasing,
                             )
+                        ) + shrinkVertically(
+                            shrinkTowards = if (fromBottom) Alignment.Bottom else Alignment.Top,
+                            targetHeight = { fullHeight ->
+                                (fullHeight * sy).toInt().coerceAtLeast(1)
+                            },
+                            animationSpec = tween(
+                                durationMillis = 380,
+                                easing = FastOutSlowInEasing,
+                            )
+                        ) + fadeOut(
+                            animationSpec = tween(durationMillis = 280)
                         )
                         )
                 } else {
@@ -511,14 +548,20 @@ fun LibraryHostScreen(
                             qqMusicListState = qqMusicListState,
                             topAppBarState = topAppBarState,
                             offlineMode = offlineMode,
-                            chromeHidden = selected != null,
+                            chromeHidden = libraryChromeHidden,
                             onPlaylistCardBounds = { bounds, windowWidth, windowHeight ->
                                 if (bounds.width > 1f && windowWidth > 1f) {
-                                    openOrigin = bounds
-                                    openScale = (bounds.width / windowWidth).coerceIn(0.48f, 0.72f)
+                                    // 以行内封面缩略图（左侧小方块）为展开源，横向才有拉开感
+                                    val cover = minOf(bounds.height * 0.72f, 96f)
+                                    val left = bounds.left + bounds.width * 0.04f
+                                    val top = bounds.top + (bounds.height - cover) / 2f
+                                    val src = Rect(left, top, left + cover, top + cover)
+                                    openOrigin = src
+                                    openScaleX = (src.width / windowWidth).coerceIn(0.12f, 0.45f)
+                                    openScaleY = (src.height / windowHeight).coerceIn(0.08f, 0.35f)
                                     openPivot = TransformOrigin(
-                                        (bounds.center.x / windowWidth).coerceIn(0f, 1f),
-                                        (bounds.center.y / windowHeight).coerceIn(0f, 1f),
+                                        (src.center.x / windowWidth).coerceIn(0f, 1f),
+                                        (src.center.y / windowHeight).coerceIn(0f, 1f),
                                     )
                                 }
                             },

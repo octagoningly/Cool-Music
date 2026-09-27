@@ -5,14 +5,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -131,10 +135,28 @@ internal fun PlaylistExportSheet(
                 .padding(bottom = 16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f)
+                    )
+                    MiuixSettingsButton(
+                        enabled = newName.isNotBlank() && selectedCount > 0,
+                        onClick = {
+                            val name = newName.trim()
+                            if (name.isBlank()) return@MiuixSettingsButton
+                            requestExportConfirmation(name) { onCreateAndExport(name) }
+                        },
+                    ) {
+                        Icon(Icons.Outlined.Add, contentDescription = null)
+                        Spacer(Modifier.width(4.dp))
+                        Text(resolvedCreateActionLabel)
+                    }
+                }
                 Text(
                     text = pluralStringResource(
                         R.plurals.common_selected_count,
@@ -152,24 +174,6 @@ internal fun PlaylistExportSheet(
                     singleLine = true
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    MiuixSettingsButton(
-                        enabled = newName.isNotBlank() && selectedCount > 0,
-                        onClick = {
-                            val name = newName.trim()
-                            if (name.isBlank()) return@MiuixSettingsButton
-                            requestExportConfirmation(name) { onCreateAndExport(name) }
-                        }
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text(resolvedCreateActionLabel)
-                    }
-                }
-
                 HorizontalDivider(
                     thickness = DividerDefaults.Thickness,
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
@@ -178,22 +182,29 @@ internal fun PlaylistExportSheet(
 
             Spacer(Modifier.height(8.dp))
 
-            LazyColumn(
-                state = playlistListState,
-                modifier = Modifier.playlistExportListHeight()
-            ) {
-                items(playlists, key = { it.id }) { playlist ->
-                    PlaylistExportRow(
-                        playlist = playlist,
-                        enabled = pendingExport == null,
-                        onClick = {
-                            context.performHapticFeedback()
-                            requestExportConfirmation(playlist.name) {
-                                onExportToPlaylist(playlist)
+            Box {
+                LazyColumn(
+                    state = playlistListState,
+                    modifier = Modifier.playlistExportListHeight()
+                ) {
+                    items(playlists, key = { it.id }) { playlist ->
+                        PlaylistExportRow(
+                            playlist = playlist,
+                            enabled = pendingExport == null,
+                            onClick = {
+                                context.performHapticFeedback()
+                                requestExportConfirmation(playlist.name) {
+                                    onExportToPlaylist(playlist)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
+                PlaylistExportScrollbar(
+                    listState = playlistListState,
+                    itemCount = playlists.size,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                )
             }
         }
     }
@@ -234,6 +245,45 @@ internal fun PlaylistExportSheet(
                     Text(stringResource(R.string.action_cancel))
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun PlaylistExportScrollbar(
+    listState: LazyListState,
+    itemCount: Int,
+    modifier: Modifier = Modifier
+) {
+    if (itemCount <= 1) return
+    val layoutInfo = listState.layoutInfo
+    val visible = layoutInfo.visibleItemsInfo.size
+    if (visible <= 0 || visible >= itemCount) return
+
+    val maxIndex = (itemCount - visible).coerceAtLeast(1)
+    val progress = (listState.firstVisibleItemIndex.toFloat() / maxIndex).coerceIn(0f, 1f)
+    val trackHeight = 72.dp
+    val thumbHeight = 28.dp
+
+    Box(
+        modifier = modifier
+            .width(3.dp)
+            .height(trackHeight)
+            .padding(end = 2.dp)
+            .background(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f),
+                shape = RoundedCornerShape(2.dp)
+            )
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(y = (trackHeight - thumbHeight) * progress)
+                .width(3.dp)
+                .height(thumbHeight)
+                .background(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(2.dp)
+                )
         )
     }
 }

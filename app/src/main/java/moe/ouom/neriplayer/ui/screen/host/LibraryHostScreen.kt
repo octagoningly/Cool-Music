@@ -87,8 +87,6 @@ import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.YouTubeMusicPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.tab.LibraryTab
 import moe.ouom.neriplayer.ui.screen.playlist.LocalPlaylistSharedTransitionScope
-import moe.ouom.neriplayer.ui.screen.playlist.PlaylistVerticalUnfoldMotion
-import moe.ouom.neriplayer.ui.screen.playlist.playlistVerticalUnfoldClip
 import moe.ouom.neriplayer.ui.screen.playlist.LocalPlaylistSharedVisibilityScope
 import moe.ouom.neriplayer.ui.screen.tab.LibraryScreen
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
@@ -213,10 +211,6 @@ fun LibraryHostScreen(
     var openScaleX by remember { mutableStateOf(1f) }
     var openScaleY by remember { mutableStateOf(1f) }
     var openPivot by remember { mutableStateOf(TransformOrigin.Center) }
-    // 纵向双向 Unfold：clip 进度 + 卡片完整 bounds
-    val unfoldProgress = remember { androidx.compose.animation.core.Animatable(1f) }
-    var unfoldCardRect by remember { mutableStateOf(Rect.Zero) }
-    var unfoldWindowRect by remember { mutableStateOf(Rect.Zero) }
     // 与 selected 同帧计算：LaunchedEffect 会晚一帧，详情打开时顶栏模糊会多挂一下
     val libraryChromeHidden = selected != null
     var skipDetailCloseAnimation by rememberSaveable { mutableStateOf(false) }
@@ -278,19 +272,9 @@ fun LibraryHostScreen(
     fun closeSelectedDetail() {
         cancelPendingNeteaseCoverWarmup()
         skipDetailCloseAnimation = false
-        val next = when (val current = selected) {
+        selected = when (val current = selected) {
             is LibrarySelectedItem.NeteaseArtistAlbum -> LibrarySelectedItem.NeteaseArtist(current.artist)
             else -> null
-        }
-        if (next == null && selected != null) {
-            // 上下合拢后再切回列表，保持「卡片被合上」
-            scope.launch {
-                unfoldProgress.animateTo(0f, PlaylistVerticalUnfoldMotion.FoldSpec)
-                selected = null
-                unfoldProgress.snapTo(1f)
-            }
-        } else {
-            selected = next
         }
     }
 
@@ -311,13 +295,6 @@ fun LibraryHostScreen(
     LaunchedEffect(selected) {
         if (selected != null) {
             skipDetailCloseAnimation = false
-            // 从卡片矩形上下打开
-            if (unfoldCardRect.width > 1f) {
-                unfoldProgress.snapTo(0f)
-                unfoldProgress.animateTo(1f, PlaylistVerticalUnfoldMotion.UnfoldSpec)
-            } else {
-                unfoldProgress.snapTo(1f)
-            }
         }
     }
 
@@ -473,11 +450,35 @@ fun LibraryHostScreen(
                     openOrigin != null &&
                     coherentFeedbackEnabled
                 ) {
-                    // 纵向 Unfold：几何交给 clip（上下边），这里只做极轻淡入
-                    fadeIn(
-                        animationSpec = tween(durationMillis = 120)
+                    // 从封面缩略图矩形容器展开到全屏（横竖都能看出）
+                    val sx = openScaleX
+                    val sy = openScaleY
+                    val pivot = openPivot
+                    val fromRight = pivot.pivotFractionX >= 0.5f
+                    val fromBottom = pivot.pivotFractionY >= 0.5f
+                    expandHorizontally(
+                        expandFrom = if (fromRight) Alignment.End else Alignment.Start,
+                        initialWidth = { fullWidth -> (fullWidth * sx).toInt().coerceAtLeast(1) },
+                        animationSpec = tween(
+                            durationMillis = 520,
+                            easing = FastOutSlowInEasing,
+                        )
+                    ) + expandVertically(
+                        expandFrom = if (fromBottom) Alignment.Bottom else Alignment.Top,
+                        initialHeight = { fullHeight ->
+                            (fullHeight * sy).toInt().coerceAtLeast(1)
+                        },
+                        animationSpec = tween(
+                            durationMillis = 520,
+                            easing = FastOutSlowInEasing,
+                        )
+                    ) + fadeIn(
+                        animationSpec = tween(
+                            durationMillis = 360,
+                            easing = FastOutSlowInEasing,
+                        )
                     ) togetherWith fadeOut(
-                        animationSpec = tween(durationMillis = 160)
+                        animationSpec = tween(durationMillis = 220)
                     )
                 } else if (
                     targetState == null &&
@@ -568,9 +569,6 @@ fun LibraryHostScreen(
                             chromeHidden = libraryChromeHidden,
                             onPlaylistCardBounds = { bounds, windowWidth, windowHeight ->
                                 if (bounds.width > 1f && windowWidth > 1f) {
-                                    // 完整卡片 bounds：纵向 Unfold 的起始矩形
-                                    unfoldCardRect = bounds
-                                    unfoldWindowRect = Rect(0f, 0f, windowWidth, windowHeight)
                                     // 以行内封面缩略图（左侧小方块）为展开源，横向才有拉开感
                                     val cover = minOf(bounds.height * 0.72f, 96f)
                                     val left = bounds.left + bounds.width * 0.04f
@@ -715,23 +713,6 @@ fun LibraryHostScreen(
                         }
                         }
                     } else {
-                        val unfoldCard = unfoldCardRect
-                        val unfoldWindow = unfoldWindowRect
-                        androidx.compose.foundation.layout.Box(
-                            Modifier.playlistVerticalUnfoldClip(
-                                card = if (unfoldCard.width > 1f) {
-                                    unfoldCard
-                                } else {
-                                    Rect(0f, 0f, unfoldWindow.width, unfoldWindow.height * 0.35f)
-                                },
-                                window = if (unfoldWindow.width > 1f) {
-                                    unfoldWindow
-                                } else {
-                                    Rect(0f, 0f, 1080f, 2400f)
-                                },
-                                progress = unfoldProgress.value,
-                            )
-                        ) {
                         when (current) {
                         is LibrarySelectedItem.Local -> {
                             LocalPlaylistDetailScreen(
@@ -875,11 +856,9 @@ fun LibraryHostScreen(
                                 )
                         }
                         }
-                        }
                     }
                 }
             }
-
         }
                 }
             }

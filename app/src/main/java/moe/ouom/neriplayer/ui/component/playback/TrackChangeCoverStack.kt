@@ -45,8 +45,11 @@ object TrackChangeCoverMotion {
     /** 横滑距离 = 封面宽 × 1.0（一页，并排露出） */
     const val PageSlideFraction = 1.0f
 
-    /** 离场/入场端的缩小幅度（看得出缩放） */
-    const val SideScale = 0.72f
+    /** 离场/入场端的缩小幅度（再压到当前 0.8 倍，更明显） */
+    const val SideScale = 0.58f
+
+    /** 缩放延后启动：先横滑，再放大（放大时才刷新背景） */
+    const val ScaleStartDelayMs = 170L
 
     const val SinkYFraction = 0.05f
 
@@ -102,6 +105,7 @@ fun TrackChangeCoverStack(
     enabled: Boolean,
     modifier: Modifier = Modifier,
     cornerRadius: RoundedCornerShape = RoundedCornerShape(24.dp),
+    backgroundReveal: TrackChangeBackgroundRevealState? = null,
     onSettled: () -> Unit = {},
     onCoverCenterInRoot: (Offset) -> Unit = {},
     cover: @Composable (coverUrl: String?, songKey: String?) -> Unit,
@@ -138,10 +142,16 @@ fun TrackChangeCoverStack(
 
     LaunchedEffect(songKey, coverUrl) {
         if (songKey == incomingKey && coverUrl == incomingUrl) return@LaunchedEffect
-        outgoingUrl = incomingUrl
+        val fromUrl = incomingUrl
+        outgoingUrl = fromUrl
         outgoingKey = incomingKey
         incomingUrl = coverUrl
         incomingKey = songKey
+        backgroundReveal?.let { rev ->
+            rev.fromCoverUrl = fromUrl
+            rev.toCoverUrl = coverUrl
+            rev.active = true
+        }
         animToken += 1
     }
 
@@ -149,12 +159,29 @@ fun TrackChangeCoverStack(
         if (animToken == 0) return@LaunchedEffect
         slideProgress.snapTo(0f)
         scaleProgress.snapTo(0f)
+        backgroundReveal?.progress?.snapTo(0f)
         coroutineScope {
             launch { slideProgress.animateTo(1f, TrackChangeCoverMotion.SlideSpec) }
-            launch { scaleProgress.animateTo(1f, TrackChangeCoverMotion.ScaleSettleSpec) }
+            launch {
+                // 先横滑；新封面开始放大后，背景才涟漪揭示
+                kotlinx.coroutines.delay(TrackChangeCoverMotion.ScaleStartDelayMs)
+                scaleProgress.animateTo(1f, TrackChangeCoverMotion.ScaleSettleSpec)
+            }
+            launch {
+                kotlinx.coroutines.delay(TrackChangeCoverMotion.ScaleStartDelayMs)
+                backgroundReveal?.progress?.animateTo(
+                    1f,
+                    TrackChangeCoverMotion.ScaleSettleSpec,
+                )
+            }
         }
         outgoingUrl = null
         outgoingKey = null
+        backgroundReveal?.let {
+            it.active = false
+            it.fromCoverUrl = null
+            it.progress?.snapTo(1f)
+        }
         onSettled()
     }
 
@@ -166,11 +193,16 @@ fun TrackChangeCoverStack(
                 widthPx = coords.size.width.toFloat().coerceAtLeast(1f)
                 heightPx = coords.size.height.toFloat().coerceAtLeast(1f)
                 val pos = coords.positionInRoot()
-                onCoverCenterInRoot(
-                    Offset(
-                        pos.x + coords.size.width / 2f,
-                        pos.y + coords.size.height / 2f,
-                    )
+                val center = Offset(
+                    pos.x + coords.size.width / 2f,
+                    pos.y + coords.size.height / 2f,
+                )
+                onCoverCenterInRoot(center)
+                backgroundReveal?.coverBoundsInRoot = androidx.compose.ui.geometry.Rect(
+                    pos.x,
+                    pos.y,
+                    pos.x + coords.size.width,
+                    pos.y + coords.size.height,
                 )
             }
     ) {

@@ -7,11 +7,13 @@ import org.junit.Test
 class TrackChangeCoverMotionTest {
     @Test
     fun scaleIsClearlyVisibleAndSettleIsLongerThanSlide() {
-        assertTrue(TrackChangeCoverMotion.SideScale <= 0.78f)
+        // 约当前 0.8 倍（0.72→0.58），缩小要看得出来
+        assertTrue(TrackChangeCoverMotion.SideScale in 0.52f..0.62f)
         assertTrue(
             TrackChangeCoverMotion.ScaleSettleSpec.durationMillis >
                 TrackChangeCoverMotion.SlideSpec.durationMillis
         )
+        assertTrue(TrackChangeCoverMotion.ScaleStartDelayMs in 120L..260L)
     }
 
     @Test

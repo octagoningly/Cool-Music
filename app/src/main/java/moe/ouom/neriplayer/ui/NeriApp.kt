@@ -259,6 +259,8 @@ import moe.ouom.neriplayer.ui.theme.NeriTheme
 import moe.ouom.neriplayer.ui.theme.rememberActualSystemDarkTheme
 import moe.ouom.neriplayer.ui.util.rememberSongDisplayCoverUrl
 import moe.ouom.neriplayer.ui.view.HyperBackground
+import moe.ouom.neriplayer.ui.view.HyperBackgroundReveal
+import moe.ouom.neriplayer.ui.component.playback.TrackChangeBackgroundRevealState
 import moe.ouom.neriplayer.ui.viewmodel.debug.LogViewerScreen
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.BiliUploaderSummary
@@ -4397,6 +4399,9 @@ private fun NeriAppContent(
 
                         val nowPlayingQueue by PlayerManager.currentQueueFlow.collectAsStateWithLifecycle()
                         val nowPlayingCoverUrl = currentCoverUrl
+                        val trackChangeBackgroundReveal = remember {
+                            TrackChangeBackgroundRevealState()
+                        }
 
                         Box(
                             modifier = Modifier
@@ -4623,20 +4628,22 @@ private fun NeriAppContent(
                                     },
                                     label = "hyper_background_alpha"
                                 )
-                                HyperBackground(
+                                HyperBackgroundReveal(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .graphicsLayer { alpha = hyperBackgroundAlpha },
+                                    reveal = trackChangeBackgroundReveal,
+                                    currentCoverUrl = nowPlayingCoverUrl,
                                     isDark = true,
-                                    coverUrl = nowPlayingCoverUrl,
                                     refreshKey = coverArtRefreshToken,
-                                    offlineMode = offlineMode
+                                    offlineMode = offlineMode,
                                 )
                             }
 
                             CompositionLocalProvider(LocalMiniPlayerHeight provides 0.dp) {
                                 val currentSourceRoute = currentPlaybackSourceRoute
                                 NowPlayingScreen(
+                        trackChangeBackgroundReveal = trackChangeBackgroundReveal,
                                     onNavigateUp = { showNowPlaying = false },
                                     onOpenCurrentPlaybackSource = currentSourceRoute?.let { route ->
                                         {

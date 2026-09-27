@@ -836,7 +836,7 @@ private fun NowPlayingQueueRow(
         color = containerColor
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (selectionMode) {
@@ -1165,59 +1165,68 @@ private fun NowPlayingQueueSelectionToolbar(
     onExport: () -> Unit,
     onExitSelection: () -> Unit
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 12.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(start = 12.dp, end = 4.dp, bottom = 8.dp)
     ) {
-        HapticIconButton(onClick = onExitSelection) {
-            Icon(
-                imageVector = Icons.Outlined.Close,
-                contentDescription = stringResource(R.string.action_cancel)
-            )
-        }
-        Column(Modifier.weight(1f)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = stringResource(R.string.common_selected),
+                text = stringResource(R.string.common_selected) + " $selectedCount" + "项",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.weight(1f)
             )
-            Text(
-                text = pluralStringResource(
-                    R.plurals.common_selected_count,
-                    selectedCount,
-                    selectedCount
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            HapticIconButton(onClick = onExitSelection) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = stringResource(R.string.action_cancel)
+                )
+            }
         }
-        HapticIconButton(onClick = onSelectAll) {
-            Icon(
-                imageVector = if (allSelected) {
-                    Icons.Filled.CheckBox
-                } else {
-                    Icons.Filled.CheckBoxOutlineBlank
-                },
-                contentDescription = if (allSelected) {
-                    stringResource(R.string.action_deselect_all)
-                } else {
-                    stringResource(R.string.action_select_all)
-                }
-            )
-        }
-        HapticTextButton(onClick = onInvertSelection) {
-            Text(stringResource(R.string.action_inverse_select))
-        }
-        HapticIconButton(
-            enabled = canExport,
-            onClick = onExport
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
-                contentDescription = stringResource(R.string.cd_export_playlist)
-            )
+            HapticIconButton(onClick = onSelectAll, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = if (allSelected) {
+                        Icons.Filled.CheckBox
+                    } else {
+                        Icons.Filled.CheckBoxOutlineBlank
+                    },
+                    contentDescription = if (allSelected) {
+                        stringResource(R.string.action_deselect_all)
+                    } else {
+                        stringResource(R.string.action_select_all)
+                    },
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            HapticTextButton(
+                onClick = onInvertSelection,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.action_inverse_select),
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1
+                )
+            }
+            HapticIconButton(
+                enabled = canExport,
+                onClick = onExport,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
+                    contentDescription = stringResource(R.string.cd_export_playlist),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -1446,6 +1455,20 @@ internal fun NowPlayingQueueSheet(
     val queueSheetDockGap =
         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + QueueSheetDockGap
 
+    // 跳转对话框必须放在队列 GlassPanel(Popup) 外层，嵌套 Popup 会用父窗坐标注册模糊区域导致失效
+    if (showQueueIndexJumpDialog) {
+        NowPlayingQueueIndexJumpDialog(
+            queueSize = queueEntries.size,
+            input = queueIndexInput,
+            onInputChange = { queueIndexInput = it },
+            onDismiss = { showQueueIndexJumpDialog = false },
+            onJump = { targetIndex ->
+                scrollToQueueIndex(targetIndex)
+                showQueueIndexJumpDialog = false
+            }
+        )
+    }
+
     ModalBottomSheet(
         onDismissRequest = ::dismissQueue,
         sheetState = sheetState,
@@ -1458,10 +1481,10 @@ internal fun NowPlayingQueueSheet(
         panelMaxHeight = QueueSheetMaxHeight,
         panelYOffset = -queueSheetDockGap,
         panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
+            start = 12.dp,
+            end = 12.dp,
             top = 8.dp,
-            bottom = 20.dp
+            bottom = 16.dp
         ),
     ) {
         BackHandler(enabled = selectionMode && !showExportSheet) {
@@ -1470,19 +1493,6 @@ internal fun NowPlayingQueueSheet(
 
         BackHandler(enabled = showExportSheet) {
             showExportSheet = false
-        }
-
-        if (showQueueIndexJumpDialog) {
-            NowPlayingQueueIndexJumpDialog(
-                queueSize = queueEntries.size,
-                input = queueIndexInput,
-                onInputChange = { queueIndexInput = it },
-                onDismiss = { showQueueIndexJumpDialog = false },
-                onJump = { targetIndex ->
-                    scrollToQueueIndex(targetIndex)
-                    showQueueIndexJumpDialog = false
-                }
-            )
         }
 
         Box(
@@ -1520,7 +1530,7 @@ internal fun NowPlayingQueueSheet(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 20.dp, end = 8.dp, bottom = 8.dp)
+                            .padding(start = 12.dp, end = 4.dp, bottom = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -1605,8 +1615,8 @@ internal fun NowPlayingQueueSheet(
                         )
                         .bottomSheetScrollGuard(),
                     contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
+                        start = 8.dp,
+                        end = 8.dp,
                         top = 4.dp,
                         bottom = 98.dp
                     ),
@@ -1947,6 +1957,7 @@ fun NowPlayingScreen(
     expandSharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     expandAnimatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
     expandCoverSharedEnabled: Boolean = false,
+    trackChangeBackgroundReveal: moe.ouom.neriplayer.ui.component.playback.TrackChangeBackgroundRevealState? = null,
 ) {
     val coverExpandSharedModifier: Modifier = expandSharedTransitionScope?.let { scope ->
         expandAnimatedVisibilityScope?.let { visibilityScope ->
@@ -3226,6 +3237,7 @@ fun NowPlayingScreen(
                                     coverUrl = currentCoverUrl,
                                     songKey = coverSongKey,
                                     enabled = expandCoverSharedEnabled,
+                                    backgroundReveal = trackChangeBackgroundReveal,
                                     onSettled = { trackChangeRipplePulse += 1 },
                                     onCoverCenterInRoot = { coverCenterInRoot = it },
                                     modifier = Modifier

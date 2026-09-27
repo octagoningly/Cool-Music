@@ -166,6 +166,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -431,38 +432,42 @@ private fun StableNowPlayingCoverImage(
             displayedCoverUrl == null -> requestedCoverUrl
             else -> displayedCoverUrl
         }
-        Crossfade(
-            targetState = targetDisplayedCoverUrl,
-            animationSpec = if (targetDisplayedCoverUrl == null) {
-                snap()
-            } else {
-                tween(durationMillis = NowPlayingCoverImageCrossfadeMs)
-            },
-            label = "NowPlayingCoverImage"
-        ) { displayedCover ->
-            if (displayedCover.isNullOrBlank()) {
-                Box(modifier = Modifier.fillMaxSize())
-            } else {
-                AsyncImage(
-                    model = remember(
-                        context,
-                        displayedCover,
-                        coverRequestSizePx,
-                        offlineMode
-                    ) {
-                        offlineCachedImageRequest(
-                            context = context,
-                            data = displayedCover,
-                            sizePx = coverRequestSizePx,
-                            allowHardware = false,
-                            crossfade = false,
-                            offlineMode = offlineMode
-                        )
-                    },
-                    contentDescription = contentDescription,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+        // 切歌双栈里入厂槽必须立刻换新图：Crossfade 按 songKey 重建，
+        // 避免入厂第一帧仍画旧封面。
+        key(songKey) {
+            Crossfade(
+                targetState = targetDisplayedCoverUrl,
+                animationSpec = if (targetDisplayedCoverUrl == null) {
+                    snap()
+                } else {
+                    tween(durationMillis = NowPlayingCoverImageCrossfadeMs)
+                },
+                label = "NowPlayingCoverImage"
+            ) { displayedCover ->
+                if (displayedCover.isNullOrBlank()) {
+                    Box(modifier = Modifier.fillMaxSize())
+                } else {
+                    AsyncImage(
+                        model = remember(
+                            context,
+                            displayedCover,
+                            coverRequestSizePx,
+                            offlineMode
+                        ) {
+                            offlineCachedImageRequest(
+                                context = context,
+                                data = displayedCover,
+                                sizePx = coverRequestSizePx,
+                                allowHardware = false,
+                                crossfade = false,
+                                offlineMode = offlineMode
+                            )
+                        },
+                        contentDescription = contentDescription,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
@@ -3323,7 +3328,22 @@ fun NowPlayingScreen(
 
                     Spacer(Modifier.height(16.dp))
 
-                    // 标题
+                    // 标题：等新封面入厂后再淡化切换，不跟点击瞬间跳
+                    val targetSongTitle = currentSong?.customName ?: currentSong?.name ?: ""
+                    val targetSongArtist = currentSong?.customArtist ?: currentSong?.artist ?: ""
+                    var shownSongTitle by remember { mutableStateOf(targetSongTitle) }
+                    var shownSongArtist by remember { mutableStateOf(targetSongArtist) }
+                    LaunchedEffect(targetSongTitle, targetSongArtist) {
+                        if (targetSongTitle == shownSongTitle && targetSongArtist == shownSongArtist) {
+                            return@LaunchedEffect
+                        }
+                        kotlinx.coroutines.delay(
+                            moe.ouom.neriplayer.ui.component.playback.TrackChangeCoverMotion
+                                .IncomingDelayMs
+                        )
+                        shownSongTitle = targetSongTitle
+                        shownSongArtist = targetSongArtist
+                    }
                     val titleStaggerDelayMs = if (expandCoverSharedEnabled) {
                         NowPlayingExpandMotion.StaggerTitleDelayMs
                     } else {
@@ -3339,19 +3359,25 @@ fun NowPlayingScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             BoxWithConstraints {
-                                NowPlayingSongTitle(
-                                    text = currentSong?.customName ?: currentSong?.name ?: "",
-                                    marqueeEnabled = nowPlayingSongTitleMarqueeEnabled,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = targetNowPlayingColorScheme.onSurface,
-                                    modifier = Modifier
-                                        .widthIn(max = maxWidth)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .combinedClickable(
-                                            onClick = {},
-                                            onLongClick = { showSongNameMenu = true }
-                                        )
-                                )
+                                Crossfade(
+                                    targetState = shownSongTitle,
+                                    animationSpec = tween(durationMillis = 300),
+                                    label = "np_song_title"
+                                ) { title ->
+                                    NowPlayingSongTitle(
+                                        text = title,
+                                        marqueeEnabled = nowPlayingSongTitleMarqueeEnabled,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = targetNowPlayingColorScheme.onSurface,
+                                        modifier = Modifier
+                                            .widthIn(max = maxWidth)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .combinedClickable(
+                                                onClick = {},
+                                                onLongClick = { showSongNameMenu = true }
+                                            )
+                                    )
+                                }
                                 GlassDropdownMenu(
                                     expanded = showSongNameMenu,
                                     onDismissRequest = { showSongNameMenu = false }
@@ -3371,25 +3397,31 @@ fun NowPlayingScreen(
                                 }
                             }
                             Box {
-                                Text(
-                                    text = currentSong?.customArtist ?: currentSong?.artist ?: "",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .sharedElement(
-                                            rememberSharedContentState(
-                                                key = NowPlayingLyricsSharedTransitionElement.ARTIST.key
-                                            ),
-                                            animatedVisibilityScope = this@AnimatedContent
-                                        )
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .combinedClickable(
-                                            onClick = openCurrentArtist,
-                                            onLongClick = { showArtistMenu = true }
-                                        )
-                                )
+                                Crossfade(
+                                    targetState = shownSongArtist,
+                                    animationSpec = tween(durationMillis = 300),
+                                    label = "np_song_artist"
+                                ) { artist ->
+                                    Text(
+                                        text = artist,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .sharedElement(
+                                                rememberSharedContentState(
+                                                    key = NowPlayingLyricsSharedTransitionElement.ARTIST.key
+                                                ),
+                                                animatedVisibilityScope = this@AnimatedContent
+                                            )
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .combinedClickable(
+                                                onClick = openCurrentArtist,
+                                                onLongClick = { showArtistMenu = true }
+                                            )
+                                    )
+                                }
                                 GlassDropdownMenu(
                                     expanded = showArtistMenu,
                                     onDismissRequest = { showArtistMenu = false }

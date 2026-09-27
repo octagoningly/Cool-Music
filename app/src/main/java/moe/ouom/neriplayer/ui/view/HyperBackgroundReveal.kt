@@ -27,9 +27,9 @@ import moe.ouom.neriplayer.ui.component.playback.scaleRectFromCenter
 /**
  * HyperBackground + 切歌涟漪揭示。
  *
- * [reveal].active 时：下层仍显示旧封面底，上层新封面底用
- * **从封面矩形四边向外扩张**的圆角矩形裁切；未扩散到的区域保持旧背景。
- * 圆角全程保持；扩到边界后按 [TrackChangeCoverMotion.revealBoundaryRing] 震荡回弹。
+ * **两层 HyperBackground 全程挂在树上**（禁止 if/else 拆掉再挂）：
+ * 重挂载会让 shader 调色板空一拍，闪出「彩黑」默认底。
+ * 下层 = 旧底，上层 = 新底并按封面矩形圆角裁切；未扩散到的区域露旧底。
  */
 @Composable
 fun HyperBackgroundReveal(
@@ -47,72 +47,81 @@ fun HyperBackgroundReveal(
 
     val fromUrl = reveal.fromCoverUrl
     val toUrl = reveal.toCoverUrl ?: currentCoverUrl
-    val revealing = reveal.active && progress < 1f && fromUrl != null && fromUrl != toUrl
-    // 扩到位后的震荡（settle 从 0 跑到 1；1=静止）
-    val ringing = reveal.active && progress >= 1f && settle < 1f && fromUrl != null && fromUrl != toUrl
+    val transitionLive = reveal.active && fromUrl != null && fromUrl != toUrl
+    // 扩散中（progress<1）或边界震荡中（settle<1）都要裁切
+    val clipping = transitionLive && (progress < 1f || settle < 1f)
+    val bottomUrl = if (transitionLive) fromUrl else toUrl
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .onSizeChanged { windowSize = it }
     ) {
-        if ((revealing || ringing) && windowSize.width > 0) {
-            HyperBackground(
-                modifier = Modifier.fillMaxSize(),
-                isDark = isDark,
-                coverUrl = fromUrl,
-                refreshKey = refreshKey,
-                offlineMode = offlineMode,
-            )
-            val window = Rect(0f, 0f, windowSize.width.toFloat(), windowSize.height.toFloat())
-            val cover = reveal.coverBoundsInRoot
-                .takeIf { it.width > 0f && it.height > 0f }
-                ?: Rect(
-                    window.center.x - 2f,
-                    window.center.y - 2f,
-                    window.center.x + 2f,
-                    window.center.y + 2f,
-                )
-            val cornerPx = with(density) { TrackChangeCoverMotion.RevealCornerRadiusDp.dp.toPx() }
-            // bleed 让圆角角点扩出屏幕，全程保持圆角、不收成直角
-            val expanded = expandRevealRect(cover, progress, window, bleedPx = cornerPx)
-            val ringScale = if (ringing) {
-                TrackChangeCoverMotion.revealBoundaryRing(settle)
-            } else {
-                1f
-            }
-            val revealed = scaleRectFromCenter(expanded, ringScale)
+        // 下层：旧底。同一实例只换 URL，调色板平滑过渡，不重挂载
+        HyperBackground(
+            modifier = Modifier.fillMaxSize(),
+            isDark = isDark,
+            coverUrl = bottomUrl,
+            refreshKey = refreshKey,
+            offlineMode = offlineMode,
+        )
 
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        // 揭示时新背景淡入，减轻生硬
-                        alpha = TrackChangeCoverMotion.revealAlpha(progress)
-                    }
-                    .drawWithContent {
-                        val path = Path().apply {
-                            addRoundRect(
-                                RoundRect(
-                                    rect = revealed,
-                                    cornerRadius = CornerRadius(cornerPx, cornerPx),
-                                )
-                            )
-                        }
-                        clipPath(path) {
-                            this@drawWithContent.drawContent()
-                        }
-                    }
-            ) {
-                HyperBackground(
-                    modifier = Modifier.fillMaxSize(),
-                    isDark = isDark,
-                    coverUrl = toUrl,
-                    refreshKey = refreshKey,
-                    offlineMode = offlineMode,
-                )
-            }
+        val window = Rect(0f, 0f, windowSize.width.toFloat(), windowSize.height.toFloat())
+        val cover = reveal.coverBoundsInRoot
+            .takeIf { it.width > 0f && it.height > 0f }
+            ?: Rect(
+                window.center.x - 2f,
+                window.center.y - 2f,
+                window.center.x + 2f,
+                window.center.y + 2f,
+            )
+        val cornerPx = with(density) { TrackChangeCoverMotion.RevealCornerRadiusDp.dp.toPx() }
+        // 扩散阶段 bleed 把圆角角点推出屏幕；震荡阶段收回一点，让回缩看得见
+        val bleedPx = if (progress < 1f) cornerPx else cornerPx * 0.2f
+        val expanded = expandRevealRect(
+            cover = cover,
+            progress = progress.coerceAtMost(1f),
+            window = window,
+            bleedPx = bleedPx,
+        )
+        val ringScale = if (clipping && progress >= 1f) {
+            TrackChangeCoverMotion.revealBoundaryRing(settle)
         } else {
+            1f
+        }
+        val revealed = scaleRectFromCenter(expanded, ringScale)
+
+        // 上层：新底。始终挂载；扩散/震荡时做圆角裁切
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    alpha = if (clipping) {
+                        TrackChangeCoverMotion.revealAlpha(progress)
+                    } else {
+                        1f
+                    }
+                }
+                .then(
+                    if (clipping && windowSize.width > 0) {
+                        Modifier.drawWithContent {
+                            val path = Path().apply {
+                                addRoundRect(
+                                    RoundRect(
+                                        rect = revealed,
+                                        cornerRadius = CornerRadius(cornerPx, cornerPx),
+                                    )
+                                )
+                            }
+                            clipPath(path) {
+                                this@drawWithContent.drawContent()
+                            }
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
             HyperBackground(
                 modifier = Modifier.fillMaxSize(),
                 isDark = isDark,

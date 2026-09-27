@@ -97,14 +97,15 @@ object TrackChangeCoverMotion {
     fun revealAlpha(progress: Float): Float = lerp(RevealFadeFromAlpha, 1f, progress)
 
     /**
-     * 扩到边界后的阻尼震荡：先略过冲，再回缩，最后贴住。
+     * 扩到边界后的阻尼震荡：**先回缩**（屏幕内可见），再小幅回弹贴住。
      * [t]=0 刚到边界，[t]=1 震荡结束（=1f）。
+     * 幅度要盖过 bleed，否则回缩落在屏幕外等于没震。
      */
     fun revealBoundaryRing(t: Float): Float {
         if (t <= 0f || t >= 1f) return 1f
-        val decay = kotlin.math.exp(-4.8f * t)
-        val wave = kotlin.math.sin(2f * kotlin.math.PI.toFloat() * 1.75f * t)
-        return 1f + 0.042f * decay * wave
+        val decay = kotlin.math.exp(-3.4f * t)
+        val wave = kotlin.math.sin(2f * kotlin.math.PI.toFloat() * 1.35f * t)
+        return 1f - 0.085f * decay * wave
     }
 
     val RippleSpec = tween<Float>(
@@ -188,12 +189,20 @@ fun TrackChangeCoverStack(
     val slideProgress = remember { Animatable(1f) }
     val incomingSlideProgress = remember { Animatable(1f) }
     val scaleProgress = remember { Animatable(1f) }
-
-    LaunchedEffect(songKey, coverUrl) {
-        if (songKey == incomingKey && coverUrl == incomingUrl) return@LaunchedEffect
-        val fromUrl = incomingUrl
+    // 同帧交换：LaunchedEffect 会晚一帧，入厂槽首帧仍画旧封面
+    val lastCoverIds = remember {
+        object {
+            var url: String? = coverUrl
+            var key: String? = songKey
+        }
+    }
+    if (lastCoverIds.url != coverUrl || lastCoverIds.key != songKey) {
+        val fromUrl = lastCoverIds.url
+        val fromKey = lastCoverIds.key
+        lastCoverIds.url = coverUrl
+        lastCoverIds.key = songKey
         outgoingUrl = fromUrl
-        outgoingKey = incomingKey
+        outgoingKey = fromKey
         incomingUrl = coverUrl
         incomingKey = songKey
         backgroundReveal?.let { rev ->

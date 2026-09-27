@@ -359,6 +359,9 @@ internal fun SavedCookieActionDialog(
 ) {
     MiuixSettingsDialog(
         onDismissRequest = onDismiss,
+        // 默认 220 过窄，标题/正文/按钮会挤成竖排
+        maxWidth = 320.dp,
+        maxHeight = 400.dp,
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = {

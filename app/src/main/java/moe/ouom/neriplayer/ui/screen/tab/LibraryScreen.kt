@@ -217,6 +217,11 @@ import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassBackdropRegistratio
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 import moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText
 
+/** 记录卡片 bounds 但不进 State，避免滚动时每帧重组 */
+private class CardBoundsCapture {
+    var bounds: androidx.compose.ui.geometry.Rect = androidx.compose.ui.geometry.Rect.Zero
+}
+
 enum class LibraryTab(val labelResId: Int) {
     LOCAL(R.string.library_tab_local),
     FAVORITE(R.string.library_tab_favorite),
@@ -599,14 +604,9 @@ fun LibraryScreen(
             lastLibraryScrollTotal = total
         }
     }
-    val libraryContentTop by animateDpAsState(
-        targetValue = if (showLibraryTabs && !chromeHidden) 136.dp else 56.dp,
-        animationSpec = tween(
-            durationMillis = if (chromeHidden) 80 else 220,
-            easing = FastOutSlowInEasing,
-        ),
-        label = "libraryContentTop"
-    )
+    // 瞬时切换顶部留白：动画 Dp 会让列表每帧 remasure，滚动发卡
+    val libraryContentTop =
+        if (showLibraryTabs && !chromeHidden) 136.dp else 56.dp
 
     CompositionLocalProvider(LocalLibraryListTopPadding provides libraryContentTop) {
     Box(
@@ -1037,9 +1037,7 @@ private fun YouTubeMusicPlaylistList(
             items = playlists,
             key = { it.browseId }
         ) { playlist ->
-            var ytCardBounds by remember {
-                mutableStateOf(androidx.compose.ui.geometry.Rect.Zero)
-            }
+            val ytCardBounds = remember { CardBoundsCapture() }
             val playlistFavoriteId = remember(playlist.playlistId, playlist.browseId) {
                 playlist.favoriteId()
             }
@@ -1056,10 +1054,10 @@ private fun YouTubeMusicPlaylistList(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
                     .animateItem()
                     .clip(cardShape)
-                    .onGloballyPositioned { ytCardBounds = it.boundsInRoot() }
+                    .onGloballyPositioned { ytCardBounds.bounds = it.boundsInRoot() }
                     .combinedClickable(
                         onClick = {
-                            onCardBounds(ytCardBounds)
+                            onCardBounds(ytCardBounds.bounds)
                             onClick(playlist)
                         },
                         onLongClick = { menuPlaylist = playlist }
@@ -3214,7 +3212,7 @@ private fun NeteasePlaylistRow(
     offlineMode: Boolean,
     onCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
 ) {
-    var rowBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    val rowBoundsCapture = remember { CardBoundsCapture() }
     Card(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -3222,9 +3220,9 @@ private fun NeteasePlaylistRow(
         modifier = Modifier
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clip(cardShape)
-            .onGloballyPositioned { rowBounds = it.boundsInRoot() }
+            .onGloballyPositioned { rowBoundsCapture.bounds = it.boundsInRoot() }
             .clickable {
-                onCardBounds(rowBounds)
+                onCardBounds(rowBoundsCapture.bounds)
                 onClick()
             }
     ) {

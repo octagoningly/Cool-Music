@@ -64,6 +64,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -373,6 +374,8 @@ private const val QueueSheetMaxHeightFraction = 0.9f
 /** 播放列表浮层：比原底部面板略大，保证歌名尽量完整显示 */
 private val QueueSheetMaxWidth = 380.dp
 private val QueueSheetMaxHeight = 500.dp
+/** 弹窗底边到 Dock 工具栏顶部的空隙，保证不遮住「播放列表」按钮 */
+private val QueueSheetDockGap = 100.dp
 internal val NowPlayingQueueReorderAutoScrollMaxPerFrame = 2.dp
 private val QueueReorderDragCancelStiffness = Spring.StiffnessMediumLow
 private const val QueueReorderDraggedItemScale = 1.01f
@@ -1422,16 +1425,21 @@ internal fun NowPlayingQueueSheet(
         if (cleanedKeys != selectedKeys) selectedKeys = cleanedKeys
     }
 
+    // 贴在 Dock「播放列表」按钮上方：底边避开导航栏 + 工具栏，不遮挡按钮
+    val queueSheetDockGap =
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + QueueSheetDockGap
+
     ModalBottomSheet(
         onDismissRequest = ::dismissQueue,
         sheetState = sheetState,
         sheetGesturesEnabled = false,
         dragHandle = null,
-        // 播放列表：四角统一 28.dp 圆角 + 居中浮层（开发规则：面板 28.dp）
+        // 播放列表：四角统一 28.dp 圆角，浮在 Dock 上方（开发规则：面板 28.dp）
         shape = GlassDialogShape,
-        panelPosition = GlassPanelPosition.Centered,
+        panelPosition = GlassPanelPosition.Bottom,
         panelMaxWidth = QueueSheetMaxWidth,
         panelMaxHeight = QueueSheetMaxHeight,
+        panelYOffset = -queueSheetDockGap,
         panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 16.dp,
             end = 16.dp,
@@ -1461,9 +1469,7 @@ internal fun NowPlayingQueueSheet(
         }
 
         Box(
-            modifier = Modifier
-                .fillMaxHeight(QueueSheetMaxHeightFraction)
-                .windowInsetsPadding(WindowInsets.navigationBars)
+            modifier = Modifier.fillMaxHeight(QueueSheetMaxHeightFraction)
         ) {
             Column(Modifier.fillMaxSize()) {
                 if (selectionMode) {
@@ -3136,7 +3142,7 @@ fun NowPlayingScreen(
                                         ),
                                         animatedVisibilityScope = this@AnimatedContent
                                     )
-                                    .clip(RoundedCornerShape(24.dp))
+                                    // 切歌飞出/飞入需离开圆角框：裁切改由 TrackChangeCoverStack 各层自绘
                                     .background(
                                         color = if (currentCoverUrl != null) {
                                             Color.Transparent

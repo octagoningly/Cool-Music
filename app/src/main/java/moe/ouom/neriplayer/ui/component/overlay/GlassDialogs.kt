@@ -428,6 +428,7 @@ internal fun GlassModalBottomSheet(
     position: GlassPanelPosition = GlassPanelPosition.Bottom,
     maxWidth: Dp = 300.dp,
     maxHeight: Dp = 420.dp,
+    yOffset: Dp = 0.dp,
     contentPadding: androidx.compose.foundation.layout.PaddingValues =
         androidx.compose.foundation.layout.PaddingValues(
             start = 16.dp,
@@ -445,6 +446,7 @@ internal fun GlassModalBottomSheet(
         position = position,
         maxWidth = maxWidth,
         maxHeight = maxHeight,
+        yOffset = yOffset,
         contentPadding = contentPadding,
         content = content
     )

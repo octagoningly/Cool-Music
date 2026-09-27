@@ -118,6 +118,7 @@ internal fun DensityScaledModalBottomSheet(
     panelPosition: GlassPanelPosition = GlassPanelPosition.Bottom,
     panelMaxWidth: Dp = 300.dp,
     panelMaxHeight: Dp = 420.dp,
+    panelYOffset: Dp = 0.dp,
     panelContentPadding: androidx.compose.foundation.layout.PaddingValues =
         androidx.compose.foundation.layout.PaddingValues(
             start = 16.dp,
@@ -136,6 +137,7 @@ internal fun DensityScaledModalBottomSheet(
         position = panelPosition,
         maxWidth = panelMaxWidth,
         maxHeight = panelMaxHeight,
+        yOffset = panelYOffset,
         contentPadding = panelContentPadding,
     ) {
         if (dragHandle != null) {

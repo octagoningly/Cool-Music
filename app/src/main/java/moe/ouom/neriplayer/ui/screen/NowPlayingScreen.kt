@@ -374,8 +374,8 @@ private const val QueueSheetMaxHeightFraction = 0.9f
 /** 播放列表浮层：约为屏幕宽的 0.75，不占满整屏 */
 private val QueueSheetMaxWidth = 285.dp
 private val QueueSheetMaxHeight = 500.dp
-/** 弹窗底边到 Dock 的空隙：再下移 0.8 个歌曲行高（72dp * 0.8） */
-private val QueueSheetDockGap = 42.dp
+/** 弹窗底边到 Dock 的空隙：上移 0.3 个歌曲行高（相对 42dp） */
+private val QueueSheetDockGap = 64.dp
 internal val NowPlayingQueueReorderAutoScrollMaxPerFrame = 2.dp
 private val QueueReorderDragCancelStiffness = Spring.StiffnessMediumLow
 private const val QueueReorderDraggedItemScale = 1.01f
@@ -856,21 +856,6 @@ private fun NowPlayingQueueRow(
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     modifier = Modifier.padding(end = 10.dp)
-                )
-            }
-            Box(
-                modifier = Modifier.width(34.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(
-                    text = (index + 1).toString(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (isCurrent) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    maxLines = 1
                 )
             }
             if (!coverUrl.isNullOrBlank()) {
@@ -1500,18 +1485,31 @@ internal fun NowPlayingQueueSheet(
                         onExitSelection = ::exitSelection
                     )
                 } else {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 20.dp, end = 8.dp, bottom = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(start = 20.dp, end = 8.dp, bottom = 8.dp)
                     ) {
-                        Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = stringResource(R.string.playlist_queue),
                                 style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.weight(1f)
                             )
+                            HapticIconButton(onClick = ::dismissQueue) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = stringResource(R.string.action_close)
+                                )
+                            }
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(start = 2.dp, end = 4.dp)
+                        ) {
                             Text(
                                 text = pluralStringResource(
                                     R.plurals.nowplaying_queue_count_format,
@@ -1519,46 +1517,45 @@ internal fun NowPlayingQueueSheet(
                                     displayedQueue.size
                                 ),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.weight(1f)
                             )
-                        }
-                        if (currentIndexInQueueEntries >= 0) {
-                            val queueIndexButtonShape = RoundedCornerShape(999.dp)
-                            Surface(
-                                modifier = Modifier
-                                    .clip(queueIndexButtonShape)
-                                    .clickable(onClick = ::openQueueIndexJumpDialog),
-                                shape = queueIndexButtonShape,
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.76f)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                            if (currentIndexInQueueEntries >= 0) {
+                                val queueIndexButtonShape = RoundedCornerShape(999.dp)
+                                Surface(
+                                    modifier = Modifier
+                                        .clip(queueIndexButtonShape)
+                                        .clickable(onClick = ::openQueueIndexJumpDialog),
+                                    shape = queueIndexButtonShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.76f)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.PlayArrow,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = stringResource(
-                                            R.string.nowplaying_queue_current_position,
-                                            currentIndexInQueueEntries + 1
+                                    Row(
+                                        modifier = Modifier.padding(
+                                            horizontal = 12.dp,
+                                            vertical = 8.dp
                                         ),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.PlayArrow,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = stringResource(
+                                                R.string.nowplaying_queue_current_position,
+                                                currentIndexInQueueEntries + 1
+                                            ),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
                             }
-                            Spacer(Modifier.width(4.dp))
-                        }
-                        HapticIconButton(onClick = ::dismissQueue) {
-                            Icon(
-                                imageVector = Icons.Outlined.Close,
-                                contentDescription = stringResource(R.string.action_close)
-                            )
                         }
                     }
                 }
@@ -1925,7 +1922,8 @@ fun NowPlayingScreen(
                 coverSharedModifier(
                     enabled = expandCoverSharedEnabled,
                     animatedVisibilityScope = visibilityScope,
-                    cornerRadius = NowPlayingExpandMotion.CoverLargeCornerRadiusDp
+                    cornerRadius = NowPlayingExpandMotion.CoverLargeCornerRadiusDp,
+                    clipToShape = false
                 )
             }
         }

@@ -39,23 +39,23 @@ import kotlinx.coroutines.launch
  * 位移偏快、落位缩放偏慢；落位后回调 [onSettled] 播背景涟漪（先快后慢）。
  */
 object TrackChangeCoverMotion {
-    const val DurationMs = 420
-    const val OldScaleTo = 0.82f
-    const val NewScaleFrom = 0.86f
+    const val DurationMs = 520
+    const val OldScaleTo = 0.68f
+    const val NewScaleFrom = 0.68f
 
-    const val RippleDurationMs = 360
-    const val RippleScaleTo = 3.2f
+    const val RippleDurationMs = 420
+    const val RippleScaleTo = 3.6f
 
-    /** 飞出/飞入：快（先快后慢） */
-    val SlideEasing: Easing = LinearOutSlowInEasing
+    /** 飞出/飞入：尽快离场/到位 */
+    val SlideEasing: Easing = CubicBezierEasing(0.2f, 0.9f, 0.25f, 1f)
 
-    /** 新封面放大到原尺寸：尾段缓速收束 */
-    val SettleEasing: Easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
+    /** 新封面放大到原尺寸：明显缓速收束 */
+    val SettleEasing: Easing = CubicBezierEasing(0.12f, 0.88f, 0.18f, 1f)
 
     /** 背景涟漪：先快后慢 */
-    val RippleEasing: Easing = LinearOutSlowInEasing
+    val RippleEasing: Easing = CubicBezierEasing(0.18f, 0.85f, 0.22f, 1f)
 
-    val SlideSpec = tween<Float>(durationMillis = 300, easing = SlideEasing)
+    val SlideSpec = tween<Float>(durationMillis = 260, easing = SlideEasing)
     val ScaleSpec = tween<Float>(durationMillis = DurationMs, easing = SettleEasing)
     val RippleSpec = tween<Float>(durationMillis = RippleDurationMs, easing = RippleEasing)
 
@@ -176,9 +176,9 @@ fun TrackChangeCoverStack(
                         scaleX = s
                         scaleY = s
                         translationX = TrackChangeCoverMotion.outgoingTranslationX(sp, flyDistancePx)
-                        // 略下沉
-                        translationY = 24f * sp
-                        alpha = (1f - sp * 1.15f).coerceIn(0f, 1f)
+                        // 明显下沉
+                        translationY = 56f * sp
+                        alpha = (1f - sp * 1.2f).coerceIn(0f, 1f)
                     }
                     .clip(cornerRadius)
             ) {

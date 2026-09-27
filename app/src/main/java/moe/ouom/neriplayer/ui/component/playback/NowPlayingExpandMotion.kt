@@ -199,7 +199,8 @@ fun SharedTransitionScope.coverSharedModifier(
     enabled: Boolean,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope,
     cornerRadius: Dp = NowPlayingExpandMotion.CoverMiniCornerRadiusDp,
-    shadowElevation: Dp = NowPlayingExpandMotion.CoverFlyShadowDp
+    shadowElevation: Dp = NowPlayingExpandMotion.CoverFlyShadowDp,
+    clipToShape: Boolean = true
 ): Modifier {
     if (!enabled) return Modifier
     val shape = RoundedCornerShape(cornerRadius)
@@ -227,7 +228,8 @@ fun SharedTransitionScope.coverSharedModifier(
             zIndexInOverlay = 8f,
             clipInOverlayDuringTransition = overlayClip
         )
-        .clip(shape)
+        // 切歌飞出/飞入要离开封面框：外层不能 clip（圆角画在封面层内）
+        .then(if (clipToShape) Modifier.clip(shape) else Modifier)
         .shadow(
             elevation = shadowElevation,
             shape = shape,

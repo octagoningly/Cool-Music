@@ -371,11 +371,11 @@ private const val CoverSourceBadgeRevealDelayMs =
     LyricsPageTransitionDurationMs + CoverSourceBadgeRevealBufferMs
 private const val NowPlayingCoverImageCrossfadeMs = 220
 private const val QueueSheetMaxHeightFraction = 0.9f
-/** 播放列表浮层：比原底部面板略大，保证歌名尽量完整显示 */
-private val QueueSheetMaxWidth = 380.dp
+/** 播放列表浮层：约为屏幕宽的 0.75，不占满整屏 */
+private val QueueSheetMaxWidth = 285.dp
 private val QueueSheetMaxHeight = 500.dp
-/** 弹窗底边到 Dock 工具栏顶部的空隙，保证不遮住「播放列表」按钮 */
-private val QueueSheetDockGap = 100.dp
+/** 弹窗底边到 Dock 的空隙：再下移 0.8 个歌曲行高（72dp * 0.8） */
+private val QueueSheetDockGap = 42.dp
 internal val NowPlayingQueueReorderAutoScrollMaxPerFrame = 2.dp
 private val QueueReorderDragCancelStiffness = Spring.StiffnessMediumLow
 private const val QueueReorderDraggedItemScale = 1.01f

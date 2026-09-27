@@ -6,45 +6,52 @@ import org.junit.Test
 
 class TrackChangeCoverMotionTest {
     @Test
-    fun coverSpecIsBouncyButReadable() {
-        assertTrue(TrackChangeCoverMotion.DurationMs in 320..520)
-        assertTrue(TrackChangeCoverMotion.OldScaleTo in 0.7f..0.9f)
-        assertTrue(TrackChangeCoverMotion.NewScaleFrom in 0.75f..0.95f)
-        assertTrue(TrackChangeCoverMotion.SlideXFraction >= 1f)
+    fun slideIsFasterThanSettleScale() {
+        assertTrue(TrackChangeCoverMotion.SlideSpec.durationMillis <= 320)
+        assertTrue(TrackChangeCoverMotion.ScaleSpec.durationMillis >= 400)
+        assertTrue(
+            TrackChangeCoverMotion.SlideSpec.durationMillis <
+                TrackChangeCoverMotion.ScaleSpec.durationMillis
+        )
     }
 
     @Test
-    fun outgoingCoverSinksAndSlidesLeft() {
-        val w = 1000f
+    fun outgoingCoverSinksAndFliesOffScreenLeft() {
+        val fly = 1200f
         assertEquals(1f, TrackChangeCoverMotion.outgoingScale(0f), 1e-4f)
         assertEquals(
             TrackChangeCoverMotion.OldScaleTo,
             TrackChangeCoverMotion.outgoingScale(1f),
             1e-4f,
         )
-        assertEquals(0f, TrackChangeCoverMotion.outgoingTranslationX(0f, w), 1e-4f)
-        assertTrue(TrackChangeCoverMotion.outgoingTranslationX(1f, w) < -w * 0.9f)
+        assertEquals(0f, TrackChangeCoverMotion.outgoingTranslationX(0f, fly), 1e-4f)
+        // 终点在屏幕左缘外
+        assertEquals(-fly, TrackChangeCoverMotion.outgoingTranslationX(1f, fly), 1e-4f)
     }
 
     @Test
-    fun incomingCoverFliesFromRightAndGrows() {
-        val w = 1000f
+    fun incomingCoverFliesFromRightAndSettlesScale() {
+        val fly = 1200f
         assertEquals(
             TrackChangeCoverMotion.NewScaleFrom,
             TrackChangeCoverMotion.incomingScale(0f),
             1e-4f,
         )
         assertEquals(1f, TrackChangeCoverMotion.incomingScale(1f), 1e-4f)
-        assertTrue(TrackChangeCoverMotion.incomingTranslationX(0f, w) > w * 0.9f)
-        assertEquals(0f, TrackChangeCoverMotion.incomingTranslationX(1f, w), 1e-4f)
+        assertEquals(fly, TrackChangeCoverMotion.incomingTranslationX(0f, fly), 1e-4f)
+        assertEquals(0f, TrackChangeCoverMotion.incomingTranslationX(1f, fly), 1e-4f)
     }
 
     @Test
-    fun simultaneousInOutShareSameProgressAxis() {
-        // 同一 progress：旧的向左、新的从右靠拢
-        val w = 800f
-        val p = 0.5f
-        assertTrue(TrackChangeCoverMotion.outgoingTranslationX(p, w) < 0f)
-        assertTrue(TrackChangeCoverMotion.incomingTranslationX(p, w) > 0f)
+    fun easingCurvesPreferFastThenSlow() {
+        // 先快后慢：前段应明显快于线性
+        val slideEarly = TrackChangeCoverMotion.SlideEasing.transform(0.3f)
+        val rippleEarly = TrackChangeCoverMotion.RippleEasing.transform(0.3f)
+        val settleEarly = TrackChangeCoverMotion.SettleEasing.transform(0.3f)
+        assertTrue("slide early=$slideEarly", slideEarly > 0.3f)
+        assertTrue("ripple early=$rippleEarly", rippleEarly > 0.3f)
+        assertTrue("settle early=$settleEarly", settleEarly > 0.3f)
+        // 尾段趋缓：0.8 时应已接近 1
+        assertTrue(TrackChangeCoverMotion.SettleEasing.transform(0.8f) > 0.85f)
     }
 }

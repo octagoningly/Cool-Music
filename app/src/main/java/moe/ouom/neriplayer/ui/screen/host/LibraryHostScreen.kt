@@ -511,10 +511,11 @@ fun LibraryHostScreen(
                             qqMusicListState = qqMusicListState,
                             topAppBarState = topAppBarState,
                             offlineMode = offlineMode,
+                            chromeHidden = selected != null,
                             onPlaylistCardBounds = { bounds, windowWidth, windowHeight ->
                                 if (bounds.width > 1f && windowWidth > 1f) {
                                     openOrigin = bounds
-                                    openScale = (bounds.width / windowWidth).coerceIn(0.2f, 0.92f)
+                                    openScale = (bounds.width / windowWidth).coerceIn(0.48f, 0.72f)
                                     openPivot = TransformOrigin(
                                         (bounds.center.x / windowWidth).coerceIn(0f, 1f),
                                         (bounds.center.y / windowHeight).coerceIn(0f, 1f),

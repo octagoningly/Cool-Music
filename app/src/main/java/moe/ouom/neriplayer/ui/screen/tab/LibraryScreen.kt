@@ -121,6 +121,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -433,7 +434,9 @@ fun LibraryScreen(
     onBiliPlaylistClick: (BiliPlaylist) -> Unit = {},
     onOpenRecent: () -> Unit = {},
     onOpenStats: () -> Unit = {},
-    offlineMode: Boolean = false
+    offlineMode: Boolean = false,
+    /** 进详情时立刻藏起「媒体库 / 分类」顶栏，避免挡住卡片展开 */
+    chromeHidden: Boolean = false,
 ) {
     val vm: LibraryViewModel = viewModel()
     val ui by vm.uiState.collectAsStateWithLifecycle()
@@ -596,8 +599,11 @@ fun LibraryScreen(
         }
     }
     val libraryContentTop by animateDpAsState(
-        targetValue = if (showLibraryTabs) 136.dp else 56.dp,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        targetValue = if (showLibraryTabs && !chromeHidden) 136.dp else 56.dp,
+        animationSpec = tween(
+            durationMillis = if (chromeHidden) 80 else 220,
+            easing = FastOutSlowInEasing,
+        ),
         label = "libraryContentTop"
     )
 
@@ -705,8 +711,17 @@ fun LibraryScreen(
             }
         }
 
-        MainTabChrome(route = moe.ouom.neriplayer.navigation.Destinations.Library.route) {
-            Column(Modifier.fillMaxWidth()) {
+        MainTabChrome(
+            route = moe.ouom.neriplayer.navigation.Destinations.Library.route,
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        // 进详情立刻藏顶栏，不挡住卡片展开
+                        alpha = if (chromeHidden) 0f else 1f
+                    }
+            ) {
             // 顶栏右侧：刷新 → 播放统计 → 最近播放（排序入口一并上移，放在刷新前）
             NeriTabLargeTitleTopBar(
                 title = stringResource(R.string.library_title),

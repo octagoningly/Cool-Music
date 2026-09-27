@@ -428,16 +428,16 @@ fun LibraryHostScreen(
                         initialScale = scale,
                         transformOrigin = pivot,
                         animationSpec = tween(
-                            durationMillis = 320,
+                            durationMillis = 400,
                             easing = FastOutSlowInEasing,
                         )
                     ) + fadeIn(
                         animationSpec = tween(
-                            durationMillis = 220,
+                            durationMillis = 280,
                             easing = FastOutSlowInEasing,
                         )
                     ) togetherWith fadeOut(
-                        animationSpec = tween(durationMillis = 180)
+                        animationSpec = tween(durationMillis = 230)
                     )
                 } else if (
                     targetState == null &&
@@ -449,12 +449,12 @@ fun LibraryHostScreen(
                     val pivot = openPivot
                     EnterTransition.None togetherWith (
                         fadeOut(
-                            animationSpec = tween(durationMillis = 200)
+                            animationSpec = tween(durationMillis = 250)
                         ) + scaleOut(
                             targetScale = scale,
                             transformOrigin = pivot,
                             animationSpec = tween(
-                                durationMillis = 260,
+                                durationMillis = 325,
                                 easing = FastOutSlowInEasing,
                             )
                         )

@@ -128,8 +128,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
@@ -415,6 +418,11 @@ fun LibraryScreen(
     qqMusicListState: LazyListState,
     topAppBarState: TopAppBarState,
     onLocalPlaylistClick: (LocalPlaylist) -> Unit = {},
+    onPlaylistCardBounds: (
+        bounds: androidx.compose.ui.geometry.Rect,
+        windowWidth: Float,
+        windowHeight: Float,
+    ) -> Unit = { _, _, _ -> },
     onCachedPlaylistClick: () -> Unit = {},
     onLocalArtistClick: (LocalArtistSummary) -> Unit = {},
     onHotPlaylistClick: (PlaybackStatsPeriod) -> Unit = {},
@@ -430,6 +438,15 @@ fun LibraryScreen(
     val vm: LibraryViewModel = viewModel()
     val ui by vm.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val cardDensity = LocalDensity.current
+    val cardConfiguration = LocalConfiguration.current
+    val reportPlaylistCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = { rect ->
+        onPlaylistCardBounds(
+            rect,
+            with(cardDensity) { cardConfiguration.screenWidthDp.dp.toPx() },
+            with(cardDensity) { cardConfiguration.screenHeightDp.dp.toPx() },
+        )
+    }
     val defaultPlaylistName = stringResource(R.string.library_create_playlist_default)
     val localPlaylistRepo = remember(context) {
         LocalPlaylistRepository.getInstance(context)
@@ -651,6 +668,7 @@ fun LibraryScreen(
 
                     LibraryTab.NETEASE,
                     LibraryTab.NETEASEALBUM -> NeteaseLibraryList(
+                        onCardBounds = reportPlaylistCardBounds,
                         playlists = ui.neteasePlaylists,
                         albums = ui.neteaseAlbums,
                         playlistListState = neteaseListState,
@@ -667,6 +685,7 @@ fun LibraryScreen(
                         error = ui.youtubeMusicError,
                         listState = youtubeMusicListState,
                         onClick = onYouTubeMusicPlaylistClick,
+                        onCardBounds = reportPlaylistCardBounds,
                         onRetry = { vm.refreshYouTubeMusicPlaylists() },
                         offlineMode = offlineMode
                     )
@@ -910,7 +929,8 @@ private fun YouTubeMusicPlaylistList(
     listState: LazyListState,
     onClick: (YouTubeMusicPlaylist) -> Unit,
     onRetry: () -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    onCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
 ) {
     val miniPlayerHeight = LocalMiniPlayerHeight.current
     val context = LocalContext.current
@@ -994,6 +1014,9 @@ private fun YouTubeMusicPlaylistList(
             items = playlists,
             key = { it.browseId }
         ) { playlist ->
+            var ytCardBounds by remember {
+                mutableStateOf(androidx.compose.ui.geometry.Rect.Zero)
+            }
             val playlistFavoriteId = remember(playlist.playlistId, playlist.browseId) {
                 playlist.favoriteId()
             }
@@ -1010,8 +1033,12 @@ private fun YouTubeMusicPlaylistList(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
                     .animateItem()
                     .clip(cardShape)
+                    .onGloballyPositioned { ytCardBounds = it.boundsInRoot() }
                     .combinedClickable(
-                        onClick = { onClick(playlist) },
+                        onClick = {
+                            onCardBounds(ytCardBounds)
+                            onClick(playlist)
+                        },
                         onLongClick = { menuPlaylist = playlist }
                     )
             ) {
@@ -2926,7 +2953,8 @@ private fun NeteaseLibraryList(
     onCategoryChange: (Int) -> Unit,
     onPlaylistClick: (PlaylistSummary) -> Unit,
     onAlbumClick: (AlbumSummary) -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    onCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
 ) {
     var playlistSearchQuery by rememberSaveable { mutableStateOf("") }
     var albumSearchQuery by rememberSaveable { mutableStateOf("") }
@@ -3040,7 +3068,8 @@ private fun NeteaseLibraryList(
                     cardShape = cardShape,
                     context = context,
                     onClick = { onPlaylistClick(playlist) },
-                    offlineMode = offlineMode
+                    offlineMode = offlineMode,
+                    onCardBounds = onCardBounds,
                 )
             }
         }
@@ -3159,8 +3188,10 @@ private fun NeteasePlaylistRow(
     cardShape: RoundedCornerShape,
     context: Context,
     onClick: () -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    onCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
 ) {
+    var rowBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
     Card(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -3168,7 +3199,11 @@ private fun NeteasePlaylistRow(
         modifier = Modifier
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clip(cardShape)
-            .clickable(onClick = onClick)
+            .onGloballyPositioned { rowBounds = it.boundsInRoot() }
+            .clickable {
+                onCardBounds(rowBounds)
+                onClick()
+            }
     ) {
         ListItem(
             headlineContent = { Text(playlist.name) },

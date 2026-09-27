@@ -27,9 +27,15 @@ import android.os.Parcelable
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.ExitTransition
 import kotlinx.parcelize.Parcelize
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.layout.Box
@@ -52,8 +58,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.geometry.Rect
 import moe.ouom.neriplayer.ui.util.boundedMaxHeight
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -184,6 +193,10 @@ fun LibraryHostScreen(
     var selected by rememberSaveable(stateSaver = librarySelectedItemSaver) {
         mutableStateOf(null)
     }
+    // 歌单卡片容器展开：记录点击卡片在窗口中的位置/尺寸
+    var openOrigin by remember { mutableStateOf<Rect?>(null) }
+    var openScale by remember { mutableStateOf(1f) }
+    var openPivot by remember { mutableStateOf(TransformOrigin.Center) }
     var skipDetailCloseAnimation by rememberSaveable { mutableStateOf(false) }
     var pendingScrollSource by rememberSaveable {
         mutableStateOf<LibraryScrollSource?>(null)
@@ -403,6 +416,49 @@ fun LibraryHostScreen(
                     EnterTransition.None togetherWith ExitTransition.None
                 } else if (targetState == null && skipDetailCloseAnimation) {
                     EnterTransition.None togetherWith ExitTransition.None
+                } else if (
+                    targetState.navigationDepth > initialState.navigationDepth &&
+                    openOrigin != null &&
+                    coherentFeedbackEnabled
+                ) {
+                    // 从歌单卡片矩形撑开到全屏（容器展开）
+                    val scale = openScale
+                    val pivot = openPivot
+                    scaleIn(
+                        initialScale = scale,
+                        transformOrigin = pivot,
+                        animationSpec = tween(
+                            durationMillis = 320,
+                            easing = FastOutSlowInEasing,
+                        )
+                    ) + fadeIn(
+                        animationSpec = tween(
+                            durationMillis = 220,
+                            easing = FastOutSlowInEasing,
+                        )
+                    ) togetherWith fadeOut(
+                        animationSpec = tween(durationMillis = 180)
+                    )
+                } else if (
+                    targetState == null &&
+                    openOrigin != null &&
+                    coherentFeedbackEnabled
+                ) {
+                    // 返回：收回到卡片位置
+                    val scale = openScale
+                    val pivot = openPivot
+                    EnterTransition.None togetherWith (
+                        fadeOut(
+                            animationSpec = tween(durationMillis = 200)
+                        ) + scaleOut(
+                            targetScale = scale,
+                            transformOrigin = pivot,
+                            animationSpec = tween(
+                                durationMillis = 260,
+                                easing = FastOutSlowInEasing,
+                            )
+                        )
+                        )
                 } else {
                     advancedGlassHostNavigationTransition(
                         forward = targetState.navigationDepth > initialState.navigationDepth,
@@ -455,6 +511,16 @@ fun LibraryHostScreen(
                             qqMusicListState = qqMusicListState,
                             topAppBarState = topAppBarState,
                             offlineMode = offlineMode,
+                            onPlaylistCardBounds = { bounds, windowWidth, windowHeight ->
+                                if (bounds.width > 1f && windowWidth > 1f) {
+                                    openOrigin = bounds
+                                    openScale = (bounds.width / windowWidth).coerceIn(0.2f, 0.92f)
+                                    openPivot = TransformOrigin(
+                                        (bounds.center.x / windowWidth).coerceIn(0f, 1f),
+                                        (bounds.center.y / windowHeight).coerceIn(0f, 1f),
+                                    )
+                                }
+                            },
                             onLocalPlaylistClick = { playlist ->
                                 skipDetailCloseAnimation = false
                                 captureLibraryScrollPosition(LibraryScrollSource.Local)

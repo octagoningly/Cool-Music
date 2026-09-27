@@ -41,6 +41,19 @@ class TrackChangeCoverMotionTest {
     }
 
     @Test
+    fun backgroundRevealIsSlowerTailedAndFadesIn() {
+        assertTrue(TrackChangeCoverMotion.BackgroundRevealSpec.durationMillis >= 650)
+        assertTrue(TrackChangeCoverMotion.BackgroundRevealSpec.durationMillis > TrackChangeCoverMotion.ScaleDurationMs)
+        assertEquals(
+            TrackChangeCoverMotion.RevealFadeFromAlpha,
+            TrackChangeCoverMotion.revealAlpha(0f),
+            1e-4f,
+        )
+        assertEquals(1f, TrackChangeCoverMotion.revealAlpha(1f), 1e-4f)
+        assertTrue(TrackChangeCoverMotion.RevealFadeFromAlpha < 1f)
+    }
+
+    @Test
     fun settleEasingSlowsNearFullSize() {
         val ease = androidx.compose.animation.core.CubicBezierEasing(0.16f, 0.84f, 0.24f, 1f)
         // 前段快：0.3 时已超过线性

@@ -14,6 +14,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
@@ -73,6 +74,11 @@ fun HyperBackgroundReveal(
             Box(
                 Modifier
                     .fillMaxSize()
+                    .graphicsLayer {
+                        // 揭示时新背景淡入，减轻生硬
+                        alpha = moe.ouom.neriplayer.ui.component.playback
+                            .TrackChangeCoverMotion.revealAlpha(progress)
+                    }
                     .drawWithContent {
                         val path = Path().apply {
                             addRoundRect(

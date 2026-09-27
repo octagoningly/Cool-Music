@@ -64,6 +64,20 @@ object TrackChangeCoverMotion {
         easing = CubicBezierEasing(0.16f, 0.84f, 0.24f, 1f),
     )
 
+    /**
+     * 背景涟漪揭示：前段约 0.9 倍速、后段约 0.5 倍速（比封面放大更拖尾）。
+     * 时长 700ms，曲线前平后缓。
+     */
+    val BackgroundRevealSpec = tween<Float>(
+        durationMillis = 700,
+        easing = CubicBezierEasing(0.40f, 0.12f, 0.25f, 1f),
+    )
+
+    /** 新背景在揭示过程中的淡入（减轻突兀） */
+    const val RevealFadeFromAlpha = 0.72f
+
+    fun revealAlpha(progress: Float): Float = lerp(RevealFadeFromAlpha, 1f, progress)
+
     val RippleSpec = tween<Float>(
         durationMillis = RippleDurationMs,
         easing = FastOutSlowInEasing,
@@ -176,7 +190,7 @@ fun TrackChangeCoverStack(
                 kotlinx.coroutines.delay(TrackChangeCoverMotion.ScaleStartDelayMs)
                 backgroundReveal?.progress?.animateTo(
                     1f,
-                    TrackChangeCoverMotion.ScaleSettleSpec,
+                    TrackChangeCoverMotion.BackgroundRevealSpec,
                 )
             }
         }

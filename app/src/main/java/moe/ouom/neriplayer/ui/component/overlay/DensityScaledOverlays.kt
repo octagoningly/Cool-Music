@@ -78,6 +78,7 @@ internal fun DensityScaledAlertDialog(
     maxHeight: Dp = 300.dp,
     yOffset: Dp = 0.dp,
     position: GlassPanelPosition = GlassPanelPosition.Centered,
+    forceSolid: Boolean = false,
 ) {
     // 统一走 GlassAlertDialog：圆角 28 + 高级透明模糊（设置 → 动效 → 高级模糊 / 模糊度）
     GlassAlertDialog(
@@ -96,6 +97,7 @@ internal fun DensityScaledAlertDialog(
         maxHeight = maxHeight,
         yOffset = yOffset,
         position = position,
+        forceSolid = forceSolid,
     )
 }
 

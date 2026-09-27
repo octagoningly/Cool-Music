@@ -1468,6 +1468,8 @@ internal fun NowPlayingQueueSheet(
         )
     }
 
+    // 导出歌单是下一级弹窗：打开时收起播放列表浮层
+    if (!showExportSheet) {
     ModalBottomSheet(
         onDismissRequest = ::dismissQueue,
         sheetState = sheetState,
@@ -1736,6 +1738,8 @@ internal fun NowPlayingQueueSheet(
         }
     }
 
+    }
+
     if (showExportSheet) {
         PlaylistExportSheet(
             title = stringResource(R.string.playlist_export_to_local),
@@ -1805,6 +1809,8 @@ private fun NowPlayingQueueIndexJumpDialog(
 
     MiuixSettingsDialog(
         onDismissRequest = onDismiss,
+        // 叠层模糊异常，强制实底
+        forceSolid = true,
         title = { Text(stringResource(R.string.nowplaying_queue_jump_title)) },
         text = {
             MiuixSettingsDialogContent(verticalSpacing = 8.dp) {

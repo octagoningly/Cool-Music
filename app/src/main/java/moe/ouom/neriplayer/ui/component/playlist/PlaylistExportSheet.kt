@@ -110,15 +110,19 @@ internal fun PlaylistExportSheet(
     ModalBottomSheet(
         onDismissRequest = { dismissAnimated() },
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = moe.ouom.neriplayer.ui.component.overlay.GlassDialogShape,
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 8.dp,
         scrimColor = Color.Black.copy(alpha = 0.46f),
-        dragHandle = {
-            BottomSheetDefaults.DragHandle(
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
-            )
-        }
+        dragHandle = null,
+        panelPosition = moe.ouom.neriplayer.ui.component.overlay.GlassPanelPosition.Bottom,
+        panelYOffset = -64.dp,
+        panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 12.dp,
+            bottom = 16.dp
+        )
     ) {
         Column(
             modifier = Modifier

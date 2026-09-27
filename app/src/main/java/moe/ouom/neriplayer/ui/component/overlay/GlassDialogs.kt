@@ -185,10 +185,12 @@ internal fun GlassPanel(
         ),
     maxHeight: Dp = 420.dp,
     yOffset: Dp = 0.dp,
+    /** 强制实底、不走模糊（嵌套叠层模糊异常时的兜底） */
+    forceSolid: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val controller = LocalAdvancedGlassController.current
-    val glassActive = controller.isBaseBlurEnabled
+    val glassActive = controller.isBaseBlurEnabled && !forceSolid
     val coherentFeedbackEnabled by AppContainer.settingsRepo
         .coherentFeedbackEnabledFlow
         .collectAsState(initial = false)
@@ -360,6 +362,7 @@ internal fun GlassAlertDialog(
     maxHeight: Dp = 300.dp,
     yOffset: Dp = 0.dp,
     position: GlassPanelPosition = GlassPanelPosition.Centered,
+    forceSolid: Boolean = false,
 ) {
     GlassPanel(
         onDismissRequest = onDismissRequest,
@@ -371,6 +374,7 @@ internal fun GlassAlertDialog(
         maxWidth = maxWidth,
         maxHeight = maxHeight,
         yOffset = yOffset,
+        forceSolid = forceSolid,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (icon != null) {

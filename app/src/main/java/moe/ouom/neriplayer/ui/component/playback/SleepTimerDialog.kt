@@ -23,6 +23,7 @@ package moe.ouom.neriplayer.ui.component.playback
  * Created: 2026/1/6
  */
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
@@ -59,7 +60,23 @@ fun SleepTimerDialog(
         onDismissRequest = onDismiss,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
         icon = { Icon(Icons.Default.Timer, contentDescription = null) },
-        title = { Text(stringResource(R.string.sleep_timer_title)) },
+        title = {
+            Box(Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.sleep_timer_title),
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.action_close)
+                    )
+                }
+            }
+        },
         // 加宽避免「其他模式」区文案换行；底边贴 Dock 上方
         maxWidth = 300.dp,
         maxHeight = 520.dp,
@@ -159,7 +176,11 @@ fun SleepTimerDialog(
                         )
                         onDismiss()
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Text(stringResource(R.string.sleep_timer_start_countdown))
                 }
@@ -178,7 +199,11 @@ fun SleepTimerDialog(
                         PlayerManager.sleepTimerManager.startFinishCurrent()
                         onDismiss()
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Icon(
                         Icons.Default.SkipNext,
@@ -194,7 +219,11 @@ fun SleepTimerDialog(
                         PlayerManager.sleepTimerManager.startFinishPlaylist()
                         onDismiss()
                     },
-                    modifier = Modifier.fillMaxWidth()
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.PlaylistPlay,
@@ -214,11 +243,6 @@ fun SleepTimerDialog(
                 }) {
                     Text(stringResource(R.string.sleep_timer_cancel))
                 }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.sleep_timer_close))
             }
         }
     )

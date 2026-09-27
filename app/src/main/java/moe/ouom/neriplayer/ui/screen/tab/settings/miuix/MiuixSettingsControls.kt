@@ -88,6 +88,7 @@ internal fun MiuixSettingsDialog(
     maxWidth: Dp = 220.dp,
     maxHeight: Dp = 300.dp,
     yOffset: Dp = 0.dp,
+    forceSolid: Boolean = false,
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -106,7 +107,8 @@ internal fun MiuixSettingsDialog(
         properties = properties,
         maxWidth = maxWidth,
         maxHeight = maxHeight,
-        yOffset = yOffset
+        yOffset = yOffset,
+        forceSolid = forceSolid
     )
 }
 

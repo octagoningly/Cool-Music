@@ -1449,6 +1449,8 @@ private fun NeriAppContent(
     )
     var showNowPlaying by rememberSaveable { mutableStateOf(false) }
     var showNowPlayingLyrics by rememberSaveable { mutableStateOf(false) }
+    /** 播放页是否仍在台上（含退场动画中）；退场播完才 false，背景回位不要和退场叠在一起 */
+    var nowPlayingPresented by remember { mutableStateOf(false) }
     var currentPlaybackSourceRoute by rememberSaveable { mutableStateOf<String?>(null) }
     var restoreLyricsAfterAlbumBack by rememberSaveable { mutableStateOf(false) }
     var lyricsAlbumRouteObserved by rememberSaveable { mutableStateOf(false) }
@@ -3399,10 +3401,10 @@ private fun NeriAppContent(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        // 连贯反馈：播放页打开时主界面轻微后退，形成抽屉层次
+                        // 连贯反馈：播放页打开时主界面轻微后退；退场动画期间保持后退，等页面卸掉再回位
                         .nowPlayingBackgroundRecede(
                             enabled = coherentFeedbackEnabled,
-                            nowPlayingVisible = showNowPlaying
+                            nowPlayingVisible = nowPlayingPresented
                         )
                 ) {
                 Box(
@@ -4345,7 +4347,8 @@ private fun NeriAppContent(
                                     isAudioRouteMuted = isAudioRouteMuted,
                                     expandSharedTransitionScope = nowPlayingExpandSharedScope,
                                     expandAnimatedVisibilityScope = miniPlayerExpandVisibilityScope,
-                                    expandCoverSharedEnabled = coherentFeedbackEnabled
+                                    // 退场时关掉封面共享：否则封面被抽到 overlay，播放页会空一下再闪
+                                    expandCoverSharedEnabled = coherentFeedbackEnabled && showNowPlaying
                                     )
                                 }
                             }
@@ -4373,8 +4376,11 @@ private fun NeriAppContent(
                         LocalAdvancedGlassBackdropRegistrationEnabled provides true,
                     ) {
                     DisposableEffect(Unit) {
+                        nowPlayingPresented = true
                         latestOnNowPlayingVisibilityChanged(true)
                         onDispose {
+                            // 退场动画结束后才卸台，背景回位从这里起
+                            nowPlayingPresented = false
                             latestOnNowPlayingVisibilityChanged(false)
                         }
                     }
@@ -4679,7 +4685,8 @@ private fun NeriAppContent(
                                     playbackSongKey = currentSongKey,
                                     expandSharedTransitionScope = nowPlayingExpandSharedScope,
                                     expandAnimatedVisibilityScope = nowPlayingExpandVisibilityScope,
-                                    expandCoverSharedEnabled = coherentFeedbackEnabled
+                                    // 退场时关掉封面共享，封面跟页一起滑走，避免无封面闪屏
+                                    expandCoverSharedEnabled = coherentFeedbackEnabled && showNowPlaying
                                 )
                             }
                         }

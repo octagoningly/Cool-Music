@@ -205,7 +205,8 @@ fun LibraryHostScreen(
     var openScaleX by remember { mutableStateOf(1f) }
     var openScaleY by remember { mutableStateOf(1f) }
     var openPivot by remember { mutableStateOf(TransformOrigin.Center) }
-    var libraryChromeHidden by remember { mutableStateOf(false) }
+    // 与 selected 同帧计算：LaunchedEffect 会晚一帧，详情打开时顶栏模糊会多挂一下
+    val libraryChromeHidden = selected != null
     var skipDetailCloseAnimation by rememberSaveable { mutableStateOf(false) }
     var pendingScrollSource by rememberSaveable {
         mutableStateOf<LibraryScrollSource?>(null)
@@ -289,8 +290,6 @@ fun LibraryHostScreen(
         if (selected != null) {
             skipDetailCloseAnimation = false
         }
-        // 立刻跟 selected 同步：进详情藏顶栏（含玻璃），返回马上恢复，不拖一拍
-        libraryChromeHidden = selected != null
     }
 
     PredictiveBackHandler(enabled = selected != null) { progress ->

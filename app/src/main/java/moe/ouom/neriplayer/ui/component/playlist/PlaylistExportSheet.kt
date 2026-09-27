@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -182,10 +183,12 @@ internal fun PlaylistExportSheet(
 
             Spacer(Modifier.height(8.dp))
 
-            Box {
+            Row(modifier = Modifier.fillMaxWidth()) {
                 LazyColumn(
                     state = playlistListState,
-                    modifier = Modifier.playlistExportListHeight()
+                    modifier = Modifier
+                        .weight(1f)
+                        .playlistExportListHeight()
                 ) {
                     items(playlists, key = { it.id }) { playlist ->
                         PlaylistExportRow(
@@ -193,9 +196,8 @@ internal fun PlaylistExportSheet(
                             enabled = pendingExport == null,
                             onClick = {
                                 context.performHapticFeedback()
-                                requestExportConfirmation(playlist.name) {
-                                    onExportToPlaylist(playlist)
-                                }
+                                // 直接导出，不再弹确认框
+                                runThenDismiss { onExportToPlaylist(playlist) }
                             }
                         )
                     }
@@ -203,7 +205,9 @@ internal fun PlaylistExportSheet(
                 PlaylistExportScrollbar(
                     listState = playlistListState,
                     itemCount = playlists.size,
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                    modifier = Modifier
+                        .padding(start = 6.dp)
+                        .fillMaxHeight()
                 )
             }
         }
@@ -260,26 +264,32 @@ private fun PlaylistExportScrollbar(
     val visible = layoutInfo.visibleItemsInfo.size
     if (visible <= 0 || visible >= itemCount) return
 
-    val maxIndex = (itemCount - visible).coerceAtLeast(1)
-    val progress = (listState.firstVisibleItemIndex.toFloat() / maxIndex).coerceIn(0f, 1f)
-    val trackHeight = 72.dp
-    val thumbHeight = 28.dp
+    val thumbRatio = (visible.toFloat() / itemCount.toFloat()).coerceIn(0.18f, 1f)
+    val first = listState.firstVisibleItemIndex
+    val offset = listState.firstVisibleItemScrollOffset
+    val itemSize = layoutInfo.visibleItemsInfo.firstOrNull()?.size?.takeIf { it > 0 } ?: 1
+    val maxScrollPx = (itemCount * itemSize - layoutInfo.viewportEndOffset + layoutInfo.viewportStartOffset)
+        .coerceAtLeast(1)
+    val scrolledPx = first * itemSize + offset
+    val progress = (scrolledPx.toFloat() / maxScrollPx).coerceIn(0f, 1f)
 
-    Box(
+    Column(
         modifier = modifier
-            .width(3.dp)
-            .height(trackHeight)
-            .padding(end = 2.dp)
+            .width(4.dp)
             .background(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
                 shape = RoundedCornerShape(2.dp)
             )
     ) {
+        Spacer(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(progress * (1f - thumbRatio))
+        )
         Box(
             modifier = Modifier
-                .offset(y = (trackHeight - thumbHeight) * progress)
-                .width(3.dp)
-                .height(thumbHeight)
+                .fillMaxWidth()
+                .fillMaxHeight(thumbRatio)
                 .background(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
                     shape = RoundedCornerShape(2.dp)

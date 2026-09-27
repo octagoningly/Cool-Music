@@ -61,6 +61,7 @@ import moe.ouom.neriplayer.core.player.policy.skip.resolveBiliSkipSegmentPromptM
 import moe.ouom.neriplayer.core.player.policy.wake.PlaybackTransitionWakeLock
 import moe.ouom.neriplayer.core.player.prefetch.cancelGenericUrlPrefetchUnlessReusableForSong
 import moe.ouom.neriplayer.core.player.prefetch.awaitInFlightGenericUrlPrefetch
+import moe.ouom.neriplayer.core.player.prefetch.prefetchNextGenericTrackUrl
 import moe.ouom.neriplayer.core.player.prefetch.cancelYouTubePrefetchForPlaybackDemand
 import moe.ouom.neriplayer.core.player.prefetch.clearPlaybackDemandCacheKey
 import moe.ouom.neriplayer.core.player.prefetch.kickoffYouTubePlaybackIntentWarmup
@@ -1075,6 +1076,7 @@ internal fun PlayerManager.playAtIndex(
                     resetTrackEndDeduplicationState()
                     applyWakeModeForPlaybackUrl(selectedUrl)
                     player.setMediaItem(mediaItem)
+                    prefetchNextGenericTrackUrl()
                     loadedMediaRequestToken = requestToken
                     pendingMediaLoadActive = false
                     syncExoRepeatMode()

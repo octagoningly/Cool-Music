@@ -4,8 +4,10 @@ import android.os.SystemClock
 import androidx.media3.common.Player
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager
+import moe.ouom.neriplayer.core.player.cache.writeCachedSong
 import moe.ouom.neriplayer.core.player.model.SongUrlResult
 import moe.ouom.neriplayer.core.player.policy.refresh.RefreshResolverSideEffects
 import moe.ouom.neriplayer.core.player.policy.refresh.RefreshSideEffectGate
@@ -32,6 +34,7 @@ internal fun resolveGenericUrlPrefetchTtlMs(
 internal const val GENERIC_MEDIA_PREFETCH_BYTES = 1_536L * 1024L
 private const val GENERIC_MEDIA_PREFETCH_MIN_BYTES = 256L * 1024L
 internal const val NEXT_TRACK_MEDIA_MIN_BYTES = 512L * 1024L
+private const val PREFETCH_PLAYBACK_AWAIT_MS = 350L
 
 internal fun resolveGenericMediaPrefetchBytes(expectedContentLength: Long?): Long {
     return expectedContentLength
@@ -69,11 +72,27 @@ internal fun PlayerManager.prefetchNextGenericTrackUrl() {
         else -> -1
     }
     val nextSong = currentPlaylist.getOrNull(nextIndex)
-    if (nextSong == null ||
-        isLocalSong(nextSong) ||
-        isYouTubeMusicTrack(nextSong)
-    ) {
+    if (nextSong == null || isLocalSong(nextSong)) {
         cancelGenericUrlPrefetch(reason = "no_supported_next_track")
+        return
+    }
+    if (isYouTubeMusicTrack(nextSong)) {
+        cancelGenericUrlPrefetch(reason = "no_supported_next_track")
+        val windowIds = buildList {
+            var cursor = nextIndex
+            while (size < 3 && cursor in currentPlaylist.indices) {
+                val candidate = currentPlaylist[cursor]
+                if (isYouTubeMusicTrack(candidate)) {
+                    add(candidate)
+                }
+                cursor++
+            }
+        }
+        prefetchYouTubePlayableUrlWindow(
+            playlist = currentPlaylist,
+            startIndex = nextIndex,
+            source = "next_track_youtube"
+        )
         return
     }
 
@@ -230,6 +249,11 @@ private suspend fun PlayerManager.prefetchGenericTrackMedia(
         )
         return
     }
+    if (prefetchedBytes > 0L) {
+        runCatching {
+            cache?.writeCachedSong(mediaCacheKey, song)
+        }
+    }
     NPLogger.d(
         "NERI-PlayerManager",
         "generic media prefetch finished: song=" + song.name + ", key=" + mediaCacheKey +
@@ -244,11 +268,15 @@ internal suspend fun PlayerManager.awaitInFlightGenericUrlPrefetch(song: SongIte
     val activeJob = currentGenericUrlPrefetchJob?.takeIf {
         it.isActive && currentGenericUrlPrefetchKey == key
     } ?: return
+    // Only wait briefly: URL is usually cached first; do not block playback on a slow media download.
+    val finished = kotlinx.coroutines.withTimeoutOrNull(PREFETCH_PLAYBACK_AWAIT_MS) {
+        activeJob.join()
+    } != null
     NPLogger.d(
         "NERI-PlayerManager",
-        "await in-flight generic URL/media prefetch before playback: song=" + song.name + ", key=" + key
+        "await in-flight prefetch before playback: song=" + song.name + ", key=" + key +
+            ", finished=" + finished + ", timeoutMs=" + PREFETCH_PLAYBACK_AWAIT_MS
     )
-    activeJob.join()
 }
 internal fun PlayerManager.cancelGenericUrlPrefetch(reason: String) {
     val activeJob = currentGenericUrlPrefetchJob

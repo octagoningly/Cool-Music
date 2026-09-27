@@ -6,6 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager
+import moe.ouom.neriplayer.core.player.cache.writeCachedSong
 import moe.ouom.neriplayer.core.player.model.SongUrlResult
 import moe.ouom.neriplayer.core.player.policy.refresh.RefreshResolverSideEffects
 import moe.ouom.neriplayer.core.player.policy.refresh.RefreshSideEffectGate
@@ -17,6 +18,8 @@ import moe.ouom.neriplayer.core.player.url.resolveSongUrl
 import moe.ouom.neriplayer.core.player.url.synchronizeCachedPlaybackDescriptor
 import moe.ouom.neriplayer.data.local.media.LocalSongSupport
 import moe.ouom.neriplayer.data.model.SongItem
+
+private const val LIST_MEDIA_MIN_BYTES = 384L * 1024L
 
 enum class PlaybackPrecacheScenario {
     APP_LAUNCH,
@@ -227,23 +230,20 @@ internal suspend fun PlayerManager.precacheSongPrefix(
         CachePrefetchReadiness.READY_FOR_PREFETCH -> Unit
     }
 
-    val targetBytes = PlaybackPrecachePolicy.prefixBytes(
-        prefixMs = prefixMs,
-        contentLength = result.expectedContentLength,
-        durationMs = result.durationMs ?: song.durationMs,
-        bitrateKbps = result.audioInfo.bitrateKbps
+    val targetBytes = maxOf(
+        PlaybackPrecachePolicy.prefixBytes(
+            prefixMs = prefixMs,
+            contentLength = result.expectedContentLength,
+            durationMs = result.durationMs ?: song.durationMs,
+            bitrateKbps = result.audioInfo?.bitrateKbps
+        ),
+        LIST_MEDIA_MIN_BYTES
     )
     val prefetched = runCatching {
         prefetchIntoPlayerCache(
             url = result.url,
             cacheKey = mediaCacheKey,
-            targetBytes = targetBytes,
-            minBytes = PlaybackPrecachePolicy.prefixBytes(
-                prefixMs = 400L,
-                contentLength = result.expectedContentLength,
-                durationMs = result.durationMs ?: song.durationMs,
-                bitrateKbps = result.audioInfo.bitrateKbps
-            )
+            targetBytes = targetBytes
         )
     }.getOrElse { error ->
         NPLogger.w(
@@ -252,6 +252,11 @@ internal suspend fun PlayerManager.precacheSongPrefix(
                 "error=${error.message}"
         )
         return
+    }
+    if (prefetched > 0L) {
+        runCatching {
+            cache?.writeCachedSong(mediaCacheKey, song)
+        }
     }
     NPLogger.d(
         "NERI-PlayerManager",

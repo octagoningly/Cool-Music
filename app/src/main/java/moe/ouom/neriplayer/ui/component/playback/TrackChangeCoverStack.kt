@@ -44,13 +44,25 @@ object TrackChangeCoverMotion {
     /** 离场/入场端的缩小幅度（再压到当前 0.8 倍，更明显） */
     const val SideScale = 0.58f
 
-    /** 缩放延后启动：先横滑，再放大（放大时才刷新背景） */
-    const val ScaleStartDelayMs = 170L
+    /** 新封面延后入厂：旧封面先飞出，再跟上新封面（避免像被赶走） */
+    const val IncomingDelayMs = 110L
+
+    /** 缩放延后启动：等新封面已入轨再放大 */
+    const val ScaleStartDelayMs = 190L
+
+    /** 背景涟漪再拖后：等新封面更稳一点才扩散 */
+    const val BackgroundRevealDelayMs = 380L
 
     const val SinkYFraction = 0.05f
 
     const val RippleDurationMs = 420
     const val RippleScaleTo = 3.6f
+
+    /** 揭示圆角全程保持，不再收到 0 */
+    const val RevealCornerRadiusDp = 24f
+
+    /** 扩到边界后的震荡回弹时长 */
+    const val RevealSettleDurationMs = 320
 
     /** 横滑：匀顺 */
     val SlideSpec = tween<Float>(
@@ -73,10 +85,27 @@ object TrackChangeCoverMotion {
         easing = CubicBezierEasing(0.40f, 0.12f, 0.25f, 1f),
     )
 
+    /** 边界震荡：线性推进相位，衰减画在 [revealBoundaryRing] */
+    val RevealSettleSpec = tween<Float>(
+        durationMillis = RevealSettleDurationMs,
+        easing = FastOutSlowInEasing,
+    )
+
     /** 新背景在揭示过程中的淡入（减轻突兀） */
     const val RevealFadeFromAlpha = 0.72f
 
     fun revealAlpha(progress: Float): Float = lerp(RevealFadeFromAlpha, 1f, progress)
+
+    /**
+     * 扩到边界后的阻尼震荡：先略过冲，再回缩，最后贴住。
+     * [t]=0 刚到边界，[t]=1 震荡结束（=1f）。
+     */
+    fun revealBoundaryRing(t: Float): Float {
+        if (t <= 0f || t >= 1f) return 1f
+        val decay = kotlin.math.exp(-4.8f * t)
+        val wave = kotlin.math.sin(2f * kotlin.math.PI.toFloat() * 1.75f * t)
+        return 1f + 0.042f * decay * wave
+    }
 
     val RippleSpec = tween<Float>(
         durationMillis = RippleDurationMs,
@@ -155,8 +184,9 @@ fun TrackChangeCoverStack(
     var animToken by remember { mutableIntStateOf(0) }
     var widthPx by remember { mutableStateOf(1f) }
     var heightPx by remember { mutableStateOf(1f) }
-    // 位移与缩放分轨：缩放更长、尾段缓速
+    // 位移与缩放分轨：缩放更长、尾段缓速；入厂再分轨，旧封面先走
     val slideProgress = remember { Animatable(1f) }
+    val incomingSlideProgress = remember { Animatable(1f) }
     val scaleProgress = remember { Animatable(1f) }
 
     LaunchedEffect(songKey, coverUrl) {
@@ -177,20 +207,32 @@ fun TrackChangeCoverStack(
     LaunchedEffect(animToken) {
         if (animToken == 0) return@LaunchedEffect
         slideProgress.snapTo(0f)
+        incomingSlideProgress.snapTo(0f)
         scaleProgress.snapTo(0f)
         backgroundReveal?.progress?.snapTo(0f)
+        backgroundReveal?.settle?.snapTo(0f)
         coroutineScope {
+            // 旧封面先飞出
             launch { slideProgress.animateTo(1f, TrackChangeCoverMotion.SlideSpec) }
+            // 新封面稍后再入厂，避免像被旧封面顶走
             launch {
-                // 先横滑；新封面开始放大后，背景才涟漪揭示
+                kotlinx.coroutines.delay(TrackChangeCoverMotion.IncomingDelayMs)
+                incomingSlideProgress.animateTo(1f, TrackChangeCoverMotion.SlideSpec)
+            }
+            launch {
                 kotlinx.coroutines.delay(TrackChangeCoverMotion.ScaleStartDelayMs)
                 scaleProgress.animateTo(1f, TrackChangeCoverMotion.ScaleSettleSpec)
             }
             launch {
-                kotlinx.coroutines.delay(TrackChangeCoverMotion.ScaleStartDelayMs)
+                // 等新封面更稳一点，背景再涟漪；到边界后再震荡回弹
+                kotlinx.coroutines.delay(TrackChangeCoverMotion.BackgroundRevealDelayMs)
                 backgroundReveal?.progress?.animateTo(
                     1f,
                     TrackChangeCoverMotion.BackgroundRevealSpec,
+                )
+                backgroundReveal?.settle?.animateTo(
+                    1f,
+                    TrackChangeCoverMotion.RevealSettleSpec,
                 )
             }
         }
@@ -200,6 +242,7 @@ fun TrackChangeCoverStack(
             it.active = false
             it.fromCoverUrl = null
             it.progress?.snapTo(1f)
+            it.settle?.snapTo(1f)
         }
         onSettled()
     }
@@ -252,7 +295,7 @@ fun TrackChangeCoverStack(
                 .fillMaxSize()
                 .graphicsLayer {
                     clip = false
-                    val sp = slideProgress.value
+                    val sp = incomingSlideProgress.value
                     val zp = scaleProgress.value
                     val s = TrackChangeCoverMotion.incomingScale(zp)
                     scaleX = s

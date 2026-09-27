@@ -19,15 +19,17 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.lerp
 import moe.ouom.neriplayer.ui.component.playback.TrackChangeBackgroundRevealState
+import moe.ouom.neriplayer.ui.component.playback.TrackChangeCoverMotion
 import moe.ouom.neriplayer.ui.component.playback.expandRevealRect
+import moe.ouom.neriplayer.ui.component.playback.scaleRectFromCenter
 
 /**
  * HyperBackground + 切歌涟漪揭示。
  *
  * [reveal].active 时：下层仍显示旧封面底，上层新封面底用
  * **从封面矩形四边向外扩张**的圆角矩形裁切；未扩散到的区域保持旧背景。
+ * 圆角全程保持；扩到边界后按 [TrackChangeCoverMotion.revealBoundaryRing] 震荡回弹。
  */
 @Composable
 fun HyperBackgroundReveal(
@@ -39,19 +41,22 @@ fun HyperBackgroundReveal(
     modifier: Modifier = Modifier,
 ) {
     val progress = reveal.progress.value
+    val settle = reveal.settle.value
     val density = LocalDensity.current
     var windowSize by remember { mutableStateOf(IntSize.Zero) }
 
     val fromUrl = reveal.fromCoverUrl
     val toUrl = reveal.toCoverUrl ?: currentCoverUrl
     val revealing = reveal.active && progress < 1f && fromUrl != null && fromUrl != toUrl
+    // 扩到位后的震荡（settle 从 0 跑到 1；1=静止）
+    val ringing = reveal.active && progress >= 1f && settle < 1f && fromUrl != null && fromUrl != toUrl
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .onSizeChanged { windowSize = it }
     ) {
-        if (revealing && windowSize.width > 0) {
+        if ((revealing || ringing) && windowSize.width > 0) {
             HyperBackground(
                 modifier = Modifier.fillMaxSize(),
                 isDark = isDark,
@@ -68,16 +73,22 @@ fun HyperBackgroundReveal(
                     window.center.x + 2f,
                     window.center.y + 2f,
                 )
-            val revealed = expandRevealRect(cover, progress, window)
-            val cornerPx = with(density) { lerp(24.dp.toPx(), 0f, progress) }
+            val cornerPx = with(density) { TrackChangeCoverMotion.RevealCornerRadiusDp.dp.toPx() }
+            // bleed 让圆角角点扩出屏幕，全程保持圆角、不收成直角
+            val expanded = expandRevealRect(cover, progress, window, bleedPx = cornerPx)
+            val ringScale = if (ringing) {
+                TrackChangeCoverMotion.revealBoundaryRing(settle)
+            } else {
+                1f
+            }
+            val revealed = scaleRectFromCenter(expanded, ringScale)
 
             Box(
                 Modifier
                     .fillMaxSize()
                     .graphicsLayer {
                         // 揭示时新背景淡入，减轻生硬
-                        alpha = moe.ouom.neriplayer.ui.component.playback
-                            .TrackChangeCoverMotion.revealAlpha(progress)
+                        alpha = TrackChangeCoverMotion.revealAlpha(progress)
                     }
                     .drawWithContent {
                         val path = Path().apply {

@@ -19,7 +19,9 @@ class TrackChangeCoverMotionTest {
     @Test
     fun outgoingShrinksSlidesAndFades() {
         val w = 800f
-        assertEquals(-w, TrackChangeCoverMotion.outgoingTranslationX(1f, w), 1e-4f)
+        assertEquals(-w, TrackChangeCoverMotion.outgoingTranslationX(1f, w, true), 1e-4f)
+        // 上一首：镜像，向右飞出
+        assertEquals(w, TrackChangeCoverMotion.outgoingTranslationX(1f, w, false), 1e-4f)
         assertEquals(TrackChangeCoverMotion.SideScale, TrackChangeCoverMotion.outgoingScale(1f), 1e-4f)
         assertEquals(0f, TrackChangeCoverMotion.outgoingAlpha(1f), 1e-4f)
         assertEquals(1f, TrackChangeCoverMotion.outgoingAlpha(0f), 1e-4f)
@@ -33,7 +35,9 @@ class TrackChangeCoverMotionTest {
             1e-4f,
         )
         assertEquals(1f, TrackChangeCoverMotion.incomingScale(1f), 1e-4f)
-        assertEquals(0f, TrackChangeCoverMotion.incomingTranslationX(1f, 800f), 1e-4f)
+        assertEquals(0f, TrackChangeCoverMotion.incomingTranslationX(1f, 800f, true), 1e-4f)
+        // 上一首：新封面从左侧进入
+        assertEquals(-800f, TrackChangeCoverMotion.incomingTranslationX(0f, 800f, false), 1e-4f)
     }
 
     @Test

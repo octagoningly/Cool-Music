@@ -71,8 +71,14 @@ object TrackChangeCoverMotion {
 
     fun outgoingScale(slideP: Float): Float = lerp(1f, SideScale, slideP)
 
-    fun outgoingTranslationX(slideP: Float, widthPx: Float): Float =
-        -PageSlideFraction * widthPx * slideP
+    /**
+     * [forward]=true 下一首：旧封面向左、新封面自右。
+     * [forward]=false 上一首：完全镜像（旧向右、新自左）。
+     */
+    fun outgoingTranslationX(slideP: Float, widthPx: Float, forward: Boolean = true): Float {
+        val sign = if (forward) -1f else 1f
+        return sign * PageSlideFraction * widthPx * slideP
+    }
 
     fun outgoingTranslationY(slideP: Float, heightPx: Float): Float =
         SinkYFraction * heightPx * slideP
@@ -82,8 +88,10 @@ object TrackChangeCoverMotion {
 
     fun incomingScale(settleP: Float): Float = lerp(SideScale, 1f, settleP)
 
-    fun incomingTranslationX(slideP: Float, widthPx: Float): Float =
-        PageSlideFraction * widthPx * (1f - slideP)
+    fun incomingTranslationX(slideP: Float, widthPx: Float, forward: Boolean = true): Float {
+        val sign = if (forward) 1f else -1f
+        return sign * PageSlideFraction * widthPx * (1f - slideP)
+    }
 
     fun incomingTranslationY(slideP: Float, heightPx: Float): Float =
         SinkYFraction * heightPx * (1f - slideP)
@@ -102,6 +110,7 @@ fun TrackChangeCoverStack(
     modifier: Modifier = Modifier,
     cornerRadius: RoundedCornerShape = RoundedCornerShape(24.dp),
     backgroundReveal: TrackChangeBackgroundRevealState? = null,
+    forward: Boolean = true,
     onSettled: () -> Unit = {},
     onCoverCenterInRoot: (Offset) -> Unit = {},
     cover: @Composable (coverUrl: String?, songKey: String?) -> Unit,
@@ -214,7 +223,7 @@ fun TrackChangeCoverStack(
                         val s = TrackChangeCoverMotion.outgoingScale(sp)
                         scaleX = s
                         scaleY = s
-                        translationX = TrackChangeCoverMotion.outgoingTranslationX(sp, widthPx)
+                        translationX = TrackChangeCoverMotion.outgoingTranslationX(sp, widthPx, forward)
                         translationY = TrackChangeCoverMotion.outgoingTranslationY(sp, heightPx)
                         alpha = TrackChangeCoverMotion.outgoingAlpha(sp)
                     }
@@ -234,7 +243,7 @@ fun TrackChangeCoverStack(
                     val s = TrackChangeCoverMotion.incomingScale(zp)
                     scaleX = s
                     scaleY = s
-                    translationX = TrackChangeCoverMotion.incomingTranslationX(sp, widthPx)
+                    translationX = TrackChangeCoverMotion.incomingTranslationX(sp, widthPx, forward)
                     translationY = TrackChangeCoverMotion.incomingTranslationY(sp, heightPx)
                     alpha = if (hasOutgoing) {
                         TrackChangeCoverMotion.incomingAlpha(sp)

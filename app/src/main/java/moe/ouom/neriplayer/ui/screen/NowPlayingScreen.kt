@@ -1957,6 +1957,7 @@ fun NowPlayingScreen(
     expandAnimatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
     expandCoverSharedEnabled: Boolean = false,
     trackChangeBackgroundReveal: moe.ouom.neriplayer.ui.component.playback.TrackChangeBackgroundRevealState? = null,
+    onTrackChangeDirectionChange: ((Boolean) -> Unit)? = null,
 ) {
     val coverExpandSharedModifier: Modifier = expandSharedTransitionScope?.let { scope ->
         expandAnimatedVisibilityScope?.let { visibilityScope ->
@@ -2077,6 +2078,7 @@ fun NowPlayingScreen(
     val actualCoverUrl = resolvedCoverUrl ?: visualCoverUrl
     val currentCoverUrl = visualCoverUrl ?: actualCoverUrl
     val coverSongKey = playbackSongKey ?: currentSong?.stableKey()
+    var trackChangeForward by remember { mutableStateOf(true) }
     val coverPreviewOnTapEnabled = shouldOpenNowPlayingCoverPreviewOnTap(currentSong)
     val coverPreviewOnLongPressEnabled =
         shouldOpenNowPlayingCoverPreviewOnLongPress(currentSong)
@@ -2923,7 +2925,11 @@ fun NowPlayingScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             HapticIconButton(
-                                onClick = { PlayerManager.previous() },
+                                onClick = {
+                                    trackChangeForward = false
+                                    onTrackChangeDirectionChange?.invoke(false)
+                                    PlayerManager.previous()
+                                },
                                 modifier = Modifier
                                     .sharedElement(
                                         rememberSharedContentState(
@@ -2969,7 +2975,11 @@ fun NowPlayingScreen(
                             }
 
                             HapticIconButton(
-                                onClick = { PlayerManager.next() },
+                                onClick = {
+                                    trackChangeForward = true
+                                    onTrackChangeDirectionChange?.invoke(true)
+                                    PlayerManager.next()
+                                },
                                 modifier = Modifier
                                     .sharedElement(
                                         rememberSharedContentState(
@@ -3235,6 +3245,7 @@ fun NowPlayingScreen(
                                     songKey = coverSongKey,
                                     enabled = expandCoverSharedEnabled,
                                     backgroundReveal = trackChangeBackgroundReveal,
+                                    forward = trackChangeForward,
                                                                                                             modifier = Modifier
                                         .fillMaxSize()
                                         .zIndex(2f)

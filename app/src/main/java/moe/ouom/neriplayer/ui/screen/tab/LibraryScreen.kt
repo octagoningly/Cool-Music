@@ -107,7 +107,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -216,8 +215,6 @@ import org.burnoutcrew.reorderable.reorderable
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassBackdropRegistrationEnabled
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
-import moe.ouom.neriplayer.ui.screen.playlist.playlistSharedArtwork
-import moe.ouom.neriplayer.ui.screen.playlist.playlistSharedContainer
 import moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText
 
 /** 记录卡片 bounds 但不进 State，避免滚动时每帧重组 */
@@ -3215,33 +3212,15 @@ private fun NeteasePlaylistRow(
     onCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
 ) {
     val rowBoundsCapture = remember { CardBoundsCapture() }
-    val sharedId = "netease_" + playlist.id.toString()
-    val pressInteraction = remember {
-        androidx.compose.foundation.interaction.MutableInteractionSource()
-    }
-    val pressed by pressInteraction.collectIsPressedAsState()
-    val pressScale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (pressed) 0.97f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = 0.7f,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
-        ),
-        label = "playlist_card_press",
-    )
     Card(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = Modifier
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .playlistSharedContainer(sharedId)
             .clip(cardShape)
             .onGloballyPositioned { rowBoundsCapture.bounds = it.boundsInRoot() }
-            .graphicsLayer {
-                scaleX = pressScale
-                scaleY = pressScale
-            }
-            .clickable(interactionSource = pressInteraction, indication = null) {
+            .clickable {
                 onCardBounds(rowBoundsCapture.bounds)
                 onClick()
             }

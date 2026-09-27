@@ -150,6 +150,8 @@ import moe.ouom.neriplayer.ui.component.playback.rememberDelayedPlaybackWaiting
 import moe.ouom.neriplayer.ui.component.playback.WaveformSlider
 import moe.ouom.neriplayer.ui.component.playback.resolvePlaybackWaiting
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledModalBottomSheet
+import moe.ouom.neriplayer.ui.component.overlay.GlassDialogShape
+import moe.ouom.neriplayer.ui.component.overlay.GlassPanelPosition
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
 import moe.ouom.neriplayer.ui.feedback.NeriOverlaySnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
@@ -977,7 +979,17 @@ fun LyricsScreen(
             if (showVolumeSheet) {
                 DensityScaledModalBottomSheet(
                     onDismissRequest = { showVolumeSheet = false },
-                    sheetGesturesEnabled = false
+                    sheetGesturesEnabled = false,
+                    dragHandle = null,
+                    shape = GlassDialogShape,
+                    panelPosition = GlassPanelPosition.Bottom,
+                    panelYOffset = -64.dp,
+                    panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
+                        bottom = 16.dp
+                    )
                 ) {
                     VolumeControlSheetContent()
                 }
@@ -1004,7 +1016,17 @@ fun LyricsScreen(
                 DensityScaledModalBottomSheet(
                     onDismissRequest = { showAddSheet = false },
                     sheetState = addSheetState,
-                    sheetGesturesEnabled = false
+                    sheetGesturesEnabled = false,
+                    dragHandle = null,
+                    shape = GlassDialogShape,
+                    panelPosition = GlassPanelPosition.Bottom,
+                    panelYOffset = -64.dp,
+                    panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
+                        bottom = 16.dp
+                    )
                 ) {
                     androidx.compose.foundation.lazy.LazyColumn(
                         modifier = Modifier.bottomSheetScrollGuard()

@@ -79,6 +79,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
+import moe.ouom.neriplayer.ui.screen.playlist.playlistSharedArtwork
+import moe.ouom.neriplayer.ui.screen.playlist.playlistSharedContainer
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassOverscrollBackdrop
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassOverscrollBackdrop
@@ -981,6 +983,7 @@ internal fun PlaylistModernHeroHeader(
     offlineMode: Boolean,
     height: Dp,
     coverContentDescription: String = displayName,
+    sharedPlaylistId: String? = null,
     actions: (@Composable () -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -990,12 +993,19 @@ internal fun PlaylistModernHeroHeader(
         offlineMode = offlineMode
     )
 
-    Box(
-        modifier = Modifier
+    val containerMod = if (sharedPlaylistId != null) {
+        Modifier
+            .fillMaxWidth()
+            .height(height)
+            .playlistSharedContainer(sharedPlaylistId)
+            .background(visualColors.background)
+    } else {
+        Modifier
             .fillMaxWidth()
             .height(height)
             .background(visualColors.background)
-    ) {
+    }
+    Box(modifier = containerMod) {
         Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -1021,6 +1031,7 @@ internal fun PlaylistModernHeroHeader(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(PlaylistHeroCoverSize)
+                        .let { if (sharedPlaylistId != null) it.playlistSharedArtwork(sharedPlaylistId) else it }
                         .clip(RoundedCornerShape(PlaylistHeroCoverCornerRadius))
                 )
                 Column(

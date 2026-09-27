@@ -751,6 +751,7 @@ fun DetailScreen(
                                         displayName = heroTitle,
                                         coverUrl = displayCoverUrl,
                                         subtitle = heroSubtitle,
+                                        sharedPlaylistId = "netease_" + playlistId.toString(),
                                         offlineMode = offlineMode,
                                         height = playlistHeroHeight,
                                         coverContentDescription = heroTitle,

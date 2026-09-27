@@ -26,6 +26,8 @@ package moe.ouom.neriplayer.ui.screen.host
 import android.os.Parcelable
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -49,6 +51,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -83,6 +86,8 @@ import moe.ouom.neriplayer.ui.screen.playlist.NeteasePlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.YouTubeMusicPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.tab.LibraryTab
+import moe.ouom.neriplayer.ui.screen.playlist.LocalPlaylistSharedTransitionScope
+import moe.ouom.neriplayer.ui.screen.playlist.LocalPlaylistSharedVisibilityScope
 import moe.ouom.neriplayer.ui.screen.tab.LibraryScreen
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.ui.viewmodel.tab.AlbumSummary
@@ -160,7 +165,7 @@ private enum class LibraryScrollSource {
     Bili
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun LibraryHostScreen(
     mainTabReselectTick: Int = 0,
@@ -422,6 +427,10 @@ fun LibraryHostScreen(
             label = "library_host_detail_close"
         )
 
+    SharedTransitionLayout {
+    CompositionLocalProvider(
+        LocalPlaylistSharedTransitionScope provides this
+    ) {
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
         navigationTransition.AnimatedContent(
             modifier = Modifier.fillMaxSize(),
@@ -511,6 +520,9 @@ fun LibraryHostScreen(
                 }.using(SizeTransform(clip = true))
             }
         ) { current ->
+            CompositionLocalProvider(
+                LocalPlaylistSharedVisibilityScope provides this
+            ) {
             val suppressRestoredSceneMotion = shouldSuppressRestoredMainTabHostEntry(
                 restoredEntry = suppressRestoredSceneEntry,
                 initialDepth = navigationTransition.currentState.navigationDepth,
@@ -848,7 +860,11 @@ fun LibraryHostScreen(
                 }
             }
         }
-    }
+                }
+            }
+        }
+        }
+
 }
 
 private val librarySelectedItemSaver = mapSaver<LibrarySelectedItem?>(

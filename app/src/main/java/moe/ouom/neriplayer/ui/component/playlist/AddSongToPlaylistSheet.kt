@@ -60,57 +60,44 @@ fun AddSongToPlaylistSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .padding(bottom = 16.dp)
         ) {
             Text(
                 text = stringResource(R.string.playlist_add_to),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
             val selectable = playlists.filterNot {
                 LocalFilesPlaylist.isSystemPlaylist(it, context)
             }
-            selectable.forEach { playlist ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            scope.launch {
-                                val result = runCatching {
-                                    repo.addSongsToPlaylistWithResult(playlist.id, listOf(song))
-                                }
-                                result.onSuccess { addResult ->
-                                    val message = if (addResult.allDuplicates) {
-                                        context.getString(R.string.playlist_add_already_exists)
-                                    } else {
-                                        context.getString(R.string.playlist_add_success_one, playlist.name)
-                                    }
-                                    AppFeedback.showToast(context, message)
-                                }.onFailure {
-                                    AppFeedback.showToast(
-                                        context,
-                                        context.getString(R.string.playlist_export_failed)
-                                    )
-                                }
-                                onDismissRequest()
-                            }
+            LocalPlaylistPickList(
+                playlists = selectable,
+                enabled = true,
+                onPick = { playlist ->
+                    scope.launch {
+                        val result = runCatching {
+                            repo.addSongsToPlaylistWithResult(playlist.id, listOf(song))
                         }
-                        .padding(horizontal = 24.dp, vertical = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(playlist.name, style = MaterialTheme.typography.bodyLarge)
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        pluralStringResource(
-                            R.plurals.count_songs_format,
-                            playlist.songs.size,
-                            playlist.songs.size
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
+                        result.onSuccess { addResult ->
+                            val message = if (addResult.allDuplicates) {
+                                context.getString(R.string.playlist_add_already_exists)
+                            } else {
+                                context.getString(R.string.playlist_add_success_one, playlist.name)
+                            }
+                            AppFeedback.showToast(context, message)
+                        }.onFailure {
+                            AppFeedback.showToast(
+                                context,
+                                context.getString(R.string.playlist_export_failed)
+                            )
+                        }
+                        onDismissRequest()
+                    }
+                },
+                sizeScale = 0.8f,
+                maxListHeight = 320.dp,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
             Spacer(Modifier.height(8.dp))
         }
     }

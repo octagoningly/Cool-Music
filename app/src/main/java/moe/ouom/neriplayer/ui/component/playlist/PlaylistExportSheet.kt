@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -52,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
@@ -298,13 +301,59 @@ private fun PlaylistExportScrollbar(
     }
 }
 
+/**
+ * 歌单选择列表：与导出弹窗同一套「框 + 左图标 + 右滑块」排布。
+ * [sizeScale] 用于整体缩放（默认 1，加歌单场景用 0.8）。
+ */
+@Composable
+fun LocalPlaylistPickList(
+    playlists: List<LocalPlaylist>,
+    enabled: Boolean,
+    onPick: (LocalPlaylist) -> Unit,
+    modifier: Modifier = Modifier,
+    sizeScale: Float = 1f,
+    maxListHeight: Dp = 320.dp
+) {
+    val listState = rememberLazyListState()
+    val itemSpacing = (4.dp * sizeScale)
+    Row(modifier = modifier.fillMaxWidth()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(max = maxListHeight * sizeScale),
+            verticalArrangement = Arrangement.spacedBy(itemSpacing)
+        ) {
+            items(playlists, key = { it.id }) { playlist ->
+                PlaylistExportRow(
+                    playlist = playlist,
+                    enabled = enabled,
+                    onClick = { onPick(playlist) },
+                    compact = sizeScale < 0.9f
+                )
+            }
+        }
+        PlaylistExportScrollbar(
+            listState = listState,
+            itemCount = playlists.size,
+            modifier = Modifier
+                .padding(start = 6.dp)
+                .fillMaxHeight()
+        )
+    }
+}
+
 @Composable
 private fun PlaylistExportRow(
     playlist: LocalPlaylist,
     enabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    compact: Boolean = false
 ) {
     val shape = RoundedCornerShape(18.dp)
+    val hPad = if (compact) 10.dp else 14.dp
+    val vPad = if (compact) 8.dp else 12.dp
+    val iconSize = if (compact) 18.dp else 24.dp
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -312,18 +361,23 @@ private fun PlaylistExportRow(
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.62f))
             .playlistExportRowClick(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = hPad, vertical = vPad),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Outlined.PlaylistPlay,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(iconSize)
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(if (compact) 8.dp else 12.dp))
         Text(
             text = playlist.name,
-            style = MaterialTheme.typography.bodyLarge,
+            style = if (compact) {
+                MaterialTheme.typography.bodyMedium
+            } else {
+                MaterialTheme.typography.bodyLarge
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
@@ -334,7 +388,7 @@ private fun PlaylistExportRow(
                 playlist.songs.size,
                 playlist.songs.size
             ),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }

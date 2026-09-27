@@ -140,6 +140,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -364,6 +365,7 @@ import kotlin.math.roundToInt
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 import moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText
 import moe.ouom.neriplayer.ui.component.playlist.GlassSheetMenuItem
+import moe.ouom.neriplayer.ui.component.playlist.LocalPlaylistPickList
 
 private const val LyricsPageTransitionDurationMs = 300
 private const val CoverSourceBadgeRevealBufferMs = 120
@@ -944,7 +946,8 @@ private fun NowPlayingQueueRow(
 
                     GlassDropdownMenu(
                         expanded = showMoreMenu,
-                        onDismissRequest = { showMoreMenu = false }
+                        onDismissRequest = { showMoreMenu = false },
+                        forceSolid = true
                     ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.local_playlist_play_next)) },
@@ -1212,15 +1215,22 @@ private fun NowPlayingQueueSelectionToolbar(
                     maxLines = 1
                 )
             }
-            HapticIconButton(
+            Spacer(Modifier.weight(1f))
+            // 文字+描边框，靠右，避免图标看不懂
+            HapticTextButton(
                 enabled = canExport,
                 onClick = onExport,
-                modifier = Modifier.size(40.dp)
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)),
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
-                    contentDescription = stringResource(R.string.cd_export_playlist),
-                    modifier = Modifier.size(20.dp)
+                Text(
+                    text = stringResource(R.string.playlist_add_to),
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1
                 )
             }
         }
@@ -1459,8 +1469,12 @@ internal fun NowPlayingQueueSheet(
             onInputChange = { queueIndexInput = it },
             onDismiss = { showQueueIndexJumpDialog = false },
             onJump = { targetIndex ->
-                scrollToQueueIndex(targetIndex)
+                // 先关弹窗再滚动，避免 dialog-aware 退场动画取消跳转协程
                 showQueueIndexJumpDialog = false
+                screenScope.launch {
+                    kotlinx.coroutines.delay(32)
+                    scrollToQueueIndex(targetIndex)
+                }
             }
         )
     }
@@ -1841,7 +1855,8 @@ private fun NowPlayingQueueIndexJumpDialog(
             }
         },
         confirmButton = {
-            MiuixSettingsButton(
+            // 不用 MiuixSettingsButton：它的 dialog-aware 退场会取消跳转逻辑
+            HapticTextButton(
                 onClick = ::submit,
                 enabled = targetIndex != null
             ) {
@@ -1849,7 +1864,7 @@ private fun NowPlayingQueueIndexJumpDialog(
             }
         },
         dismissButton = {
-            MiuixSettingsTextButton(onClick = onDismiss) {
+            HapticTextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.action_cancel))
             }
         }
@@ -3945,57 +3960,39 @@ fun NowPlayingScreen(
                         bottom = 16.dp
                     )
                 ) {
-                    LazyColumn(modifier = Modifier.bottomSheetScrollGuard()) {
-                        itemsIndexed(
-                            items = selectablePlaylists,
-                            key = { _, pl -> pl.id },
-                            contentType = { _, _ -> "playlist_option" }
-                        ) { _, pl ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        launchWithLocalSyncWarning(
-                                            song = currentSong,
-                                            actionLabel = composeResources.getString(R.string.playlist_add_to)
-                                        ) {
-                                            screenScope.launch {
-                                                val result = runCatching {
-                                                    PlayerManager.addCurrentToPlaylist(pl.id)
-                                                }
-                                                result.onSuccess { addResult ->
-                                                    val message = if (addResult.allDuplicates) {
-                                                        context.getString(R.string.playlist_add_already_exists)
-                                                    } else {
-                                                        context.getString(R.string.playlist_add_success_one, pl.name)
-                                                    }
-                                                    AppFeedback.showToast(context, message)
-                                                }.onFailure {
-                                                    AppFeedback.showToast(
-                                                        context,
-                                                        context.getString(R.string.playlist_export_failed)
-                                                    )
-                                                }
-                                            }
-                                            showAddSheet = false
-                                        }
-                                    }
-                                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                    LocalPlaylistPickList(
+                        playlists = selectablePlaylists,
+                        enabled = true,
+                        onPick = { pl ->
+                            launchWithLocalSyncWarning(
+                                song = currentSong,
+                                actionLabel = composeResources.getString(R.string.playlist_add_to)
                             ) {
-                                Text(pl.name, style = MaterialTheme.typography.bodyLarge)
-                                Spacer(modifier = Modifier.weight(1f))
-                                Text(
-                                    pluralStringResource(
-                                        R.plurals.nowplaying_song_count_format,
-                                        pl.songs.size,
-                                        pl.songs.size
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                screenScope.launch {
+                                    val result = runCatching {
+                                        PlayerManager.addCurrentToPlaylist(pl.id)
+                                    }
+                                    result.onSuccess { addResult ->
+                                        val message = if (addResult.allDuplicates) {
+                                            context.getString(R.string.playlist_add_already_exists)
+                                        } else {
+                                            context.getString(R.string.playlist_add_success_one, pl.name)
+                                        }
+                                        AppFeedback.showToast(context, message)
+                                    }.onFailure {
+                                        AppFeedback.showToast(
+                                            context,
+                                            context.getString(R.string.playlist_export_failed)
+                                        )
+                                    }
+                                }
+                                showAddSheet = false
                             }
-                        }
-                    }
+                        },
+                        sizeScale = 0.8f,
+                        maxListHeight = 320.dp,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
                     Spacer(Modifier.height(12.dp))
                 }
             }

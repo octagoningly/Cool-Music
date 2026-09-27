@@ -167,6 +167,7 @@ import moe.ouom.neriplayer.ui.haptic.performHapticFeedback
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.ui.feedback.AppFeedback
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
+import moe.ouom.neriplayer.ui.component.playlist.LocalPlaylistPickList
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
@@ -1028,55 +1029,39 @@ fun LyricsScreen(
                         bottom = 16.dp
                     )
                 ) {
-                    androidx.compose.foundation.lazy.LazyColumn(
-                        modifier = Modifier.bottomSheetScrollGuard()
-                    ) {
-                        itemsIndexed(selectablePlaylists) { _, pl ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        launchWithLocalSyncWarning(
-                                            song = currentSong,
-                                            actionLabel = playlistAddActionLabel
-                                        ) {
-                                            scope.launch {
-                                                val result = runCatching {
-                                                    PlayerManager.addCurrentToPlaylist(pl.id)
-                                                }
-                                                result.onSuccess { addResult ->
-                                                    val message = if (addResult.allDuplicates) {
-                                                        context.getString(R.string.playlist_add_already_exists)
-                                                    } else {
-                                                        context.getString(R.string.playlist_add_success_one, pl.name)
-                                                    }
-                                                    AppFeedback.showToast(context, message)
-                                                }.onFailure {
-                                                    AppFeedback.showToast(
-                                                        context,
-                                                        context.getString(R.string.playlist_export_failed)
-                                                    )
-                                                }
-                                            }
-                                            showAddSheet = false
-                                        }
-                                    }
-                                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                    LocalPlaylistPickList(
+                        playlists = selectablePlaylists,
+                        enabled = true,
+                        onPick = { pl ->
+                            launchWithLocalSyncWarning(
+                                song = currentSong,
+                                actionLabel = playlistAddActionLabel
                             ) {
-                                Text(pl.name, style = MaterialTheme.typography.bodyLarge)
-                                Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                pluralStringResource(
-                                    R.plurals.lyrics_song_count,
-                                    pl.songs.size,
-                                    pl.songs.size
-                                ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                                scope.launch {
+                                    val result = runCatching {
+                                        PlayerManager.addCurrentToPlaylist(pl.id)
+                                    }
+                                    result.onSuccess { addResult ->
+                                        val message = if (addResult.allDuplicates) {
+                                            context.getString(R.string.playlist_add_already_exists)
+                                        } else {
+                                            context.getString(R.string.playlist_add_success_one, pl.name)
+                                        }
+                                        AppFeedback.showToast(context, message)
+                                    }.onFailure {
+                                        AppFeedback.showToast(
+                                            context,
+                                            context.getString(R.string.playlist_export_failed)
+                                        )
+                                    }
+                                }
+                                showAddSheet = false
                             }
-                        }
-                    }
+                        },
+                        sizeScale = 0.8f,
+                        maxListHeight = 320.dp,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
                     Spacer(Modifier.height(12.dp))
                 }
             }

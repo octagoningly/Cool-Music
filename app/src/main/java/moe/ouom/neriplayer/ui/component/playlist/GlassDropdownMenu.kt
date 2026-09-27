@@ -336,10 +336,11 @@ fun GlassDropdownMenu(
     maxWidth: Dp = 200.dp,
     // 歌曲列表可达 8 项（含本地详情/分享），默认加高避免截断
     maxHeight: Dp = 440.dp,
+    forceSolid: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val controller = LocalAdvancedGlassController.current
-    val glassActive = controller.isBaseBlurEnabled
+    val glassActive = controller.isBaseBlurEnabled && !forceSolid
     val density = LocalDensity.current
     val reservedBottom = LocalMiniPlayerHeight.current
     val coherentFeedbackEnabled by AppContainer.settingsRepo

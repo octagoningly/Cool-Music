@@ -15,8 +15,8 @@ class GlassDialogMotionTest {
             GlassDialogMotion.ExitTransformSpring.dampingRatio >
                 GlassDialogMotion.EnterTransformSpring.dampingRatio
         )
-        // 时长约原 0.8 倍：stiffness ≈ 400 / 0.8²
-        assertTrue(GlassDialogMotion.EnterTransformSpring.stiffness in 550f..750f)
+        // 时长约当前 0.8 倍：stiffness ≈ 625 / 0.8²
+        assertTrue(GlassDialogMotion.EnterTransformSpring.stiffness in 900f..1100f)
         assertTrue(GlassDialogMotion.ExitTransformSpring.stiffness > GlassDialogMotion.EnterTransformSpring.stiffness)
     }
 
@@ -60,7 +60,7 @@ class GlassDialogMotionTest {
 
     @Test
     fun fadeIsIndependentAndFasterToClose() {
-        assertTrue(GlassDialogMotion.EnterFadeMs in 160..280)
+        assertTrue(GlassDialogMotion.EnterFadeMs in 100..200)
         assertTrue(GlassDialogMotion.ExitFadeMs < GlassDialogMotion.EnterFadeMs)
         assertFalse(GlassDialogMotion.EnterScaleFrom >= 1f)
     }

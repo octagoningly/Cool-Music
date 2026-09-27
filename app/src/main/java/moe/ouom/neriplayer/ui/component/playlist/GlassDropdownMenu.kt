@@ -78,9 +78,9 @@ import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
  * 设置 → 动效 → 连贯反馈（`coherent_feedback_enabled`）关闭时保持原瞬时开合。
  */
 object GlassMenuMotion {
-    /** 淡入淡出时长（透明度不跟弹簧过冲，避免闪一下） */
-    const val EnterFadeMs = 180
-    const val ExitFadeMs = 120
+    /** 淡入淡出时长（透明度不跟弹簧过冲，避免闪一下）；约 1.3 倍手感 */
+    const val EnterFadeMs = 234
+    const val ExitFadeMs = 156
 
     const val EnterScaleFrom = 0.76f
     const val ExitScaleTo = 0.92f
@@ -90,17 +90,17 @@ object GlassMenuMotion {
 
     /**
      * Q 弹：欠阻尼弹簧，冲过 1.0 再回弹不足，震荡几次收住。
-     * damping 0.48 → 约 2～3 次肉眼可见的过冲/回弹。
+     * 时长约 1.3 倍：stiffness = Medium(1500) / 1.3² ≈ 888。
      */
     val EnterTransformSpring = spring<Float>(
         dampingRatio = 0.48f,
-        stiffness = Spring.StiffnessMedium,
+        stiffness = 888f,
     )
 
     /** 收回：仍带一点弹性，但不明显过冲 */
     val ExitTransformSpring = spring<Float>(
         dampingRatio = 0.72f,
-        stiffness = Spring.StiffnessMedium,
+        stiffness = 888f,
     )
 
     /**
@@ -136,6 +136,33 @@ object GlassMenuMotion {
         val dx = if (menuLeftOfAnchor) -SlideFraction * t else SlideFraction * t
         val dy = if (opensUpward) -SlideFraction * t else SlideFraction * t
         return androidx.compose.ui.geometry.Offset(dx, dy)
+    }
+
+    /**
+     * 玻璃模糊区域随菜单缩放同步收缩/放大，关闭时与内容同时消失。
+     * 绕与 [transformOrigin] 相同的角点缩放，避免糊块和面板脱节。
+     */
+    fun blurBounds(
+        base: Rect,
+        progress: Float,
+        expanding: Boolean,
+        opensUpward: Boolean,
+        menuLeftOfAnchor: Boolean,
+    ): Rect {
+        // 退场时 appearScale 只收到 0.92，必须再乘 progress，模糊才能跟内容一起收到 0
+        val scale = if (expanding) {
+            appearScale(true, progress)
+        } else {
+            appearScale(false, progress) * progress.coerceIn(0f, 1f)
+        }.coerceIn(0f, 1.5f)
+        if (scale <= 0.02f) return Rect.Zero
+        val pivotX = if (menuLeftOfAnchor) base.right else base.left
+        val pivotY = if (opensUpward) base.bottom else base.top
+        val width = base.width * scale
+        val height = base.height * scale
+        val left = if (menuLeftOfAnchor) pivotX - width else pivotX
+        val top = if (opensUpward) pivotY - height else pivotY
+        return Rect(left, top, left + width, top + height)
     }
 }
 
@@ -354,6 +381,9 @@ fun GlassDropdownMenu(
             fallbackColor = fallbackColor,
             glassActive = glassActive,
             menuBoundsInMainWindow = menuBoundsInMainWindow,
+            appearProgress = 1f,
+            opensUpward = opensUpward,
+            menuLeftOfAnchor = menuLeftOfAnchor,
             content = content,
         )
         return
@@ -421,6 +451,9 @@ fun GlassDropdownMenu(
         fallbackColor = fallbackColor,
         glassActive = glassActive,
         menuBoundsInMainWindow = menuBoundsInMainWindow,
+        appearProgress = transformProgress.value,
+        opensUpward = opensUpward,
+        menuLeftOfAnchor = menuLeftOfAnchor,
         modifier = Modifier.graphicsLayer {
             val t = transformProgress.value
             transformOrigin = GlassMenuMotion.transformOrigin(opensUpward, menuLeftOfAnchor)
@@ -447,16 +480,29 @@ private fun GlassMenuPopup(
     fallbackColor: Color,
     glassActive: Boolean,
     menuBoundsInMainWindow: Rect?,
+    appearProgress: Float = 1f,
+    opensUpward: Boolean = false,
+    menuLeftOfAnchor: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // 两层玻璃重叠时（菜单盖住 MiniPlayer/底栏），抬升标记让下层玻璃减淡；
     // depth 归零 + 强制允许注册，避免被外层「播放页禁用主 Tab 注册」误伤。
-    // 退场立刻停注册：模糊挂在主窗口区域，不随菜单 alpha 消失，否则内容没了还留一块糊。
+    // 模糊块与面板同步缩放，关闭时同时消失（不能提前整块抹掉，也不能拖到内容没了还留着）。
+    val blurBounds = menuBoundsInMainWindow?.let {
+        GlassMenuMotion.blurBounds(
+            base = it,
+            progress = appearProgress,
+            expanding = expanded,
+            opensUpward = opensUpward,
+            menuLeftOfAnchor = menuLeftOfAnchor,
+        )
+    }
+    val keepBlurRegion = expanded || appearProgress > 0.02f
     CompositionLocalProvider(
         LocalGlassOverlayElevated provides true,
         LocalAdvancedGlassDepth provides 0,
-        LocalAdvancedGlassBackdropRegistrationEnabled provides expanded,
+        LocalAdvancedGlassBackdropRegistrationEnabled provides keepBlurRegion,
     ) {
         Popup(
             popupPositionProvider = positionProvider,
@@ -474,7 +520,7 @@ private fun GlassMenuPopup(
                     fallbackColor = fallbackColor,
                     tintColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     enabled = glassActive,
-                    regionBoundsOverride = if (expanded) menuBoundsInMainWindow else Rect.Zero,
+                    regionBoundsOverride = blurBounds,
                 ) {
                     // 开发规则：下拉菜单文字居中
                     CompositionLocalProvider(

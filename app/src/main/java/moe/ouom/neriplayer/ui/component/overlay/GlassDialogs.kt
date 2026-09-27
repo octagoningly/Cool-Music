@@ -75,8 +75,8 @@ internal enum class GlassPanelPosition {
  * 底部面板改为自下弹入并过冲落位。设置 → 动效 → 连贯反馈 关闭时保持瞬时开合。
  */
 internal object GlassDialogMotion {
-    const val EnterFadeMs = 176
-    const val ExitFadeMs = 128
+    const val EnterFadeMs = 141
+    const val ExitFadeMs = 102
 
     /** 中心弹出起点缩放（行程大，一眼能看出弹出） */
     const val EnterScaleFrom = 0.55f
@@ -87,17 +87,17 @@ internal object GlassDialogMotion {
     const val SheetSlideFraction = 0.55f
 
     /**
-     * 强 Q 弹，时长约原 0.8 倍。
-     * 弹簧时长 ∝ 1/√stiffness，故 stiffness = MediumLow(400) / 0.8² ≈ 625。
+     * 强 Q 弹，时长约当前 0.8 倍（再压一档）。
+     * 弹簧时长 ∝ 1/√stiffness：625 / 0.8² ≈ 977。
      */
     val EnterTransformSpring = spring<Float>(
         dampingRatio = 0.32f,
-        stiffness = 625f,
+        stiffness = 977f,
     )
 
     val ExitTransformSpring = spring<Float>(
         dampingRatio = 0.70f,
-        stiffness = 900f,
+        stiffness = 1250f,
     )
 
     /** progress: 0=收起, 1=展开；弹簧可 >1（过冲）或 <1（回弹不足） */

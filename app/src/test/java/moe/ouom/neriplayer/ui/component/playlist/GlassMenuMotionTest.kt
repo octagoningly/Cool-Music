@@ -15,12 +15,51 @@ class GlassMenuMotionTest {
             GlassMenuMotion.ExitTransformSpring.dampingRatio >
                 GlassMenuMotion.EnterTransformSpring.dampingRatio
         )
+        // 抖动时长约 1.3 倍：stiffness ≈ 1500 / 1.3²
+        assertTrue(GlassMenuMotion.EnterTransformSpring.stiffness in 800f..980f)
     }
 
     @Test
     fun fadeStaysIndependentOfSpringOvershoot() {
-        assertTrue(GlassMenuMotion.EnterFadeMs in 120..240)
+        assertTrue(GlassMenuMotion.EnterFadeMs in 180..280)
         assertTrue(GlassMenuMotion.ExitFadeMs < GlassMenuMotion.EnterFadeMs)
+    }
+
+    @Test
+    fun blurBoundsShrinksWithMenuSoTheyVanishTogether() {
+        val base = androidx.compose.ui.geometry.Rect(100f, 200f, 500f, 700f)
+        val full = GlassMenuMotion.blurBounds(
+            base = base,
+            progress = 1f,
+            expanding = true,
+            opensUpward = false,
+            menuLeftOfAnchor = true,
+        )
+        assertEquals(100f, full.left, 1f)
+        assertEquals(200f, full.top, 1f)
+        assertEquals(500f, full.right, 1f)
+        assertEquals(700f, full.bottom, 1f)
+
+        val closing = GlassMenuMotion.blurBounds(
+            base = base,
+            progress = 0.5f,
+            expanding = false,
+            opensUpward = false,
+            menuLeftOfAnchor = true,
+        )
+        // 绕右上角收缩，且比原区域小
+        assertTrue(closing.width < base.width)
+        assertTrue(closing.right == 500f || kotlin.math.abs(closing.right - 500f) < 1f)
+
+        val gone = GlassMenuMotion.blurBounds(
+            base = base,
+            progress = 0f,
+            expanding = false,
+            opensUpward = false,
+            menuLeftOfAnchor = true,
+        )
+        // progress=0 时模糊区域必须为空，与内容同时消失
+        assertTrue(gone.width <= 0f)
     }
 
     @Test

@@ -664,6 +664,7 @@ object PlayerManager {
     internal val genericUrlPrefetchCache = GenericUrlPrefetchCache()
     internal var currentGenericUrlPrefetchJob: Job? = null
     internal var currentGenericUrlPrefetchKey: String? = null
+    internal var currentGenericUrlPrefetchTargets: Set<String> = emptySet()
     @Volatile
     internal var playbackPrecacheConfig = moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheConfig()
     internal var currentPlaybackPrecacheJob: Job? = null

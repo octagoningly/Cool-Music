@@ -66,121 +66,46 @@ internal fun PlayerManager.prefetchNextGenericTrackUrl() {
         return
     }
 
-    val nextIndex = when {
-        currentIndex + 1 in currentPlaylist.indices -> currentIndex + 1
-        repeatModeSetting == Player.REPEAT_MODE_ALL && currentPlaylist.size > 1 -> 0
-        else -> -1
-    }
-    val nextSong = currentPlaylist.getOrNull(nextIndex)
-    if (nextSong == null || isLocalSong(nextSong)) {
+    val upcoming = collectUpcomingSequentialSongs(maxCount = 2)
+    if (upcoming.isEmpty()) {
         cancelGenericUrlPrefetch(reason = "no_supported_next_track")
-        return
-    }
-    if (isYouTubeMusicTrack(nextSong)) {
-        cancelGenericUrlPrefetch(reason = "no_supported_next_track")
-        val windowIds = buildList {
-            var cursor = nextIndex
-            while (size < 3 && cursor in currentPlaylist.indices) {
-                val candidate = currentPlaylist[cursor]
-                if (isYouTubeMusicTrack(candidate)) {
-                    add(candidate)
-                }
-                cursor++
-            }
-        }
-        prefetchYouTubePlayableUrlWindow(
-            playlist = currentPlaylist,
-            startIndex = nextIndex,
-            source = "next_track_youtube"
-        )
         return
     }
 
-    val cacheKey = computeCacheKey(nextSong)
-    assert(cacheKey.isNotBlank()) { "generic URL prefetch cache key must not be blank" }
-    val freshUrlResult = genericUrlPrefetchCache.peekFresh(cacheKey, SystemClock.elapsedRealtime())
-    if (freshUrlResult != null) {
-        if (isDirectStreamUrl(freshUrlResult.url) &&
-            currentGenericUrlPrefetchJob?.isActive != true
-        ) {
-            currentGenericUrlPrefetchKey = cacheKey
-            val mediaWarmJob = ioScope.launch {
-                try {
-                    prefetchGenericTrackMedia(
-                        result = freshUrlResult,
-                        cacheKey = cacheKey,
-                        song = nextSong
-                    )
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    NPLogger.w(
-                        "NERI-PlayerManager",
-                        "generic media warm from cached URL failed: song=" + nextSong.name,
-                        error
-                    )
-                }
-            }
-            currentGenericUrlPrefetchJob = mediaWarmJob
-            mediaWarmJob.invokeOnCompletion {
-                if (currentGenericUrlPrefetchJob === mediaWarmJob) {
-                    currentGenericUrlPrefetchJob = null
-                    currentGenericUrlPrefetchKey = null
-                }
-            }
-        }
-        return
+    if (upcoming.any { isYouTubeMusicTrack(it) }) {
+        val firstYt = upcoming.first { isYouTubeMusicTrack(it) }
+        val startIndex = currentPlaylist.indexOf(firstYt).coerceAtLeast(currentIndex + 1)
+        prefetchYouTubePlayableUrlWindow(
+            playlist = currentPlaylist,
+            startIndex = startIndex,
+            source = "next_track_youtube"
+        )
     }
-    if (currentGenericUrlPrefetchJob?.isActive == true && currentGenericUrlPrefetchKey == cacheKey) {
+
+    val genericTargets = upcoming.filterNot {
+        isLocalSong(it) || isYouTubeMusicTrack(it)
+    }
+    if (genericTargets.isEmpty()) return
+
+    val targetKeys = genericTargets.map { computeCacheKey(it) }.toSet()
+    if (currentGenericUrlPrefetchJob?.isActive == true &&
+        currentGenericUrlPrefetchKey in targetKeys &&
+        currentGenericUrlPrefetchTargets == targetKeys
+    ) {
         return
     }
 
     cancelGenericUrlPrefetch(reason = "replace_target")
-    currentGenericUrlPrefetchKey = cacheKey
+    currentGenericUrlPrefetchTargets = targetKeys
+    currentGenericUrlPrefetchKey = genericTargets.first().let { computeCacheKey(it) }
+    NPLogger.d(
+        "NERI-PlayerManager",
+        "next-track prefetch start: count=" + genericTargets.size +
+            ", songs=" + genericTargets.joinToString { it.name }
+    )
     val launchedJob = ioScope.launch {
-        try {
-            val result = resolveSongUrl(
-                song = nextSong,
-                allowGenericPrefetchCache = false,
-                sideEffects = RefreshResolverSideEffects(RefreshSideEffectGate { false }),
-                shouldApplyCacheMutation = { false }
-            )
-            // 本地兜底命中的受限歌曲同样值得预取, 否则消费方会白等一个不落盘的任务
-            if (result is SongUrlResult.Success &&
-                !result.url.startsWith(OFFLINE_CACHE_URL_PREFIX) &&
-                (isDirectStreamUrl(result.url) || LocalSongSupport.isLocalMediaUri(result.url))
-            ) {
-                genericUrlPrefetchCache.put(
-                    key = cacheKey,
-                    result = result,
-                    nowMs = SystemClock.elapsedRealtime(),
-                    ttlMsOverride = resolveGenericUrlPrefetchTtlMs(
-                        currentTrackDurationMs = maxOf(
-                            playbackDurationFlow.value,
-                            currentSongFlow.value?.durationMs ?: 0L
-                        )
-                    )
-                )
-                if (isDirectStreamUrl(result.url)) {
-                    prefetchGenericTrackMedia(
-                        result = result,
-                        cacheKey = cacheKey,
-                        song = nextSong
-                    )
-                }
-                NPLogger.d(
-                    "NERI-PlayerManager",
-                    "generic URL prefetch completed: song=${nextSong.name}, key=$cacheKey"
-                )
-            }
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            NPLogger.w(
-                "NERI-PlayerManager",
-                "generic URL prefetch failed: song=${nextSong.name}, key=$cacheKey",
-                error
-            )
+        genericTargets.forEach { song ->
+            prefetchOneGenericSongForPlayback(song)
         }
     }
     currentGenericUrlPrefetchJob = launchedJob
@@ -188,7 +113,91 @@ internal fun PlayerManager.prefetchNextGenericTrackUrl() {
         if (currentGenericUrlPrefetchJob === launchedJob) {
             currentGenericUrlPrefetchJob = null
             currentGenericUrlPrefetchKey = null
+            currentGenericUrlPrefetchTargets = emptySet()
         }
+    }
+}
+
+private fun PlayerManager.collectUpcomingSequentialSongs(maxCount: Int): List<SongItem> {
+    if (currentPlaylist.isEmpty() || currentIndex !in currentPlaylist.indices) return emptyList()
+    val result = ArrayList<SongItem>(maxCount)
+    var cursor = currentIndex + 1
+    val repeatAll = repeatModeSetting == Player.REPEAT_MODE_ALL
+    while (result.size < maxCount) {
+        if (cursor in currentPlaylist.indices) {
+            result += currentPlaylist[cursor]
+            cursor++
+        } else if (repeatAll && currentPlaylist.size > 1) {
+            cursor = 0
+            // avoid re-adding current track forever
+            if (result.size >= currentPlaylist.size - 1) break
+        } else {
+            break
+        }
+    }
+    return result
+}
+
+private suspend fun PlayerManager.prefetchOneGenericSongForPlayback(song: SongItem) {
+    try {
+        val cacheKey = computeCacheKey(song)
+        if (cacheKey.isBlank()) return
+        val freshUrlResult = genericUrlPrefetchCache.peekFresh(cacheKey, SystemClock.elapsedRealtime())
+        if (freshUrlResult != null && isDirectStreamUrl(freshUrlResult.url)) {
+            prefetchGenericTrackMedia(
+                result = freshUrlResult,
+                cacheKey = cacheKey,
+                song = song
+            )
+            return
+        }
+        val result = resolveSongUrl(
+            song = song,
+            allowGenericPrefetchCache = false,
+            sideEffects = RefreshResolverSideEffects(RefreshSideEffectGate { false }),
+            shouldApplyCacheMutation = { false }
+        )
+        if (result is SongUrlResult.Success &&
+            !result.url.startsWith(OFFLINE_CACHE_URL_PREFIX) &&
+            (isDirectStreamUrl(result.url) || LocalSongSupport.isLocalMediaUri(result.url))
+        ) {
+            genericUrlPrefetchCache.put(
+                key = cacheKey,
+                result = result,
+                nowMs = SystemClock.elapsedRealtime(),
+                ttlMsOverride = resolveGenericUrlPrefetchTtlMs(
+                    currentTrackDurationMs = maxOf(
+                        playbackDurationFlow.value,
+                        currentSongFlow.value?.durationMs ?: 0L
+                    )
+                )
+            )
+            if (isDirectStreamUrl(result.url)) {
+                prefetchGenericTrackMedia(
+                    result = result,
+                    cacheKey = cacheKey,
+                    song = song
+                )
+            }
+            NPLogger.d(
+                "NERI-PlayerManager",
+                "generic URL prefetch completed: song=" + song.name + ", key=" + cacheKey
+            )
+        } else {
+            NPLogger.w(
+                "NERI-PlayerManager",
+                "generic URL prefetch got unusable result: song=" + song.name +
+                    ", key=" + cacheKey + ", result=" + result
+            )
+        }
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        NPLogger.w(
+            "NERI-PlayerManager",
+            "generic URL prefetch failed: song=" + song.name,
+            error
+        )
     }
 }
 
@@ -198,7 +207,13 @@ private suspend fun PlayerManager.prefetchGenericTrackMedia(
     song: SongItem
 ) {
     val mediaCacheKey = resolveGenericMediaPrefetchCacheKey(cacheKey, result)
-    if (playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey)) return
+    if (playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey)) {
+        NPLogger.d(
+            "NERI-PlayerManager",
+            "skip media prefetch for playback demand: song=" + song.name + ", key=" + mediaCacheKey
+        )
+        return
+    }
     if (result.audioInfo != null) {
         val descriptorResult = synchronizeCachedPlaybackDescriptor(
             cacheKey = mediaCacheKey,
@@ -208,14 +223,14 @@ private suspend fun PlayerManager.prefetchGenericTrackMedia(
             song = song,
             shouldApplyMutation = { !playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey) }
         )
-        if (!descriptorResult.allowsCustomCacheKey()) {
-            NPLogger.w(
-                "NERI-PlayerManager",
-                "skip generic media prefetch because cache descriptor was not synchronized: " +
-                    "song=" + song.name + ", key=" + mediaCacheKey + ", result=" + descriptorResult
-            )
-            return
-        }
+        NPLogger.d(
+            "NERI-PlayerManager",
+            "media prefetch descriptor: song=" + song.name + ", key=" + mediaCacheKey +
+                ", result=" + descriptorResult
+        )
+        // Even if descriptor sync is skipped, still try to warm media bytes + cache metadata.
+    } else {
+        runCatching { cache?.writeCachedSong(mediaCacheKey, song) }
     }
     when (
         prepareExoPlayerCacheForPrefetch(
@@ -223,8 +238,17 @@ private suspend fun PlayerManager.prefetchGenericTrackMedia(
             shouldApplyMutation = { !playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey) }
         )
     ) {
-        CachePrefetchReadiness.COMPLETE -> return
-        CachePrefetchReadiness.UNAVAILABLE -> return
+        CachePrefetchReadiness.COMPLETE -> {
+            runCatching { cache?.writeCachedSong(mediaCacheKey, song) }
+            return
+        }
+        CachePrefetchReadiness.UNAVAILABLE -> {
+            NPLogger.w(
+                "NERI-PlayerManager",
+                "media prefetch cache unavailable: song=" + song.name + ", key=" + mediaCacheKey
+            )
+            return
+        }
         CachePrefetchReadiness.READY_FOR_PREFETCH -> Unit
     }
     val targetBytes = maxOf(
@@ -245,14 +269,13 @@ private suspend fun PlayerManager.prefetchGenericTrackMedia(
     }.getOrElse { error ->
         NPLogger.w(
             "NERI-PlayerManager",
-            "generic media prefetch failed: song=" + song.name + ", key=" + mediaCacheKey + ", error=" + error.message
+            "generic media prefetch failed: song=" + song.name + ", key=" + mediaCacheKey +
+                ", error=" + error.message
         )
         return
     }
     if (prefetchedBytes > 0L) {
-        runCatching {
-            cache?.writeCachedSong(mediaCacheKey, song)
-        }
+        runCatching { cache?.writeCachedSong(mediaCacheKey, song) }
     }
     NPLogger.d(
         "NERI-PlayerManager",
@@ -289,6 +312,7 @@ internal fun PlayerManager.cancelGenericUrlPrefetch(reason: String) {
     activeJob?.cancel()
     currentGenericUrlPrefetchJob = null
     currentGenericUrlPrefetchKey = null
+    currentGenericUrlPrefetchTargets = emptySet()
 }
 
 internal fun PlayerManager.cancelGenericUrlPrefetchUnlessReusableForSong(

@@ -416,14 +416,25 @@ internal fun GlassAlertDialog(
 }
 
 /**
- * 真模糊底部面板：顶部圆角 28.dp + 高级透明模糊。
+ * 真模糊底部面板：默认顶部圆角 28.dp + 高级透明模糊。
  * role 用 [AdvancedGlassRole.DialogPanel]，只依赖基础高级模糊开关即可采样。
+ * 居中浮层可传 [GlassPanelPosition.Centered] + [GlassDialogShape]（四角统一 28.dp）。
  */
 @Composable
 internal fun GlassModalBottomSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = GlassSheetShape,
+    position: GlassPanelPosition = GlassPanelPosition.Bottom,
+    maxWidth: Dp = 300.dp,
+    maxHeight: Dp = 420.dp,
+    contentPadding: androidx.compose.foundation.layout.PaddingValues =
+        androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 12.dp,
+            bottom = 20.dp
+        ),
     content: @Composable ColumnScope.() -> Unit
 ) {
     GlassPanel(
@@ -431,15 +442,10 @@ internal fun GlassModalBottomSheet(
         modifier = modifier,
         shape = shape,
         role = AdvancedGlassRole.DialogPanel,
-        position = GlassPanelPosition.Bottom,
-        maxWidth = 300.dp,
-        maxHeight = 420.dp,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 12.dp,
-            bottom = 20.dp
-        ),
+        position = position,
+        maxWidth = maxWidth,
+        maxHeight = maxHeight,
+        contentPadding = contentPadding,
         content = content
     )
 }

@@ -115,6 +115,16 @@ internal fun DensityScaledModalBottomSheet(
         WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Top)
     },
     properties: ModalBottomSheetProperties = ModalBottomSheetProperties(),
+    panelPosition: GlassPanelPosition = GlassPanelPosition.Bottom,
+    panelMaxWidth: Dp = 300.dp,
+    panelMaxHeight: Dp = 420.dp,
+    panelContentPadding: androidx.compose.foundation.layout.PaddingValues =
+        androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 12.dp,
+            bottom = 20.dp
+        ),
     content: @Composable ColumnScope.() -> Unit
 ) {
     // 统一走 GlassModalBottomSheet：主窗口内真模糊（Material ModalBottomSheet 是独立
@@ -123,6 +133,10 @@ internal fun DensityScaledModalBottomSheet(
         onDismissRequest = onDismissRequest,
         modifier = modifier,
         shape = shape,
+        position = panelPosition,
+        maxWidth = panelMaxWidth,
+        maxHeight = panelMaxHeight,
+        contentPadding = panelContentPadding,
     ) {
         if (dragHandle != null) {
             Box(

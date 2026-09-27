@@ -77,14 +77,12 @@ import moe.ouom.neriplayer.ui.component.playlist.GlassSheetMenuItem
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import moe.ouom.neriplayer.ui.viewmodel.NowPlayingViewModel
 import moe.ouom.neriplayer.ui.viewmodel.album.isNeteaseAlbumNavigationSource
-import moe.ouom.neriplayer.ui.viewmodel.album.neteaseAlbumDisplayName
 import moe.ouom.neriplayer.ui.viewmodel.album.resolveNeteaseAlbum
 import moe.ouom.neriplayer.ui.viewmodel.tab.AlbumSummary
 import moe.ouom.neriplayer.util.media.buildRemoteSongShareUrl
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import java.util.Date
 import java.util.Locale
-import kotlin.math.roundToInt
 
 @Composable
 internal fun MoreOptionsMainContent(
@@ -92,8 +90,6 @@ internal fun MoreOptionsMainContent(
     originalSong: SongItem,
     queue: List<SongItem>,
     isLocalSong: Boolean,
-    lyricFontScale: Float,
-    translationFontScale: Float,
     currentPlaybackAudioInfo: PlaybackAudioInfo?,
     isDismissing: Boolean,
     snackbarHostState: SnackbarHostState,
@@ -135,8 +131,6 @@ internal fun MoreOptionsMainContent(
         )
         LyricsAndAlbumActions(
             song = originalSong,
-            lyricFontScale = lyricFontScale,
-            translationFontScale = translationFontScale,
             onOpenLyricBehavior = onOpenLyricBehavior,
             onOpenFontSize = onOpenFontSize,
             onEnterAlbum = onEnterAlbum,
@@ -188,16 +182,12 @@ private fun MetadataAndPlaybackActions(
         GlassSheetMenuItem(
             text = stringResource(R.string.nowplaying_quality_switch_title),
             leadingIcon = { Icon(Icons.Outlined.MusicNote, null) },
-            supportingContent = audioInfo?.qualityLabel
-                ?.takeIf { it.isNotBlank() }
-                ?.let { label -> { Text(label) } },
             onClick = onShowQualitySwitch
         )
     }
     GlassSheetMenuItem(
         text = stringResource(R.string.nowplaying_audio_effects_title),
         leadingIcon = { Icon(Icons.Outlined.Tune, null) },
-        supportingContent = { Text(stringResource(R.string.nowplaying_audio_effects_desc)) },
         onClick = onOpenPlaybackSound
     )
 }
@@ -310,8 +300,6 @@ private fun DownloadProgressContent(task: DownloadTask?) {
 @Composable
 private fun LyricsAndAlbumActions(
     song: SongItem,
-    lyricFontScale: Float,
-    translationFontScale: Float,
     onOpenLyricBehavior: () -> Unit,
     onOpenFontSize: () -> Unit,
     onEnterAlbum: (AlbumSummary) -> Unit,
@@ -325,20 +313,10 @@ private fun LyricsAndAlbumActions(
     GlassSheetMenuItem(
         text = stringResource(R.string.lyrics_font_size),
         leadingIcon = { Icon(Icons.Outlined.FormatSize, null) },
-        supportingContent = {
-            Text(
-                stringResource(
-                    R.string.settings_lyrics_font_scale_pair_value,
-                    (lyricFontScale * 100).roundToInt(),
-                    (translationFontScale * 100).roundToInt()
-                )
-            )
-        },
         onClick = onOpenFontSize
     )
     if (!isNeteaseAlbumNavigationSource(song)) return
 
-    val albumName = neteaseAlbumDisplayName(song)
     val context = LocalContext.current
     val composeResources = LocalResources.current
     var albumResolveRequest by remember(song) { mutableIntStateOf(0) }
@@ -363,7 +341,7 @@ private fun LyricsAndAlbumActions(
     }
 
     GlassSheetMenuItem(
-        text = stringResource(R.string.music_view_album, albumName),
+        text = stringResource(R.string.music_view_album),
         enabled = !resolvingAlbum,
         leadingIcon = {
             if (resolvingAlbum) {

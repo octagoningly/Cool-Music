@@ -58,6 +58,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -858,6 +859,22 @@ private fun NowPlayingQueueRow(
                     modifier = Modifier.padding(end = 10.dp)
                 )
             }
+            // 序号：压缩占位，尽量不影响歌名
+            Box(
+                modifier = Modifier.width(18.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = (index + 1).toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isCurrent) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    maxLines = 1
+                )
+            }
             if (!coverUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = offlineCachedImageRequest(
@@ -916,12 +933,16 @@ private fun NowPlayingQueueRow(
                 )
             }
             if (!selectionMode) {
-                Box {
-                    IconButton(onClick = { showMoreMenu = true }) {
+                Box(modifier = Modifier.padding(start = 2.dp)) {
+                    IconButton(
+                        onClick = { showMoreMenu = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
                             contentDescription = stringResource(R.string.common_more_actions),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
@@ -1113,11 +1134,22 @@ private fun NowPlayingQueueQuickActionsFab(
 
         HapticFloatingActionButton(
             onClick = { expanded = !expanded },
-            hapticEffect = HapticFeedbackEffect.Click
+            hapticEffect = HapticFeedbackEffect.Click,
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f),
+            elevation = FloatingActionButtonDefaults.elevation(
+                defaultElevation = 4.dp,
+                pressedElevation = 8.dp
+            ),
+            modifier = Modifier.border(
+                width = 1.5.dp,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                shape = FloatingActionButtonDefaults.shape
+            )
         ) {
             Icon(
                 imageVector = if (expanded) Icons.Outlined.Close else Icons.Filled.MoreVert,
-                contentDescription = stringResource(R.string.cd_queue_quick_actions)
+                contentDescription = stringResource(R.string.cd_queue_quick_actions),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
     }
@@ -3198,6 +3230,7 @@ fun NowPlayingScreen(
                                     onCoverCenterInRoot = { coverCenterInRoot = it },
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .zIndex(2f)
                                         .coverSettleScale(enabled = expandCoverSharedEnabled),
                                 ) { stackCoverUrl, stackSongKey ->
                                     StableNowPlayingCoverImage(
@@ -3806,7 +3839,17 @@ fun NowPlayingScreen(
                 ModalBottomSheet(
                     onDismissRequest = { showVolumeSheet = false },
                     sheetState = volumeSheetState,
-                    sheetGesturesEnabled = false
+                    sheetGesturesEnabled = false,
+                    dragHandle = null,
+                    shape = GlassDialogShape,
+                    panelPosition = GlassPanelPosition.Bottom,
+                    panelYOffset = -QueueSheetDockGap,
+                    panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
+                        bottom = 16.dp
+                    )
                 ) {
                     VolumeControlSheetContent()
                 }
@@ -3875,7 +3918,17 @@ fun NowPlayingScreen(
                 ModalBottomSheet(
                     onDismissRequest = { showAddSheet = false },
                     sheetState = addSheetState,
-                    sheetGesturesEnabled = false
+                    sheetGesturesEnabled = false,
+                    dragHandle = null,
+                    shape = GlassDialogShape,
+                    panelPosition = GlassPanelPosition.Bottom,
+                    panelYOffset = -QueueSheetDockGap,
+                    panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
+                        bottom = 16.dp
+                    )
                 ) {
                     LazyColumn(modifier = Modifier.bottomSheetScrollGuard()) {
                         itemsIndexed(
@@ -4167,6 +4220,12 @@ fun BoxScope.MoreOptionsSheet(
     // 一级：锚点小菜单；二级：GlassModalBottomSheet（禁止塞进 IntrinsicSize 菜单，见开发规则）
     var secondaryPage by remember { mutableStateOf<MoreOptionsPage?>(null) }
     var statsSong by remember { mutableStateOf<SongItem?>(null) }
+    // 退出二级后整段收起，一级菜单不再回弹
+    val closeMoreOptions = {
+        secondaryPage = null
+        statsSong = null
+        onDismiss()
+    }
     val currentSong by PlayerManager.currentSongFlow.collectAsStateWithLifecycle()
     val actualSong = currentSong?.takeIf { it.sameIdentityAs(originalSong) } ?: originalSong
     val isLocalSong = actualSong.isLocalSong()
@@ -4235,7 +4294,7 @@ fun BoxScope.MoreOptionsSheet(
     // 二级弹窗：屏幕居中 GlassPanel（圆角 28、无横杠、紧凑）
     when (val page = secondaryPage) {
         MoreOptionsPage.LISTEN_TOGETHER -> {
-            SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
+            SecondaryGlassPanel(onDismissRequest = closeMoreOptions) {
                 val listenTogetherScrollState = rememberScrollState()
                 Column(
                     Modifier
@@ -4252,7 +4311,7 @@ fun BoxScope.MoreOptionsSheet(
         }
 
         MoreOptionsPage.BILI_VIDEO_SKIP -> {
-            SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
+            SecondaryGlassPanel(onDismissRequest = closeMoreOptions) {
                 val currentPosition by PlayerManager.playbackPositionFlow
                     .collectAsStateWithLifecycle()
                 val isPlaying by PlayerManager.isPlayingFlow.collectAsStateWithLifecycle()
@@ -4279,40 +4338,39 @@ fun BoxScope.MoreOptionsSheet(
                     onSeekToPlaybackPosition = { positionMs ->
                         PlayerManager.seekTo(positionMs)
                     },
-                    onDismiss = { secondaryPage = null }
+                    onDismiss = closeMoreOptions
                 )
             }
         }
 
         MoreOptionsPage.SEARCH -> {
-            SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
+            SecondaryGlassPanel(onDismissRequest = closeMoreOptions) {
                 SongMetadataSearchContent(
                     viewModel = viewModel,
                     song = actualSong,
                     offlineMode = offlineMode,
                     enabled = true,
                     onSongSelected = { songResult ->
-                        secondaryPage = null
-                        onDismiss()
+                        closeMoreOptions()
                         viewModel.onSongSelected(actualSong, songResult)
                     },
-                    onDone = { secondaryPage = null }
+                    onDone = closeMoreOptions
                 )
             }
         }
 
         MoreOptionsPage.LYRIC_BEHAVIOR -> {
-            SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
+            SecondaryGlassPanel(onDismissRequest = closeMoreOptions) {
                 LyricBehaviorSheet(
                     song = originalSong,
                     hasPhoneticLyrics = hasPhoneticLyrics,
-                    onDismiss = { secondaryPage = null }
+                    onDismiss = closeMoreOptions
                 )
             }
         }
 
         MoreOptionsPage.FONT_SIZE -> {
-            SecondaryGlassPanel(onDismissRequest = { secondaryPage = null }) {
+            SecondaryGlassPanel(onDismissRequest = closeMoreOptions) {
                 LyricFontSizeSheet(
                     currentLyricScale = currentLyricFontScale,
                     currentTranslationScale = currentTranslationFontScale,
@@ -4322,14 +4380,14 @@ fun BoxScope.MoreOptionsSheet(
                     onTranslationScaleCommit = { scale ->
                         onLyricFontScaleChange(translationFontScaleTarget, scale)
                     },
-                    onDismiss = { secondaryPage = null }
+                    onDismiss = closeMoreOptions
                 )
             }
         }
 
         MoreOptionsPage.EDIT_INFO -> {
             SecondaryGlassPanel(
-                onDismissRequest = { secondaryPage = null },
+                onDismissRequest = closeMoreOptions,
                 maxWidth = 320.dp,
                 maxHeight = 480.dp
             ) {
@@ -4338,7 +4396,7 @@ fun BoxScope.MoreOptionsSheet(
                     originalSong = actualSong,
                     displayedLyrics = displayedLyrics,
                     displayedTranslatedLyrics = displayedTranslatedLyrics,
-                    onDismiss = { secondaryPage = null },
+                    onDismiss = closeMoreOptions,
                     snackbarHostState = snackbarHostState,
                     offlineMode = offlineMode,
                     onOpenFullSearch = {
@@ -4351,7 +4409,7 @@ fun BoxScope.MoreOptionsSheet(
 
         MoreOptionsPage.PLAYBACK_SOUND -> {
             SecondaryGlassPanel(
-                onDismissRequest = { secondaryPage = null },
+                onDismissRequest = closeMoreOptions,
                 maxWidth = 300.dp,
                 maxHeight = 460.dp
             ) {
@@ -4366,7 +4424,7 @@ fun BoxScope.MoreOptionsSheet(
                         viewModel.updatePlaybackEqualizerBandLevel(index, value, persist)
                     },
                     onReset = viewModel::resetPlaybackSoundSettings,
-                    onDismiss = { secondaryPage = null }
+                    onDismiss = closeMoreOptions
                 )
             }
         }
@@ -4643,8 +4701,7 @@ fun VolumeControlSheetContent() {
         modifier = Modifier
             .fillMaxWidth()
             .bottomSheetDragBlocker()
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-            .windowInsetsPadding(WindowInsets.navigationBars),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(audioDeviceInfo.first, style = MaterialTheme.typography.titleMedium)

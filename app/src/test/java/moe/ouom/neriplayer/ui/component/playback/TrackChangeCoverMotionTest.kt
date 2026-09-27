@@ -6,56 +6,46 @@ import org.junit.Test
 
 class TrackChangeCoverMotionTest {
     @Test
-    fun slideIsMuchFasterThanSettleScale() {
-        assertTrue(TrackChangeCoverMotion.SlideSpec.durationMillis <= 280)
-        assertTrue(TrackChangeCoverMotion.ScaleSpec.durationMillis >= 480)
-        assertTrue(
-            TrackChangeCoverMotion.SlideSpec.durationMillis <
-                TrackChangeCoverMotion.ScaleSpec.durationMillis - 150
-        )
+    fun appleStyleSlideIsOnePageNotScreenWide() {
+        assertEquals(1.0f, TrackChangeCoverMotion.PageSlideFraction, 1e-4f)
+        assertTrue(TrackChangeCoverMotion.DurationMs in 420..650)
     }
 
     @Test
-    fun shrinkIsClearlyVisible() {
-        // 缩小幅度要一眼能看出来，放大才有「缓速长回」的感觉
-        assertTrue(TrackChangeCoverMotion.OldScaleTo <= 0.72f)
-        assertTrue(TrackChangeCoverMotion.NewScaleFrom <= 0.72f)
+    fun sideScaleIsGentleLikeCoverFlow() {
+        assertTrue(TrackChangeCoverMotion.SideScale in 0.80f..0.92f)
     }
 
     @Test
-    fun outgoingCoverSinksAndFliesOffScreenLeft() {
-        val fly = 1200f
+    fun outgoingSlidesLeftAndShrinks() {
+        val w = 800f
+        assertEquals(0f, TrackChangeCoverMotion.outgoingTranslationX(0f, w), 1e-4f)
+        assertEquals(-w, TrackChangeCoverMotion.outgoingTranslationX(1f, w), 1e-4f)
         assertEquals(1f, TrackChangeCoverMotion.outgoingScale(0f), 1e-4f)
         assertEquals(
-            TrackChangeCoverMotion.OldScaleTo,
+            TrackChangeCoverMotion.SideScale,
             TrackChangeCoverMotion.outgoingScale(1f),
             1e-4f,
         )
-        assertEquals(-fly, TrackChangeCoverMotion.outgoingTranslationX(1f, fly), 1e-4f)
     }
 
     @Test
-    fun incomingCoverFliesFromRightAndSettlesScale() {
-        val fly = 1200f
+    fun incomingSlidesFromRightAndGrows() {
+        val w = 800f
+        assertEquals(w, TrackChangeCoverMotion.incomingTranslationX(0f, w), 1e-4f)
+        assertEquals(0f, TrackChangeCoverMotion.incomingTranslationX(1f, w), 1e-4f)
         assertEquals(
-            TrackChangeCoverMotion.NewScaleFrom,
+            TrackChangeCoverMotion.SideScale,
             TrackChangeCoverMotion.incomingScale(0f),
             1e-4f,
         )
         assertEquals(1f, TrackChangeCoverMotion.incomingScale(1f), 1e-4f)
-        assertEquals(fly, TrackChangeCoverMotion.incomingTranslationX(0f, fly), 1e-4f)
     }
 
     @Test
-    fun easingCurvesAreStronglyFastThenSlow() {
-        // 前段应远快于线性（>0.55 at 0.25）
-        val slideEarly = TrackChangeCoverMotion.SlideEasing.transform(0.25f)
-        val settleEarly = TrackChangeCoverMotion.SettleEasing.transform(0.25f)
-        val rippleEarly = TrackChangeCoverMotion.RippleEasing.transform(0.25f)
-        assertTrue("slide=$slideEarly", slideEarly > 0.55f)
-        assertTrue("settle=$settleEarly", settleEarly > 0.55f)
-        assertTrue("ripple=$rippleEarly", rippleEarly > 0.55f)
-        // 尾段几乎贴住 1
-        assertTrue(TrackChangeCoverMotion.SettleEasing.transform(0.75f) > 0.92f)
+    fun bothCoversRemainVisibleMidway() {
+        val p = 0.5f
+        assertTrue(TrackChangeCoverMotion.outgoingAlpha(p) > 0.3f)
+        assertTrue(TrackChangeCoverMotion.incomingAlpha(p) > 0.5f)
     }
 }

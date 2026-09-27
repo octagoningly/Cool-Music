@@ -1,9 +1,7 @@
 package moe.ouom.neriplayer.ui.component.playback
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.Easing
-import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -25,57 +23,64 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 
 /**
- * 播放页切歌封面转场（方案 A，出/入同时）。
+ * 播放页切歌封面转场 —— 仿苹果横滑（pager）+ 轻缩放。
  *
- * 旧封面：缩小 + **飞出屏幕左侧**；新封面：自右飞入 + 放大到原尺寸。
- * 位移偏快、落位缩放偏慢；落位后回调 [onSettled] 播背景涟漪（先快后慢）。
+ * 同一 progress：旧封面向左滑出一页并略缩小，新封面自右滑入并放大到原尺寸。
+ * 不要贴在 clip 的封面框内做，否则会「在框里消失」。
  */
 object TrackChangeCoverMotion {
-    const val DurationMs = 520
-    const val OldScaleTo = 0.68f
-    const val NewScaleFrom = 0.68f
+    /** 偏慢速版，先保证「看得出在滑、在缩放」 */
+    const val DurationMs = 500
+
+    /** 横滑距离 = 封面宽 × 1.0（正好一页，并排露出） */
+    const val PageSlideFraction = 1.0f
+
+    /** 轻缩放：离场略小、入场略小 → 回到 1 */
+    const val SideScale = 0.86f
+
+    const val SinkYFraction = 0.06f
 
     const val RippleDurationMs = 420
     const val RippleScaleTo = 3.6f
 
-    /** 飞出/飞入：尽快离场/到位 */
-    val SlideEasing: Easing = CubicBezierEasing(0.2f, 0.9f, 0.25f, 1f)
+    /** iOS 风格：整段匀顺缓入缓出，不用甩飞曲线 */
+    val CoverSpec = tween<Float>(
+        durationMillis = DurationMs,
+        easing = FastOutSlowInEasing,
+    )
 
-    /** 新封面放大到原尺寸：明显缓速收束 */
-    val SettleEasing: Easing = CubicBezierEasing(0.12f, 0.88f, 0.18f, 1f)
+    val RippleSpec = tween<Float>(
+        durationMillis = RippleDurationMs,
+        easing = FastOutSlowInEasing,
+    )
 
-    /** 背景涟漪：先快后慢 */
-    val RippleEasing: Easing = CubicBezierEasing(0.18f, 0.85f, 0.22f, 1f)
+    fun outgoingScale(p: Float): Float = lerp(1f, SideScale, p)
 
-    val SlideSpec = tween<Float>(durationMillis = 260, easing = SlideEasing)
-    val ScaleSpec = tween<Float>(durationMillis = DurationMs, easing = SettleEasing)
-    val RippleSpec = tween<Float>(durationMillis = RippleDurationMs, easing = RippleEasing)
+    fun outgoingTranslationX(p: Float, widthPx: Float): Float =
+        -PageSlideFraction * widthPx * p
 
-    fun outgoingScale(slideProgress: Float): Float = lerp(1f, OldScaleTo, slideProgress)
+    fun outgoingTranslationY(p: Float, heightPx: Float): Float =
+        SinkYFraction * heightPx * p
 
-    /** [flyDistancePx] 需覆盖「封面中心 → 屏幕左缘」 */
-    fun outgoingTranslationX(slideProgress: Float, flyDistancePx: Float): Float =
-        -flyDistancePx * slideProgress
+    fun incomingScale(p: Float): Float = lerp(SideScale, 1f, p)
 
-    fun incomingScale(scaleProgress: Float): Float = lerp(NewScaleFrom, 1f, scaleProgress)
+    fun incomingTranslationX(p: Float, widthPx: Float): Float =
+        PageSlideFraction * widthPx * (1f - p)
 
-    fun incomingTranslationX(slideProgress: Float, flyDistancePx: Float): Float =
-        flyDistancePx * (1f - slideProgress)
+    fun incomingTranslationY(p: Float, heightPx: Float): Float =
+        SinkYFraction * heightPx * (1f - p)
+
+    fun outgoingAlpha(p: Float): Float = lerp(1f, 0f, p)
+
+    fun incomingAlpha(p: Float): Float = lerp(0.55f, 1f, p)
 }
 
 /**
- * 双封面切歌栈：songKey/cover 变化时旧出新入**同时**。
- *
- * 注意：本组件**不要**再被父级 clip 到封面圆角框，否则飞出会「在框里消失」。
- * 圆角画在每个封面层上，飞行时仍可离开原位置。
+ * 双封面切歌栈：出/入同时横滑。[enabled] 关闭时只显示当前封面。
  */
 @Composable
 fun TrackChangeCoverStack(
@@ -88,10 +93,6 @@ fun TrackChangeCoverStack(
     onCoverCenterInRoot: (Offset) -> Unit = {},
     cover: @Composable (coverUrl: String?, songKey: String?) -> Unit,
 ) {
-    val screenWidthPx = with(LocalDensity.current) {
-        LocalConfiguration.current.screenWidthDp.dp.toPx()
-    }
-
     if (!enabled) {
         Box(
             modifier = modifier
@@ -117,13 +118,11 @@ fun TrackChangeCoverStack(
     var incomingKey by remember { mutableStateOf(songKey) }
     var animToken by remember { mutableIntStateOf(0) }
     var widthPx by remember { mutableStateOf(1f) }
-    val slideProgress = remember { Animatable(1f) }
-    val scaleProgress = remember { Animatable(1f) }
+    var heightPx by remember { mutableStateOf(1f) }
+    val progress = remember { Animatable(1f) }
 
     LaunchedEffect(songKey, coverUrl) {
-        if (songKey == incomingKey && coverUrl == incomingUrl) {
-            return@LaunchedEffect
-        }
+        if (songKey == incomingKey && coverUrl == incomingUrl) return@LaunchedEffect
         outgoingUrl = incomingUrl
         outgoingKey = incomingKey
         incomingUrl = coverUrl
@@ -133,38 +132,30 @@ fun TrackChangeCoverStack(
 
     LaunchedEffect(animToken) {
         if (animToken == 0) return@LaunchedEffect
-        slideProgress.snapTo(0f)
-        scaleProgress.snapTo(0f)
-        // 位移更快跑完；缩放更长，尾段缓速落到原大小
-        coroutineScope {
-            launch {
-                slideProgress.animateTo(1f, TrackChangeCoverMotion.SlideSpec)
-            }
-            launch {
-                scaleProgress.animateTo(1f, TrackChangeCoverMotion.ScaleSpec)
-            }
-        }
+        progress.snapTo(0f)
+        progress.animateTo(1f, TrackChangeCoverMotion.CoverSpec)
         outgoingUrl = null
         outgoingKey = null
         onSettled()
     }
 
+    // 根节点不 clip，位移可离开封面框
     Box(
-        modifier = modifier.onGloballyPositioned { coords ->
-            widthPx = coords.size.width.toFloat().coerceAtLeast(1f)
-            val pos = coords.positionInRoot()
-            onCoverCenterInRoot(
-                Offset(
-                    pos.x + coords.size.width / 2f,
-                    pos.y + coords.size.height / 2f,
+        modifier = modifier
+            .graphicsLayer { clip = false }
+            .onGloballyPositioned { coords ->
+                widthPx = coords.size.width.toFloat().coerceAtLeast(1f)
+                heightPx = coords.size.height.toFloat().coerceAtLeast(1f)
+                val pos = coords.positionInRoot()
+                onCoverCenterInRoot(
+                    Offset(
+                        pos.x + coords.size.width / 2f,
+                        pos.y + coords.size.height / 2f,
+                    )
                 )
-            )
-        }
+            }
     ) {
-        // 从封面中心飞到屏幕左缘（略过头），保证整张划出屏幕
-        val flyDistancePx = (screenWidthPx * 0.5f + widthPx).coerceAtLeast(widthPx * 2f)
-        val sp = slideProgress.value
-        val zp = scaleProgress.value
+        val p = progress.value
         val hasOutgoing = outgoingUrl != null || outgoingKey != null
 
         if (hasOutgoing) {
@@ -172,13 +163,13 @@ fun TrackChangeCoverStack(
                 Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        val s = TrackChangeCoverMotion.outgoingScale(sp)
+                        clip = false
+                        val s = TrackChangeCoverMotion.outgoingScale(p)
                         scaleX = s
                         scaleY = s
-                        translationX = TrackChangeCoverMotion.outgoingTranslationX(sp, flyDistancePx)
-                        // 明显下沉
-                        translationY = 56f * sp
-                        alpha = (1f - sp * 1.2f).coerceIn(0f, 1f)
+                        translationX = TrackChangeCoverMotion.outgoingTranslationX(p, widthPx)
+                        translationY = TrackChangeCoverMotion.outgoingTranslationY(p, heightPx)
+                        alpha = TrackChangeCoverMotion.outgoingAlpha(p)
                     }
                     .clip(cornerRadius)
             ) {
@@ -190,11 +181,17 @@ fun TrackChangeCoverStack(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    val s = TrackChangeCoverMotion.incomingScale(zp)
+                    clip = false
+                    val s = TrackChangeCoverMotion.incomingScale(p)
                     scaleX = s
                     scaleY = s
-                    translationX = TrackChangeCoverMotion.incomingTranslationX(sp, flyDistancePx)
-                    alpha = if (hasOutgoing) sp.coerceIn(0f, 1f) else 1f
+                    translationX = TrackChangeCoverMotion.incomingTranslationX(p, widthPx)
+                    translationY = TrackChangeCoverMotion.incomingTranslationY(p, heightPx)
+                    alpha = if (hasOutgoing) {
+                        TrackChangeCoverMotion.incomingAlpha(p)
+                    } else {
+                        1f
+                    }
                 }
                 .clip(cornerRadius)
         ) {
@@ -204,7 +201,7 @@ fun TrackChangeCoverStack(
 }
 
 /**
- * 落位涟漪：从封面中心撑开，先快后慢。
+ * 落位涟漪：从封面中心撑开。
  */
 @Composable
 fun CoverSettleRipple(

@@ -45,8 +45,8 @@ object TrackChangeCoverMotion {
     /** 离场/入场端的缩小幅度（再压到当前 0.8 倍，更明显） */
     const val SideScale = 0.58f
 
-    /** 新封面延后入厂：旧封面先飞出，再跟上新封面（避免像被赶走） */
-    const val IncomingDelayMs = 110L
+    /** 新封面入厂延后：0=与旧封面同时起飞，避免在侧边停顿 */
+    const val IncomingDelayMs = 0L
 
     /** 缩放延后启动：等新封面已入轨再放大 */
     const val ScaleStartDelayMs = 190L

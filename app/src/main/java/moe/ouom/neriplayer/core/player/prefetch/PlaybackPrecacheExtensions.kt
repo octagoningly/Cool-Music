@@ -205,19 +205,44 @@ internal suspend fun PlayerManager.precacheSongPrefix(
     if (!isDirectStreamUrl(result.url) && !LocalSongSupport.isLocalMediaUri(result.url)) return
     if (LocalSongSupport.isLocalMediaUri(result.url)) return
 
+    // Store the resolved URL so playback can skip a network resolve (this is what removes the spinner).
+    genericUrlPrefetchCache.put(
+        key = cacheKey,
+        result = result,
+        nowMs = android.os.SystemClock.elapsedRealtime(),
+        ttlMsOverride = resolveGenericUrlPrefetchTtlMs(
+            currentTrackDurationMs = maxOf(
+                playbackDurationFlow.value,
+                currentSongFlow.value?.durationMs ?: 0L
+            )
+        )
+    )
+    NPLogger.d(
+        "NERI-PlayerManager",
+        "precached URL ready: label=$label, song=${song.name}, key=$cacheKey"
+    )
+
     val mediaCacheKey = resolveGenericMediaPrefetchCacheKey(cacheKey, result)
-    if (result.audioInfo == null) return
     if (playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey)) return
 
-    val descriptorResult = synchronizeCachedPlaybackDescriptor(
-        cacheKey = mediaCacheKey,
-        audioInfo = result.audioInfo,
-        expectedContentLength = result.expectedContentLength,
-        representationIdentity = result.representationIdentity,
-        song = song,
-        shouldApplyMutation = { !playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey) }
-    )
-    if (!descriptorResult.allowsCustomCacheKey()) return
+    if (result.audioInfo != null) {
+        val descriptorResult = synchronizeCachedPlaybackDescriptor(
+            cacheKey = mediaCacheKey,
+            audioInfo = result.audioInfo,
+            expectedContentLength = result.expectedContentLength,
+            representationIdentity = result.representationIdentity,
+            song = song,
+            shouldApplyMutation = { !playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey) }
+        )
+        if (!descriptorResult.allowsCustomCacheKey()) {
+            NPLogger.d(
+                "NERI-PlayerManager",
+                "descriptor not ready, still warm media: label=$label, key=$mediaCacheKey, result=$descriptorResult"
+            )
+        }
+    } else {
+        runCatching { cache?.writeCachedSong(mediaCacheKey, song) }
+    }
 
     when (
         prepareExoPlayerCacheForPrefetch(

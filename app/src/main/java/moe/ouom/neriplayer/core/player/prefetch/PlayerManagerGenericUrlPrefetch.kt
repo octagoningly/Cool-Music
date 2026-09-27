@@ -266,9 +266,13 @@ internal suspend fun PlayerManager.awaitInFlightGenericUrlPrefetch(song: SongIte
         .takeUnless { isLocalSong(it) || isYouTubeMusicTrack(it) }
         ?.let { song.cachedPlaybackKey ?: computeCacheKey(it) }
         ?: return
-    val activeJob = currentGenericUrlPrefetchJob?.takeIf {
+    val genericJob = currentGenericUrlPrefetchJob?.takeIf {
         it.isActive && currentGenericUrlPrefetchKey == key
-    } ?: return
+    }
+    val listJob = currentPlaybackPrecacheJob?.takeIf {
+        it.isActive && currentPlaybackPrecacheKeys.contains(key)
+    }
+    val activeJob = genericJob ?: listJob ?: return
     // Only wait briefly: URL is usually cached first; do not block playback on a slow media download.
     val finished = kotlinx.coroutines.withTimeoutOrNull(PREFETCH_PLAYBACK_AWAIT_MS) {
         activeJob.join()

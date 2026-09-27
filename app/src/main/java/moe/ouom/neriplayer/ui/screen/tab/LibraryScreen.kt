@@ -30,6 +30,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -604,9 +605,10 @@ fun LibraryScreen(
             lastLibraryScrollTotal = total
         }
     }
-    // 瞬时切换顶部留白：动画 Dp 会让列表每帧 remasure，滚动发卡
+    // 瞬时切换顶部留白：动画 Dp 会让列表每帧 remasure，滚动发卡。
+    // 进详情不要改留白：否则列表在展开动画里瞬移，看起来像背景卡一下。
     val libraryContentTop =
-        if (showLibraryTabs && !chromeHidden) 136.dp else 56.dp
+        if (showLibraryTabs) 136.dp else 56.dp
 
     CompositionLocalProvider(LocalLibraryListTopPadding provides libraryContentTop) {
     Box(
@@ -712,20 +714,31 @@ fun LibraryScreen(
             }
         }
 
+        // 玻璃注册与外层与运算：播放页打开时外层为 false，不能在这里重新打开，
+        // 否则媒体库顶栏 blur region 会把播放页顶部糊住。
+        val parentGlassRegistration = LocalAdvancedGlassBackdropRegistrationEnabled.current
+        val chromeAlpha by animateFloatAsState(
+            targetValue = if (chromeHidden) 0f else 1f,
+            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+            label = "library_chrome_alpha"
+        )
         MainTabChrome(
             route = moe.ouom.neriplayer.navigation.Destinations.Library.route,
-            visible = !chromeHidden,
+            // 保持注册 + alpha 淡出；立刻 unregister 会让 slot 空一帧并和留白叠成瞬移
+            visible = true,
         ) {
             // 顶栏隐藏时同步停玻璃区域注册，否则文字没了还留一块模糊
             CompositionLocalProvider(
-                LocalAdvancedGlassBackdropRegistrationEnabled provides !chromeHidden
+                LocalAdvancedGlassBackdropRegistrationEnabled provides
+                    (!chromeHidden && parentGlassRegistration)
             ) {
             Column(
                 Modifier
                     .fillMaxWidth()
                     .graphicsLayer {
-                        // 进详情立刻藏顶栏，不挡住卡片展开
-                        alpha = if (chromeHidden) 0f else 1f
+                        alpha = chromeAlpha
+                        // 轻微上移，避免纯淡出显得发飘
+                        translationY = (1f - chromeAlpha) * -16f
                     }
             ) {
             // 顶栏右侧：刷新 → 播放统计 → 最近播放（排序入口一并上移，放在刷新前）
@@ -773,7 +786,7 @@ fun LibraryScreen(
             )
 
             AnimatedVisibility(
-                visible = showLibraryTabs && !chromeHidden,
+                visible = showLibraryTabs,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut(),
             ) {

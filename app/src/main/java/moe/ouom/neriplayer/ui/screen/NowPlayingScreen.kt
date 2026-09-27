@@ -947,7 +947,10 @@ private fun NowPlayingQueueRow(
                     GlassDropdownMenu(
                         expanded = showMoreMenu,
                         onDismissRequest = { showMoreMenu = false },
-                        forceSolid = true
+                        forceSolid = true,
+                        // 约 0.75 倍，宽度贴住文案
+                        maxWidth = 150.dp,
+                        maxHeight = 330.dp
                     ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.local_playlist_play_next)) },

@@ -168,12 +168,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -305,6 +307,8 @@ import moe.ouom.neriplayer.ui.component.playback.WaveformSlider
 import moe.ouom.neriplayer.ui.component.playback.ExpandStaggerContainer
 import moe.ouom.neriplayer.ui.component.playback.NowPlayingExpandMotion
 import moe.ouom.neriplayer.ui.component.playback.coverSettleScale
+import moe.ouom.neriplayer.ui.component.playback.TrackChangeCoverStack
+import moe.ouom.neriplayer.ui.component.playback.CoverSettleRipple
 import moe.ouom.neriplayer.ui.component.playback.coverSharedModifier
 import moe.ouom.neriplayer.ui.component.playback.nowPlayingDismissDrag
 import moe.ouom.neriplayer.ui.component.playback.rememberFavoriteHeartPopScale
@@ -366,6 +370,9 @@ private const val CoverSourceBadgeRevealDelayMs =
     LyricsPageTransitionDurationMs + CoverSourceBadgeRevealBufferMs
 private const val NowPlayingCoverImageCrossfadeMs = 220
 private const val QueueSheetMaxHeightFraction = 0.9f
+/** 播放列表浮层：比原底部面板略大，保证歌名尽量完整显示 */
+private val QueueSheetMaxWidth = 380.dp
+private val QueueSheetMaxHeight = 500.dp
 internal val NowPlayingQueueReorderAutoScrollMaxPerFrame = 2.dp
 private val QueueReorderDragCancelStiffness = Spring.StiffnessMediumLow
 private const val QueueReorderDraggedItemScale = 1.01f
@@ -1418,7 +1425,19 @@ internal fun NowPlayingQueueSheet(
     ModalBottomSheet(
         onDismissRequest = ::dismissQueue,
         sheetState = sheetState,
-        sheetGesturesEnabled = false
+        sheetGesturesEnabled = false,
+        dragHandle = null,
+        // 播放列表：四角统一 28.dp 圆角 + 居中浮层（开发规则：面板 28.dp）
+        shape = GlassDialogShape,
+        panelPosition = GlassPanelPosition.Centered,
+        panelMaxWidth = QueueSheetMaxWidth,
+        panelMaxHeight = QueueSheetMaxHeight,
+        panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 8.dp,
+            bottom = 20.dp
+        ),
     ) {
         BackHandler(enabled = selectionMode && !showExportSheet) {
             exitSelection()
@@ -1478,7 +1497,7 @@ internal fun NowPlayingQueueSheet(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 24.dp, end = 18.dp, bottom = 12.dp),
+                            .padding(start = 20.dp, end = 8.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
@@ -1527,6 +1546,13 @@ internal fun NowPlayingQueueSheet(
                                     )
                                 }
                             }
+                            Spacer(Modifier.width(4.dp))
+                        }
+                        HapticIconButton(onClick = ::dismissQueue) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = stringResource(R.string.action_close)
+                            )
                         }
                     }
                 }
@@ -2005,6 +2031,8 @@ fun NowPlayingScreen(
     val actualCoverUrl = resolvedCoverUrl ?: visualCoverUrl
     val currentCoverUrl = visualCoverUrl ?: actualCoverUrl
     val coverSongKey = playbackSongKey ?: currentSong?.stableKey()
+    var trackChangeRipplePulse by remember { mutableIntStateOf(0) }
+    var coverCenterInRoot by remember { mutableStateOf(Offset.Zero) }
     val coverPreviewOnTapEnabled = shouldOpenNowPlayingCoverPreviewOnTap(currentSong)
     val coverPreviewOnLongPressEnabled =
         shouldOpenNowPlayingCoverPreviewOnLongPress(currentSong)
@@ -3158,20 +3186,35 @@ fun NowPlayingScreen(
                                         }
                                     )
                             ) {
-                                StableNowPlayingCoverImage(
+                                TrackChangeCoverStack(
                                     coverUrl = currentCoverUrl,
                                     songKey = coverSongKey,
-                                    context = context,
-                                    coverRequestSizePx = coverRequestSizePx,
-                                    offlineMode = offlineMode,
-                                    contentDescription = currentSong?.customName
-                                        ?: currentSong?.name
-                                        ?: "",
+                                    enabled = expandCoverSharedEnabled,
+                                    onSettled = { trackChangeRipplePulse += 1 },
+                                    onCoverCenterInRoot = { coverCenterInRoot = it },
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .coverSettleScale(enabled = expandCoverSharedEnabled)
-                                )
+                                        .coverSettleScale(enabled = expandCoverSharedEnabled),
+                                ) { stackCoverUrl, stackSongKey ->
+                                    StableNowPlayingCoverImage(
+                                        coverUrl = stackCoverUrl,
+                                        songKey = stackSongKey,
+                                        context = context,
+                                        coverRequestSizePx = coverRequestSizePx,
+                                        offlineMode = offlineMode,
+                                        contentDescription = currentSong?.customName
+                                            ?: currentSong?.name
+                                            ?: "",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
                             }
+
+                            CoverSettleRipple(
+                                pulse = trackChangeRipplePulse,
+                                origin = coverCenterInRoot,
+                                modifier = Modifier.fillMaxSize(),
+                            )
 
                             val coverPageSourceBadgeScale by animateFloatAsState(
                                 targetValue = if (showCoverPageSourceBadge && playbackSourceType != null) {
@@ -4133,7 +4176,8 @@ fun BoxScope.MoreOptionsSheet(
         expanded = secondaryPage == null && statsSong == null,
         onDismissRequest = onDismiss,
         shape = moe.ouom.neriplayer.ui.component.overlay.GlassMenuShape,
-        maxWidth = 240.dp,
+        // 去掉副文案后菜单变窄，刚好包住主文案 + 图标
+        maxWidth = 168.dp,
         // 菜单项较多，加高到可完整展示，避免再滚动
         maxHeight = 640.dp,
     ) {
@@ -4144,8 +4188,6 @@ fun BoxScope.MoreOptionsSheet(
             originalSong = originalSong,
             queue = queue,
             isLocalSong = isLocalSong,
-            lyricFontScale = currentLyricFontScale,
-            translationFontScale = currentTranslationFontScale,
             currentPlaybackAudioInfo = currentPlaybackAudioInfo,
             isDismissing = false,
             snackbarHostState = snackbarHostState,

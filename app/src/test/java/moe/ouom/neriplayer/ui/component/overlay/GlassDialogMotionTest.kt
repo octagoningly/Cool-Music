@@ -7,24 +7,24 @@ import org.junit.Test
 
 class GlassDialogMotionTest {
     @Test
-    fun enterSpringIsStrongObviousBounce() {
-        // 强 Q 弹：damping 很低，过冲大、震荡久
-        assertTrue(GlassDialogMotion.EnterTransformSpring.dampingRatio < 0.38f)
-        assertTrue(GlassDialogMotion.EnterTransformSpring.dampingRatio >= 0.28f)
+    fun dialogMotionMatchesThreeDotMenuFeel() {
+        // 与三点菜单同一套：damping 0.48 / stiffness 888
+        assertEquals(0.48f, GlassDialogMotion.EnterTransformSpring.dampingRatio, 1e-3f)
+        assertTrue(GlassDialogMotion.EnterTransformSpring.stiffness in 800f..980f)
+        assertEquals(0.72f, GlassDialogMotion.ExitTransformSpring.dampingRatio, 1e-3f)
         assertTrue(
             GlassDialogMotion.ExitTransformSpring.dampingRatio >
                 GlassDialogMotion.EnterTransformSpring.dampingRatio
         )
-        // 时长约当前 0.8 倍：stiffness ≈ 625 / 0.8²
-        assertTrue(GlassDialogMotion.EnterTransformSpring.stiffness in 900f..1100f)
-        assertTrue(GlassDialogMotion.ExitTransformSpring.stiffness > GlassDialogMotion.EnterTransformSpring.stiffness)
     }
 
     @Test
-    fun scaleTravelIsLargeForObviousPop() {
+    fun scaleTravelIsModerateLikeMenu() {
+        // 统一为菜单 0.76→1，不再用 0.55 的猛弹
+        assertEquals(0.76f, GlassDialogMotion.EnterScaleFrom, 1e-4f)
+        assertEquals(0.92f, GlassDialogMotion.ExitScaleTo, 1e-4f)
         val travel = 1f - GlassDialogMotion.EnterScaleFrom
-        assertTrue("travel=$travel", travel >= 0.40f)
-        assertTrue(GlassDialogMotion.ExitScaleTo in 0.75f..0.92f)
+        assertTrue(travel in 0.18f..0.32f)
     }
 
     @Test
@@ -35,34 +35,29 @@ class GlassDialogMotionTest {
             1e-4f
         )
         assertEquals(1f, GlassDialogMotion.appearScale(true, 1f), 1e-4f)
-        // progress 过冲 1.25 → scale 约 1.11
-        assertTrue(GlassDialogMotion.appearScale(true, 1.25f) > 1.08f)
+        assertTrue(GlassDialogMotion.appearScale(true, 1.15f) > 1f)
         assertTrue(GlassDialogMotion.appearScale(true, 0.9f) < 1f)
         assertEquals(1f, GlassDialogMotion.appearScale(false, 1f), 1e-4f)
         assertEquals(GlassDialogMotion.ExitScaleTo, GlassDialogMotion.appearScale(false, 0f), 1e-4f)
     }
 
     @Test
-    fun bothDialogKindsSlideFromBelowAndCanOvershoot() {
+    fun slideIsSubtleLikeMenu() {
         val center = GlassDialogMotion.appearSlideYFraction(isBottomSheet = false, progress = 0f)
         val sheet = GlassDialogMotion.appearSlideYFraction(isBottomSheet = true, progress = 0f)
-        assertTrue("center=$center", center > 0.12f)
-        assertTrue("sheet=$sheet", sheet > center)
+        assertTrue(center in 0.04f..0.12f)
+        assertTrue(sheet in 0.04f..0.14f)
         assertEquals(
             0f,
             GlassDialogMotion.appearSlideYFraction(isBottomSheet = false, progress = 1f),
             1e-4f
         )
-        assertTrue(
-            GlassDialogMotion.appearSlideYFraction(isBottomSheet = true, progress = 1.15f) < 0f
-        )
     }
 
     @Test
     fun fadeIsIndependentAndFasterToClose() {
-        assertTrue(GlassDialogMotion.EnterFadeMs in 100..200)
+        assertTrue(GlassDialogMotion.EnterFadeMs in 180..280)
         assertTrue(GlassDialogMotion.ExitFadeMs < GlassDialogMotion.EnterFadeMs)
         assertFalse(GlassDialogMotion.EnterScaleFrom >= 1f)
     }
 }
-

@@ -75,29 +75,26 @@ internal enum class GlassPanelPosition {
  * 底部面板改为自下弹入并过冲落位。设置 → 动效 → 连贯反馈 关闭时保持瞬时开合。
  */
 internal object GlassDialogMotion {
-    const val EnterFadeMs = 141
-    const val ExitFadeMs = 102
+    // 与三点菜单 GlassMenuMotion 同一套手感（除 ⋮ 菜单外所有弹窗统一）
+    const val EnterFadeMs = 234
+    const val ExitFadeMs = 156
 
-    /** 中心弹出起点缩放（行程大，一眼能看出弹出） */
-    const val EnterScaleFrom = 0.55f
-    const val ExitScaleTo = 0.82f
+    const val EnterScaleFrom = 0.76f
+    const val ExitScaleTo = 0.92f
 
-    /** 居中弹窗微位移（相对高度），底部面板更大 */
-    const val CenterSlideFraction = 0.18f
-    const val SheetSlideFraction = 0.55f
+    /** 微位移：居中/底部面板都从下方轻推，幅度与菜单一致 */
+    const val CenterSlideFraction = 0.08f
+    const val SheetSlideFraction = 0.10f
 
-    /**
-     * 强 Q 弹，时长约当前 0.8 倍（再压一档）。
-     * 弹簧时长 ∝ 1/√stiffness：625 / 0.8² ≈ 977。
-     */
+    /** 与菜单相同：damping 0.48 / stiffness 888，Q 弹但不过分晃 */
     val EnterTransformSpring = spring<Float>(
-        dampingRatio = 0.32f,
-        stiffness = 977f,
+        dampingRatio = 0.48f,
+        stiffness = 888f,
     )
 
     val ExitTransformSpring = spring<Float>(
-        dampingRatio = 0.70f,
-        stiffness = 1250f,
+        dampingRatio = 0.72f,
+        stiffness = 888f,
     )
 
     /** progress: 0=收起, 1=展开；弹簧可 >1（过冲）或 <1（回弹不足） */
@@ -110,7 +107,6 @@ internal object GlassDialogMotion {
 
     /**
      * 相对高度的 Y 位移；progress>1 时过冲到另一侧。
-     * 居中：从下方 18% 长出；底部面板：从更下方滑入。
      */
     fun appearSlideYFraction(isBottomSheet: Boolean, progress: Float): Float {
         val from = if (isBottomSheet) SheetSlideFraction else CenterSlideFraction

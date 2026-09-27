@@ -98,6 +98,7 @@ import moe.ouom.neriplayer.data.model.displayCoverUrl
 import moe.ouom.neriplayer.data.playlist.usage.PlaylistUsageRepository
 import moe.ouom.neriplayer.data.platform.youtube.stableYouTubeMusicId
 import moe.ouom.neriplayer.core.player.PlayerManager
+import moe.ouom.neriplayer.ui.component.common.LocalMainTabChromeSlot
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSceneMotion
 import moe.ouom.neriplayer.ui.effect.glass.advancedGlassHostNavigationTransition
 import moe.ouom.neriplayer.ui.effect.glass.animateAdvancedGlassSceneMotion
@@ -289,6 +290,15 @@ fun LibraryHostScreen(
     LaunchedEffect(selected) {
         if (selected != null) {
             skipDetailCloseAnimation = false
+        }
+    }
+
+    // 双保险：详情打开时立刻从 slot 拔掉媒体库 chrome（含玻璃），避免宿主还画出模糊条
+    val mainTabChromeSlot = LocalMainTabChromeSlot.current
+    val libraryChromeRoute = moe.ouom.neriplayer.navigation.Destinations.Library.route
+    androidx.compose.runtime.SideEffect {
+        if (selected != null) {
+            mainTabChromeSlot.unregister(libraryChromeRoute)
         }
     }
 

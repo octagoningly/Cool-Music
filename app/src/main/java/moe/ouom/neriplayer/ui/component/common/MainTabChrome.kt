@@ -39,18 +39,28 @@ val LocalMainTabChromeSlot = staticCompositionLocalOf { MainTabChromeSlot() }
 /**
  * 在页面内声明 chrome（顶栏等），实际绘制发生在 [LocalMainTabChromeSlot] 宿主（捕获层外）。
  *
- * 每次组合都用 [SideEffect] 刷新 content，保证「新发现」等条件分支切换时顶栏跟着变。
+ * [visible]=false 时立刻 unregister（含玻璃区域），避免详情页顶部残留媒体库模糊条。
  */
 @Composable
 fun MainTabChrome(
     route: String,
+    visible: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val slot = LocalMainTabChromeSlot.current
+    if (!visible) {
+        // 同帧从 slot 拔掉，宿主 ContentFor 不再画这一层
+        SideEffect { slot.unregister(route) }
+        DisposableEffect(slot, route) {
+            slot.unregister(route)
+            onDispose { slot.unregister(route) }
+        }
+        return
+    }
     SideEffect {
         slot.register(route, content)
     }
-    DisposableEffect(slot, route) {
+    DisposableEffect(slot, route, visible) {
         onDispose { slot.unregister(route) }
     }
 }

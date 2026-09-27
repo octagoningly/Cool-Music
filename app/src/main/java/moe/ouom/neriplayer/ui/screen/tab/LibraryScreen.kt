@@ -712,9 +712,9 @@ fun LibraryScreen(
             }
         }
 
-        if (!chromeHidden) {
         MainTabChrome(
             route = moe.ouom.neriplayer.navigation.Destinations.Library.route,
+            visible = !chromeHidden,
         ) {
             // 顶栏隐藏时同步停玻璃区域注册，否则文字没了还留一块模糊
             CompositionLocalProvider(
@@ -789,7 +789,6 @@ fun LibraryScreen(
             }
             }
             }
-        }
         }
     }
     }

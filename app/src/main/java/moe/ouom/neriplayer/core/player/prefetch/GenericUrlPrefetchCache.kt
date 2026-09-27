@@ -44,6 +44,11 @@ internal class GenericUrlPrefetchCache(
         entries[key] = Entry(result, expiresAtMs = nowMs + effectiveTtlMs)
     }
 
+    fun peekFresh(key: String, nowMs: Long): SongUrlResult.Success? {
+        val entry = entries[key] ?: return null
+        return if (nowMs < entry.expiresAtMs) entry.result else null
+    }
+
     fun containsFresh(key: String, nowMs: Long): Boolean {
         val entry = entries[key] ?: return false
         if (nowMs < entry.expiresAtMs) return true

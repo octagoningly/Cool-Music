@@ -60,6 +60,7 @@ import moe.ouom.neriplayer.core.player.policy.skip.BiliSkipSegmentSource
 import moe.ouom.neriplayer.core.player.policy.skip.resolveBiliSkipSegmentPromptMessageRes
 import moe.ouom.neriplayer.core.player.policy.wake.PlaybackTransitionWakeLock
 import moe.ouom.neriplayer.core.player.prefetch.cancelGenericUrlPrefetchUnlessReusableForSong
+import moe.ouom.neriplayer.core.player.prefetch.awaitInFlightGenericUrlPrefetch
 import moe.ouom.neriplayer.core.player.prefetch.cancelYouTubePrefetchForPlaybackDemand
 import moe.ouom.neriplayer.core.player.prefetch.clearPlaybackDemandCacheKey
 import moe.ouom.neriplayer.core.player.prefetch.kickoffYouTubePlaybackIntentWarmup
@@ -858,12 +859,8 @@ internal fun PlayerManager.playAtIndex(
             "forceStartupProtectionFade=$forceStartupProtectionFade, " +
             "nextToken=${playbackRequestToken + 1}, stack=[${debugStackHint()}]"
     )
-    replacePlaybackDemandCacheKey(
-        cacheKey = song
-            .takeUnless { isLocalSong(it) || isDirectStreamUrl(it.streamUrl) }
-            ?.let { it.cachedPlaybackKey ?: computeCacheKey(it) },
-        reason = "play_at_index_request"
-    )
+    // demand mark is deferred until after same-track prefetch await inside playJob.
+
     if (song.cachedPlaybackKey == null) {
         kickoffYouTubePlaybackIntentWarmup(song, source = "play_at_index")
     }
@@ -917,6 +914,14 @@ internal fun PlayerManager.playAtIndex(
     enterPendingMediaLoad(resolvedResumePositionMs)
     playJob = ioScope.launch {
         try {
+        // Finish same-track prefetch first so demand marking does not abort its own warmup.
+        awaitInFlightGenericUrlPrefetch(song)
+        replacePlaybackDemandCacheKey(
+            cacheKey = song
+                .takeUnless { isLocalSong(it) || isDirectStreamUrl(it.streamUrl) }
+                ?.let { it.cachedPlaybackKey ?: computeCacheKey(it) },
+            reason = "play_at_index_request"
+        )
         val localResult = resolveSongUrl(
             song = song,
             playbackRequestTokenOverride = requestToken,

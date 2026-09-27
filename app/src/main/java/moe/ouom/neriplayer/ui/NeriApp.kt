@@ -1449,8 +1449,26 @@ private fun NeriAppContent(
     )
     var showNowPlaying by rememberSaveable { mutableStateOf(false) }
     var showNowPlayingLyrics by rememberSaveable { mutableStateOf(false) }
-    /** 播放页是否仍在台上（含退场动画中）；退场播完才 false，背景回位不要和退场叠在一起 */
+    /** 播放页是否仍在台上（含退场动画中）；退场播完才 false，背景/玻璃不要和退场叠在一起 */
     var nowPlayingPresented by remember { mutableStateOf(false) }
+    /**
+     * 退场锁：关闭后到动画结束前禁止再次进入。
+     * 否则退场途中若有一帧 showNowPlaying 被写回 true，AnimatedVisibility 会重进，
+     * 表现为「关闭中的播放页又闪出来」。
+     */
+    var nowPlayingExitLocked by remember { mutableStateOf(false) }
+
+    fun openNowPlaying() {
+        nowPlayingExitLocked = false
+        showNowPlaying = true
+    }
+
+    fun closeNowPlaying() {
+        showNowPlaying = false
+        nowPlayingExitLocked = true
+    }
+
+    val nowPlayingVisible = showNowPlaying && !nowPlayingExitLocked
     var currentPlaybackSourceRoute by rememberSaveable { mutableStateOf<String?>(null) }
     var restoreLyricsAfterAlbumBack by rememberSaveable { mutableStateOf(false) }
     var lyricsAlbumRouteObserved by rememberSaveable { mutableStateOf(false) }
@@ -2152,7 +2170,7 @@ private fun NeriAppContent(
             )
         }
         // 先提交当前歌曲, 播放页首帧不能继续绘制上一首封面
-        showNowPlaying = true
+        openNowPlaying()
         scheduleAudioServiceStart(
             "play_songs_and_open_now_playing",
             true
@@ -2170,7 +2188,7 @@ private fun NeriAppContent(
         )
         PlayerManager.replaceCurrentInQueueAndPlay(song)
         // 先提交当前歌曲, 播放页首帧不能继续绘制上一首封面
-        showNowPlaying = true
+        openNowPlaying()
         scheduleAudioServiceStart(
             "play_search_result_preserve_queue",
             true
@@ -2205,7 +2223,7 @@ private fun NeriAppContent(
         currentPlaybackSourceRoute = sourceRoute
         NPLogger.d("NERI-App", "Playing audio from Bili video: ${videos[index].title}")
         PlayerManager.playBiliVideoAsAudio(videos, index)
-        showNowPlaying = true
+        openNowPlaying()
         ensureAudioServiceStarted(source = "play_bili_audio_and_open_now_playing")
     }
 
@@ -2220,7 +2238,7 @@ private fun NeriAppContent(
         currentPlaybackSourceRoute = sourceRoute
         NPLogger.d("NERI-App", "Playing parts from Bili video: ${videoInfo.title}")
         PlayerManager.playBiliVideoParts(videoInfo, index, coverUrl)
-        showNowPlaying = true
+        openNowPlaying()
         ensureAudioServiceStarted(source = "play_bili_parts_and_open_now_playing")
     }
 
@@ -2474,7 +2492,7 @@ private fun NeriAppContent(
                 when (request.action) {
                     LauncherShortcutAction.ContinuePlayback -> {
                         if (PlayerManager.hasItems()) {
-                            showNowPlaying = true
+                            openNowPlaying()
                             PlayerManager.play()
                             scheduleAudioServiceStart(
                                 "launcher_shortcut_continue_playback",
@@ -2555,7 +2573,7 @@ private fun NeriAppContent(
                 scope.launch {
                     preloadNeteaseDetailRouteCover(route)
                     showNowPlayingLyrics = false
-                    showNowPlaying = false
+                    closeNowPlaying()
                     navController.navigate(route) {
                         launchSingleTop = true
                     }
@@ -2670,7 +2688,7 @@ private fun NeriAppContent(
                     restoreLyricsAfterAlbumBack = false
                     lyricsAlbumRouteObserved = false
                     showNowPlayingLyrics = true
-                    showNowPlaying = true
+                    openNowPlaying()
                 }
             }
             val bottomBarItems = remember(showHomeTab, devModeEnabled) {
@@ -3390,7 +3408,7 @@ private fun NeriAppContent(
                 // 播放页显示时禁止主 Tab/顶栏注册模糊区域，否则会把播放页顶部误糊掉
                 CompositionLocalProvider(
                     LocalMainTabChromeSlot provides mainTabChromeSlot,
-                    LocalAdvancedGlassBackdropRegistrationEnabled provides !showNowPlaying,
+                    LocalAdvancedGlassBackdropRegistrationEnabled provides !(nowPlayingVisible || nowPlayingPresented),
                 ) {
                 // MiniPlayer ↔ NowPlaying 封面共享元素（连贯反馈开启时）
                 SharedTransitionLayout {
@@ -3427,7 +3445,7 @@ private fun NeriAppContent(
                     alwaysUseNewTabStyle = alwaysUseNewTabStyle
                 )
 
-                val isMiniPlayerVisible = currentSong != null && !showNowPlaying
+                val isMiniPlayerVisible = currentSong != null && !nowPlayingVisible
                 val isPlaybackControlPlaying by PlayerManager.playbackControlPlayingFlow.collectAsStateWithLifecycle()
                 val isAudioRouteMuted by PlayerManager.audioRouteMuteSuppressedFlow
                     .collectAsStateWithLifecycle()
@@ -3471,9 +3489,9 @@ private fun NeriAppContent(
                         },
                         bottomBar = {
                             val bottomBarVisibilityProgress by animateFloatAsState(
-                                targetValue = if (showNowPlaying) 0f else 1f,
+                                targetValue = if (nowPlayingVisible) 0f else 1f,
                                 animationSpec = tween(
-                                    durationMillis = if (showNowPlaying) 220 else 280,
+                                    durationMillis = if (nowPlayingVisible) 220 else 280,
                                     easing = FastOutSlowInEasing
                                 ),
                                 label = "bottom_bar_visibility"
@@ -3535,7 +3553,7 @@ private fun NeriAppContent(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .then(
-                                            if (showNowPlaying) {
+                                            if (nowPlayingVisible || nowPlayingPresented) {
                                                 Modifier
                                             } else {
                                                 Modifier.captureAdvancedGlassBackdrop(contentGlassBackdrop)
@@ -4310,7 +4328,7 @@ private fun NeriAppContent(
                                 }
 
                                 AnimatedVisibility(
-                                    visible = currentSong != null && !showNowPlaying,
+                                    visible = currentSong != null && !nowPlayingVisible,
                                     modifier = Modifier
                                         .align(Alignment.BottomStart)
                                         .padding(
@@ -4340,7 +4358,7 @@ private fun NeriAppContent(
                                     onPlayPause = { PlayerManager.togglePlayPause() },
                                     onPrevious = { PlayerManager.previous() },
                                     onNext = { PlayerManager.next() },
-                                    onExpand = { showNowPlaying = true },
+                                    onExpand = { openNowPlaying() },
                                     enableBlur = effectiveAdvancedBlurEnabled,
                                     offlineMode = offlineMode,
                                     isPlaybackWaiting = isPlaybackWaiting,
@@ -4357,7 +4375,7 @@ private fun NeriAppContent(
                 }
 
                 AnimatedVisibility(
-                    visible = showNowPlaying,
+                    visible = nowPlayingVisible,
                     enter = nowPlayingExpandEnterTransition(coherentFeedbackEnabled)
                         ?: slideInVertically(
                             animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
@@ -4400,7 +4418,7 @@ private fun NeriAppContent(
                         paletteStyle = themePaletteStyle,
                         colorSpec = themeColorSpec
                     ) {
-                        BackHandler { showNowPlaying = false }
+                        BackHandler { closeNowPlaying() }
 
                         val nowPlayingQueue by PlayerManager.currentQueueFlow.collectAsStateWithLifecycle()
                         val nowPlayingCoverUrl = currentCoverUrl
@@ -4649,7 +4667,7 @@ private fun NeriAppContent(
                                 val currentSourceRoute = currentPlaybackSourceRoute
                                 NowPlayingScreen(
                         trackChangeBackgroundReveal = trackChangeBackgroundReveal,
-                                    onNavigateUp = { showNowPlaying = false },
+                                    onNavigateUp = { closeNowPlaying() },
                                     onOpenCurrentPlaybackSource = currentSourceRoute?.let { route ->
                                         {
                                             navigateToPlaybackSourceRoute(route)

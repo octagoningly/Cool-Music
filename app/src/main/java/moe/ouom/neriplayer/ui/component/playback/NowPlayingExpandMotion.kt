@@ -402,12 +402,9 @@ class NowPlayingDismissDragState internal constructor() {
             offset.value >= threshold || velocityY >= NowPlayingExpandMotion.DismissVelocityPxPerSec
         scope.launch {
             if (shouldDismiss) {
-                // 先把甩动速度交给封面共享元素，再收起页面（速度交接）
+                // 先把甩动速度交给封面共享元素，再收起页面
+                // 立刻 onDismiss：不要先 offset 动画 200ms 再退场，会和 AnimatedVisibility 叠成两次下滑/闪屏
                 onDismissWithVelocity?.invoke(velocityY)
-                offset.animateTo(
-                    targetValue = heightPx.coerceAtLeast(offset.value + 1f),
-                    animationSpec = tween(durationMillis = 200)
-                )
                 onDismiss()
             } else {
                 offset.animateTo(

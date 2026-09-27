@@ -4347,8 +4347,7 @@ private fun NeriAppContent(
                                     isAudioRouteMuted = isAudioRouteMuted,
                                     expandSharedTransitionScope = nowPlayingExpandSharedScope,
                                     expandAnimatedVisibilityScope = miniPlayerExpandVisibilityScope,
-                                    // 退场时关掉封面共享：否则封面被抽到 overlay，播放页会空一下再闪
-                                    expandCoverSharedEnabled = coherentFeedbackEnabled && showNowPlaying
+                                    expandCoverSharedEnabled = coherentFeedbackEnabled
                                     )
                                 }
                             }
@@ -4685,8 +4684,7 @@ private fun NeriAppContent(
                                     playbackSongKey = currentSongKey,
                                     expandSharedTransitionScope = nowPlayingExpandSharedScope,
                                     expandAnimatedVisibilityScope = nowPlayingExpandVisibilityScope,
-                                    // 退场时关掉封面共享，封面跟页一起滑走，避免无封面闪屏
-                                    expandCoverSharedEnabled = coherentFeedbackEnabled && showNowPlaying
+                                    expandCoverSharedEnabled = coherentFeedbackEnabled
                                 )
                             }
                         }

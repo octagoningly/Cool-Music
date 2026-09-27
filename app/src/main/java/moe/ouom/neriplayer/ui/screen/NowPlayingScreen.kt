@@ -3210,11 +3210,19 @@ fun NowPlayingScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .sharedElement(
-                                        rememberSharedContentState(
-                                            key = NowPlayingLyricsSharedTransitionElement.COVER.key
-                                        ),
-                                        animatedVisibilityScope = this@AnimatedContent
+                                    .then(
+                                        // 封面已走外层 expand 共享时，不要再套歌词共享：
+                                        // 嵌套 SharedTransition 会在退场把封面抽走又弹回，闪两次
+                                        if (expandCoverSharedEnabled) {
+                                            Modifier
+                                        } else {
+                                            Modifier.sharedElement(
+                                                rememberSharedContentState(
+                                                    key = NowPlayingLyricsSharedTransitionElement.COVER.key
+                                                ),
+                                                animatedVisibilityScope = this@AnimatedContent
+                                            )
+                                        }
                                     )
                                     // 切歌飞出/飞入需离开圆角框：裁切改由 TrackChangeCoverStack 各层自绘
                                     .background(

@@ -1303,26 +1303,70 @@ internal fun PlayerManager.initializeImpl(
         }
         ioScope.launch {
             val autoSettings = moe.ouom.neriplayer.data.settings.generated.AutoSettingsRepository(app)
-            kotlinx.coroutines.flow.combine(
-                autoSettings.playbackPrecacheEnabledFlow,
-                autoSettings.playbackPrecacheAppLaunchFlow,
-                autoSettings.playbackPrecacheNextTrackFlow,
-                autoSettings.playbackPrecacheRecentListFlow,
-                autoSettings.playbackPrecachePlaylistOpenFlow,
-                autoSettings.playbackPrecacheHomeRecommendFlow,
-                autoSettings.playbackPrecacheSearchFlow
-            ) { flags ->
-                moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheConfig(
-                    masterEnabled = flags[0],
-                    appLaunchEnabled = flags[1],
-                    nextTrackEnabled = flags[2],
-                    recentListEnabled = flags[3],
-                    playlistOpenEnabled = flags[4],
-                    homeRecommendEnabled = flags[5],
-                    searchEnabled = flags[6]
+            var master = true
+            var appLaunch = true
+            var nextTrack = true
+            var recentList = false
+            var playlistOpen = false
+            var homeRecommend = false
+            var search = false
+            fun publish() {
+                playbackPrecacheConfig = moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheConfig(
+                    masterEnabled = master,
+                    appLaunchEnabled = appLaunch,
+                    nextTrackEnabled = nextTrack,
+                    recentListEnabled = recentList,
+                    playlistOpenEnabled = playlistOpen,
+                    homeRecommendEnabled = homeRecommend,
+                    searchEnabled = search
                 )
-            }.collect { config ->
-                playbackPrecacheConfig = config
+                NPLogger.d(
+                    "NERI-PlayerManager",
+                    "playback precache config: master=$master, appLaunch=$appLaunch, next=$nextTrack, " +
+                        "recent=$recentList, playlist=$playlistOpen, home=$homeRecommend, search=$search"
+                )
+            }
+            launch {
+                autoSettings.playbackPrecacheEnabledFlow.collect {
+                    master = it
+                    publish()
+                }
+            }
+            launch {
+                autoSettings.playbackPrecacheAppLaunchFlow.collect {
+                    appLaunch = it
+                    publish()
+                }
+            }
+            launch {
+                autoSettings.playbackPrecacheNextTrackFlow.collect {
+                    nextTrack = it
+                    publish()
+                }
+            }
+            launch {
+                autoSettings.playbackPrecacheRecentListFlow.collect {
+                    recentList = it
+                    publish()
+                }
+            }
+            launch {
+                autoSettings.playbackPrecachePlaylistOpenFlow.collect {
+                    playlistOpen = it
+                    publish()
+                }
+            }
+            launch {
+                autoSettings.playbackPrecacheHomeRecommendFlow.collect {
+                    homeRecommend = it
+                    publish()
+                }
+            }
+            launch {
+                autoSettings.playbackPrecacheSearchFlow.collect {
+                    search = it
+                    publish()
+                }
             }
         }
 

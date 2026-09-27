@@ -57,64 +57,42 @@ internal fun resolveGenericMediaPrefetchCacheKey(
 internal fun PlayerManager.prefetchNextGenericTrackUrl() {
     if (!isApplicationInitialized()) return
     if (!precacheEnabledForScenario(PlaybackPrecacheScenario.NEXT_TRACK)) {
+        NPLogger.d(
+            "NERI-PlayerManager",
+            "skip next-track precache: disabled, config=$playbackPrecacheConfig"
+        )
         cancelGenericUrlPrefetch(reason = "next_track_precache_disabled")
         return
     }
 
-    if (player.shuffleModeEnabled || repeatModeSetting == Player.REPEAT_MODE_ONE) {
-        cancelGenericUrlPrefetch(reason = "non_sequential_playback_mode")
-        return
-    }
-
     val upcoming = collectUpcomingSequentialSongs(maxCount = 2)
+    NPLogger.d(
+        "NERI-PlayerManager",
+        "next-track prefetch probe: queueSize=${currentPlaylist.size}, currentIndex=$currentIndex, " +
+            "shuffle=${player.shuffleModeEnabled}, repeat=$repeatModeSetting, " +
+            "upcoming=${upcoming.joinToString { it.name }}"
+    )
     if (upcoming.isEmpty()) {
         cancelGenericUrlPrefetch(reason = "no_supported_next_track")
         return
     }
 
+    // Use the same proven path as playlist-open precache so bytes land in the cache catalog.
+    precacheSongList(
+        songs = upcoming,
+        scenario = PlaybackPrecacheScenario.NEXT_TRACK,
+        maxSongs = 2,
+        prefixMs = PlaybackPrecachePolicy.NEXT_TRACK_PREFIX_MS
+    )
+
     if (upcoming.any { isYouTubeMusicTrack(it) }) {
-        val firstYt = upcoming.first { isYouTubeMusicTrack(it) }
-        val startIndex = currentPlaylist.indexOf(firstYt).coerceAtLeast(currentIndex + 1)
+        val firstYtIndex = upcoming.indexOfFirst { isYouTubeMusicTrack(it) }
+        val startIndex = currentIndex + 1 + firstYtIndex
         prefetchYouTubePlayableUrlWindow(
             playlist = currentPlaylist,
-            startIndex = startIndex,
+            startIndex = startIndex.coerceIn(0, currentPlaylist.lastIndex),
             source = "next_track_youtube"
         )
-    }
-
-    val genericTargets = upcoming.filterNot {
-        isLocalSong(it) || isYouTubeMusicTrack(it)
-    }
-    if (genericTargets.isEmpty()) return
-
-    val targetKeys = genericTargets.map { computeCacheKey(it) }.toSet()
-    if (currentGenericUrlPrefetchJob?.isActive == true &&
-        currentGenericUrlPrefetchKey in targetKeys &&
-        currentGenericUrlPrefetchTargets == targetKeys
-    ) {
-        return
-    }
-
-    cancelGenericUrlPrefetch(reason = "replace_target")
-    currentGenericUrlPrefetchTargets = targetKeys
-    currentGenericUrlPrefetchKey = genericTargets.first().let { computeCacheKey(it) }
-    NPLogger.d(
-        "NERI-PlayerManager",
-        "next-track prefetch start: count=" + genericTargets.size +
-            ", songs=" + genericTargets.joinToString { it.name }
-    )
-    val launchedJob = ioScope.launch {
-        genericTargets.forEach { song ->
-            prefetchOneGenericSongForPlayback(song)
-        }
-    }
-    currentGenericUrlPrefetchJob = launchedJob
-    launchedJob.invokeOnCompletion {
-        if (currentGenericUrlPrefetchJob === launchedJob) {
-            currentGenericUrlPrefetchJob = null
-            currentGenericUrlPrefetchKey = null
-            currentGenericUrlPrefetchTargets = emptySet()
-        }
     }
 }
 

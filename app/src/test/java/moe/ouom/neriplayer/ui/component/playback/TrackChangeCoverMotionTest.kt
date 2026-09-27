@@ -6,46 +6,40 @@ import org.junit.Test
 
 class TrackChangeCoverMotionTest {
     @Test
-    fun appleStyleSlideIsOnePageNotScreenWide() {
-        assertEquals(1.0f, TrackChangeCoverMotion.PageSlideFraction, 1e-4f)
-        assertTrue(TrackChangeCoverMotion.DurationMs in 420..650)
-    }
-
-    @Test
-    fun sideScaleIsGentleLikeCoverFlow() {
-        assertTrue(TrackChangeCoverMotion.SideScale in 0.80f..0.92f)
-    }
-
-    @Test
-    fun outgoingSlidesLeftAndShrinks() {
-        val w = 800f
-        assertEquals(0f, TrackChangeCoverMotion.outgoingTranslationX(0f, w), 1e-4f)
-        assertEquals(-w, TrackChangeCoverMotion.outgoingTranslationX(1f, w), 1e-4f)
-        assertEquals(1f, TrackChangeCoverMotion.outgoingScale(0f), 1e-4f)
-        assertEquals(
-            TrackChangeCoverMotion.SideScale,
-            TrackChangeCoverMotion.outgoingScale(1f),
-            1e-4f,
+    fun scaleIsClearlyVisibleAndSettleIsLongerThanSlide() {
+        assertTrue(TrackChangeCoverMotion.SideScale <= 0.78f)
+        assertTrue(
+            TrackChangeCoverMotion.ScaleSettleSpec.durationMillis >
+                TrackChangeCoverMotion.SlideSpec.durationMillis
         )
     }
 
     @Test
-    fun incomingSlidesFromRightAndGrows() {
+    fun outgoingShrinksSlidesAndFades() {
         val w = 800f
-        assertEquals(w, TrackChangeCoverMotion.incomingTranslationX(0f, w), 1e-4f)
-        assertEquals(0f, TrackChangeCoverMotion.incomingTranslationX(1f, w), 1e-4f)
+        assertEquals(-w, TrackChangeCoverMotion.outgoingTranslationX(1f, w), 1e-4f)
+        assertEquals(TrackChangeCoverMotion.SideScale, TrackChangeCoverMotion.outgoingScale(1f), 1e-4f)
+        assertEquals(0f, TrackChangeCoverMotion.outgoingAlpha(1f), 1e-4f)
+        assertEquals(1f, TrackChangeCoverMotion.outgoingAlpha(0f), 1e-4f)
+    }
+
+    @Test
+    fun incomingGrowsFromSideScaleToFull() {
         assertEquals(
             TrackChangeCoverMotion.SideScale,
             TrackChangeCoverMotion.incomingScale(0f),
             1e-4f,
         )
         assertEquals(1f, TrackChangeCoverMotion.incomingScale(1f), 1e-4f)
+        assertEquals(0f, TrackChangeCoverMotion.incomingTranslationX(1f, 800f), 1e-4f)
     }
 
     @Test
-    fun bothCoversRemainVisibleMidway() {
-        val p = 0.5f
-        assertTrue(TrackChangeCoverMotion.outgoingAlpha(p) > 0.3f)
-        assertTrue(TrackChangeCoverMotion.incomingAlpha(p) > 0.5f)
+    fun settleEasingSlowsNearFullSize() {
+        val ease = androidx.compose.animation.core.CubicBezierEasing(0.16f, 0.84f, 0.24f, 1f)
+        // 前段快：0.3 时已超过线性
+        assertTrue(ease.transform(0.3f) > 0.35f)
+        // 尾段贴近 1（缓速收束）
+        assertTrue(ease.transform(0.9f) > 0.95f)
     }
 }

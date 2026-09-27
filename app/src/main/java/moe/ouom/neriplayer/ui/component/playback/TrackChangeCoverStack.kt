@@ -1,6 +1,7 @@
 package moe.ouom.neriplayer.ui.component.playback
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -25,6 +26,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * 播放页切歌封面转场 —— 仿苹果横滑（pager）+ 轻缩放。
@@ -33,24 +36,33 @@ import androidx.compose.ui.util.lerp
  * 不要贴在 clip 的封面框内做，否则会「在框里消失」。
  */
 object TrackChangeCoverMotion {
-    /** 偏慢速版，先保证「看得出在滑、在缩放」 */
-    const val DurationMs = 500
+    /** 横滑段 */
+    const val SlideDurationMs = 480
 
-    /** 横滑距离 = 封面宽 × 1.0（正好一页，并排露出） */
+    /** 缩放段更长，尾段缓速落到标准大小 */
+    const val ScaleDurationMs = 580
+
+    /** 横滑距离 = 封面宽 × 1.0（一页，并排露出） */
     const val PageSlideFraction = 1.0f
 
-    /** 轻缩放：离场略小、入场略小 → 回到 1 */
-    const val SideScale = 0.86f
+    /** 离场/入场端的缩小幅度（看得出缩放） */
+    const val SideScale = 0.72f
 
-    const val SinkYFraction = 0.06f
+    const val SinkYFraction = 0.05f
 
     const val RippleDurationMs = 420
     const val RippleScaleTo = 3.6f
 
-    /** iOS 风格：整段匀顺缓入缓出，不用甩飞曲线 */
-    val CoverSpec = tween<Float>(
-        durationMillis = DurationMs,
+    /** 横滑：匀顺 */
+    val SlideSpec = tween<Float>(
+        durationMillis = SlideDurationMs,
         easing = FastOutSlowInEasing,
+    )
+
+    /** 放大到标准大小：尾段缓速，更优雅 */
+    val ScaleSettleSpec = tween<Float>(
+        durationMillis = ScaleDurationMs,
+        easing = CubicBezierEasing(0.16f, 0.84f, 0.24f, 1f),
     )
 
     val RippleSpec = tween<Float>(
@@ -58,25 +70,26 @@ object TrackChangeCoverMotion {
         easing = FastOutSlowInEasing,
     )
 
-    fun outgoingScale(p: Float): Float = lerp(1f, SideScale, p)
+    fun outgoingScale(slideP: Float): Float = lerp(1f, SideScale, slideP)
 
-    fun outgoingTranslationX(p: Float, widthPx: Float): Float =
-        -PageSlideFraction * widthPx * p
+    fun outgoingTranslationX(slideP: Float, widthPx: Float): Float =
+        -PageSlideFraction * widthPx * slideP
 
-    fun outgoingTranslationY(p: Float, heightPx: Float): Float =
-        SinkYFraction * heightPx * p
+    fun outgoingTranslationY(slideP: Float, heightPx: Float): Float =
+        SinkYFraction * heightPx * slideP
 
-    fun incomingScale(p: Float): Float = lerp(SideScale, 1f, p)
+    /** 飞出封面淡化 */
+    fun outgoingAlpha(slideP: Float): Float = lerp(1f, 0f, slideP)
 
-    fun incomingTranslationX(p: Float, widthPx: Float): Float =
-        PageSlideFraction * widthPx * (1f - p)
+    fun incomingScale(settleP: Float): Float = lerp(SideScale, 1f, settleP)
 
-    fun incomingTranslationY(p: Float, heightPx: Float): Float =
-        SinkYFraction * heightPx * (1f - p)
+    fun incomingTranslationX(slideP: Float, widthPx: Float): Float =
+        PageSlideFraction * widthPx * (1f - slideP)
 
-    fun outgoingAlpha(p: Float): Float = lerp(1f, 0f, p)
+    fun incomingTranslationY(slideP: Float, heightPx: Float): Float =
+        SinkYFraction * heightPx * (1f - slideP)
 
-    fun incomingAlpha(p: Float): Float = lerp(0.55f, 1f, p)
+    fun incomingAlpha(slideP: Float): Float = lerp(0.7f, 1f, slideP)
 }
 
 /**
@@ -119,7 +132,9 @@ fun TrackChangeCoverStack(
     var animToken by remember { mutableIntStateOf(0) }
     var widthPx by remember { mutableStateOf(1f) }
     var heightPx by remember { mutableStateOf(1f) }
-    val progress = remember { Animatable(1f) }
+    // 位移与缩放分轨：缩放更长、尾段缓速
+    val slideProgress = remember { Animatable(1f) }
+    val scaleProgress = remember { Animatable(1f) }
 
     LaunchedEffect(songKey, coverUrl) {
         if (songKey == incomingKey && coverUrl == incomingUrl) return@LaunchedEffect
@@ -132,8 +147,12 @@ fun TrackChangeCoverStack(
 
     LaunchedEffect(animToken) {
         if (animToken == 0) return@LaunchedEffect
-        progress.snapTo(0f)
-        progress.animateTo(1f, TrackChangeCoverMotion.CoverSpec)
+        slideProgress.snapTo(0f)
+        scaleProgress.snapTo(0f)
+        coroutineScope {
+            launch { slideProgress.animateTo(1f, TrackChangeCoverMotion.SlideSpec) }
+            launch { scaleProgress.animateTo(1f, TrackChangeCoverMotion.ScaleSettleSpec) }
+        }
         outgoingUrl = null
         outgoingKey = null
         onSettled()
@@ -155,21 +174,21 @@ fun TrackChangeCoverStack(
                 )
             }
     ) {
-        val p = progress.value
         val hasOutgoing = outgoingUrl != null || outgoingKey != null
-
+        // 在 graphicsLayer 内读 Animatable，避免每帧重组
         if (hasOutgoing) {
             Box(
                 Modifier
                     .fillMaxSize()
                     .graphicsLayer {
                         clip = false
-                        val s = TrackChangeCoverMotion.outgoingScale(p)
+                        val sp = slideProgress.value
+                        val s = TrackChangeCoverMotion.outgoingScale(sp)
                         scaleX = s
                         scaleY = s
-                        translationX = TrackChangeCoverMotion.outgoingTranslationX(p, widthPx)
-                        translationY = TrackChangeCoverMotion.outgoingTranslationY(p, heightPx)
-                        alpha = TrackChangeCoverMotion.outgoingAlpha(p)
+                        translationX = TrackChangeCoverMotion.outgoingTranslationX(sp, widthPx)
+                        translationY = TrackChangeCoverMotion.outgoingTranslationY(sp, heightPx)
+                        alpha = TrackChangeCoverMotion.outgoingAlpha(sp)
                     }
                     .clip(cornerRadius)
             ) {
@@ -182,13 +201,15 @@ fun TrackChangeCoverStack(
                 .fillMaxSize()
                 .graphicsLayer {
                     clip = false
-                    val s = TrackChangeCoverMotion.incomingScale(p)
+                    val sp = slideProgress.value
+                    val zp = scaleProgress.value
+                    val s = TrackChangeCoverMotion.incomingScale(zp)
                     scaleX = s
                     scaleY = s
-                    translationX = TrackChangeCoverMotion.incomingTranslationX(p, widthPx)
-                    translationY = TrackChangeCoverMotion.incomingTranslationY(p, heightPx)
+                    translationX = TrackChangeCoverMotion.incomingTranslationX(sp, widthPx)
+                    translationY = TrackChangeCoverMotion.incomingTranslationY(sp, heightPx)
                     alpha = if (hasOutgoing) {
-                        TrackChangeCoverMotion.incomingAlpha(p)
+                        TrackChangeCoverMotion.incomingAlpha(sp)
                     } else {
                         1f
                     }

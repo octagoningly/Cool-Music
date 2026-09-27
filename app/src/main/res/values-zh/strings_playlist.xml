@@ -26,7 +26,7 @@
     <string name="playlist_exporting">正在导出歌单…</string>
     <string name="playlist_importing">正在导入歌单…</string>
     <string name="playlist_import_complete">导入完成！</string>
-    <string name="playlist_export_to_local">导出到本地歌单</string>
+    <string name="playlist_export_to_local">导出至</string>
     <string name="playlist_play_in_order">顺序播放</string>
     <string name="playlist_playback_mode">播放模式</string>
     <string name="playlist_mode_order">顺序模式</string>

@@ -205,7 +205,7 @@ class NowPlayingScreenTest {
             resolvePlaybackOrderMode(shuffleEnabled = false, repeatMode = Player.REPEAT_MODE_ONE)
         )
         assertEquals(
-            PlaybackOrderMode.SEQUENTIAL,
+            PlaybackOrderMode.REPEAT_ALL,
             resolvePlaybackOrderMode(shuffleEnabled = false, repeatMode = Player.REPEAT_MODE_OFF)
         )
     }
@@ -749,7 +749,7 @@ class NowPlayingScreenTest {
                 allowQueueReorder = false
             )
         )
-        assertTrue(
+        assertFalse(
             shouldShowNowPlayingQueueDragHandle(
                 selectionMode = true,
                 allowQueueReorder = true

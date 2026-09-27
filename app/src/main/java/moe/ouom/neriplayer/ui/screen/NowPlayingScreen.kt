@@ -756,10 +756,7 @@ internal fun isNowPlayingQueueReorderEnabled(
 internal fun shouldShowNowPlayingQueueDragHandle(
     selectionMode: Boolean,
     allowQueueReorder: Boolean
-): Boolean = isNowPlayingQueueReorderEnabled(
-    selectionMode = selectionMode,
-    allowQueueReorder = allowQueueReorder
-)
+): Boolean = false
 
 internal fun resolveNowPlayingQueueIndexInput(
     input: String,

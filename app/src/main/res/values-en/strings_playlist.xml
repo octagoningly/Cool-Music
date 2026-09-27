@@ -26,7 +26,7 @@
     <string name="playlist_exporting">Exporting playlists…</string>
     <string name="playlist_importing">Importing playlists…</string>
     <string name="playlist_import_complete">Import Complete!</string>
-    <string name="playlist_export_to_local">Export to Local</string>
+    <string name="playlist_export_to_local">Export to</string>
     <string name="playlist_play_in_order">Play in Order</string>
     <string name="playlist_playback_mode">Playback Mode</string>
     <string name="playlist_mode_order">Order Mode</string>

@@ -1324,20 +1324,29 @@ internal fun PlaylistModernActionSheet(
     val tintColor = playlistModernSheetTintColor(hasCustomBackground)
     val glassEnabled = hasCustomBackground || !playlistModernUsesDarkSurface()
     CompositionLocalProvider(LocalPlaylistHeroVisualColors provides visualColors) {
-        // 圆角面板：轻透玻璃/浅色，不铺实色也不压暗，让模糊封面底透出来
+        // 上沿圆角缺口用顶栏实色补上；面板本体轻透玻璃，可透出封面模糊底
         val sheetFallback = Color.White.copy(alpha = 0.12f)
         val sheetTint = Color.White.copy(alpha = 0.16f)
-        AdvancedGlassSurface(
-            role = AdvancedGlassRole.PlaylistSheet,
-            modifier = modifier
-                .fillMaxWidth()
-                .wrapContentHeight(),
-            shape = shape,
-            fallbackColor = sheetFallback,
-            tintColor = sheetTint,
-            enabled = true
+        Box(
+            modifier = modifier.fillMaxWidth()
         ) {
-            content()
+            PlaylistActionSheetCornerGapLayer(
+                shape = shape,
+                color = visualColors.background,
+                gapHeight = cornerGapHeight
+            )
+            AdvancedGlassSurface(
+                role = AdvancedGlassRole.PlaylistSheet,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                shape = shape,
+                fallbackColor = sheetFallback,
+                tintColor = sheetTint,
+                enabled = true
+            ) {
+                content()
+            }
         }
     }
 }

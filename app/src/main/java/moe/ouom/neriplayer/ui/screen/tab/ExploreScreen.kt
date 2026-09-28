@@ -1132,6 +1132,8 @@ fun ExploreScreen(
                     Spacer(Modifier.height(8.dp))
                     var tagMenuExpanded by remember { mutableStateOf(false) }
                     val currentSearchSource = ui.selectedSearchSource
+                    // 类型行不再走 chrome 收展动画：搜索时作为列表首条「歌行」出现，动效走歌与歌之间的交错
+                    if (searchQuery.isBlank()) {
                     androidx.compose.animation.AnimatedVisibility(
                         visible = showTypeFilterLayer,
                         enter = androidx.compose.animation.expandVertically() +
@@ -1147,21 +1149,6 @@ fun ExploreScreen(
                             .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 类型键：仅搜索结果出现后显示，靠左
-                        if (searchQuery.isNotEmpty()) {
-                            ExploreSearchTypeBar(
-                                source = searchTypeBarSource,
-                                selectedDefaultSearchType = ui.selectedDefaultSearchType,
-                                selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
-                                selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
-                                onDefaultSearchTypeClick = vm::setDefaultSearchType,
-                                onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
-                                onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
-                                selectedAlpha = tagChipSelectedAlpha,
-                                unselectedAlpha = tagChipUnselectedAlpha,
-                                borderAlpha = tagChipBorderAlpha
-                            )
-                        }
                         Spacer(modifier = Modifier.weight(1f))
                         // 风格「全部」：靠右，字号更大
                         if (
@@ -1221,6 +1208,7 @@ fun ExploreScreen(
                                 }
                             }
                         }
+                    }
                     }
                     }
                     }
@@ -1285,10 +1273,24 @@ fun ExploreScreen(
                                     ),
                                     modifier = Modifier.fillMaxSize()
                                 ) {
+                                // 类型行收成「第一首歌」的形态，动效与后续歌曲同一套交错
+                                item(key = "explore-search-type-song-row") {
+                                    SearchTypeSongRow(
+                                        source = searchTypeBarSource,
+                                        selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                        selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                        selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                        onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                        onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                        onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                        rowStaggerModifier = searchRowStagger.modifier(0),
+                                    )
+                                }
                                 itemsIndexed(
                                     items = ui.searchItems,
                                     key = { _, item -> item.stableKey }
                                 ) { index, item ->
+                                    val staggerIndex = index + 1
                                     when (item) {
                                         is ExploreSearchResult.Song -> {
                                             val song = item.song
@@ -1303,7 +1305,7 @@ fun ExploreScreen(
                                                 favoriteActionEnabled = localPlaylistsReady,
                                                 offlineMode = offlineMode,
                                                 snackbarHostState = snackbarHostState,
-                                                rowStaggerModifier = searchRowStagger.modifier(index),
+                                                rowStaggerModifier = searchRowStagger.modifier(staggerIndex),
                                                 onClick = {
                                                     if (shouldShowBiliPartsPicker(song)) {
                                                         scope.launch {
@@ -1919,6 +1921,52 @@ internal fun isExploreSearchTypeBarSourceSwap(
     return initialSource != targetSource &&
         initialSource in EXPLORE_SEARCH_TYPE_BAR_SOURCES &&
         targetSource in EXPLORE_SEARCH_TYPE_BAR_SOURCES
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun SearchTypeSongRow(
+    source: SearchSource?,
+    selectedDefaultSearchType: DefaultExploreSearchType,
+    selectedNeteaseSearchType: NeteaseExploreSearchType,
+    selectedYouTubeSearchType: YouTubeExploreSearchType,
+    onDefaultSearchTypeClick: (DefaultExploreSearchType) -> Unit,
+    onNeteaseSearchTypeClick: (NeteaseExploreSearchType) -> Unit,
+    onYouTubeSearchTypeClick: (YouTubeExploreSearchType) -> Unit,
+    rowStaggerModifier: Modifier = Modifier,
+) {
+    // 形态对齐 SongRow：让类型切换成为列表里的「第一首歌」，动效走歌与歌之间的交错
+    Row(
+        modifier = rowStaggerModifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Spacer(Modifier.width(16.dp))
+        Icon(
+            imageVector = Icons.Outlined.MusicNote,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f))
+                .padding(12.dp)
+        )
+        Spacer(Modifier.width(12.dp))
+        ExploreSearchTypeBar(
+            source = source,
+            selectedDefaultSearchType = selectedDefaultSearchType,
+            selectedNeteaseSearchType = selectedNeteaseSearchType,
+            selectedYouTubeSearchType = selectedYouTubeSearchType,
+            onDefaultSearchTypeClick = onDefaultSearchTypeClick,
+            onNeteaseSearchTypeClick = onNeteaseSearchTypeClick,
+            onYouTubeSearchTypeClick = onYouTubeSearchTypeClick,
+            selectedAlpha = 1f,
+            unselectedAlpha = 0.72f,
+            borderAlpha = 0.35f
+        )
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

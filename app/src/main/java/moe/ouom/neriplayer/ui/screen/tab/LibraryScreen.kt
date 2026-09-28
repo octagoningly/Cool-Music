@@ -796,8 +796,19 @@ fun LibraryScreen(
 
             AnimatedVisibility(
                 visible = showLibraryTabs,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+                // 从中心整体展开：默认 expandFrom=Top 会先出文字再到底部滑条，像两段
+                enter = expandVertically(
+                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                    expandFrom = Alignment.CenterVertically
+                ) + fadeIn(
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                ),
+                exit = shrinkVertically(
+                    animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+                    shrinkTowards = Alignment.CenterVertically
+                ) + fadeOut(
+                    animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)
+                ),
             ) {
             LibraryMainTabs(
                 tabs = orderedTabs,

@@ -68,6 +68,23 @@ class ListRowScrollStaggerTest {
     }
 
     @Test
+    fun `viewport phase is continuous and does not flicker at edges`() {
+        // 贴边/回收时不能再出现 0↔1 跳变；用连续滚动位置算相位
+        val phaseTop = listRowViewportPhase(rowIndex = 10, continuousScrollItems = 10f, visibleSpanItems = 6f)
+        val phaseJustBelow = listRowViewportPhase(rowIndex = 11, continuousScrollItems = 10.2f, visibleSpanItems = 6f)
+        assertTrue(phaseTop < 0.2f)
+        assertTrue(phaseJustBelow < 0.5f)
+        assertTrue(phaseJustBelow > phaseTop)
+
+        val phaseFar = listRowViewportPhase(rowIndex = 16, continuousScrollItems = 10f, visibleSpanItems = 6f)
+        assertEquals(1f, phaseFar, 0.01f)
+
+        // 滚出上方的行相位应为 0，而不是突然跳到中间
+        val phaseAbove = listRowViewportPhase(rowIndex = 8, continuousScrollItems = 10f, visibleSpanItems = 6f)
+        assertEquals(0f, phaseAbove, 0f)
+    }
+
+    @Test
     fun `motion tokens stay in a subtle smooth range`() {
         assertTrue(ListRowScrollStagger.LagTimeSeconds in 0.01f..0.08f)
         assertTrue(ListRowScrollStagger.VelocitySmoothTauSeconds in 0.02f..0.1f)

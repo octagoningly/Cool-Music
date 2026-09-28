@@ -181,6 +181,20 @@ fun listRowStaggerTranslationY(
     return raw.coerceIn(-limit, limit)
 }
 
+/**
+ * 视口内连续相位：用「行号 − 连续滚动位置」计算，不查 visibleItemsInfo。
+ * 查表在条目回收/贴边时会瞬间变 0 再跳回，表现为某些行突然闪烁。
+ */
+fun listRowViewportPhase(
+    rowIndex: Int,
+    continuousScrollItems: Float,
+    visibleSpanItems: Float = 6f,
+): Float {
+    if (visibleSpanItems <= 0f) return 0f
+    val relative = rowIndex - continuousScrollItems
+    return (relative / visibleSpanItems).coerceIn(0f, ListRowScrollStagger.MaxPhaseNorm)
+}
+
 private fun updateLagForFrame(
     state: ListScrollLagState,
     listStateScrolling: Boolean,
@@ -190,8 +204,9 @@ private fun updateLagForFrame(
 ) {
     val deltaPx = deltaItems * refSizePx
     if (abs(deltaPx) >= ListRowScrollStagger.LayoutJumpThresholdPx) {
-        // 顶栏收展/补偿滚动：清零滞后，避免「抽一下」
-        state.lagPx = 0f
+        // 顶栏收展/补偿滚动：不要喂进速度，也不要硬清零（硬清零会让行突然弹回）
+        state.lagPx *= 0.35f
+        if (abs(state.lagPx) < ListRowScrollStagger.EpsilonPx) state.lagPx = 0f
         return
     }
     val rawVelocityPx = deltaItems / dt * refSizePx
@@ -299,17 +314,14 @@ fun rememberListRowStagger(
             maxLagPx = maxLagPx,
             enabled = enabled,
             phaseLookup = { rowIndex ->
-                val info = listState.layoutInfo
-                val item = info.visibleItemsInfo.firstOrNull { it.index == rowIndex }
-                if (item == null) {
-                    0f
-                } else {
-                    val viewportHeight = (info.viewportEndOffset - info.viewportStartOffset)
-                        .toFloat()
-                        .coerceAtLeast(1f)
-                    val viewportY = (item.offset - info.viewportStartOffset).toFloat()
-                    (viewportY / viewportHeight).coerceIn(0f, ListRowScrollStagger.MaxPhaseNorm)
-                }
+                val first = listState.layoutInfo.visibleItemsInfo.firstOrNull()
+                val scrollItems = continuousListScrollPosition(
+                    firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                    firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+                    firstVisibleItemSize = first?.size ?: 1,
+                )
+                val span = (listState.layoutInfo.visibleItemsInfo.size.coerceAtLeast(3)).toFloat()
+                listRowViewportPhase(rowIndex, scrollItems, span)
             },
         )
     }
@@ -329,17 +341,14 @@ fun rememberListRowStagger(
             maxLagPx = maxLagPx,
             enabled = enabled,
             phaseLookup = { rowIndex ->
-                val info = gridState.layoutInfo
-                val item = info.visibleItemsInfo.firstOrNull { it.index == rowIndex }
-                if (item == null) {
-                    0f
-                } else {
-                    val viewportHeight = (info.viewportEndOffset - info.viewportStartOffset)
-                        .toFloat()
-                        .coerceAtLeast(1f)
-                    val viewportY = (item.offset.y - info.viewportStartOffset).toFloat()
-                    (viewportY / viewportHeight).coerceIn(0f, ListRowScrollStagger.MaxPhaseNorm)
-                }
+                val first = gridState.layoutInfo.visibleItemsInfo.firstOrNull()
+                val scrollItems = continuousListScrollPosition(
+                    firstVisibleItemIndex = gridState.firstVisibleItemIndex,
+                    firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset,
+                    firstVisibleItemSize = first?.size?.height ?: 1,
+                )
+                val span = (gridState.layoutInfo.visibleItemsInfo.size.coerceAtLeast(3)).toFloat()
+                listRowViewportPhase(rowIndex, scrollItems, span)
             },
         )
     }
@@ -358,20 +367,16 @@ fun Modifier.listRowScrollStagger(
     if (!enabled) return this
     return this.then(
         Modifier.graphicsLayer {
-            val info = listState.layoutInfo
-            val item = info.visibleItemsInfo.firstOrNull { it.index == rowIndex }
-            val phaseNorm = if (item == null) {
-                0f
-            } else {
-                val viewportHeight = (info.viewportEndOffset - info.viewportStartOffset)
-                    .toFloat()
-                    .coerceAtLeast(1f)
-                val viewportY = (item.offset - info.viewportStartOffset).toFloat()
-                (viewportY / viewportHeight).coerceIn(0f, ListRowScrollStagger.MaxPhaseNorm)
-            }
+            val first = listState.layoutInfo.visibleItemsInfo.firstOrNull()
+            val scrollItems = continuousListScrollPosition(
+                firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+                firstVisibleItemSize = first?.size ?: 1,
+            )
+            val span = (listState.layoutInfo.visibleItemsInfo.size.coerceAtLeast(3)).toFloat()
             translationY = listRowStaggerTranslationY(
                 scrollLagPx = lagState.lagPx,
-                phaseNorm = phaseNorm,
+                phaseNorm = listRowViewportPhase(rowIndex, scrollItems, span),
                 maxLagPx = maxLagPx,
             )
         }
@@ -388,20 +393,16 @@ fun Modifier.listRowScrollStagger(
     if (!enabled) return this
     return this.then(
         Modifier.graphicsLayer {
-            val info = gridState.layoutInfo
-            val item = info.visibleItemsInfo.firstOrNull { it.index == rowIndex }
-            val phaseNorm = if (item == null) {
-                0f
-            } else {
-                val viewportHeight = (info.viewportEndOffset - info.viewportStartOffset)
-                    .toFloat()
-                    .coerceAtLeast(1f)
-                val viewportY = (item.offset.y - info.viewportStartOffset).toFloat()
-                (viewportY / viewportHeight).coerceIn(0f, ListRowScrollStagger.MaxPhaseNorm)
-            }
+            val first = gridState.layoutInfo.visibleItemsInfo.firstOrNull()
+            val scrollItems = continuousListScrollPosition(
+                firstVisibleItemIndex = gridState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset,
+                firstVisibleItemSize = first?.size?.height ?: 1,
+            )
+            val span = (gridState.layoutInfo.visibleItemsInfo.size.coerceAtLeast(3)).toFloat()
             translationY = listRowStaggerTranslationY(
                 scrollLagPx = lagState.lagPx,
-                phaseNorm = phaseNorm,
+                phaseNorm = listRowViewportPhase(rowIndex, scrollItems, span),
                 maxLagPx = maxLagPx,
             )
         }

@@ -205,6 +205,8 @@ import moe.ouom.neriplayer.ui.component.local.LocalSongSyncConfirmDialog
 import moe.ouom.neriplayer.ui.component.download.SongDownloadSubtitle
 import moe.ouom.neriplayer.ui.feedback.NeriSnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
+import moe.ouom.neriplayer.ui.util.listRowScrollStagger
+import moe.ouom.neriplayer.ui.util.rememberListScrollLagState
 import moe.ouom.neriplayer.ui.util.rememberPlaylistDisplayCoverUrl
 import moe.ouom.neriplayer.ui.util.rememberSongDisplayCoverUrl
 import moe.ouom.neriplayer.ui.viewmodel.playlist.LocalPlaylistDetailViewModel
@@ -967,6 +969,9 @@ fun LocalPlaylistDetailScreen(
             }
             val autoShowKeyboard by AppContainer.settingsRepo.autoShowKeyboardFlow.collectAsState(initial = false)
             val backgroundImageUri by AppContainer.settingsRepo.backgroundImageUriFlow.collectAsState(initial = null)
+            val coherentFeedbackEnabled by AppContainer.settingsRepo
+                .coherentFeedbackEnabledFlow
+                .collectAsState(initial = false)
             val hasCustomBackground = backgroundImageUri != null
 
             // 重命名
@@ -1108,6 +1113,8 @@ fun LocalPlaylistDetailScreen(
             var savedListOffset by rememberSaveable(playlistId) { mutableIntStateOf(0) }
             val hasRestoredScroll = rememberSaveable(playlistId) { mutableStateOf(false) }
             val listState = reorderState.listState
+            val rowScrollLagState = rememberListScrollLagState(listState)
+            val rowScrollStaggerMaxLagPx = with(LocalDensity.current) { 7.dp.toPx() }
             val baseQueue by remember(localSongs) {
                 derivedStateOf { snapshotDisplayOrderList(localSongs) }
             }
@@ -2042,6 +2049,13 @@ fun LocalPlaylistDetailScreen(
                                         coverUrl = headerCover,
                                         offlineMode = offlineMode,
                                         modifier = Modifier
+                                            .listRowScrollStagger(
+                                                lagState = rowScrollLagState,
+                                                rowIndex = revIndex,
+                                                listState = listState,
+                                                maxLagPx = rowScrollStaggerMaxLagPx,
+                                                enabled = coherentFeedbackEnabled && !isDragging,
+                                            )
                                             .graphicsLayer { scaleX = rowScale; scaleY = rowScale }
                                     ) {
                                         Row(

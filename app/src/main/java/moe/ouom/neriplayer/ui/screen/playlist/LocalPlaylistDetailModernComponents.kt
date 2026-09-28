@@ -72,12 +72,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassOverscrollBackdrop
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
@@ -586,7 +588,7 @@ private fun rememberResolvedPlaylistHeroVisualColors(
         animationSpec = tween(220, easing = FastOutSlowInEasing),
         label = "playlist-readable-accent"
     )
-    val controlContentColor = if (isDarkTheme) {
+    val controlContentColor = if (isDarkTheme || playlistModernBlurBackdropActive()) {
         Color.White.copy(alpha = 0.94f)
     } else {
         Color(0xFF191712)
@@ -934,9 +936,20 @@ internal fun resolvePlaylistSelectionTopBarContentColor(
     }
 }
 
+/**
+ * 连贯反馈开启时详情铺模糊封面底；亮色主题下正文用白字，避免黑字压在深色模糊上看不清。
+ */
+@Composable
+private fun playlistModernBlurBackdropActive(): Boolean {
+    val coherentFeedbackEnabled by AppContainer.settingsRepo
+        .coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = true)
+    return coherentFeedbackEnabled
+}
+
 @Composable
 internal fun playlistModernListPrimaryContentColor(): Color {
-    return if (playlistModernUsesDarkSurface()) {
+    return if (playlistModernUsesDarkSurface() || playlistModernBlurBackdropActive()) {
         Color.White.copy(alpha = 0.95f)
     } else {
         Color(0xFF17191F)
@@ -945,7 +958,7 @@ internal fun playlistModernListPrimaryContentColor(): Color {
 
 @Composable
 internal fun playlistModernListSecondaryContentColor(): Color {
-    return if (playlistModernUsesDarkSurface()) {
+    return if (playlistModernUsesDarkSurface() || playlistModernBlurBackdropActive()) {
         Color.White.copy(alpha = 0.72f)
     } else {
         Color(0xFF4C505B)
@@ -954,7 +967,7 @@ internal fun playlistModernListSecondaryContentColor(): Color {
 
 @Composable
 internal fun playlistModernListTertiaryContentColor(): Color {
-    return if (playlistModernUsesDarkSurface()) {
+    return if (playlistModernUsesDarkSurface() || playlistModernBlurBackdropActive()) {
         Color.White.copy(alpha = 0.62f)
     } else {
         Color(0xFF5E6270)

@@ -1165,7 +1165,7 @@ fun LocalPlaylistDetailScreen(
                 playlist = displayOrderPlaylistForCover,
                 resolveLocalFallback = true
             )
-            // 详情背景：第一首歌封面强模糊（150），缺省回落歌单头图
+            // 详情背景：连贯反馈开启时，用第一首歌封面强模糊（150）
             val detailBlurCoverUrl = tabSongs.firstOrNull()
                 ?.displayCoverUrl(context)
                 ?.takeIf { it.isNotBlank() }
@@ -1855,11 +1855,19 @@ fun LocalPlaylistDetailScreen(
             ) { padding ->
                 val miniPlayerHeight = LocalMiniPlayerHeight.current
                 Box(Modifier.fillMaxSize()) {
-                PlaylistDetailBlurCoverBackdrop(
-                    coverUrl = detailBlurCoverUrl,
-                    offlineMode = offlineMode,
-                    modifier = Modifier.fillMaxSize()
-                )
+                if (coherentFeedbackEnabled) {
+                    PlaylistDetailBlurCoverBackdrop(
+                        coverUrl = detailBlurCoverUrl,
+                        offlineMode = offlineMode,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                    )
+                }
                 Column(Modifier.padding(padding).fillMaxSize()) {
                     if (searchSlotVisible) {
                         PlaylistModernVisualColorsProvider(

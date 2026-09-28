@@ -23,8 +23,8 @@ internal object PlaylistCardContainerMotion {
     const val OpenDurationMillis = 460
     const val CloseDurationMillis = 360
     const val SourceCornerRadiusDp = 12f
-    /** 背景缩放幅度：约 10%（相对 2.5% 为 4 倍），展开时放大、收起时缩回 */
-    const val BackgroundExpandedScale = 1.10f
+    /** 背景缩放幅度：约 20%（相对 2.5% 为 8 倍） */
+    const val BackgroundExpandedScale = 1.20f
     const val BackgroundDimmedAlpha = 0.82f
 
     /** 上下边缘描边峰值透明度；暂时关掉柔边 */

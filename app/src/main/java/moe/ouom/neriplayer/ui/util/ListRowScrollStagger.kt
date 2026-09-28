@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import kotlin.math.exp
 
 /**
  * 竖向列表/网格「行与行」滚动交错：下行相对上行滞后一点，静止完全归位。
@@ -54,14 +55,15 @@ import kotlin.math.abs
  * 2. **相位来自条目在视口里的像素 offset**（`LazyListItemInfo.offset`），按 key 定位。
  * 3. **平移用 `drawWithContent` 画布 translate**，不开每行 graphicsLayer，
  *    避免与 ReorderableItem / animateItem 抢图层导致「抽一下」。
- * 4. **滞后用临界阻尼弹簧**追目标；布局跳变时冻结而不是硬砍（硬砍=瞬移）。
+ * 4. **滞后用一阶指数收敛**追目标（不过冲）：滚动时下行拖尾，停稳单向贴回，
+ *    不会出现「先窜过头再弹回来」；布局跳变时冻结而不是硬砍。
  */
 object ListRowScrollStagger {
     /** 基准滞后时间（秒）。translationY ≈ 速度 × 该时间 × 视口相位 */
     const val LagTimeSeconds = 0.028f
 
-    /** 静止收束时间常数（秒） */
-    const val SettleTauSeconds = 0.070f
+    /** 静止收束时间常数（秒）。略长一点，松手归位更柔 */
+    const val SettleTauSeconds = 0.085f
 
     /** 低于该滞后（px）直接归零，避免亚像素抖动 */
     const val EpsilonPx = 0.12f
@@ -69,8 +71,8 @@ object ListRowScrollStagger {
     /** 视口相位上限 */
     const val MaxPhaseNorm = 1f
 
-    /** 运动距离整体缩放（含上限） */
-    const val DistanceScale = 2.5f
+    /** 运动距离整体缩放（含上限）。2.5 × 1.5（用户要求幅度加大 1.5 倍） */
+    const val DistanceScale = 3.75f
 
     /** 默认最大错位（dp） */
     val DefaultMaxLag: Dp = 7.dp
@@ -107,10 +109,6 @@ class ListScrollLagState internal constructor() {
     @Volatile
     internal var pendingScrollPx: Float = 0f
 
-    /** 弹簧速度（px/s），让滞后跟随有惯性 */
-    @Volatile
-    private var lagVelocityPx: Float = 0f
-
     /**
      * 挂到 LazyColumn / LazyVerticalGrid 上，采集真实滚动像素。
      * 注意：`listState.scrollBy()` 程序滚动不会走这里，顶栏补偿不会污染速度。
@@ -135,22 +133,19 @@ class ListScrollLagState internal constructor() {
     /** 顶栏收展等布局跳变时收束，不要把补偿滚动当成甩动 */
     fun cancelLag() {
         _lagPx.floatValue = 0f
-        lagVelocityPx = 0f
         pendingScrollPx = 0f
     }
 
-    internal fun stepSpring(
+    internal fun stepLag(
         deltaPx: Float,
         dt: Float,
         scrolling: Boolean,
     ) {
         // 布局跳变：冻结滞后（绝不 ×0.35 硬砍，那会表现为整列瞬移）
         if (abs(deltaPx) >= ListRowScrollStagger.LayoutJumpThresholdPx) {
-            lagVelocityPx = 0f
             return
         }
 
-        val omega = 1f / ListRowScrollStagger.SettleTauSeconds
         val targetLag = if (scrolling && abs(deltaPx) > 0.01f) {
             val velocityPx = deltaPx / dt
             velocityPx * ListRowScrollStagger.LagTimeSeconds
@@ -158,19 +153,18 @@ class ListScrollLagState internal constructor() {
             0f
         }
 
-        // 临界阻尼弹簧：x'' + 2ω x' + ω²(x - target) = 0
-        val x = lagPx
-        val v = lagVelocityPx
-        val accel = -omega * omega * (x - targetLag) - 2f * omega * v
-        val newV = v + accel * dt
-        val newX = x + newV * dt
-        lagVelocityPx = newV
-        lagPx = if (abs(newX) < ListRowScrollStagger.EpsilonPx && abs(newV) < 1f) {
-            lagVelocityPx = 0f
-            0f
+        // 一阶指数收敛：始终位于 current 与 target 之间，**不过冲**
+        // （弹簧数值积分容易在松手时窜过 0，表现为「先上移再下移」）
+        val tau = if (abs(targetLag) > abs(lagPx)) {
+            // 追速度：稍快跟手
+            ListRowScrollStagger.VelocitySmoothTauSeconds
         } else {
-            newX
+            // 收回 0：更柔，单向贴回布局
+            ListRowScrollStagger.SettleTauSeconds
         }
+        val alpha = 1f - exp(-dt / tau)
+        val next = lagPx + (targetLag - lagPx) * alpha
+        lagPx = if (abs(next) < ListRowScrollStagger.EpsilonPx) 0f else next
     }
 }
 
@@ -378,7 +372,7 @@ fun rememberListScrollLagState(listState: LazyListState): ListScrollLagState {
                     val visibleFirst = listState.layoutInfo.visibleItemsInfo.firstOrNull()
                     val sizePx = visibleFirst?.size?.takeIf { it > 0 }
                     if (sizePx == null) {
-                        state.stepSpring(deltaPx = 0f, dt = dt, scrolling = listState.isScrollInProgress)
+                        state.stepLag(deltaPx = 0f, dt = dt, scrolling = listState.isScrollInProgress)
                         return@withFrameNanos
                     }
                     val position = continuousListScrollPosition(
@@ -403,7 +397,7 @@ fun rememberListScrollLagState(listState: LazyListState): ListScrollLagState {
                     }
                 }
 
-                state.stepSpring(
+                state.stepLag(
                     deltaPx = deltaPx,
                     dt = dt,
                     scrolling = listState.isScrollInProgress || abs(nestedDelta) > 0.01f,
@@ -457,7 +451,7 @@ fun rememberListScrollLagState(gridState: LazyGridState): ListScrollLagState {
                     val visibleFirst = gridState.layoutInfo.visibleItemsInfo.firstOrNull()
                     val sizePx = visibleFirst?.size?.height?.takeIf { it > 0 }
                     if (sizePx == null) {
-                        state.stepSpring(0f, dt, gridState.isScrollInProgress)
+                        state.stepLag(0f, dt, gridState.isScrollInProgress)
                         return@withFrameNanos
                     }
                     val position = continuousListScrollPosition(
@@ -470,7 +464,7 @@ fun rememberListScrollLagState(gridState: LazyGridState): ListScrollLagState {
                     deltaItems * sizePx
                 }
 
-                state.stepSpring(
+                state.stepLag(
                     deltaPx = deltaPx,
                     dt = dt,
                     scrolling = gridState.isScrollInProgress || abs(nestedDelta) > 0.01f,

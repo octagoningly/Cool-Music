@@ -37,7 +37,7 @@ class ListRowScrollStaggerTest {
 
     @Test
     fun `distance scale boosts motion beyond base`() {
-        assertTrue(ListRowScrollStagger.DistanceScale in 1.4f..3f)
+        assertTrue(ListRowScrollStagger.DistanceScale in 3f..4.5f)
         val base = listRowStaggerTranslationY(12f, phaseNorm = 0.5f, maxLagPx = 100f)
         val raw = 12f * 0.5f
         assertEquals(raw * ListRowScrollStagger.DistanceScale, base, 0.01f)

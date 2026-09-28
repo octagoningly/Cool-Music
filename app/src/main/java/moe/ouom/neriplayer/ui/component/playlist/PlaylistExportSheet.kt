@@ -50,12 +50,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.data.local.playlist.model.LocalPlaylist
@@ -263,36 +266,52 @@ internal fun PlaylistExportScrollbar(
     modifier: Modifier = Modifier
 ) {
     if (itemCount <= 1) return
+    if (!listState.canScrollForward && !listState.canScrollBackward) return
+
     val layoutInfo = listState.layoutInfo
-    val visible = layoutInfo.visibleItemsInfo.size
-    if (visible <= 0 || visible >= itemCount) return
+    val totalItems = layoutInfo.totalItemsCount
+    val visibleItems = layoutInfo.visibleItemsInfo
+    if (totalItems <= 1 || visibleItems.isEmpty()) return
 
-    val thumbRatio = (visible.toFloat() / itemCount.toFloat()).coerceIn(0.18f, 1f)
-    val first = listState.firstVisibleItemIndex
-    val offset = listState.firstVisibleItemScrollOffset
-    val itemSize = layoutInfo.visibleItemsInfo.firstOrNull()?.size?.takeIf { it > 0 } ?: 1
-    val maxScrollPx = (itemCount * itemSize - layoutInfo.viewportEndOffset + layoutInfo.viewportStartOffset)
-        .coerceAtLeast(1)
-    val scrolledPx = first * itemSize + offset
-    val progress = (scrolledPx.toFloat() / maxScrollPx).coerceIn(0f, 1f)
+    val viewportHeight = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset)
+        .toFloat()
+        .coerceAtLeast(1f)
+    val avgItemSize = visibleItems.map { it.size }.average().toFloat().coerceAtLeast(1f)
+    val contentHeight = avgItemSize * totalItems
+    if (contentHeight <= viewportHeight + 1f) return
 
-    Column(
+    // 滑块高度按「视口 / 内容」估算，长度在滚动过程中保持稳定
+    val thumbRatio = (viewportHeight / contentHeight).coerceIn(0.14f, 0.92f)
+    val maxScroll = (contentHeight - viewportHeight).coerceAtLeast(1f)
+    val scrolled = listState.firstVisibleItemIndex * avgItemSize +
+        listState.firstVisibleItemScrollOffset
+    // 到顶/到底直接钉死，避免估算误差导致滑不到端点
+    val progress = when {
+        !listState.canScrollForward -> 1f
+        !listState.canScrollBackward -> 0f
+        else -> (scrolled / maxScroll).coerceIn(0f, 1f)
+    }
+
+    // 放在 Box 里用 fillMaxHeight(比例) 才是相对轨道高度；
+    // Column 里会按「剩余高度」算，导致滑块越滑越短、到不了底
+    var trackHeightPx by remember { mutableStateOf(0f) }
+    Box(
         modifier = modifier
             .width(4.dp)
+            .fillMaxHeight()
+            .onSizeChanged { trackHeightPx = it.height.toFloat() }
             .background(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
                 shape = RoundedCornerShape(2.dp)
             )
     ) {
-        Spacer(
-            Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(progress * (1f - thumbRatio))
-        )
+        val thumbOffsetPx = trackHeightPx * (1f - thumbRatio) * progress
         Box(
             modifier = Modifier
+                .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .fillMaxHeight(thumbRatio)
+                .offset { IntOffset(0, thumbOffsetPx.roundToInt()) }
                 .background(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
                     shape = RoundedCornerShape(2.dp)

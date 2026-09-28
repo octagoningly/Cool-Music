@@ -41,6 +41,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.indication
@@ -1947,17 +1948,6 @@ internal fun SearchTypeSongRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Spacer(Modifier.width(16.dp))
-        Icon(
-            imageVector = Icons.Outlined.MusicNote,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f))
-                .padding(12.dp)
-        )
-        Spacer(Modifier.width(12.dp))
         ExploreSearchTypeBar(
             source = source,
             selectedDefaultSearchType = selectedDefaultSearchType,
@@ -1967,9 +1957,10 @@ internal fun SearchTypeSongRow(
             onNeteaseSearchTypeClick = onNeteaseSearchTypeClick,
             onYouTubeSearchTypeClick = onYouTubeSearchTypeClick,
             selectedAlpha = 1f,
-            unselectedAlpha = 0.72f,
-            borderAlpha = 0.35f
+            unselectedAlpha = 0.55f,
+            borderAlpha = 0.55f
         )
+        Spacer(Modifier.weight(1f))
     }
 }
 
@@ -2287,17 +2278,37 @@ private fun ExploreTagChip(
     ) {
         if (!showLabel && icon != null) {
             Column(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                    .then(
+                        if (selected) {
+                            Modifier
+                                .clip(ExplorePillShape)
+                                .background(
+                                    MaterialTheme.colorScheme.secondaryContainer.copy(
+                                        alpha = selectedAlpha.coerceAtLeast(0.85f)
+                                    )
+                                )
+                                .border(
+                                    BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = borderAlpha)),
+                                    ExplorePillShape
+                                )
+                        } else {
+                            Modifier
+                        }
+                    ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
+                    tint = contentColor,
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
                     text = label,
+                    color = contentColor,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

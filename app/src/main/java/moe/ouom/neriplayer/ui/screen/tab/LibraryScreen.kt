@@ -2586,8 +2586,8 @@ private fun LocalLibraryHeaderContent(
 ) {
     Column(Modifier.fillMaxWidth()) {
         if (!selectionMode && !localSortMode) {
-            // 给搜索框上方留约 1.2 倍搜索框高度，避免被 chrome 里的「本地」Tab 行挡住
-            Spacer(Modifier.height(68.dp))
+            // 给搜索框上方留白：相对 68dp 再上移约 0.8 倍搜索框高（56*0.8≈45）
+            Spacer(Modifier.height(23.dp))
             if (selectedLocalCategory == LOCAL_CATEGORY_ARTIST) {
                 LocalArtistSearchAndSortRow(
                     query = searchQuery,

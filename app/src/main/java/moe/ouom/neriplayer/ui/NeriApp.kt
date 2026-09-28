@@ -4354,6 +4354,12 @@ private fun NeriAppContent(
                                         miniPlayerLayerVisible = true
                                         onDispose { miniPlayerLayerVisible = false }
                                     }
+                                    // 迷你栏自己的玻璃区域要一直可注册：
+                                    // 外层在播放页开关时会停主 Tab 注册，不能把迷你栏的糊也停掉。
+                                    // 不常驻、不垫实底，保持原本玻璃质感。
+                                    CompositionLocalProvider(
+                                        LocalAdvancedGlassBackdropRegistrationEnabled provides true
+                                    ) {
                                     NeriMiniPlayer(
                                     title = currentSong?.displayName()
                                         ?: composeResources.getString(R.string.nowplaying_no_playback),
@@ -4374,6 +4380,7 @@ private fun NeriAppContent(
                                     expandAnimatedVisibilityScope = miniPlayerExpandVisibilityScope,
                                     expandCoverSharedEnabled = coherentFeedbackEnabled
                                     )
+                                    }
                                 }
                             }
                         }

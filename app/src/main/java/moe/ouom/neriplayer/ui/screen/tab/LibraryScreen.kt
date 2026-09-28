@@ -1120,9 +1120,9 @@ private fun YouTubeMusicPlaylistList(
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 modifier = Modifier
-                    .then(ytPlaylistStagger.modifier(playlistIndex))
+                    .then(ytPlaylistStagger.modifier(itemKey = playlist.browseId))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .animateItem()
+                    .then(if (coherentFeedbackEnabled) Modifier else Modifier.animateItem())
                     .clip(cardShape)
                     .onGloballyPositioned { ytCardBounds.bounds = it.boundsInRoot() }
                     .combinedClickable(
@@ -1408,9 +1408,9 @@ private fun BiliPlaylistList(
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 modifier = Modifier
-                    .then(biliPlaylistStagger.modifier(playlistIndex))
+                    .then(biliPlaylistStagger.modifier(itemKey = "${pl.kind}:${pl.mediaId}"))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .animateItem()
+                    .then(if (coherentFeedbackEnabled) Modifier else Modifier.animateItem())
                     .clip(cardShape)
                     .clickable { onClick(pl) }
             ) {
@@ -2251,9 +2251,9 @@ private fun LocalPlaylistList(
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier
-                        .then(localPlaylistStagger.modifier(playlistIndex))
+                        .then(localPlaylistStagger.modifier(itemKey = pl.id))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .then(if (localSortMode) Modifier else Modifier.animateItem())
+                        .then(if (localSortMode || coherentFeedbackEnabled) Modifier else Modifier.animateItem())
                         .clip(cardShape)
                         .combinedClickable(
                             onClick = {
@@ -3150,7 +3150,7 @@ private fun NeteaseLibraryList(
                     cardShape = cardShape,
                     onClick = { onAlbumClick(album) },
                     offlineMode = offlineMode,
-                    rowStaggerModifier = neteaseRowStagger.modifier(index),
+                    rowStaggerModifier = neteaseRowStagger.modifier(itemKey = "album:${album.id}"),
                 )
             }
         } else {
@@ -3184,7 +3184,7 @@ private fun NeteaseLibraryList(
                     onClick = { onPlaylistClick(playlist) },
                     offlineMode = offlineMode,
                     onCardBounds = onCardBounds,
-                    rowStaggerModifier = neteaseRowStagger.modifier(index),
+                    rowStaggerModifier = neteaseRowStagger.modifier(itemKey = "playlist:${playlist.id}"),
                 )
             }
         }
@@ -4131,9 +4131,9 @@ private fun FavoritePlaylistList(
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         modifier = Modifier
-                            .then(favoriteRowStagger.modifier(favoriteIndex))
+                            .then(favoriteRowStagger.modifier(itemKey = itemKey))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .animateItem()
+                            .then(if (coherentFeedbackEnabled) Modifier else Modifier.animateItem())
                             .clip(cardShape)
                             .combinedClickable(
                                 onClick = {

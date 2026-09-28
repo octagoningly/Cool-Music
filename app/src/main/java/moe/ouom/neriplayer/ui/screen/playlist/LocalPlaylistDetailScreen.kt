@@ -205,10 +205,8 @@ import moe.ouom.neriplayer.ui.component.local.LocalSongSyncConfirmDialog
 import moe.ouom.neriplayer.ui.component.download.SongDownloadSubtitle
 import moe.ouom.neriplayer.ui.feedback.NeriSnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
-import moe.ouom.neriplayer.ui.util.continuousListScrollPosition
+import moe.ouom.neriplayer.ui.util.listRowPhaseForItem
 import moe.ouom.neriplayer.ui.util.listRowStaggerTranslationY
-import moe.ouom.neriplayer.ui.util.listRowViewportPhase
-import moe.ouom.neriplayer.ui.util.listRowScrollStagger
 import moe.ouom.neriplayer.ui.util.rememberListScrollLagState
 import moe.ouom.neriplayer.ui.util.rememberPlaylistDisplayCoverUrl
 import moe.ouom.neriplayer.ui.util.rememberSongDisplayCoverUrl
@@ -2056,15 +2054,12 @@ fun LocalPlaylistDetailScreen(
                                             scaleX = rowScale
                                             scaleY = rowScale
                                             if (coherentFeedbackEnabled && !isDragging) {
-                                                val first = listState.layoutInfo.visibleItemsInfo.firstOrNull()
-                                                val scrollItems = continuousListScrollPosition(
-                                                    firstVisibleItemIndex = listState.firstVisibleItemIndex,
-                                                    firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
-                                                    firstVisibleItemSize = first?.size ?: 1,
-                                                )
                                                 translationY = listRowStaggerTranslationY(
                                                     scrollLagPx = rowScrollLagState.lagPx,
-                                                    phaseNorm = listRowViewportPhase(revIndex, scrollItems),
+                                                    phaseNorm = listRowPhaseForItem(
+                                                        listState = listState,
+                                                        itemKey = song.stableKey(),
+                                                    ),
                                                     maxLagPx = rowScrollStaggerMaxLagPx,
                                                 )
                                             }

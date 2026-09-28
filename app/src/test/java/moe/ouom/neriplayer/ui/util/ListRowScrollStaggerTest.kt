@@ -85,6 +85,63 @@ class ListRowScrollStaggerTest {
     }
 
     @Test
+    fun `pixel phase tracks item offset continuously without teleport`() {
+        assertEquals(0f, listRowPhaseFromViewportOffset(0f, 100f), 0f)
+        assertEquals(0.5f, listRowPhaseFromViewportOffset(50f, 100f), 0.001f)
+        assertEquals(1f, listRowPhaseFromViewportOffset(150f, 100f), 0.001f)
+        assertEquals(0f, listRowPhaseFromViewportOffset(-20f, 100f), 0f)
+        assertEquals(0f, listRowPhaseFromViewportOffset(50f, 0f), 0f)
+
+        // 每 1px 只应有小步变化（旧 index 相位在换行高时会整段跳）
+        var prev = listRowPhaseFromViewportOffset(0f, 200f)
+        for (px in 1..200) {
+            val next = listRowPhaseFromViewportOffset(px.toFloat(), 200f)
+            assertTrue(next - prev < 0.01f)
+            prev = next
+        }
+    }
+
+    @Test
+    fun `phase lookup prefers item key so headers do not shift rows`() {
+        val items = listOf(
+            LazyItemOffsetInfo(index = 0, key = "header", offset = 0),
+            LazyItemOffsetInfo(index = 1, key = "pad", offset = 80),
+            LazyItemOffsetInfo(index = 2, key = "row-a", offset = 200),
+            LazyItemOffsetInfo(index = 3, key = "row-b", offset = 280),
+        )
+        // 视口高 400，相位跨度 = 400 * 0.72 = 288
+        val phaseA = listRowPhaseForItem(
+            visibleItems = items,
+            itemKey = "row-a",
+            itemIndex = -1,
+            viewportStartOffset = 0,
+            viewportEndOffset = 400,
+        )
+        val phaseByIndex = listRowPhaseForItem(
+            visibleItems = items,
+            itemKey = null,
+            itemIndex = 2,
+            viewportStartOffset = 0,
+            viewportEndOffset = 400,
+        )
+        assertEquals(phaseA, phaseByIndex, 0.001f)
+        assertTrue(phaseA > 0.5f)
+
+        // 找不到 key 时返回 0，而不是用错误下标顶替
+        assertEquals(
+            0f,
+            listRowPhaseForItem(
+                visibleItems = items,
+                itemKey = "missing",
+                itemIndex = -1,
+                viewportStartOffset = 0,
+                viewportEndOffset = 400,
+            ),
+            0f,
+        )
+    }
+
+    @Test
     fun `motion tokens stay in a subtle smooth range`() {
         assertTrue(ListRowScrollStagger.LagTimeSeconds in 0.01f..0.08f)
         assertTrue(ListRowScrollStagger.VelocitySmoothTauSeconds in 0.02f..0.12f)
@@ -92,6 +149,7 @@ class ListRowScrollStaggerTest {
         assertTrue(ListRowScrollStagger.MaxPhaseNorm == 1f)
         assertTrue(ListRowScrollStagger.LayoutJumpThresholdPx in 48f..200f)
         assertTrue(ListRowScrollStagger.PhaseSpanItems in 3f..10f)
+        assertTrue(ListRowScrollStagger.PhaseSpanViewportFraction in 0.4f..1f)
     }
 
     @Test

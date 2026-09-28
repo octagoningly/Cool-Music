@@ -1288,14 +1288,15 @@ fun ExploreScreen(
                                         onDefaultSearchTypeClick = vm::setDefaultSearchType,
                                         onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
                                         onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
-                                        rowStaggerModifier = searchRowStagger.modifier(0),
+                                        rowStaggerModifier = searchRowStagger.modifier(
+                                            itemKey = "explore-search-type-song-row",
+                                        ),
                                     )
                                 }
                                 itemsIndexed(
                                     items = ui.searchItems,
                                     key = { _, item -> item.stableKey }
                                 ) { index, item ->
-                                    val staggerIndex = index + 1
                                     when (item) {
                                         is ExploreSearchResult.Song -> {
                                             val song = item.song
@@ -1310,7 +1311,9 @@ fun ExploreScreen(
                                                 favoriteActionEnabled = localPlaylistsReady,
                                                 offlineMode = offlineMode,
                                                 snackbarHostState = snackbarHostState,
-                                                rowStaggerModifier = searchRowStagger.modifier(staggerIndex),
+                                                rowStaggerModifier = searchRowStagger.modifier(
+                                                    itemKey = item.stableKey,
+                                                ),
                                                 onClick = {
                                                     if (shouldShowBiliPartsPicker(song)) {
                                                         scope.launch {
@@ -2210,7 +2213,7 @@ private fun NeteaseDiscoveryPage(
                         playlist = playlist,
                         isFavorite = favoriteKeys.contains("netease:${playlist.id}"),
                         onClick = { onPlay(playlist) },
-                        rowStaggerModifier = gridRowStagger.modifier(index),
+                        rowStaggerModifier = gridRowStagger.modifier(itemKey = playlist.id),
                     )
                 }
             } else if (!ui.loading) {
@@ -3012,7 +3015,7 @@ private fun YouTubeMusicExploreContent(
                         playlist = playlist,
                         onClick = { onClick(playlist) },
                         offlineMode = offlineMode,
-                        rowStaggerModifier = ytGridStagger.modifier(index),
+                        rowStaggerModifier = ytGridStagger.modifier(itemKey = playlist.browseId),
                     )
                 }
             }

@@ -60,6 +60,9 @@ object ListRowScrollStagger {
 
     /** 视口相位上限（0 = 顶栏跟手，1 = 底行最粘），保留常量便于调参/测试 */
     const val MaxPhaseNorm = 1f
+
+    /** 运动距离整体缩放（含上限），调「动感强弱」只改这一处 */
+    const val DistanceScale = 1.5f
 }
 
 /** 行级滚动交错的滞后状态（整列共用一份，由 [rememberListScrollLagState] 驱动） */
@@ -107,7 +110,10 @@ fun listRowStaggerTranslationY(
 ): Float {
     if (scrollLagPx == 0f || phaseNorm <= 0f || maxLagPx <= 0f) return 0f
     val phase = phaseNorm.coerceIn(0f, ListRowScrollStagger.MaxPhaseNorm)
-    return (scrollLagPx * phase).coerceIn(-maxLagPx, maxLagPx)
+    val scale = ListRowScrollStagger.DistanceScale
+    val raw = scrollLagPx * phase * scale
+    val limit = maxLagPx * scale
+    return raw.coerceIn(-limit, limit)
 }
 
 /**

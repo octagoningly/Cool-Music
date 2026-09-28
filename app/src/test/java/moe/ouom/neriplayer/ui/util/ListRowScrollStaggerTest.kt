@@ -21,17 +21,26 @@ class ListRowScrollStaggerTest {
     }
 
     @Test
-    fun `translation is clamped to max lag`() {
+    fun `translation is clamped to scaled max lag`() {
+        val limit = 8f * ListRowScrollStagger.DistanceScale
         assertEquals(
-            8f,
+            limit,
             listRowStaggerTranslationY(400f, phaseNorm = 1f, maxLagPx = 8f),
-            0f,
+            0.01f,
         )
         assertEquals(
-            -8f,
+            -limit,
             listRowStaggerTranslationY(-400f, phaseNorm = 1f, maxLagPx = 8f),
-            0f,
+            0.01f,
         )
+    }
+
+    @Test
+    fun `distance scale boosts motion one and a half times`() {
+        assertEquals(1.5f, ListRowScrollStagger.DistanceScale, 0f)
+        val base = listRowStaggerTranslationY(12f, phaseNorm = 0.5f, maxLagPx = 100f)
+        val raw = 12f * 0.5f
+        assertEquals(raw * 1.5f, base, 0.01f)
     }
 
     @Test

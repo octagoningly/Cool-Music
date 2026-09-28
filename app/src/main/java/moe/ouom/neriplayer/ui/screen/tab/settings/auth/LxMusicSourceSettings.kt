@@ -6,12 +6,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -50,6 +53,7 @@ import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxChannelProbeResult
 import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
 import moe.ouom.neriplayer.data.source.lxmusic.LxMusicSourceRepository
 import moe.ouom.neriplayer.data.source.lxmusic.LxRemoteSourceEntry
+import moe.ouom.neriplayer.ui.component.playlist.PlaylistExportScrollbar
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsInlineMessage
@@ -231,16 +235,39 @@ internal fun SettingsLxMusicSourceDialogs(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
-                        state.sources.forEach { source ->
-                            LxSourceRow(
-                                source = source,
-                                refreshing = state.refreshingId == source.id,
-                                onToggleEnabled = { enabled ->
-                                    vm.setSourceEnabled(source.id, enabled)
-                                },
-                                onRefresh = { vm.refreshSource(source.id) },
-                                onRemove = { vm.removeSource(source.id) },
-                                onClick = { detailSource = source }
+                        val sourcesListState = rememberLazyListState()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 220.dp)
+                        ) {
+                            LazyColumn(
+                                state = sourcesListState,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                items(
+                                    count = state.sources.size,
+                                    key = { state.sources[it].id }
+                                ) { index ->
+                                    val source = state.sources[index]
+                                    LxSourceRow(
+                                        source = source,
+                                        refreshing = state.refreshingId == source.id,
+                                        onToggleEnabled = { enabled ->
+                                            vm.setSourceEnabled(source.id, enabled)
+                                        },
+                                        onRefresh = { vm.refreshSource(source.id) },
+                                        onRemove = { vm.removeSource(source.id) },
+                                        onClick = { detailSource = source }
+                                    )
+                                }
+                            }
+                            PlaylistExportScrollbar(
+                                listState = sourcesListState,
+                                itemCount = state.sources.size,
+                                modifier = Modifier
+                                    .padding(start = 6.dp)
+                                    .fillMaxHeight()
                             )
                         }
                     }

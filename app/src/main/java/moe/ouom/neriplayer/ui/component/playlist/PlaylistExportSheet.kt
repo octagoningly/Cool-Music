@@ -257,7 +257,7 @@ internal fun PlaylistExportSheet(
 }
 
 @Composable
-private fun PlaylistExportScrollbar(
+internal fun PlaylistExportScrollbar(
     listState: LazyListState,
     itemCount: Int,
     modifier: Modifier = Modifier

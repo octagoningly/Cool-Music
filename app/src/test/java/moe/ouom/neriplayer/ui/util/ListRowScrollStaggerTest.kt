@@ -7,63 +7,69 @@ import org.junit.Test
 class ListRowScrollStaggerTest {
     @Test
     fun `idle or top row stays at layout position`() {
-        assertEquals(0f, listRowStaggerTranslationY(0f, rowPhase = 3, maxLagPx = 8f), 0f)
-        assertEquals(0f, listRowStaggerTranslationY(20f, rowPhase = 0, maxLagPx = 8f), 0f)
-        assertEquals(0f, listRowStaggerTranslationY(20f, rowPhase = -1, maxLagPx = 8f), 0f)
+        assertEquals(0f, listRowStaggerTranslationY(0f, phaseNorm = 0.6f, maxLagPx = 8f), 0f)
+        assertEquals(0f, listRowStaggerTranslationY(20f, phaseNorm = 0f, maxLagPx = 8f), 0f)
+        assertEquals(0f, listRowStaggerTranslationY(20f, phaseNorm = -1f, maxLagPx = 8f), 0f)
     }
 
     @Test
     fun `lower rows lag more than upper rows while scrolling`() {
-        val upper = listRowStaggerTranslationY(12f, rowPhase = 1, maxLagPx = 32f)
-        val lower = listRowStaggerTranslationY(12f, rowPhase = 4, maxLagPx = 32f)
+        val upper = listRowStaggerTranslationY(12f, phaseNorm = 0.25f, maxLagPx = 32f)
+        val lower = listRowStaggerTranslationY(12f, phaseNorm = 0.9f, maxLagPx = 32f)
         assertTrue(lower > upper)
         assertTrue(upper > 0f)
     }
 
     @Test
-    fun `phase is capped so long lists do not trail forever`() {
-        val capped = listRowStaggerTranslationY(
-            scrollLagPx = 12f,
-            rowPhase = 99,
-            maxLagPx = 32f,
-            maxPhase = ListRowScrollStagger.MaxPhase,
-        )
-        val atCap = listRowStaggerTranslationY(
-            scrollLagPx = 12f,
-            rowPhase = ListRowScrollStagger.MaxPhase,
-            maxLagPx = 32f,
-            maxPhase = ListRowScrollStagger.MaxPhase,
-        )
-        assertEquals(atCap, capped, 0f)
-    }
-
-    @Test
     fun `translation is clamped to max lag`() {
-        val huge = listRowStaggerTranslationY(
-            scrollLagPx = 400f,
-            rowPhase = 6,
-            maxLagPx = 8f,
+        assertEquals(
+            8f,
+            listRowStaggerTranslationY(400f, phaseNorm = 1f, maxLagPx = 8f),
+            0f,
         )
-        assertEquals(8f, huge, 0f)
-        val hugeDown = listRowStaggerTranslationY(
-            scrollLagPx = -400f,
-            rowPhase = 6,
-            maxLagPx = 8f,
+        assertEquals(
+            -8f,
+            listRowStaggerTranslationY(-400f, phaseNorm = 1f, maxLagPx = 8f),
+            0f,
         )
-        assertEquals(-8f, hugeDown, 0f)
     }
 
     @Test
     fun `sign follows scroll direction so rows trail correctly`() {
-        assertTrue(listRowStaggerTranslationY(15f, 2, 32f) > 0f)
-        assertTrue(listRowStaggerTranslationY(-15f, 2, 32f) < 0f)
+        assertTrue(listRowStaggerTranslationY(15f, 0.5f, 32f) > 0f)
+        assertTrue(listRowStaggerTranslationY(-15f, 0.5f, 32f) < 0f)
     }
 
     @Test
-    fun `motion tokens stay in a subtle range`() {
-        assertTrue(ListRowScrollStagger.MaxPhase in 3..8)
-        assertTrue(ListRowScrollStagger.PhaseScale in 0.05f..0.35f)
-        assertTrue(ListRowScrollStagger.VelocitySmoothing in 0.5f..0.9f)
-        assertTrue(ListRowScrollStagger.IdleDecay in 0.7f..0.95f)
+    fun `continuous scroll position is seamless across item boundary`() {
+        // 条目高 100：滚到边界时 (index=2, offset=100) 应等于 (index=3, offset=0)
+        val atBoundary = continuousListScrollPosition(2, 100, 100)
+        val afterWrap = continuousListScrollPosition(3, 0, 100)
+        assertEquals(atBoundary, afterWrap, 0.001f)
+
+        // 半程：offset 走 40/100
+        val mid = continuousListScrollPosition(2, 40, 100)
+        assertEquals(2.4f, mid, 0.001f)
+    }
+
+    @Test
+    fun `continuous scroll position handles missing size`() {
+        assertEquals(3f, continuousListScrollPosition(3, 50, 0), 0f)
+        assertEquals(3f, continuousListScrollPosition(3, 50, -1), 0f)
+    }
+
+    @Test
+    fun `motion tokens stay in a subtle smooth range`() {
+        assertTrue(ListRowScrollStagger.LagTimeSeconds in 0.01f..0.08f)
+        assertTrue(ListRowScrollStagger.VelocitySmoothTauSeconds in 0.02f..0.1f)
+        assertTrue(ListRowScrollStagger.SettleTauSeconds in 0.03f..0.12f)
+        assertTrue(ListRowScrollStagger.MaxPhaseNorm == 1f)
+    }
+
+    @Test
+    fun `settle time constant returns to zero in reasonable frames`() {
+        // 约 3τ 应衰减到 5% 以下：e^(-3) ≈ 0.05
+        val frames60Hz = (3f * ListRowScrollStagger.SettleTauSeconds * 60f).toInt()
+        assertTrue(frames60Hz in 4..40)
     }
 }

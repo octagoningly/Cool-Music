@@ -1274,6 +1274,10 @@ fun ExploreScreen(
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                 // 类型行收成「第一首歌」的形态，动效与后续歌曲同一套交错
+                                // 前置约 1.2 倍歌行高度留白，避免被搜索框 chrome 挡住
+                                item(key = "explore-search-type-song-row-pad") {
+                                    Spacer(Modifier.height(86.dp))
+                                }
                                 item(key = "explore-search-type-song-row") {
                                     SearchTypeSongRow(
                                         source = searchTypeBarSource,
@@ -2182,6 +2186,7 @@ private fun NeteaseDiscoveryPage(
     val gridRowStagger = rememberListRowStagger(
         gridState = gridState,
         enabled = coherentFeedbackEnabled,
+        rowStride = 2,
     )
 
     // 全幅滚动：上下都能进入 chrome 玻璃采样区
@@ -2931,6 +2936,7 @@ private fun YouTubeMusicExploreContent(
     val ytGridStagger = rememberListRowStagger(
         gridState = gridState,
         enabled = coherentFeedbackEnabled,
+        rowStride = 2,
     )
     when {
         ui.ytMusicPlaylistsLoading -> {

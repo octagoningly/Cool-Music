@@ -205,6 +205,9 @@ import moe.ouom.neriplayer.ui.component.local.LocalSongSyncConfirmDialog
 import moe.ouom.neriplayer.ui.component.download.SongDownloadSubtitle
 import moe.ouom.neriplayer.ui.feedback.NeriSnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
+import moe.ouom.neriplayer.ui.util.continuousListScrollPosition
+import moe.ouom.neriplayer.ui.util.listRowStaggerTranslationY
+import moe.ouom.neriplayer.ui.util.listRowViewportPhase
 import moe.ouom.neriplayer.ui.util.listRowScrollStagger
 import moe.ouom.neriplayer.ui.util.rememberListScrollLagState
 import moe.ouom.neriplayer.ui.util.rememberPlaylistDisplayCoverUrl
@@ -2048,15 +2051,24 @@ fun LocalPlaylistDetailScreen(
                                     PlaylistModernListItemSurface(
                                         coverUrl = headerCover,
                                         offlineMode = offlineMode,
-                                        modifier = Modifier
-                                            .listRowScrollStagger(
-                                                lagState = rowScrollLagState,
-                                                rowIndex = revIndex,
-                                                listState = listState,
-                                                maxLagPx = rowScrollStaggerMaxLagPx,
-                                                enabled = coherentFeedbackEnabled && !isDragging,
-                                            )
-                                            .graphicsLayer { scaleX = rowScale; scaleY = rowScale }
+                                        modifier = Modifier.graphicsLayer {
+                                            // 合并缩放与滚动交错，避免双 graphicsLayer 抽动
+                                            scaleX = rowScale
+                                            scaleY = rowScale
+                                            if (coherentFeedbackEnabled && !isDragging) {
+                                                val first = listState.layoutInfo.visibleItemsInfo.firstOrNull()
+                                                val scrollItems = continuousListScrollPosition(
+                                                    firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                                                    firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+                                                    firstVisibleItemSize = first?.size ?: 1,
+                                                )
+                                                translationY = listRowStaggerTranslationY(
+                                                    scrollLagPx = rowScrollLagState.lagPx,
+                                                    phaseNorm = listRowViewportPhase(revIndex, scrollItems),
+                                                    maxLagPx = rowScrollStaggerMaxLagPx,
+                                                )
+                                            }
+                                        }
                                     ) {
                                         Row(
                                             modifier = Modifier

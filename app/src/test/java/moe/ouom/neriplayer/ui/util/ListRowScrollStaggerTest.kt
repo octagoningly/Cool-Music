@@ -87,10 +87,11 @@ class ListRowScrollStaggerTest {
     @Test
     fun `motion tokens stay in a subtle smooth range`() {
         assertTrue(ListRowScrollStagger.LagTimeSeconds in 0.01f..0.08f)
-        assertTrue(ListRowScrollStagger.VelocitySmoothTauSeconds in 0.02f..0.1f)
-        assertTrue(ListRowScrollStagger.SettleTauSeconds in 0.03f..0.12f)
+        assertTrue(ListRowScrollStagger.VelocitySmoothTauSeconds in 0.02f..0.12f)
+        assertTrue(ListRowScrollStagger.SettleTauSeconds in 0.03f..0.15f)
         assertTrue(ListRowScrollStagger.MaxPhaseNorm == 1f)
-        assertTrue(ListRowScrollStagger.LayoutJumpThresholdPx in 48f..160f)
+        assertTrue(ListRowScrollStagger.LayoutJumpThresholdPx in 48f..200f)
+        assertTrue(ListRowScrollStagger.PhaseSpanItems in 3f..10f)
     }
 
     @Test

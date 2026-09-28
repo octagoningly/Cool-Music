@@ -35,6 +35,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -128,6 +130,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
@@ -796,18 +799,20 @@ fun LibraryScreen(
 
             AnimatedVisibility(
                 visible = showLibraryTabs,
-                // 从中心整体展开：默认 expandFrom=Top 会先出文字再到底部滑条，像两段
-                enter = expandVertically(
+                // 整块一起显隐：expandVertically 会按高度裁切，先出字再出底部滑条，像两段
+                enter = fadeIn(
+                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                ) + scaleIn(
+                    initialScale = 0.96f,
                     animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                    expandFrom = Alignment.CenterVertically
-                ) + fadeIn(
-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                    transformOrigin = TransformOrigin.Center
                 ),
-                exit = shrinkVertically(
+                exit = fadeOut(
+                    animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)
+                ) + scaleOut(
+                    targetScale = 0.96f,
                     animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
-                    shrinkTowards = Alignment.CenterVertically
-                ) + fadeOut(
-                    animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)
+                    transformOrigin = TransformOrigin.Center
                 ),
             ) {
             LibraryMainTabs(

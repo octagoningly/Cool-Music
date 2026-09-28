@@ -36,11 +36,12 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.updateTransition
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -57,13 +58,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.geometry.Rect
 import moe.ouom.neriplayer.ui.util.boundedMaxHeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -79,6 +81,7 @@ import moe.ouom.neriplayer.ui.screen.playlist.NeteasePlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.YouTubeMusicPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.PlaylistCardContainerMotion
+import moe.ouom.neriplayer.ui.screen.playlist.playlistCardContainerClip
 import moe.ouom.neriplayer.ui.screen.tab.LibraryTab
 import moe.ouom.neriplayer.ui.screen.tab.LibraryScreen
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
@@ -200,6 +203,7 @@ fun LibraryHostScreen(
     var openOrigin by remember { mutableStateOf<Rect?>(null) }
     var openViewportWidth by remember { mutableFloatStateOf(0f) }
     var openViewportHeight by remember { mutableFloatStateOf(0f) }
+    var hostBoundsInRoot by remember { mutableStateOf(Rect.Zero) }
     // 与 selected 同帧计算：LaunchedEffect 会晚一帧，详情打开时顶栏模糊会多挂一下
     val libraryChromeHidden = selected != null
     var skipDetailCloseAnimation by rememberSaveable { mutableStateOf(false) }
@@ -214,6 +218,7 @@ fun LibraryHostScreen(
     var selectedTab by rememberSaveable { mutableStateOf(LibraryTab.LOCAL) }
     val libraryStateHolder = rememberSaveableStateHolder()
     val context = LocalContext.current
+    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     var pendingNeteaseCoverWarmupJob by remember { mutableStateOf<Job?>(null) }
     var pendingNeteaseCoverWarmupToken by remember { mutableIntStateOf(0) }
@@ -392,7 +397,9 @@ fun LibraryHostScreen(
     ) { state ->
         if (state == null) 0f else 1f
     }
-    val cardContainerTransformEnabled = openOrigin != null &&
+    // 卡片容器展开只在「连贯反馈」开启时使用；关闭时走抽屉式 advancedGlassHostNavigationTransition
+    val cardContainerTransformEnabled = coherentFeedbackEnabled &&
+        openOrigin != null &&
         openViewportWidth > 1f &&
         openViewportHeight > 1f
     val cardContainerTransitionActive = cardContainerTransformEnabled &&
@@ -431,7 +438,14 @@ fun LibraryHostScreen(
             label = "library_host_detail_close"
         )
 
-    Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coordinates ->
+                hostBoundsInRoot = coordinates.boundsInRoot()
+            },
+        color = Color.Transparent
+    ) {
         navigationTransition.AnimatedContent(
             modifier = Modifier.fillMaxSize(),
             transitionSpec = {
@@ -481,6 +495,16 @@ fun LibraryHostScreen(
                     label = "library_host_scene"
                 )
             }
+            val cardFrame = openOrigin
+                ?.takeIf { cardContainerTransformEnabled }
+                ?.let { source ->
+                    PlaylistCardContainerMotion.frame(
+                        source = source,
+                        viewportWidth = openViewportWidth,
+                        viewportHeight = openViewportHeight,
+                        progress = cardContainerProgress
+                    )
+                }
             renderScene(
                 sceneMotion.revealTopFraction,
                 sceneMotion.contentTranslationYFraction,
@@ -492,6 +516,13 @@ fun LibraryHostScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .graphicsLayer {
+                                    if (cardFrame != null) {
+                                        scaleX = cardFrame.backgroundScale
+                                        scaleY = cardFrame.backgroundScale
+                                        alpha = cardFrame.backgroundAlpha
+                                    }
+                                }
                                 .clipMainTabDetailCloseRoot(
                                     if (cardContainerTransitionActive) {
                                         1f
@@ -515,12 +546,24 @@ fun LibraryHostScreen(
                             offlineMode = offlineMode,
                             chromeHidden = libraryChromeHidden,
                             onPlaylistCardBounds = { bounds, windowWidth, windowHeight ->
-                                openViewportWidth = windowWidth
-                                openViewportHeight = windowHeight
+                                val hostBounds = hostBoundsInRoot
+                                val hasHostBounds = hostBounds.width > 1f && hostBounds.height > 1f
+                                val viewportWidth = if (hasHostBounds) hostBounds.width else windowWidth
+                                val viewportHeight = if (hasHostBounds) hostBounds.height else windowHeight
+                                val localBounds = if (hasHostBounds) {
+                                    PlaylistCardContainerMotion.sourceBoundsInViewport(
+                                        sourceInRoot = bounds,
+                                        viewportInRoot = hostBounds
+                                    )
+                                } else {
+                                    bounds
+                                }
+                                openViewportWidth = viewportWidth
+                                openViewportHeight = viewportHeight
                                 openOrigin = PlaylistCardContainerMotion.sanitizeSourceBounds(
-                                    source = bounds,
-                                    viewportWidth = windowWidth,
-                                    viewportHeight = windowHeight
+                                    source = localBounds,
+                                    viewportWidth = viewportWidth,
+                                    viewportHeight = viewportHeight
                                 )
                             },
                             onLocalPlaylistClick = { playlist ->
@@ -655,16 +698,9 @@ fun LibraryHostScreen(
                         }
                         }
                     } else {
-                        val cardFrame = openOrigin
-                            ?.takeIf { cardContainerTransformEnabled }
-                            ?.let { source ->
-                                PlaylistCardContainerMotion.frame(
-                                    source = source,
-                                    viewportWidth = openViewportWidth,
-                                    viewportHeight = openViewportHeight,
-                                    progress = cardContainerProgress
-                                )
-                            }
+                        val cornerRadiusPx = with(density) {
+                            (cardFrame?.cornerRadiusDp ?: 0f).dp.toPx()
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -672,20 +708,20 @@ fun LibraryHostScreen(
                                     if (cardFrame == null) {
                                         Modifier
                                     } else {
-                                        Modifier.graphicsLayer {
-                                            transformOrigin = TransformOrigin(0f, 0f)
-                                            translationX = cardFrame.translationX
-                                            translationY = cardFrame.translationY
-                                            scaleX = cardFrame.scaleX
-                                            scaleY = cardFrame.scaleY
-                                            alpha = cardFrame.contentAlpha
-                                            shape = RoundedCornerShape(
-                                                cardFrame.cornerRadiusDp.dp
-                                            )
-                                            clip = cardContainerProgress < 0.999f
-                                        }
+                                        Modifier.playlistCardContainerClip(
+                                            frame = cardFrame,
+                                            cornerRadiusPx = cornerRadiusPx
+                                        )
                                     }
                                 )
+                                .background(MaterialTheme.colorScheme.background)
+                        ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    alpha = cardFrame?.contentAlpha ?: 1f
+                                }
                         ) {
                         when (current) {
                         is LibrarySelectedItem.Local -> {
@@ -828,6 +864,7 @@ fun LibraryHostScreen(
                                     },
                                     offlineMode = offlineMode
                                 )
+                        }
                         }
                         }
                         }

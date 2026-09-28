@@ -62,7 +62,7 @@ object ListRowScrollStagger {
     const val MaxPhaseNorm = 1f
 
     /** 运动距离整体缩放（含上限），调「动感强弱」只改这一处 */
-    const val DistanceScale = 1.5f
+    const val DistanceScale = 2.25f
 }
 
 /** 行级滚动交错的滞后状态（整列共用一份，由 [rememberListScrollLagState] 驱动） */

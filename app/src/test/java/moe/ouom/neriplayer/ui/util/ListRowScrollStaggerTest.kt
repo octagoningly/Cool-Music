@@ -73,6 +73,7 @@ class ListRowScrollStaggerTest {
         assertTrue(ListRowScrollStagger.VelocitySmoothTauSeconds in 0.02f..0.1f)
         assertTrue(ListRowScrollStagger.SettleTauSeconds in 0.03f..0.12f)
         assertTrue(ListRowScrollStagger.MaxPhaseNorm == 1f)
+        assertTrue(ListRowScrollStagger.LayoutJumpThresholdPx in 48f..160f)
     }
 
     @Test

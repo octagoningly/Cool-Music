@@ -23,6 +23,7 @@ package moe.ouom.neriplayer.ui.util
  * Updated: 2026/3/23
  */
 
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Composable
@@ -70,6 +71,12 @@ object ListRowScrollStagger {
 
     /** 默认最大错位（dp），调用处可覆盖 */
     val DefaultMaxLag: Dp = 7.dp
+
+    /**
+     * 单帧位移超过该值视为布局跳变（顶栏收展补偿等），不是用户滚动。
+     * 普通甩动很少一帧超过 ~60px；80dp 顶栏补偿在 2.75x 屏约 200px。
+     */
+    const val LayoutJumpThresholdPx = 90f
 }
 
 /** 行级滚动交错的滞后状态（整列/整网格共用一份） */
@@ -86,6 +93,11 @@ class ListScrollLagState internal constructor() {
         }
 
     private val _lagPx = mutableFloatStateOf(0f)
+
+    /** 顶栏收展等布局跳变时清零，避免把补偿滚动当成用户甩动 */
+    fun cancelLag() {
+        _lagPx.floatValue = 0f
+    }
 }
 
 /** 预绑定 listState / lag / 开关后，按行号生成 Modifier，减少调用处样板 */
@@ -106,6 +118,35 @@ class ListRowStaggerScope internal constructor(
             )
         }
     }
+
+    fun cancelLag() {
+        lagState.cancelLag()
+    }
+}
+
+/**
+ * 顶栏/搜索框收起展开时补偿列表滚动，避免 contentPadding 变化把列表顶跳。
+ *
+ * @param deltaTopPx 新 top padding − 旧 top padding
+ */
+suspend fun compensateListContentTopScroll(
+    listState: LazyListState,
+    deltaTopPx: Float,
+    stagger: ListRowStaggerScope? = null,
+) {
+    if (deltaTopPx == 0f) return
+    stagger?.cancelLag()
+    listState.scrollBy(deltaTopPx)
+}
+
+suspend fun compensateGridContentTopScroll(
+    gridState: LazyGridState,
+    deltaTopPx: Float,
+    stagger: ListRowStaggerScope? = null,
+) {
+    if (deltaTopPx == 0f) return
+    stagger?.cancelLag()
+    gridState.scrollBy(deltaTopPx)
 }
 
 /**
@@ -147,6 +188,12 @@ private fun updateLagForFrame(
     refSizePx: Float,
     dt: Float,
 ) {
+    val deltaPx = deltaItems * refSizePx
+    if (abs(deltaPx) >= ListRowScrollStagger.LayoutJumpThresholdPx) {
+        // 顶栏收展/补偿滚动：清零滞后，避免「抽一下」
+        state.lagPx = 0f
+        return
+    }
     val rawVelocityPx = deltaItems / dt * refSizePx
     if (listStateScrolling) {
         val targetLag = rawVelocityPx * ListRowScrollStagger.LagTimeSeconds

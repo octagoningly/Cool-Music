@@ -235,6 +235,8 @@ import moe.ouom.neriplayer.ui.viewmodel.tab.shouldLoadExploreSearchMore
 import moe.ouom.neriplayer.ui.util.currentWindowWidthDp
 import moe.ouom.neriplayer.ui.util.rememberSongDisplayCoverUrl
 import moe.ouom.neriplayer.ui.util.ClipboardCopyResult
+import moe.ouom.neriplayer.ui.util.compensateGridContentTopScroll
+import moe.ouom.neriplayer.ui.util.compensateListContentTopScroll
 import moe.ouom.neriplayer.ui.util.copyPlainTextSafely
 import moe.ouom.neriplayer.ui.util.rememberListRowStagger
 import moe.ouom.neriplayer.ui.haptic.HapticIconButton
@@ -585,16 +587,26 @@ fun ExploreScreen(
         }
         showExploreSearchField = true
     }
-    // 筛选行收起时列表 contentPadding 收窄：上滑给更多视野，下拉再弹出
-    val exploreListContentTop by animateDpAsState(
-        targetValue = when {
+    // 顶部留白瞬时切换 + 滚动补偿：收起搜索框/筛选行时列表不跟着跳。
+    // （animateDpAsState 会让列表连续 remasure，且视觉上像被下面内容推动）
+    var exploreListContentTop by remember { mutableStateOf(116.dp) }
+    val exploreDensity = LocalDensity.current
+    LaunchedEffect(showTypeFilterLayer, showExploreSearchField, activeListState) {
+        val target = when {
             showTypeFilterLayer -> 12.dp
             showExploreSearchField -> 116.dp
             else -> 56.dp
-        },
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-        label = "exploreListContentTop"
-    )
+        }
+        val deltaPx = with(exploreDensity) { (target - exploreListContentTop).toPx() }
+        if (deltaPx != 0f) {
+            when (activeListState) {
+                gridState -> compensateGridContentTopScroll(gridState, deltaPx)
+                youtubeGridState -> compensateGridContentTopScroll(youtubeGridState, deltaPx)
+                else -> compensateListContentTopScroll(searchListState, deltaPx)
+            }
+        }
+        exploreListContentTop = target
+    }
     val exploreFilterRowTop by animateDpAsState(
         targetValue = if (showExploreSearchField) 116.dp else 56.dp,
         animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),

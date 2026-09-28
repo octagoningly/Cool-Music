@@ -607,9 +607,17 @@ fun LibraryScreen(
         }
     }
     // 瞬时切换顶部留白：动画 Dp 会让列表每帧 remasure，滚动发卡。
-    // 进详情不要改留白：否则列表在展开动画里瞬移，看起来像背景卡一下。
-    val libraryContentTop =
-        if (showLibraryTabs) 136.dp else 56.dp
+    // 收起/展开时用 scrollBy 补偿，列表视觉不跳（否则交错会把跳变当成甩动）。
+    var libraryContentTop by remember { mutableStateOf(136.dp) }
+    val libraryDensity = LocalDensity.current
+    LaunchedEffect(showLibraryTabs, activeLibraryListState) {
+        val target = if (showLibraryTabs) 136.dp else 56.dp
+        val deltaPx = with(libraryDensity) { (target - libraryContentTop).toPx() }
+        if (deltaPx != 0f) {
+            activeLibraryListState.scrollBy(deltaPx)
+        }
+        libraryContentTop = target
+    }
 
     CompositionLocalProvider(LocalLibraryListTopPadding provides libraryContentTop) {
     Box(

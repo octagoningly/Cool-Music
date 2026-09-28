@@ -14,16 +14,18 @@ class PlaylistCardContainerMotionTest {
         val start = PlaylistCardContainerMotion.frame(source, 1080f, 2400f, 0f)
         val end = PlaylistCardContainerMotion.frame(source, 1080f, 2400f, 1f)
 
-        assertEquals(source.left, start.translationX, 0.001f)
-        assertEquals(source.top, start.translationY, 0.001f)
-        assertEquals(source.width / 1080f, start.scaleX, 0.001f)
-        assertEquals(source.height / 2400f, start.scaleY, 0.001f)
-        assertEquals(0f, start.contentAlpha, 0.001f)
-        assertEquals(0f, end.translationX, 0.001f)
-        assertEquals(0f, end.translationY, 0.001f)
-        assertEquals(1f, end.scaleX, 0.001f)
-        assertEquals(1f, end.scaleY, 0.001f)
+        assertEquals(source.left, start.clipLeft, 0.001f)
+        assertEquals(source.top, start.clipTop, 0.001f)
+        assertEquals(source.right, start.clipRight, 0.001f)
+        assertEquals(source.bottom, start.clipBottom, 0.001f)
+        assertEquals(0.72f, start.contentAlpha, 0.001f)
+        assertEquals(0f, end.clipLeft, 0.001f)
+        assertEquals(0f, end.clipTop, 0.001f)
+        assertEquals(1080f, end.clipRight, 0.001f)
+        assertEquals(2400f, end.clipBottom, 0.001f)
         assertEquals(1f, end.contentAlpha, 0.001f)
+        assertEquals(PlaylistCardContainerMotion.BackgroundExpandedScale, end.backgroundScale, 0.001f)
+        assertEquals(PlaylistCardContainerMotion.BackgroundDimmedAlpha, end.backgroundAlpha, 0.001f)
     }
 
     @Test
@@ -49,6 +51,20 @@ class PlaylistCardContainerMotionTest {
                 viewportHeight = 2400f,
                 progress = 0.5f
             ).cornerRadiusDp in 0f..PlaylistCardContainerMotion.SourceCornerRadiusDp
+        )
+    }
+
+    @Test
+    fun sourceBoundsSubtractsViewportOrigin() {
+        val sourceInRoot = Rect(28f, 412f, 1052f, 532f)
+        val viewportInRoot = Rect(0f, 96f, 1080f, 2256f)
+
+        assertEquals(
+            Rect(28f, 316f, 1052f, 436f),
+            PlaylistCardContainerMotion.sourceBoundsInViewport(
+                sourceInRoot = sourceInRoot,
+                viewportInRoot = viewportInRoot
+            )
         )
     }
 }

@@ -1,18 +1,41 @@
 package moe.ouom.neriplayer.ui.screen.playlist
 
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 
 /**
  * 媒体库歌单卡片到详情页的容器变换。
  *
  * 源矩形与详情根容器使用同一个根坐标系；详情内容始终按最终尺寸布局，
- * 这里只插值平移、非等比缩放与裁切圆角，避免抽屉式整页上移/下移。
+ * 这里只让圆角裁切窗口从卡片的上下/左右边沿展开，避免缩放详情内容导致错位。
  */
 internal object PlaylistCardContainerMotion {
     const val OpenDurationMillis = 460
     const val CloseDurationMillis = 360
     const val SourceCornerRadiusDp = 12f
+    /** 背景缩放幅度：约 5%（原先 2.5% 的 2 倍），展开时放大、收起时缩回 */
+    const val BackgroundExpandedScale = 1.05f
+    const val BackgroundDimmedAlpha = 0.82f
+
+    /** 上下边缘描边峰值透明度，收尾淡出 */
+    const val EdgeStrokeAlpha = 0.52f
+
+    fun sourceBoundsInViewport(sourceInRoot: Rect, viewportInRoot: Rect): Rect = Rect(
+        left = sourceInRoot.left - viewportInRoot.left,
+        top = sourceInRoot.top - viewportInRoot.top,
+        right = sourceInRoot.right - viewportInRoot.left,
+        bottom = sourceInRoot.bottom - viewportInRoot.top
+    )
 
     fun sanitizeSourceBounds(
         source: Rect?,
@@ -45,22 +68,76 @@ internal object PlaylistCardContainerMotion {
     ): PlaylistCardContainerFrame {
         val p = progress.coerceIn(0f, 1f)
         return PlaylistCardContainerFrame(
-            translationX = lerp(source.left, 0f, p),
-            translationY = lerp(source.top, 0f, p),
-            scaleX = lerp(source.width / viewportWidth, 1f, p),
-            scaleY = lerp(source.height / viewportHeight, 1f, p),
+            clipLeft = lerp(source.left, 0f, p),
+            clipTop = lerp(source.top, 0f, p),
+            clipRight = lerp(source.right, viewportWidth, p),
+            clipBottom = lerp(source.bottom, viewportHeight, p),
             cornerRadiusDp = lerp(SourceCornerRadiusDp, 0f, p),
-            // 开头先让原卡片承担视觉，再快速交给详情内容，避免缩小文字叠在卡片上。
-            contentAlpha = ((p - 0.04f) / 0.22f).coerceIn(0f, 1f)
+            // 实底始终不透明，仅让详情内容轻微淡入。
+            contentAlpha = lerp(0.72f, 1f, (p / 0.32f).coerceIn(0f, 1f)),
+            backgroundScale = lerp(1f, BackgroundExpandedScale, p),
+            backgroundAlpha = lerp(1f, BackgroundDimmedAlpha, p),
+            // 边缘描边：展开过程可见，接近满屏时淡掉
+            edgeAlpha = lerp(EdgeStrokeAlpha, 0f, (p / 0.88f).coerceIn(0f, 1f))
         )
     }
 }
 
 internal data class PlaylistCardContainerFrame(
-    val translationX: Float,
-    val translationY: Float,
-    val scaleX: Float,
-    val scaleY: Float,
+    val clipLeft: Float,
+    val clipTop: Float,
+    val clipRight: Float,
+    val clipBottom: Float,
     val cornerRadiusDp: Float,
-    val contentAlpha: Float
+    val contentAlpha: Float,
+    val backgroundScale: Float,
+    val backgroundAlpha: Float,
+    val edgeAlpha: Float = 0f
 )
+
+/** 只裁切详情绘制，不改变它的全屏布局与触摸坐标。 */
+internal fun Modifier.playlistCardContainerClip(
+    frame: PlaylistCardContainerFrame,
+    cornerRadiusPx: Float,
+    edgeColor: Color = Color.White
+): Modifier = drawWithCache {
+    val revealPath = Path().apply {
+        addRoundRect(
+            RoundRect(
+                left = frame.clipLeft,
+                top = frame.clipTop,
+                right = frame.clipRight,
+                bottom = frame.clipBottom,
+                cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
+            )
+        )
+    }
+    val strokePx = 2.dp.toPx()
+    val edgeAlpha = frame.edgeAlpha
+    onDrawWithContent {
+        clipPath(revealPath) {
+            this@onDrawWithContent.drawContent()
+        }
+        // 上下柔边：让「窗在长高」在深色底上看得见；圆角处留空避免生硬直角
+        if (edgeAlpha > 0.01f) {
+            val color = edgeColor.copy(alpha = edgeColor.alpha * edgeAlpha)
+            val halfStroke = strokePx / 2f
+            val leftInset = frame.clipLeft + cornerRadiusPx + halfStroke
+            val rightInset = frame.clipRight - cornerRadiusPx - halfStroke
+            if (rightInset > leftInset) {
+                drawLine(
+                    color = color,
+                    start = Offset(leftInset, frame.clipTop + halfStroke),
+                    end = Offset(rightInset, frame.clipTop + halfStroke),
+                    strokeWidth = strokePx
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(leftInset, frame.clipBottom - halfStroke),
+                    end = Offset(rightInset, frame.clipBottom - halfStroke),
+                    strokeWidth = strokePx
+                )
+            }
+        }
+    }
+}

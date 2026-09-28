@@ -1324,10 +1324,15 @@ internal fun PlaylistModernActionSheet(
     val tintColor = playlistModernSheetTintColor(hasCustomBackground)
     val glassEnabled = hasCustomBackground || !playlistModernUsesDarkSurface()
     CompositionLocalProvider(LocalPlaylistHeroVisualColors provides visualColors) {
-        // 与下方列表同底：不单独铺面板色/缺口色，直接落在页面模糊封面上
+        // 行内与下方列表同底（透出模糊封面）；上沿圆角缺口用顶栏实色，圆角才看得见
         Box(
             modifier = modifier.fillMaxWidth()
         ) {
+            PlaylistActionSheetCornerGapLayer(
+                shape = shape,
+                color = visualColors.background,
+                gapHeight = cornerGapHeight
+            )
             content()
         }
     }

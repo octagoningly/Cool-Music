@@ -1324,27 +1324,11 @@ internal fun PlaylistModernActionSheet(
     val tintColor = playlistModernSheetTintColor(hasCustomBackground)
     val glassEnabled = hasCustomBackground || !playlistModernUsesDarkSurface()
     CompositionLocalProvider(LocalPlaylistHeroVisualColors provides visualColors) {
+        // 不铺实色/玻璃，透出页面的模糊封面底
         Box(
-            modifier = modifier
-                .fillMaxWidth()
+            modifier = modifier.fillMaxWidth()
         ) {
-            PlaylistActionSheetCornerGapLayer(
-                shape = shape,
-                color = visualColors.background,
-                gapHeight = cornerGapHeight
-            )
-            AdvancedGlassSurface(
-                role = AdvancedGlassRole.PlaylistSheet,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
-                shape = shape,
-                fallbackColor = fallbackColor,
-                tintColor = tintColor,
-                enabled = glassEnabled
-            ) {
-                content()
-            }
+            content()
         }
     }
 }
@@ -1465,27 +1449,6 @@ internal fun PlaylistModernPlaybackActions(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PlaylistCompactIconButton(
-                imageVector = Icons.Outlined.Shuffle,
-                contentDescription = if (shuffleEnabled) {
-                    stringResource(R.string.playlist_mode_shuffle)
-                } else {
-                    stringResource(R.string.playlist_mode_order)
-                },
-                enabled = canUseSongs,
-                active = shuffleEnabled,
-                onClick = onToggleShuffle
-            )
-            PlaylistCompactIconButton(
-                imageVector = if (repeatMode == Player.REPEAT_MODE_ONE) {
-                    Icons.Filled.RepeatOne
-                } else {
-                    Icons.Outlined.Repeat
-                },
-                contentDescription = stringResource(playlistRepeatModeLabelRes(repeatMode)),
-                active = repeatMode != Player.REPEAT_MODE_OFF,
-                onClick = onCycleRepeatMode
-            )
             PlaylistCompactIconButton(
                 imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
                 contentDescription = stringResource(R.string.playlist_export_to_local),

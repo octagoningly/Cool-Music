@@ -69,6 +69,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.ui.screen.artist.NeteaseArtistDetailScreen
@@ -206,12 +208,17 @@ fun LibraryHostScreen(
     var hostBoundsInRoot by remember { mutableStateOf(Rect.Zero) }
     // 与 selected 同帧计算：LaunchedEffect 会晚一帧，详情打开时顶栏模糊会多挂一下
     val libraryChromeHidden = selected != null
+    androidx.compose.runtime.SideEffect {
+        moe.ouom.neriplayer.ui.screen.playlist.PlaylistDetailPresentation.presented =
+            selected != null
+    }
     var skipDetailCloseAnimation by rememberSaveable { mutableStateOf(false) }
     var pendingScrollSource by rememberSaveable {
         mutableStateOf<LibraryScrollSource?>(null)
     }
     var pendingListRestoreIndex by rememberSaveable { mutableStateOf<Int?>(null) }
     var pendingListRestoreOffset by rememberSaveable { mutableIntStateOf(0) }
+    var pendingListRestoreKey by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingTopAppBarHeightOffset by rememberSaveable { mutableFloatStateOf(Float.NaN) }
     var pendingTopAppBarContentOffset by rememberSaveable { mutableFloatStateOf(Float.NaN) }
     // 保存当前选中的标签页类型，避免国际化切换后索引错位
@@ -364,6 +371,7 @@ fun LibraryHostScreen(
         pendingScrollSource = source
         pendingListRestoreIndex = position.index
         pendingListRestoreOffset = position.offset
+        pendingListRestoreKey = position.key
         pendingTopAppBarHeightOffset = topAppBarState.heightOffset
         pendingTopAppBarContentOffset = topAppBarState.contentOffset
     }
@@ -413,10 +421,16 @@ fun LibraryHostScreen(
         val source = pendingScrollSource ?: return@LaunchedEffect
         val restoreIndex = pendingListRestoreIndex ?: return@LaunchedEffect
         if (selected != null) return@LaunchedEffect
+        // 等卡片收起动画结束再恢复，避免中途 remasure 把位置顶偏
+        if (cardContainerTransformEnabled && cardContainerProgress > 0.01f) {
+            snapshotFlow { cardContainerProgress }
+                .first { it <= 0.01f }
+        }
         listStateFor(source).restoreHostScrollPosition(
             HostScrollPosition(
                 index = restoreIndex,
-                offset = pendingListRestoreOffset
+                offset = pendingListRestoreOffset,
+                key = pendingListRestoreKey
             )
         )
         if (!pendingTopAppBarHeightOffset.isNaN()) {
@@ -428,6 +442,7 @@ fun LibraryHostScreen(
         pendingScrollSource = null
         pendingListRestoreIndex = null
         pendingListRestoreOffset = 0
+        pendingListRestoreKey = null
         pendingTopAppBarHeightOffset = Float.NaN
         pendingTopAppBarContentOffset = Float.NaN
     }

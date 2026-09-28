@@ -32,21 +32,27 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.ColorUtils
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
+import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.navigation.Destinations
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 import moe.ouom.neriplayer.ui.haptic.performHapticFeedback
+import moe.ouom.neriplayer.ui.screen.playlist.PlaylistDetailPresentation
 
 internal const val DEFAULT_BOTTOM_BAR_SELECTION_ALPHA = 0.72f
 internal const val BOTTOM_BAR_FALLBACK_SCRIM_ALPHA = 0.28f
@@ -76,17 +82,33 @@ fun NeriBottomBar(
         selectAlpha = selectAlpha,
         baseBlurRequested = baseBlurRequested
     )
-    val fallbackColor = if (fallbackScrimAlpha > 0f) {
-        MaterialTheme.colorScheme.background.copy(alpha = fallbackScrimAlpha)
+    // 连贯反馈 + 亮色 + 歌单详情：底栏玻璃对齐迷你栏（secondaryContainer）
+    val coherentFeedbackEnabled by AppContainer.settingsRepo
+        .coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = true)
+    val isLightTheme = ColorUtils.calculateLuminance(
+        MaterialTheme.colorScheme.background.toArgb()
+    ) >= 0.5f
+    val matchMiniPlayerGlass =
+        PlaylistDetailPresentation.presented && coherentFeedbackEnabled && isLightTheme
+    val fallbackColor = when {
+        matchMiniPlayerGlass -> MaterialTheme.colorScheme.secondaryContainer
+        fallbackScrimAlpha > 0f ->
+            MaterialTheme.colorScheme.background.copy(alpha = fallbackScrimAlpha)
+        else -> Color.Transparent
+    }
+    val tintColor = if (matchMiniPlayerGlass) {
+        MaterialTheme.colorScheme.secondaryContainer
     } else {
-        Color.Transparent
+        Color.Unspecified
     }
 
     AdvancedGlassSurface(
         role = AdvancedGlassRole.BottomNavigation,
         modifier = modifier
             .graphicsLayer { alpha = if (overlayElevated) 0.45f else 1f },
-        fallbackColor = fallbackColor
+        fallbackColor = fallbackColor,
+        tintColor = tintColor
     ) {
         NavigationBar(
             modifier = Modifier

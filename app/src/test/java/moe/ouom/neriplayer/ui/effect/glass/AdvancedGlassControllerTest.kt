@@ -254,7 +254,7 @@ class AdvancedGlassControllerTest {
         assertEquals(28f, bottom.blurRadiusDp)
         assertEquals(0.75f, bottom.tintAlpha)
         assertEquals(0.75f, darkBottom.tintAlpha)
-        assertEquals(22f, top.blurRadiusDp)
+        assertEquals(24f, top.blurRadiusDp)
         assertEquals(0.28f, settings.tintAlpha)
         assertEquals(24f, playlistSheet.blurRadiusDp)
         assertEquals(0.18f, playlistSheet.tintAlpha)

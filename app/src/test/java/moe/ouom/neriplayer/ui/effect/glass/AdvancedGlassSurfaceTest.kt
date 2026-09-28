@@ -1,6 +1,8 @@
 package moe.ouom.neriplayer.ui.effect.glass
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -141,7 +143,45 @@ class AdvancedGlassSurfaceTest {
         assertTrue(roleCanFallbackToBackgroundBackdrop(AdvancedGlassRole.BottomNavigation))
         assertTrue(roleCanFallbackToBackgroundBackdrop(AdvancedGlassRole.DialogPanel))
         assertTrue(roleCanFallbackToBackgroundBackdrop(AdvancedGlassRole.PopupMenu))
-        assertFalse(roleCanFallbackToBackgroundBackdrop(AdvancedGlassRole.ScreenTopTab))
+        assertTrue(roleCanFallbackToBackgroundBackdrop(AdvancedGlassRole.ScreenTopTab))
+    }
+
+    @Test
+    fun registrationRestoreUsesLastKnownBoundsWhenPositionIsStable() {
+        val override = androidx.compose.ui.geometry.Rect(1f, 2f, 3f, 4f)
+        val measured = androidx.compose.ui.geometry.Rect(5f, 6f, 7f, 8f)
+
+        // 播放页退出后顶栏/底栏/迷你栏位置不再变化时，必须用最近 bounds 补注册
+        assertEquals(
+            measured,
+            resolveAdvancedGlassRegionRestoreBounds(
+                registersBackdrop = true,
+                regionBoundsOverride = null,
+                measuredBounds = measured
+            )
+        )
+        assertEquals(
+            override,
+            resolveAdvancedGlassRegionRestoreBounds(
+                registersBackdrop = true,
+                regionBoundsOverride = override,
+                measuredBounds = measured
+            )
+        )
+        assertNull(
+            resolveAdvancedGlassRegionRestoreBounds(
+                registersBackdrop = false,
+                regionBoundsOverride = override,
+                measuredBounds = measured
+            )
+        )
+        assertNull(
+            resolveAdvancedGlassRegionRestoreBounds(
+                registersBackdrop = true,
+                regionBoundsOverride = null,
+                measuredBounds = null
+            )
+        )
     }
 
     @Test

@@ -92,6 +92,20 @@ internal fun shouldSuppressAdvancedGlassSurfaceForInactiveNavigationOwner(
     !belongsToActiveNavigationScreen &&
     belongsToPrewarmedNavigationScreen
 
+/**
+ * 注册从关到开时用来补注册的 bounds。
+ * 不能只等 onGloballyPositioned：位置不再变化时它不会触发（GlassDropdownMenu 踩坑）。
+ */
+internal fun resolveAdvancedGlassRegionRestoreBounds(
+    registersBackdrop: Boolean,
+    regionBoundsOverride: androidx.compose.ui.geometry.Rect?,
+    measuredBounds: androidx.compose.ui.geometry.Rect?
+): androidx.compose.ui.geometry.Rect? = when {
+    !registersBackdrop -> null
+    regionBoundsOverride != null -> regionBoundsOverride
+    else -> measuredBounds
+}
+
 @Composable
 internal fun AdvancedGlassSurface(
     role: AdvancedGlassRole,
@@ -157,15 +171,6 @@ internal fun AdvancedGlassSurface(
     )
     val regionKey = remember { Any() }
 
-    DisposableEffect(availableBackdrops, regionKey, registersBackdrop) {
-        if (!registersBackdrop) {
-            availableBackdrops?.regionRegistry?.remove(regionKey)
-        }
-        onDispose {
-            availableBackdrops?.regionRegistry?.remove(regionKey)
-        }
-    }
-
     var measuredBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
 
     fun updateRegion(bounds: androidx.compose.ui.geometry.Rect?) {
@@ -190,36 +195,57 @@ internal fun AdvancedGlassSurface(
         )
     }
 
-    val regionRegistrationModifier = if (registersBackdrop) {
-        Modifier.onGloballyPositioned { coordinates ->
-            if (!coordinates.isAttached) {
-                availableBackdrops?.regionRegistry?.remove(regionKey)
-                measuredBounds = null
-                return@onGloballyPositioned
+    // 始终记录 bounds：播放页开关时注册会被关掉再开，
+    // 若只在 registersBackdrop 时挂 onGloballyPositioned，
+    // 重新打开时位置往往已稳定，回调不会触发，区域就永远丢了。
+    val regionRegistrationModifier = Modifier.onGloballyPositioned { coordinates ->
+        val registry = availableBackdrops?.regionRegistry
+        if (!coordinates.isAttached) {
+            if (registersBackdrop) {
+                registry?.remove(regionKey)
             }
-            // Popup 内 boundsInWindow 是弹窗本地坐标，必须用已换算的 override
-            if (role == AdvancedGlassRole.PopupMenu && regionBoundsOverride == null) {
-                availableBackdrops?.regionRegistry?.remove(regionKey)
-                return@onGloballyPositioned
+            measuredBounds = null
+            return@onGloballyPositioned
+        }
+        // Popup 内 boundsInWindow 是弹窗本地坐标，必须用已换算的 override
+        if (role == AdvancedGlassRole.PopupMenu && regionBoundsOverride == null) {
+            if (registersBackdrop) {
+                registry?.remove(regionKey)
             }
-            val bounds = regionBoundsOverride ?: coordinates.boundsInWindow()
-            measuredBounds = bounds
+            return@onGloballyPositioned
+        }
+        val bounds = regionBoundsOverride ?: coordinates.boundsInWindow()
+        measuredBounds = bounds
+        if (registersBackdrop) {
             updateRegion(bounds)
         }
-    } else {
-        Modifier
     }
 
-    // override 就绪后 position 可能不再变化，必须在此补注册
-    LaunchedEffect(regionBoundsOverride, registersBackdrop) {
+    DisposableEffect(availableBackdrops, regionKey, registersBackdrop) {
+        val registry = availableBackdrops?.regionRegistry
         if (!registersBackdrop) {
-            availableBackdrops?.regionRegistry?.remove(regionKey)
+            registry?.remove(regionKey)
+        }
+        onDispose {
+            registry?.remove(regionKey)
+        }
+    }
+
+    // 注册重新打开时立刻用最近一次 bounds 补注册；
+    // override 就绪后 position 也可能不再变化（见 GlassDropdownMenu 踩坑）。
+    LaunchedEffect(availableBackdrops, regionKey, registersBackdrop, regionBoundsOverride) {
+        val registry = availableBackdrops?.regionRegistry
+        if (!registersBackdrop) {
+            registry?.remove(regionKey)
             return@LaunchedEffect
         }
-        if (regionBoundsOverride != null) {
-            measuredBounds = regionBoundsOverride
-            updateRegion(regionBoundsOverride)
-        }
+        val bounds = resolveAdvancedGlassRegionRestoreBounds(
+            registersBackdrop = registersBackdrop,
+            regionBoundsOverride = regionBoundsOverride,
+            measuredBounds = measuredBounds
+        ) ?: return@LaunchedEffect
+        measuredBounds = bounds
+        updateRegion(bounds)
     }
 
     Box(

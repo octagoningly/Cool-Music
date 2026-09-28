@@ -4339,12 +4339,12 @@ private fun NeriAppContent(
                                         ?: slideInVertically(
                                             animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
                                             initialOffsetY = { it / 2 }
-                                        ) + fadeIn(animationSpec = tween(durationMillis = 180)),
+                                        ),
                                     exit = miniPlayerExpandExitTransition(coherentFeedbackEnabled)
                                         ?: slideOutVertically(
                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
                                             targetOffsetY = { it / 2 }
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 120))
+                                        )
                                 ) {
                                     val miniPlayerExpandVisibilityScope = this
                                     NeriMiniPlayer(

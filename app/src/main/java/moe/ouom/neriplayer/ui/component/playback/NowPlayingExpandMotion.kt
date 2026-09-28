@@ -349,23 +349,24 @@ fun nowPlayingExpandExitTransition(coherentFeedbackEnabled: Boolean): ExitTransi
 }
 
 /**
- * 连贯反馈开启时 MiniPlayer 退场：淡出 + 微缩，避免与播放页「各落各的」。
+ * 连贯反馈开启时 MiniPlayer 退场：只微缩，**不要淡出**。
+ * 淡出会让迷你栏瞬间透明透底；盖住它的播放页自己会滑入。
  */
 fun miniPlayerExpandExitTransition(coherentFeedbackEnabled: Boolean): ExitTransition? {
     if (!shouldUseNowPlayingExpandSharedMotion(coherentFeedbackEnabled)) return null
-    return fadeOut(
-        animationSpec = tween(durationMillis = NowPlayingExpandMotion.MiniPlayerExitFadeMs)
-    ) + scaleOut(
+    return scaleOut(
         targetScale = NowPlayingExpandMotion.MiniPlayerExitScale,
         animationSpec = NowPlayingExpandMotion.CoverBoundsSpringFloat
     )
 }
 
+/**
+ * 连贯反馈开启时 MiniPlayer 入场：只微弹，**不要淡入**。
+ * 保持模糊面板不透明，由播放页滑开露出。
+ */
 fun miniPlayerExpandEnterTransition(coherentFeedbackEnabled: Boolean): EnterTransition? {
     if (!shouldUseNowPlayingExpandSharedMotion(coherentFeedbackEnabled)) return null
-    return fadeIn(
-        animationSpec = tween(durationMillis = 180)
-    ) + scaleIn(
+    return scaleIn(
         initialScale = 0.92f,
         animationSpec = NowPlayingExpandMotion.CoverBoundsSpringFloat
     )

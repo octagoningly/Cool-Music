@@ -1324,10 +1324,17 @@ internal fun PlaylistModernActionSheet(
     val tintColor = playlistModernSheetTintColor(hasCustomBackground)
     val glassEnabled = hasCustomBackground || !playlistModernUsesDarkSurface()
     CompositionLocalProvider(LocalPlaylistHeroVisualColors provides visualColors) {
-        // 不铺实色/玻璃，透出页面的模糊封面底
+        // 保留圆角裁切，只叠极轻暗层，不铺实色，让模糊封面底透出来
         Box(
-            modifier = modifier.fillMaxWidth()
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(shape)
         ) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = 0.10f))
+            )
             content()
         }
     }

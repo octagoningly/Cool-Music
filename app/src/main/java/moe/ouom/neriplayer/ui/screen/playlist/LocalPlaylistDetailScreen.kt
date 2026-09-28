@@ -205,6 +205,7 @@ import moe.ouom.neriplayer.ui.component.local.LocalSongSyncConfirmDialog
 import moe.ouom.neriplayer.ui.component.download.SongDownloadSubtitle
 import moe.ouom.neriplayer.ui.feedback.NeriSnackbarHost
 import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import moe.ouom.neriplayer.ui.util.listRowPhaseForItem
 import moe.ouom.neriplayer.ui.util.listRowStaggerTranslationY
 import moe.ouom.neriplayer.ui.util.rememberListScrollLagState
@@ -1896,6 +1897,7 @@ fun LocalPlaylistDetailScreen(
 	                                    contentPadding = PaddingValues(bottom = 24.dp + miniPlayerHeight),
 	                                    modifier = Modifier
 	                                        .fillMaxSize()
+	                                        .nestedScroll(rowScrollLagState.nestedScrollConnection)
 	                                        .reorderable(reorderState)
 	                                ) {
                                 item(

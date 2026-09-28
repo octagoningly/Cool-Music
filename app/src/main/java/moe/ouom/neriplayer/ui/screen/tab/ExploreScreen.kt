@@ -1272,7 +1272,7 @@ fun ExploreScreen(
                                         top = exploreListContentTop,
                                         bottom = exploreSearchResultsBottomPadding(miniPlayerHeight)
                                     ),
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.fillMaxSize().then(searchRowStagger.listModifier)
                                 ) {
                                 // 类型行收成「第一首歌」的形态，动效与后续歌曲同一套交错
                                 // 前置约 1.2 倍歌行高度留白，避免被搜索框 chrome 挡住
@@ -2205,7 +2205,7 @@ private fun NeteaseDiscoveryPage(
                 top = contentTopPadding,
                 bottom = contentBottomPadding
             ),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().then(gridRowStagger.listModifier)
         ) {
             if (ui.playlists.isNotEmpty()) {
                 itemsIndexed(items = ui.playlists, key = { _, it -> it.id }) { index, playlist ->
@@ -3005,7 +3005,7 @@ private fun YouTubeMusicExploreContent(
                 ),
                 verticalArrangement = Arrangement.spacedBy(gridSpacing),
                 horizontalArrangement = Arrangement.spacedBy(gridSpacing),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize().then(ytGridStagger.listModifier)
             ) {
                 itemsIndexed(
                     items = ui.ytMusicPlaylists,

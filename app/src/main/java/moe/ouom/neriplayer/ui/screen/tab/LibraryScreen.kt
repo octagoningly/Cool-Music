@@ -1052,7 +1052,7 @@ private fun YouTubeMusicPlaylistList(
             bottom = libraryListBottomPadding()
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().then(ytPlaylistStagger.listModifier)
     ) {
         val cardShape = RoundedCornerShape(12.dp)
         if (playlists.isEmpty()) {
@@ -1301,7 +1301,7 @@ private fun BiliPlaylistList(
         state = listState,
         contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().then(biliPlaylistStagger.listModifier)
     ) {
         val cardShape = RoundedCornerShape(12.dp)
         item(key = "bili_playlist_search") {
@@ -1721,6 +1721,7 @@ private fun LocalPlaylistList(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxSize()
+            .then(localPlaylistStagger.listModifier)
             // 仅排序拖拽时收窄视口，避免拖出屏幕；平时必须让内容滚过迷你播放器才能采样模糊
             .then(
                 if (localSortMode) {
@@ -3100,7 +3101,7 @@ private fun NeteaseLibraryList(
             bottom = libraryListBottomPadding()
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().then(neteaseRowStagger.listModifier)
     ) {
         val cardShape = RoundedCornerShape(12.dp)
         item(key = "netease_library_header") {
@@ -3832,6 +3833,7 @@ private fun FavoritePlaylistList(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxSize()
+            .then(favoriteRowStagger.listModifier)
             .reorderable(reorderState)
     ) {
         val cardShape = RoundedCornerShape(12.dp)

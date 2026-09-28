@@ -98,6 +98,10 @@ class SettingsPageTest {
             R.string.settings_home_card_netease_recommended,
             titleRes("home_card_recommended")
         )
+        assertEquals(
+            R.string.settings_home_collect_to_more,
+            titleRes("home_collect_to_more")
+        )
     }
 
     @Test

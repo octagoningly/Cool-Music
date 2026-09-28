@@ -203,7 +203,9 @@ data class HomeUiState(
     val hasLogin: Boolean = false,
     val internationalizationEnabled: Boolean = false,
     /** 首页「更多」是否已展开：展开前不加载榜单与推荐歌单等次级板块 */
-    val homeMoreExpanded: Boolean = false
+    val homeMoreExpanded: Boolean = false,
+    /** 收集到更多：开启时次级板块收进「更多」按钮，关闭时直接铺在首页 */
+    val homeCollectToMore: Boolean = false
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -232,6 +234,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     /** 首页「更多」是否已展开（展开前不加载次级板块） */
     private var homeMoreExpanded = false
+    /** 收集到更多：默认关闭，次级板块直接显示 */
+    private var homeCollectToMore = false
     private var lastYouTubeAuthFingerprint: String? = null
     private var lastNeteaseRadarCacheContext = neteaseRadarCacheContext(repo.getCookiesOnce())
     private var radarPlaylistLoadGeneration: Long = 0L
@@ -445,6 +449,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         viewModelScope.launch {
+            AppContainer.settingsRepo.homeCollectToMoreFlow.collect { enabled ->
+                setHomeCollectToMore(enabled)
+            }
+        }
+        viewModelScope.launch {
             delay(HOME_INITIAL_LOAD_DEFER_MS)
             if (!homeRecommendationsBootstrapped) {
                 homeRecommendationsBootstrapped = true
@@ -494,7 +503,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // 首屏主线：私人雷达 → 每日推荐 → 雷达歌单；私人 FM/榜单等收在「更多」后按需加载
         refreshRadarSongs(NeteaseHomeRadarSongSources - NeteaseHomeSongSource.PRIVATE_FM)
         refreshRadarPlaylists()
-        if (homeMoreExpanded) {
+        if (homeMoreExpanded || !homeCollectToMore) {
             refreshRadarSongs(listOf(NeteaseHomeSongSource.PRIVATE_FM))
             refreshHotSongs()
             refreshRecommend()
@@ -510,6 +519,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         refreshRadarSongs(listOf(NeteaseHomeSongSource.PRIVATE_FM))
         refreshHotSongs()
         refreshRecommend()
+    }
+
+    /**
+     * 收集到更多开关：
+     * - 开启：次级板块收进「更多」，按需加载
+     * - 关闭：不显示「更多」，次级板块直接铺在首页并立即加载
+     */
+    fun setHomeCollectToMore(enabled: Boolean) {
+        if (homeCollectToMore == enabled) return
+        homeCollectToMore = enabled
+        _uiState.update { it.copy(homeCollectToMore = enabled) }
+        if (!enabled && !offlineMode) {
+            refreshRadarSongs(listOf(NeteaseHomeSongSource.PRIVATE_FM))
+            refreshHotSongs()
+            refreshRecommend()
+        }
     }
 
     /** 拉首页推荐歌单 */

@@ -450,6 +450,9 @@ class SettingsRepository(private val context: Context) {
     val homeCardRecommendedFlow: Flow<Boolean> =
         autoSettingsRepository.homeCardRecommendedFlow
 
+    val homeCollectToMoreFlow: Flow<Boolean> =
+        autoSettingsRepository.homeCollectToMoreFlow
+
     val playbackFadeInFlow: Flow<Boolean> =
         dataStoreSettingFlow { it[SettingsKeys.PLAYBACK_FADE_IN] ?: true }
 
@@ -1107,6 +1110,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setHomeCardRecommended(enabled: Boolean) {
         autoSettingsRepository.setHomeCardRecommended(enabled)
+    }
+
+    suspend fun setHomeCollectToMore(enabled: Boolean) {
+        autoSettingsRepository.setHomeCollectToMore(enabled)
     }
 
     suspend fun setPlaybackFadeIn(enabled: Boolean) {

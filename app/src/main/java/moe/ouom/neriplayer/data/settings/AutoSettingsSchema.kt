@@ -503,6 +503,18 @@ object AutoSettingsSchema {
         val homeCardRecommended = autoSetting(
             titleRes = R.string.settings_home_card_netease_recommended
         )
+
+        @AutoSetting(
+            key = "home_collect_to_more",
+            type = SettingValueType.Boolean,
+            defaultBoolean = false,
+            order = 65,
+            ui = SettingUiType.Custom
+        )
+        val homeCollectToMore = autoSetting(
+            titleRes = R.string.settings_home_collect_to_more,
+            descriptionRes = R.string.settings_home_collect_to_more_desc
+        )
     }
 
     /*

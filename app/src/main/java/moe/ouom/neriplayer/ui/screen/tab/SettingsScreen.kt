@@ -81,6 +81,7 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Subtitles
 import androidx.compose.material.icons.outlined.Sync
@@ -3506,6 +3507,7 @@ private fun SettingsPersonalizationPageContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         val autoShowKeyboard by autoSettingsRepository.autoShowKeyboardFlow.collectAsState(initial = false)
+        val homeCollectToMore by autoSettingsRepository.homeCollectToMoreFlow.collectAsState(initial = false)
         val showCoverSourceBadge by autoSettingsRepository.showCoverSourceBadgeFlow.collectAsState(initial = true)
         val alwaysUseNewTabStyle by autoSettingsRepository.alwaysUseNewTabStyleFlow.collectAsState(initial = true)
         val nowPlayingShowTitle by autoSettingsRepository.nowPlayingShowTitleFlow.collectAsState(initial = true)
@@ -3619,6 +3621,20 @@ private fun SettingsPersonalizationPageContent(
                 checked = showHomeRecommendedCard,
                 onCheckedChange = onShowHomeRecommendedCardChange,
                 targetId = "setting:home_card_recommended",
+                highlightTargetId = highlightTargetId,
+                highlightPulse = highlightPulse,
+                onHighlightFinished = onHighlightFinished
+            )
+
+            SettingsHomeCardSwitch(
+                title = stringResource(R.string.settings_home_collect_to_more),
+                description = stringResource(R.string.settings_home_collect_to_more_desc),
+                icon = Icons.Outlined.Layers,
+                checked = homeCollectToMore,
+                onCheckedChange = { enabled ->
+                    scope.launch { autoSettingsRepository.setHomeCollectToMore(enabled) }
+                },
+                targetId = "setting:home_collect_to_more",
                 highlightTargetId = highlightTargetId,
                 highlightPulse = highlightPulse,
                 onHighlightFinished = onHighlightFinished

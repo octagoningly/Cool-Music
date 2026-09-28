@@ -331,7 +331,8 @@ private val PersonalizationHomeTargets = setOf(
     "setting:home_card_continue",
     "setting:home_card_trending",
     "setting:home_card_radar",
-    "setting:home_card_recommended"
+    "setting:home_card_recommended",
+    "setting:home_collect_to_more"
 )
 
 private val PersonalizationPlaybackInfoTargets = setOf(
@@ -874,6 +875,14 @@ private val SettingSearchAliases = mapOf(
         "acg",
         "more recommendations",
         "更多推荐"
+    ),
+    "home_collect_to_more" to listOf(
+        "collect",
+        "more",
+        "shouji",
+        "gengduo",
+        "收集",
+        "更多"
     ),
     "show_cover_source_badge" to listOf("badge", "source", "cover", "biaoshi"),
     "always_use_new_tab_style" to listOf("tab", "bottom bar", "new ui"),

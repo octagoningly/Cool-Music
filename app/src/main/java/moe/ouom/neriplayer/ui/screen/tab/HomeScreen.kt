@@ -175,6 +175,8 @@ private const val HomeContinueCardSpacingDp = 12f
 private const val HomeContinueCardMaxWidthDp = 140f
 private const val HomeContinueThreeSlotWidthDp = 300f
 private const val HomeContinueTabletWidthDp = 600f
+/** 「继续播放」标题文字高度：首页内容整体上移该高度 */
+private const val HomeContinueHeaderLiftDp = 32f
 private const val HomeScrollKeyContinueHeader = "home:continue:header"
 private const val HomeScrollKeyContinueContent = "home:continue:content"
 private const val HomeScrollKeyYtGuess = "home:ytmusic:guess"
@@ -438,7 +440,8 @@ fun HomeScreen(
                             start = gridContentPadding,
                             end = gridContentPadding,
                             // 顶栏浮层高度 + 状态栏：初始让开，滚动后内容进入顶栏玻璃区
-                            top = gridContentPadding + 72.dp,
+                            // 再上移「继续播放」标题高度，让首屏更贴顶栏
+                            top = gridContentPadding + 72.dp - HomeContinueHeaderLiftDp.dp,
                             bottom = gridContentPadding + miniPlayerHeight
                         ),
                         verticalArrangement = Arrangement.spacedBy(gridSpacing),
@@ -765,7 +768,10 @@ fun HomeScreen(
                                 }
                             }
 
-                            if (!ui.homeMoreExpanded && (showNeteaseTrending || showRecommendedCard)) {
+                            // 「收集到更多」开启时才收进「更多」按钮；关闭时次级板块直接铺在首页
+                            val moreSectionsVisible = !ui.homeCollectToMore || ui.homeMoreExpanded
+
+                            if (ui.homeCollectToMore && !ui.homeMoreExpanded && (showNeteaseTrending || showRecommendedCard)) {
                                 item(
                                     key = registerGridItemKey(HomeScrollKeyShowMore),
                                     span = { GridItemSpan(maxLineSpan) }
@@ -774,7 +780,7 @@ fun HomeScreen(
                                 }
                             }
 
-                            if (showNeteaseTrending && ui.homeMoreExpanded) {
+                            if (showNeteaseTrending && moreSectionsVisible) {
                                 ui.trendingSongSections.forEach { sectionState ->
                                     val sectionKey = homeNeteaseSongSectionKey(
                                         group = "trending",
@@ -796,7 +802,7 @@ fun HomeScreen(
                             }
 
                             // 私人 FM 收在「更多」里，排在新歌榜（TOP_NEW）之后
-                            if (ui.homeMoreExpanded) {
+                            if (moreSectionsVisible) {
                                 ui.radarSongSections
                                     .filter { it.source == NeteaseHomeSongSource.PRIVATE_FM }
                                     .forEach { sectionState ->
@@ -818,7 +824,7 @@ fun HomeScreen(
                                     }
                             }
 
-                            if (showRecommendedCard && ui.homeMoreExpanded) {
+                            if (showRecommendedCard && moreSectionsVisible) {
                                 ui.playlistSections.forEach { sectionState ->
                                     addNeteasePlaylistSection(
                                         sectionKey = homeNeteasePlaylistSectionKey(sectionState.source),

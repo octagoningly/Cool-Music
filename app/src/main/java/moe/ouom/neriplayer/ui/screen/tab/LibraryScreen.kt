@@ -39,6 +39,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +59,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -104,6 +106,7 @@ import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarState
 import androidx.compose.material3.TopAppBarDefaults
@@ -151,6 +154,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -966,6 +970,28 @@ private fun LibraryMainTabs(
                 edgePadding = 8.dp,
                 containerColor = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.primary,
+                // 指示条直接按 tab 位置落位，不走 tabIndicatorOffset 动画（否则先字后滑条）
+                indicator = {
+                    Box(
+                        Modifier
+                            .tabIndicatorLayout { measurable, constraints, tabPositions ->
+                                val tab = tabPositions.getOrNull(selectedTabIndex)
+                                val widthPx = tab?.width?.roundToPx() ?: 0
+                                val placeable = measurable.measure(
+                                    constraints.copy(
+                                        minWidth = widthPx,
+                                        maxWidth = widthPx.coerceAtLeast(constraints.minWidth)
+                                    )
+                                )
+                                layout(placeable.width, placeable.height) {
+                                    placeable.place(tab?.left?.roundToPx() ?: 0, 0)
+                                }
+                            }
+                            .height(2.dp)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                },
+                divider = {},
                 modifier = Modifier.fillMaxWidth()
             ) {
                 tabs.forEachIndexed { index, tab ->
@@ -2586,8 +2612,8 @@ private fun LocalLibraryHeaderContent(
 ) {
     Column(Modifier.fillMaxWidth()) {
         if (!selectionMode && !localSortMode) {
-            // 给搜索框上方留白：相对 68dp 再上移约 0.8 倍搜索框高（56*0.8≈45）
-            Spacer(Modifier.height(23.dp))
+            // 继续上移：约再收 0.2 倍搜索框高
+            Spacer(Modifier.height(12.dp))
             if (selectedLocalCategory == LOCAL_CATEGORY_ARTIST) {
                 LocalArtistSearchAndSortRow(
                     query = searchQuery,

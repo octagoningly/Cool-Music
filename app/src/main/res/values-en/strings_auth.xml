@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Login & Auth -->
     <string name="login_title">Login</string>
@@ -79,15 +79,15 @@
     <string name="lx_source_manage_desc">Import LX Music sources; playback tries them first, then falls back to platform sources.</string>
     <string name="lx_source_prefer_first">Prefer online sources first</string>
     <string name="lx_source_prefer_first_desc">Try online sources first when playing</string>
-    <string name="lx_source_status_success">Last resolve succeeded (%1$s)</string>
+    <string name="lx_source_status_success">Last online listen succeeded (%1$s)</string>
     <string name="lx_source_status_failure">Last resolve failed (%1$s): %2$s — fell back to platform sources</string>
-    <string name="lx_source_probe_button">Check source channels</string>
+    <string name="lx_source_probe_button">One-tap check</string>
     <string name="lx_source_probe_running">Checking…</string>
-    <string name="lx_source_probe_hint">Check if platform channels work</string>
+    <string name="lx_source_probe_hint">Check if sources are available</string>
     <string name="lx_source_probe_ok">OK</string>
     <string name="lx_source_probe_failed">Failed</string>
-    <string name="lx_source_registry_title">Daily verified list</string>
-    <string name="lx_source_registry_desc">Fetch source URLs that passed channel checks from GitHub</string>
+    <string name="lx_source_registry_title">Get available sources</string>
+    <string name="lx_source_registry_desc">Tap Fetch on the right to get available sources</string>
     <string name="lx_source_registry_fetch">Fetch</string>
     <string name="lx_source_registry_fetching">Fetching</string>
     <string name="lx_source_registry_generated_at">List time: %s</string>

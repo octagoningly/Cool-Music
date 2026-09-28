@@ -276,10 +276,10 @@ internal fun SettingsCookieLoginSheet(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                DialogTitleWithClose(
+                    title = title,
+                    onClose = onDismiss,
+                    titleStyle = MaterialTheme.typography.headlineSmall
                 )
                 Text(
                     stringResource(R.string.login_title),
@@ -362,7 +362,12 @@ internal fun SavedCookieActionDialog(
         // 默认 220 过窄，标题/正文/按钮会挤成竖排
         maxWidth = 320.dp,
         maxHeight = 400.dp,
-        title = { Text(title) },
+        title = {
+            DialogTitleWithClose(
+                title = title,
+                onClose = onDismiss
+            )
+        },
         text = { Text(message) },
         confirmButton = {
             MiuixSettingsTextButton(onClick = onContinueLogin) {

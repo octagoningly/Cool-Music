@@ -23,16 +23,24 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.auth
  * Updated: 2026/3/23
  */
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -104,6 +112,36 @@ internal fun NeteaseLoginContent(vm: NeteaseAuthViewModel) {
             } else {
                 Text(stringResource(R.string.login_title))
             }
+        }
+    }
+}
+
+@Composable
+internal fun DialogTitleWithClose(
+    title: String,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+    titleStyle: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.titleMedium
+) {
+    Box(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = titleStyle,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(horizontal = 36.dp)
+        )
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .size(36.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = stringResource(R.string.action_close)
+            )
         }
     }
 }

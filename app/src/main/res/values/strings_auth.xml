@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Login & Auth -->
     <string name="login_title">登录</string>
@@ -79,15 +79,15 @@
     <string name="lx_source_manage_desc">导入落雪音乐（LX Music）音源；播放时优先取流，失败后自动回退平台音源</string>
     <string name="lx_source_prefer_first">优先使用在线音源</string>
     <string name="lx_source_prefer_first_desc">开启后优先尝试在线音源</string>
-    <string name="lx_source_status_success">最近一次解析成功（%1$s）</string>
+    <string name="lx_source_status_success">最近一次在线听歌成功（%1$s）</string>
     <string name="lx_source_status_failure">最近一次解析失败（%1$s）：%2$s，已回落平台音源</string>
-    <string name="lx_source_probe_button">检测音源通道</string>
+    <string name="lx_source_probe_button">一键检测</string>
     <string name="lx_source_probe_running">正在检测…</string>
-    <string name="lx_source_probe_hint">检测各平台通道是否可用</string>
+    <string name="lx_source_probe_hint">检测音源是否可用</string>
     <string name="lx_source_probe_ok">可用</string>
     <string name="lx_source_probe_failed">不可用</string>
-    <string name="lx_source_registry_title">每日验证清单</string>
-    <string name="lx_source_registry_desc">从 GitHub 获取已通过通道检测的音源地址</string>
+    <string name="lx_source_registry_title">获取可用音源</string>
+    <string name="lx_source_registry_desc">点击右侧获取按键获取可用音源</string>
     <string name="lx_source_registry_fetch">获取</string>
     <string name="lx_source_registry_fetching">获取中</string>
     <string name="lx_source_registry_generated_at">清单时间：%s</string>

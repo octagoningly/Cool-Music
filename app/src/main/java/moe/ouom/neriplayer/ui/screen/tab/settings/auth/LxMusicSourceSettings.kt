@@ -2,8 +2,8 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.auth
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,9 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
@@ -26,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -344,33 +345,6 @@ internal fun SettingsLxMusicSourceDialogs(
 }
 
 @Composable
-private fun DialogTitleWithClose(
-    title: String,
-    onClose: () -> Unit
-) {
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 36.dp)
-        )
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .size(36.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = stringResource(R.string.action_close)
-            )
-        }
-    }
-}
-
-@Composable
 private fun LxSourceDetailDialog(
     source: LxImportedSource,
     onDismiss: () -> Unit
@@ -514,9 +488,12 @@ private fun LxSourceRegistrySection(
                 Text(stringResource(R.string.lx_source_registry_view))
             }
         }
-        TextButton(
+        OutlinedButton(
             enabled = !fetching,
-            onClick = onFetch
+            onClick = onFetch,
+            shape = RoundedCornerShape(16.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+            modifier = Modifier.heightIn(min = 36.dp)
         ) {
             if (fetching) {
                 CircularProgressIndicator(
@@ -788,7 +765,12 @@ private fun LxSourceChannelProbeSection(
                     )
                 }
             } else {
-                TextButton(onClick = onProbe) {
+                OutlinedButton(
+                    onClick = onProbe,
+                    shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                    modifier = Modifier.heightIn(min = 36.dp)
+                ) {
                     Text(stringResource(R.string.lx_source_probe_button))
                 }
             }

@@ -23,12 +23,12 @@ internal object PlaylistCardContainerMotion {
     const val OpenDurationMillis = 460
     const val CloseDurationMillis = 360
     const val SourceCornerRadiusDp = 12f
-    /** 背景缩放幅度：约 5%（原先 2.5% 的 2 倍），展开时放大、收起时缩回 */
-    const val BackgroundExpandedScale = 1.05f
+    /** 背景缩放幅度：约 10%（相对 2.5% 为 4 倍），展开时放大、收起时缩回 */
+    const val BackgroundExpandedScale = 1.10f
     const val BackgroundDimmedAlpha = 0.82f
 
-    /** 上下边缘描边峰值透明度，收尾淡出 */
-    const val EdgeStrokeAlpha = 0.52f
+    /** 上下边缘描边峰值透明度；暂时关掉柔边 */
+    const val EdgeStrokeAlpha = 0f
 
     fun sourceBoundsInViewport(sourceInRoot: Rect, viewportInRoot: Rect): Rect = Rect(
         left = sourceInRoot.left - viewportInRoot.left,
@@ -77,8 +77,7 @@ internal object PlaylistCardContainerMotion {
             contentAlpha = lerp(0.72f, 1f, (p / 0.32f).coerceIn(0f, 1f)),
             backgroundScale = lerp(1f, BackgroundExpandedScale, p),
             backgroundAlpha = lerp(1f, BackgroundDimmedAlpha, p),
-            // 边缘描边：展开过程可见，接近满屏时淡掉
-            edgeAlpha = lerp(EdgeStrokeAlpha, 0f, (p / 0.88f).coerceIn(0f, 1f))
+            edgeAlpha = 0f
         )
     }
 }

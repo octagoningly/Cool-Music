@@ -1165,6 +1165,11 @@ fun LocalPlaylistDetailScreen(
                 playlist = displayOrderPlaylistForCover,
                 resolveLocalFallback = true
             )
+            // 详情背景：第一首歌封面强模糊（150），缺省回落歌单头图
+            val detailBlurCoverUrl = tabSongs.firstOrNull()
+                ?.displayCoverUrl(context)
+                ?.takeIf { it.isNotBlank() }
+                ?: headerCover
             LaunchedEffect(headerCover, offlineMode) {
                 CoverArtColorCache.preload(context, headerCover, offlineMode)
             }
@@ -1849,6 +1854,12 @@ fun LocalPlaylistDetailScreen(
                 }
             ) { padding ->
                 val miniPlayerHeight = LocalMiniPlayerHeight.current
+                Box(Modifier.fillMaxSize()) {
+                PlaylistDetailBlurCoverBackdrop(
+                    coverUrl = detailBlurCoverUrl,
+                    offlineMode = offlineMode,
+                    modifier = Modifier.fillMaxSize()
+                )
                 Column(Modifier.padding(padding).fillMaxSize()) {
                     if (searchSlotVisible) {
                         PlaylistModernVisualColorsProvider(
@@ -2332,6 +2343,7 @@ fun LocalPlaylistDetailScreen(
                         
 
                     }
+                }
                 }
 
                 // 删除歌单二次确认

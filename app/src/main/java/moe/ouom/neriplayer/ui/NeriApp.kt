@@ -1469,8 +1469,6 @@ private fun NeriAppContent(
     }
 
     val nowPlayingVisible = showNowPlaying && !nowPlayingExitLocked
-    /** 迷你栏是否还在组合里（含进出场动画）；用来决定主内容要不要继续供玻璃采样 */
-    var miniPlayerLayerVisible by remember { mutableStateOf(false) }
     var currentPlaybackSourceRoute by rememberSaveable { mutableStateOf<String?>(null) }
     var restoreLyricsAfterAlbumBack by rememberSaveable { mutableStateOf(false) }
     var lyricsAlbumRouteObserved by rememberSaveable { mutableStateOf(false) }
@@ -3550,16 +3548,15 @@ private fun NeriAppContent(
                                     .clipToBounds()
                             ) {
                                 // Keep the effect on a stable layer outside NavHost transitions.
-                                // 迷你栏还在台上（含开关播放页的进出场）时必须继续采样，
-                                // 否则玻璃采到空层会整栏透底。播放页完全盖住且迷你栏已卸再交给 NP 采样。
+                                // 播放页显示时改由 NowPlaying 层采样，避免双层抢 positionInWindow。
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .then(
-                                            if (miniPlayerLayerVisible || !nowPlayingPresented) {
-                                                Modifier.captureAdvancedGlassBackdrop(contentGlassBackdrop)
-                                            } else {
+                                            if (nowPlayingVisible || nowPlayingPresented) {
                                                 Modifier
+                                            } else {
+                                                Modifier.captureAdvancedGlassBackdrop(contentGlassBackdrop)
                                             }
                                         )
                                 ) {
@@ -4350,16 +4347,6 @@ private fun NeriAppContent(
                                         )
                                 ) {
                                     val miniPlayerExpandVisibilityScope = this
-                                    DisposableEffect(Unit) {
-                                        miniPlayerLayerVisible = true
-                                        onDispose { miniPlayerLayerVisible = false }
-                                    }
-                                    // 迷你栏自己的玻璃区域要一直可注册：
-                                    // 外层在播放页开关时会停主 Tab 注册，不能把迷你栏的糊也停掉。
-                                    // 不常驻、不垫实底，保持原本玻璃质感。
-                                    CompositionLocalProvider(
-                                        LocalAdvancedGlassBackdropRegistrationEnabled provides true
-                                    ) {
                                     NeriMiniPlayer(
                                     title = currentSong?.displayName()
                                         ?: composeResources.getString(R.string.nowplaying_no_playback),
@@ -4380,7 +4367,6 @@ private fun NeriAppContent(
                                     expandAnimatedVisibilityScope = miniPlayerExpandVisibilityScope,
                                     expandCoverSharedEnabled = coherentFeedbackEnabled
                                     )
-                                    }
                                 }
                             }
                         }

@@ -4328,31 +4328,25 @@ private fun NeriAppContent(
                                 }
 
                                 AnimatedVisibility(
-                                    // 常驻：开/关播放页不要淡入淡出，否则迷你栏会瞬间透明透底
-                                    visible = currentSong != null,
+                                    visible = currentSong != null && !nowPlayingVisible,
                                     modifier = Modifier
                                         .align(Alignment.BottomStart)
                                         .padding(
                                             bottom = bottomBarLayoutInsets.miniPlayerBottomPadding
                                         )
                                         .zIndex(MINI_PLAYER_OVERLAY_Z_INDEX),
-                                    enter = fadeIn(animationSpec = tween(durationMillis = 180)) +
-                                        slideInVertically(
+                                    enter = miniPlayerExpandEnterTransition(coherentFeedbackEnabled)
+                                        ?: slideInVertically(
                                             animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
                                             initialOffsetY = { it / 2 }
-                                        ),
-                                    exit = fadeOut(animationSpec = tween(durationMillis = 120)) +
-                                        slideOutVertically(
+                                        ) + fadeIn(animationSpec = tween(durationMillis = 180)),
+                                    exit = miniPlayerExpandExitTransition(coherentFeedbackEnabled)
+                                        ?: slideOutVertically(
                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
                                             targetOffsetY = { it / 2 }
-                                        )
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 120))
                                 ) {
                                     val miniPlayerExpandVisibilityScope = this
-                                    // 迷你栏玻璃始终允许注册：主 Tab 侧在播放页开关时会停注册，
-                                    // 不能连带把迷你栏糊也停掉
-                                    CompositionLocalProvider(
-                                        LocalAdvancedGlassBackdropRegistrationEnabled provides true
-                                    ) {
                                     NeriMiniPlayer(
                                     title = currentSong?.displayName()
                                         ?: composeResources.getString(R.string.nowplaying_no_playback),
@@ -4373,7 +4367,6 @@ private fun NeriAppContent(
                                     expandAnimatedVisibilityScope = miniPlayerExpandVisibilityScope,
                                     expandCoverSharedEnabled = coherentFeedbackEnabled
                                     )
-                                    }
                                 }
                             }
                         }

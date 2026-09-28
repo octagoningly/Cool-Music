@@ -1469,6 +1469,8 @@ private fun NeriAppContent(
     }
 
     val nowPlayingVisible = showNowPlaying && !nowPlayingExitLocked
+    /** 迷你栏是否还在组合里（含进出场动画）；用来决定主内容要不要继续供玻璃采样 */
+    var miniPlayerLayerVisible by remember { mutableStateOf(false) }
     var currentPlaybackSourceRoute by rememberSaveable { mutableStateOf<String?>(null) }
     var restoreLyricsAfterAlbumBack by rememberSaveable { mutableStateOf(false) }
     var lyricsAlbumRouteObserved by rememberSaveable { mutableStateOf(false) }
@@ -3548,15 +3550,16 @@ private fun NeriAppContent(
                                     .clipToBounds()
                             ) {
                                 // Keep the effect on a stable layer outside NavHost transitions.
-                                // 播放页显示时改由 NowPlaying 层采样，避免双层抢 positionInWindow。
+                                // 迷你栏还在台上（含开关播放页的进出场）时必须继续采样，
+                                // 否则玻璃采到空层会整栏透底。播放页完全盖住且迷你栏已卸再交给 NP 采样。
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .then(
-                                            if (nowPlayingVisible || nowPlayingPresented) {
-                                                Modifier
-                                            } else {
+                                            if (miniPlayerLayerVisible || !nowPlayingPresented) {
                                                 Modifier.captureAdvancedGlassBackdrop(contentGlassBackdrop)
+                                            } else {
+                                                Modifier
                                             }
                                         )
                                 ) {
@@ -4347,6 +4350,10 @@ private fun NeriAppContent(
                                         )
                                 ) {
                                     val miniPlayerExpandVisibilityScope = this
+                                    DisposableEffect(Unit) {
+                                        miniPlayerLayerVisible = true
+                                        onDispose { miniPlayerLayerVisible = false }
+                                    }
                                     NeriMiniPlayer(
                                     title = currentSong?.displayName()
                                         ?: composeResources.getString(R.string.nowplaying_no_playback),

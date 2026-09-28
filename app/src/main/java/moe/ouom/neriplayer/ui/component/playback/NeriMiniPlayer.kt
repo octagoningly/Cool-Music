@@ -359,6 +359,11 @@ fun NeriMiniPlayer(
             .graphicsLayer { alpha = if (overlayElevated) 0.45f else 1f }
             .padding(horizontal = 8.dp)
             .clip(shape)
+            // 玻璃采样不到内容时垫不透明底，避免整栏透出后面背景
+            .background(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = shape
+            )
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragStart = {

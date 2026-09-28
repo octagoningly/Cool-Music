@@ -652,6 +652,7 @@ fun LibraryScreen(
                     LibraryTab.LOCAL -> LocalPlaylistList(
                         playlists = ui.localPlaylists,
                         listState = localListState,
+                        onCardBounds = reportPlaylistCardBounds,
                         onCreate = { name ->
                             val finalName = name.trim().ifBlank { defaultPlaylistName }
                             vm.createLocalPlaylist(finalName)
@@ -682,6 +683,7 @@ fun LibraryScreen(
 
                     LibraryTab.FAVORITE -> FavoritePlaylistList(
                         listState = favoriteListState,
+                        onCardBounds = reportPlaylistCardBounds,
                         onHotPlaylistClick = onHotPlaylistClick,
                         onNeteasePlaylistClick = onNeteasePlaylistClick,
                         onNeteaseAlbumClick = onNeteaseAlbumClick,
@@ -720,6 +722,7 @@ fun LibraryScreen(
                         error = ui.biliError,
                         listState = biliListState,
                         onClick = onBiliPlaylistClick,
+                        onCardBounds = reportPlaylistCardBounds,
                         offlineMode = offlineMode
                     )
 
@@ -1193,6 +1196,7 @@ private fun YouTubeMusicPlaylistList(
                         text = { GlassMenuItemText(stringResource(R.string.library_youtube_music_open_playlist)) },
                         onClick = {
                             menuPlaylist = null
+                            onCardBounds(ytCardBounds.bounds)
                             onClick(playlist)
                         }
                     )
@@ -1264,6 +1268,7 @@ private fun BiliPlaylistList(
     error: String?,
     listState: LazyListState,
     onClick: (BiliPlaylist) -> Unit,
+    onCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
     offlineMode: Boolean
 ) {
     val context = LocalContext.current
@@ -1395,6 +1400,7 @@ private fun BiliPlaylistList(
             items = filteredPlaylists,
             key = { _, it -> "${it.kind}:${it.mediaId}" }
         ) { playlistIndex, pl ->
+            val cardBounds = remember { CardBoundsCapture() }
             val kindLabel = when (pl.kind) {
                 BiliPlaylistKind.CREATED_FAVORITE -> stringResource(R.string.library_bili_created_favorite)
                 BiliPlaylistKind.COLLECTED_FAVORITE -> stringResource(R.string.library_bili_collected_favorite)
@@ -1412,7 +1418,11 @@ private fun BiliPlaylistList(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
                     .then(if (coherentFeedbackEnabled) Modifier else Modifier.animateItem())
                     .clip(cardShape)
-                    .clickable { onClick(pl) }
+                    .onGloballyPositioned { cardBounds.bounds = it.boundsInRoot() }
+                    .clickable {
+                        onCardBounds(cardBounds.bounds)
+                        onClick(pl)
+                    }
             ) {
                 ListItem(
                     headlineContent = { Text(pl.title) },
@@ -1465,6 +1475,7 @@ private fun LocalPlaylistList(
     listState: LazyListState,
     onCreate: (String) -> Unit,
     onClick: (LocalPlaylist) -> Unit,
+    onCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
     onCachedPlaylistClick: () -> Unit,
     onArtistClick: (LocalArtistSummary) -> Unit,
     onImportExternalPlaylist: suspend (String) -> ExternalPlaylistImportResult,
@@ -2148,6 +2159,7 @@ private fun LocalPlaylistList(
 
         displayedFavoritesPlaylist?.let { system ->
             item(key = "local_playlist_favorites") {
+                val cardBounds = remember { CardBoundsCapture() }
                 val displayName = SystemLocalPlaylists.resolve(system.id, system.name, context)?.currentName ?: system.name
                 Card(
                     shape = cardShape,
@@ -2158,9 +2170,13 @@ private fun LocalPlaylistList(
                     modifier = Modifier
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                         .clip(cardShape)
+                        .onGloballyPositioned { cardBounds.bounds = it.boundsInRoot() }
                         .combinedClickable(
                             onClick = {
-                                if (!selectionMode) onClick(system)
+                                if (!selectionMode) {
+                                    onCardBounds(cardBounds.bounds)
+                                    onClick(system)
+                                }
                             }
                         )
                 ) {
@@ -2242,6 +2258,7 @@ private fun LocalPlaylistList(
                 var showRenameDialog by remember { mutableStateOf(false) }
                 var showDeleteDialog by remember { mutableStateOf(false) }
                 var renameText by remember { mutableStateOf(pl.name.take(maxNameLength)) }
+                val cardBounds = remember { CardBoundsCapture() }
 
                 if (selectionMode && showMenu) showMenu = false
 
@@ -2256,12 +2273,16 @@ private fun LocalPlaylistList(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                         .then(if (localSortMode || coherentFeedbackEnabled) Modifier else Modifier.animateItem())
                         .clip(cardShape)
+                        .onGloballyPositioned { cardBounds.bounds = it.boundsInRoot() }
                         .combinedClickable(
                             onClick = {
                                 when {
                                     localSortMode -> Unit
                                     selectionMode -> toggleSelection(pl.id)
-                                    else -> onClick(pl)
+                                    else -> {
+                                        onCardBounds(cardBounds.bounds)
+                                        onClick(pl)
+                                    }
                                 }
                             },
                             onLongClick = {
@@ -2557,6 +2578,7 @@ private fun LocalPlaylistList(
         if (composeResources.getString(R.string.cached_songs_playlist)
                 .contains(localSearchQuery, ignoreCase = true)) {
             item(key = "local_playlist_cached_songs") {
+                val cardBounds = remember { CardBoundsCapture() }
                 Card(
                     shape = cardShape,
                     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -2564,8 +2586,12 @@ private fun LocalPlaylistList(
                     modifier = Modifier
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                         .clip(cardShape)
+                        .onGloballyPositioned { cardBounds.bounds = it.boundsInRoot() }
                         .combinedClickable(onClick = {
-                            if (!selectionMode && !localSortMode) onCachedPlaylistClick()
+                            if (!selectionMode && !localSortMode) {
+                                onCardBounds(cardBounds.bounds)
+                                onCachedPlaylistClick()
+                            }
                         })
                 ) {
                     ListItem(
@@ -3151,6 +3177,7 @@ private fun NeteaseLibraryList(
                     cardShape = cardShape,
                     onClick = { onAlbumClick(album) },
                     offlineMode = offlineMode,
+                    onCardBounds = onCardBounds,
                     rowStaggerModifier = neteaseRowStagger.modifier(itemKey = "album:${album.id}"),
                 )
             }
@@ -3361,9 +3388,11 @@ private fun NeteaseAlbumRow(
     cardShape: RoundedCornerShape,
     onClick: () -> Unit,
     offlineMode: Boolean,
+    onCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
     rowStaggerModifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val cardBounds = remember { CardBoundsCapture() }
     Card(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -3371,7 +3400,11 @@ private fun NeteaseAlbumRow(
         modifier = rowStaggerModifier
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clip(cardShape)
-            .clickable(onClick = onClick)
+            .onGloballyPositioned { cardBounds.bounds = it.boundsInRoot() }
+            .clickable {
+                onCardBounds(cardBounds.bounds)
+                onClick()
+            }
     ) {
         ListItem(
             headlineContent = { Text(album.name) },
@@ -3724,6 +3757,7 @@ private fun NeteaseAlbumList(
 @Composable
 private fun FavoritePlaylistList(
     listState: LazyListState,
+    onCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
     onHotPlaylistClick: (PlaybackStatsPeriod) -> Unit,
     onNeteasePlaylistClick: (PlaylistSummary) -> Unit,
     onNeteaseAlbumClick: (AlbumSummary) -> Unit,
@@ -4005,6 +4039,7 @@ private fun FavoritePlaylistList(
                     items = hotPlaylists,
                     key = { playlist -> "hot_playlist_${playlist.period.name}" }
                 ) { playlist ->
+                    val cardBounds = remember { CardBoundsCapture() }
                     val titleResId = hotPlaylistTitleResId(playlist.period)
                     val subtitle = if (playlist.tracks.isEmpty()) {
                         stringResource(R.string.library_hot_empty_hint)
@@ -4025,7 +4060,11 @@ private fun FavoritePlaylistList(
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                             .animateItem()
                             .clip(cardShape)
-                            .clickable { onHotPlaylistClick(playlist.period) }
+                            .onGloballyPositioned { cardBounds.bounds = it.boundsInRoot() }
+                            .clickable {
+                                onCardBounds(cardBounds.bounds)
+                                onHotPlaylistClick(playlist.period)
+                            }
                     ) {
                         ListItem(
                             headlineContent = {
@@ -4119,6 +4158,7 @@ private fun FavoritePlaylistList(
             ) { favoriteIndex, favorite ->
                 val itemKey = favoriteKey(favorite)
                 val isSelected = sortMode && selectedKeys.contains(itemKey)
+                val cardBounds = remember { CardBoundsCapture() }
                 ReorderableItem(state = reorderState, key = itemKey) {
                     Card(
                         shape = cardShape,
@@ -4137,12 +4177,14 @@ private fun FavoritePlaylistList(
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                             .then(if (coherentFeedbackEnabled) Modifier else Modifier.animateItem())
                             .clip(cardShape)
+                            .onGloballyPositioned { cardBounds.bounds = it.boundsInRoot() }
                             .combinedClickable(
                                 onClick = {
                                     if (sortMode) {
                                         toggleSelection(itemKey)
                                         return@combinedClickable
                                     }
+                                    onCardBounds(cardBounds.bounds)
                                     when (favorite.source) {
                                         "netease" -> {
                                             onNeteasePlaylistClick(

@@ -26,22 +26,17 @@ package moe.ouom.neriplayer.ui.screen.host
 import android.os.Parcelable
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.ExitTransition
 import kotlinx.parcelize.Parcelize
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.updateTransition
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyListState
@@ -61,14 +56,15 @@ import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.geometry.Rect
 import moe.ouom.neriplayer.ui.util.boundedMaxHeight
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -82,6 +78,7 @@ import moe.ouom.neriplayer.ui.screen.playlist.NeteaseAlbumDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.NeteasePlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.YouTubeMusicPlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.PlaylistCardContainerMotion
 import moe.ouom.neriplayer.ui.screen.tab.LibraryTab
 import moe.ouom.neriplayer.ui.screen.tab.LibraryScreen
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
@@ -199,12 +196,10 @@ fun LibraryHostScreen(
     var selected by rememberSaveable(stateSaver = librarySelectedItemSaver) {
         mutableStateOf(null)
     }
-    // 歌单卡片容器展开：记录点击卡片在窗口中的位置/尺寸
+    // 歌单卡片容器展开：源矩形和详情根容器必须使用同一根坐标系。
     var openOrigin by remember { mutableStateOf<Rect?>(null) }
-    // 用封面缩略图矩形做容器展开源（横竖都能拉开）
-    var openScaleX by remember { mutableStateOf(1f) }
-    var openScaleY by remember { mutableStateOf(1f) }
-    var openPivot by remember { mutableStateOf(TransformOrigin.Center) }
+    var openViewportWidth by remember { mutableFloatStateOf(0f) }
+    var openViewportHeight by remember { mutableFloatStateOf(0f) }
     // 与 selected 同帧计算：LaunchedEffect 会晚一帧，详情打开时顶栏模糊会多挂一下
     val libraryChromeHidden = selected != null
     var skipDetailCloseAnimation by rememberSaveable { mutableStateOf(false) }
@@ -380,6 +375,28 @@ fun LibraryHostScreen(
         targetState = selected,
         label = "library_host_switch"
     )
+    val cardContainerProgress by navigationTransition.animateFloat(
+        transitionSpec = {
+            tween(
+                durationMillis = if (
+                    targetState.navigationDepth > initialState.navigationDepth
+                ) {
+                    PlaylistCardContainerMotion.OpenDurationMillis
+                } else {
+                    PlaylistCardContainerMotion.CloseDurationMillis
+                },
+                easing = FastOutSlowInEasing
+            )
+        },
+        label = "library_playlist_card_container"
+    ) { state ->
+        if (state == null) 0f else 1f
+    }
+    val cardContainerTransformEnabled = openOrigin != null &&
+        openViewportWidth > 1f &&
+        openViewportHeight > 1f
+    val cardContainerTransitionActive = cardContainerTransformEnabled &&
+        (navigationTransition.currentState == null || navigationTransition.targetState == null)
 
     LaunchedEffect(
         selected,
@@ -429,78 +446,22 @@ fun LibraryHostScreen(
                 } else if (targetState == null && skipDetailCloseAnimation) {
                     EnterTransition.None togetherWith ExitTransition.None
                 } else if (
-                    targetState.navigationDepth > initialState.navigationDepth &&
-                    openOrigin != null &&
-                    coherentFeedbackEnabled
+                    cardContainerTransformEnabled &&
+                    (initialState == null || targetState == null)
                 ) {
-                    // 从封面缩略图矩形容器展开到全屏（横竖都能看出）
-                    val sx = openScaleX
-                    val sy = openScaleY
-                    val pivot = openPivot
-                    val fromRight = pivot.pivotFractionX >= 0.5f
-                    val fromBottom = pivot.pivotFractionY >= 0.5f
-                    expandHorizontally(
-                        expandFrom = if (fromRight) Alignment.End else Alignment.Start,
-                        initialWidth = { fullWidth -> (fullWidth * sx).toInt().coerceAtLeast(1) },
-                        animationSpec = tween(
-                            durationMillis = 520,
-                            easing = FastOutSlowInEasing,
-                        )
-                    ) + expandVertically(
-                        expandFrom = if (fromBottom) Alignment.Bottom else Alignment.Top,
-                        initialHeight = { fullHeight ->
-                            (fullHeight * sy).toInt().coerceAtLeast(1)
-                        },
-                        animationSpec = tween(
-                            durationMillis = 520,
-                            easing = FastOutSlowInEasing,
-                        )
-                    ) + fadeIn(
-                        animationSpec = tween(
-                            durationMillis = 360,
-                            easing = FastOutSlowInEasing,
-                        )
-                    ) togetherWith fadeOut(
-                        animationSpec = tween(durationMillis = 220)
+                    // 页面本身不再上下抽屉移动；几何变化由详情根容器完成。
+                    ContentTransform(
+                        targetContentEnter = EnterTransition.None,
+                        initialContentExit = ExitTransition.KeepUntilTransitionsFinished,
+                        targetContentZIndex = targetState.navigationDepth.toFloat()
                     )
-                } else if (
-                    targetState == null &&
-                    openOrigin != null &&
-                    coherentFeedbackEnabled
-                ) {
-                    val sx = openScaleX
-                    val sy = openScaleY
-                    val pivot = openPivot
-                    val fromRight = pivot.pivotFractionX >= 0.5f
-                    val fromBottom = pivot.pivotFractionY >= 0.5f
-                    EnterTransition.None togetherWith (
-                        shrinkHorizontally(
-                            shrinkTowards = if (fromRight) Alignment.End else Alignment.Start,
-                            targetWidth = { fullWidth -> (fullWidth * sx).toInt().coerceAtLeast(1) },
-                            animationSpec = tween(
-                                durationMillis = 380,
-                                easing = FastOutSlowInEasing,
-                            )
-                        ) + shrinkVertically(
-                            shrinkTowards = if (fromBottom) Alignment.Bottom else Alignment.Top,
-                            targetHeight = { fullHeight ->
-                                (fullHeight * sy).toInt().coerceAtLeast(1)
-                            },
-                            animationSpec = tween(
-                                durationMillis = 380,
-                                easing = FastOutSlowInEasing,
-                            )
-                        ) + fadeOut(
-                            animationSpec = tween(durationMillis = 280)
-                        )
-                        )
                 } else {
                     advancedGlassHostNavigationTransition(
                         forward = targetState.navigationDepth > initialState.navigationDepth,
                         coherentFeedbackEnabled = coherentFeedbackEnabled,
                         targetContentZIndex = targetState.navigationDepth.toFloat()
                     )
-                }.using(SizeTransform(clip = true))
+                }.using(SizeTransform(clip = !cardContainerTransitionActive))
             }
         ) { current ->
             val suppressRestoredSceneMotion = shouldSuppressRestoredMainTabHostEntry(
@@ -508,7 +469,9 @@ fun LibraryHostScreen(
                 initialDepth = navigationTransition.currentState.navigationDepth,
                 targetDepth = navigationTransition.targetState.navigationDepth
             )
-            val sceneMotion = if (suppressRestoredSceneMotion) {
+            val sceneMotion = if (
+                suppressRestoredSceneMotion || cardContainerTransitionActive
+            ) {
                 AdvancedGlassSceneMotion.None
             } else {
                 navigationTransition.animateAdvancedGlassSceneMotion(
@@ -530,7 +493,11 @@ fun LibraryHostScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clipMainTabDetailCloseRoot(
-                                    detailCloseRootRevealFraction
+                                    if (cardContainerTransitionActive) {
+                                        1f
+                                    } else {
+                                        detailCloseRootRevealFraction
+                                    }
                                 )
                         ) {
                             libraryStateHolder.SaveableStateProvider("library_screen") {
@@ -548,20 +515,13 @@ fun LibraryHostScreen(
                             offlineMode = offlineMode,
                             chromeHidden = libraryChromeHidden,
                             onPlaylistCardBounds = { bounds, windowWidth, windowHeight ->
-                                if (bounds.width > 1f && windowWidth > 1f) {
-                                    // 以行内封面缩略图（左侧小方块）为展开源，横向才有拉开感
-                                    val cover = minOf(bounds.height * 0.72f, 96f)
-                                    val left = bounds.left + bounds.width * 0.04f
-                                    val top = bounds.top + (bounds.height - cover) / 2f
-                                    val src = Rect(left, top, left + cover, top + cover)
-                                    openOrigin = src
-                                    openScaleX = (src.width / windowWidth).coerceIn(0.12f, 0.45f)
-                                    openScaleY = (src.height / windowHeight).coerceIn(0.08f, 0.35f)
-                                    openPivot = TransformOrigin(
-                                        (src.center.x / windowWidth).coerceIn(0f, 1f),
-                                        (src.center.y / windowHeight).coerceIn(0f, 1f),
-                                    )
-                                }
+                                openViewportWidth = windowWidth
+                                openViewportHeight = windowHeight
+                                openOrigin = PlaylistCardContainerMotion.sanitizeSourceBounds(
+                                    source = bounds,
+                                    viewportWidth = windowWidth,
+                                    viewportHeight = windowHeight
+                                )
                             },
                             onLocalPlaylistClick = { playlist ->
                                 skipDetailCloseAnimation = false
@@ -583,6 +543,7 @@ fun LibraryHostScreen(
                                 openLibrarySelectedItem(LibrarySelectedItem.CachedSongs)
                             },
                             onLocalArtistClick = { artist ->
+                                openOrigin = null
                                 skipDetailCloseAnimation = false
                                 captureLibraryScrollPosition(LibraryScrollSource.Local)
                                 openLibrarySelectedItem(LibrarySelectedItem.LocalArtist(artist.name))
@@ -642,6 +603,7 @@ fun LibraryHostScreen(
                                 }
                             },
                             onNeteaseArtistClick = { artist ->
+                                openOrigin = null
                                 captureLibraryScrollPosition(LibraryScrollSource.Favorite)
                                 openNeteaseArtist(artist)
                             },
@@ -693,6 +655,38 @@ fun LibraryHostScreen(
                         }
                         }
                     } else {
+                        val cardFrame = openOrigin
+                            ?.takeIf { cardContainerTransformEnabled }
+                            ?.let { source ->
+                                PlaylistCardContainerMotion.frame(
+                                    source = source,
+                                    viewportWidth = openViewportWidth,
+                                    viewportHeight = openViewportHeight,
+                                    progress = cardContainerProgress
+                                )
+                            }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (cardFrame == null) {
+                                        Modifier
+                                    } else {
+                                        Modifier.graphicsLayer {
+                                            transformOrigin = TransformOrigin(0f, 0f)
+                                            translationX = cardFrame.translationX
+                                            translationY = cardFrame.translationY
+                                            scaleX = cardFrame.scaleX
+                                            scaleY = cardFrame.scaleY
+                                            alpha = cardFrame.contentAlpha
+                                            shape = RoundedCornerShape(
+                                                cardFrame.cornerRadiusDp.dp
+                                            )
+                                            clip = cardContainerProgress < 0.999f
+                                        }
+                                    }
+                                )
+                        ) {
                         when (current) {
                         is LibrarySelectedItem.Local -> {
                             LocalPlaylistDetailScreen(
@@ -834,6 +828,7 @@ fun LibraryHostScreen(
                                     },
                                     offlineMode = offlineMode
                                 )
+                        }
                         }
                         }
                     }

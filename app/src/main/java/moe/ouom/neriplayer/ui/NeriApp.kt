@@ -209,7 +209,6 @@ import moe.ouom.neriplayer.ui.component.playback.nowPlayingExpandExitTransition
 import moe.ouom.neriplayer.ui.component.playback.resolvePlaybackWaiting
 import moe.ouom.neriplayer.ui.component.common.ThemeRevealOverlay
 import moe.ouom.neriplayer.ui.component.common.blockUnderlyingTouches
-import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassBackdropRegistrationEnabled
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassController
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassHost
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassNavigationHandoff
@@ -1920,6 +1919,10 @@ private fun NeriAppContent(
     val mainTabChromeSlot = remember { MainTabChromeSlot() }
     val backgroundGlassBackdrop = rememberAdvancedGlassBackdrop()
     val contentGlassBackdrop = rememberAdvancedGlassBackdrop()
+    // 主页面与播放页必须各自持有采样源。AdvancedGlassBackdrop 内含单份坐标、
+    // RenderNode/RenderEffect 与局部模糊缓存，不能在两个场景之间换宿主。
+    val nowPlayingBackgroundGlassBackdrop = rememberAdvancedGlassBackdrop()
+    val nowPlayingContentGlassBackdrop = rememberAdvancedGlassBackdrop()
     val advancedGlassController = remember(
         advancedBlurEnabled,
         enhancedAdvancedBlurEnabled,
@@ -3405,11 +3408,9 @@ private fun NeriAppContent(
                 activeNavigationOwners = activeAdvancedGlassOwners,
                 disableStretchOverscroll = backgroundImageUri != null
             ) {
-                // 播放页显示时禁止主 Tab/顶栏注册模糊区域，否则会把播放页顶部误糊掉
-                CompositionLocalProvider(
-                    LocalMainTabChromeSlot provides mainTabChromeSlot,
-                    LocalAdvancedGlassBackdropRegistrationEnabled provides !(nowPlayingVisible || nowPlayingPresented),
-                ) {
+                // 主页面玻璃宿主保持常驻。播放页使用独立宿主，因此这里不再停注册；
+                // 退出播放页时 MiniPlayer、Dock 与顶栏可以直接继续使用原采样缓存。
+                CompositionLocalProvider(LocalMainTabChromeSlot provides mainTabChromeSlot) {
                 // MiniPlayer ↔ NowPlaying 封面共享元素（连贯反馈开启时）
                 SharedTransitionLayout {
                 val nowPlayingExpandSharedScope = this
@@ -3548,17 +3549,11 @@ private fun NeriAppContent(
                                     .clipToBounds()
                             ) {
                                 // Keep the effect on a stable layer outside NavHost transitions.
-                                // 播放页显示时改由 NowPlaying 层采样，避免双层抢 positionInWindow。
+                                // 该捕获节点必须常驻，禁止再把同一个 backdrop 换挂到播放页。
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .then(
-                                            if (nowPlayingVisible || nowPlayingPresented) {
-                                                Modifier
-                                            } else {
-                                                Modifier.captureAdvancedGlassBackdrop(contentGlassBackdrop)
-                                            }
-                                        )
+                                        .captureAdvancedGlassBackdrop(contentGlassBackdrop)
                                 ) {
                                     MainTabLayerHost(
                                         selectedRoute = selectedMainTabRoute,
@@ -4388,10 +4383,6 @@ private fun NeriAppContent(
                         ) + fadeOut(animationSpec = tween(durationMillis = 150))
                 ) {
                     val nowPlayingExpandVisibilityScope = this
-                    // 播放页及其弹窗必须允许注册模糊区域（主 Tab 侧已关掉，避免误糊页面）
-                    CompositionLocalProvider(
-                        LocalAdvancedGlassBackdropRegistrationEnabled provides true,
-                    ) {
                     DisposableEffect(Unit) {
                         nowPlayingPresented = true
                         latestOnNowPlayingVisibilityChanged(true)
@@ -4426,14 +4417,27 @@ private fun NeriAppContent(
                             TrackChangeBackgroundRevealState()
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                // 开发规则：播放页内容必须进捕获层，GlassDropdownMenu/二级弹窗
-                                // 才能对背后真实模糊；否则只剩半透明 tint（透明无模糊）。
-                                .captureAdvancedGlassBackdrop(contentGlassBackdrop)
-                                .blockUnderlyingTouches()
+                        // 播放页使用独立玻璃宿主，禁止再与主页面争用同一个 backdrop。
+                        // 背景捕获层只负责建立本场景坐标；真实播放页内容由 content 层采样。
+                        AdvancedGlassHost(
+                            controller = advancedGlassController,
+                            backgroundBackdrop = nowPlayingBackgroundGlassBackdrop,
+                            contentBackdrop = nowPlayingContentGlassBackdrop
                         ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .captureAdvancedGlassBackdrop(nowPlayingBackgroundGlassBackdrop)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        // 开发规则：播放页内容必须进自己的捕获层，
+                                        // GlassDropdownMenu/二级弹窗才能对背后真实模糊。
+                                        .captureAdvancedGlassBackdrop(nowPlayingContentGlassBackdrop)
+                                        .blockUnderlyingTouches()
+                                ) {
                             val coverBlurAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
                             val hasCoverBlur =
                                 coverBlurAvailable &&
@@ -4707,7 +4711,8 @@ private fun NeriAppContent(
                             }
                         }
                     }
-                    }
+                }
+                }
                 }
                 // LocalExpandCoverSharedBridge 收口
                 }

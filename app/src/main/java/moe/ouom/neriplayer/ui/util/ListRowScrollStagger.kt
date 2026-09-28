@@ -24,6 +24,7 @@ package moe.ouom.neriplayer.ui.util
  */
 
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -32,11 +33,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.exp
 
 /**
- * 竖向列表「行与行」滚动交错：滚动/惯性过程中下行相对上行有微小滞后。
+ * 竖向列表/网格「行与行」滚动交错：滚动/惯性过程中下行相对上行有微小滞后。
  * 静止时 translationY = 0，与布局完全对齐；只改绘制，不改测量与热区。
  *
  * 关键手感：
@@ -62,10 +66,13 @@ object ListRowScrollStagger {
     const val MaxPhaseNorm = 1f
 
     /** 运动距离整体缩放（含上限），调「动感强弱」只改这一处 */
-    const val DistanceScale = 2.25f
+    const val DistanceScale = 2.5f
+
+    /** 默认最大错位（dp），调用处可覆盖 */
+    val DefaultMaxLag: Dp = 7.dp
 }
 
-/** 行级滚动交错的滞后状态（整列共用一份，由 [rememberListScrollLagState] 驱动） */
+/** 行级滚动交错的滞后状态（整列/整网格共用一份） */
 @Stable
 class ListScrollLagState internal constructor() {
     /**
@@ -81,11 +88,28 @@ class ListScrollLagState internal constructor() {
     private val _lagPx = mutableFloatStateOf(0f)
 }
 
+/** 预绑定 listState / lag / 开关后，按行号生成 Modifier，减少调用处样板 */
+@Stable
+class ListRowStaggerScope internal constructor(
+    private val lagState: ListScrollLagState,
+    private val maxLagPx: Float,
+    private val enabled: Boolean,
+    private val phaseLookup: (rowIndex: Int) -> Float,
+) {
+    fun modifier(rowIndex: Int): Modifier {
+        if (!enabled) return Modifier
+        return Modifier.graphicsLayer {
+            translationY = listRowStaggerTranslationY(
+                scrollLagPx = lagState.lagPx,
+                phaseNorm = phaseLookup(rowIndex),
+                maxLagPx = maxLagPx,
+            )
+        }
+    }
+}
+
 /**
  * 连续滚动位置（单位：条目）。跨条目时与 `offset/size` 对齐，不会跳。
- *
- * offset 是「本条目滚出视口上沿的距离」；滚满一格时 index+1、offset=0，
- * 与 `index + offset/size` 在边界上相等，故连续。
  */
 fun continuousListScrollPosition(
     firstVisibleItemIndex: Int,
@@ -101,7 +125,7 @@ fun continuousListScrollPosition(
  *
  * @param scrollLagPx 全相位基准滞后（见 [ListScrollLagState.lagPx]）
  * @param phaseNorm 视口相位 0..1（0 = 跟手，1 = 最粘）
- * @param maxLagPx 错位上限，防止快甩时「散架」
+ * @param maxLagPx 错位上限（缩放前），防止快甩时「散架」
  */
 fun listRowStaggerTranslationY(
     scrollLagPx: Float,
@@ -116,10 +140,26 @@ fun listRowStaggerTranslationY(
     return raw.coerceIn(-limit, limit)
 }
 
-/**
- * 跟踪 [LazyListState] 的滚动速度并平滑成 [ListScrollLagState]。
- * 整列调用一次，行内通过 [Modifier.listRowScrollStagger] 消费。
- */
+private fun updateLagForFrame(
+    state: ListScrollLagState,
+    listStateScrolling: Boolean,
+    deltaItems: Float,
+    refSizePx: Float,
+    dt: Float,
+) {
+    val rawVelocityPx = deltaItems / dt * refSizePx
+    if (listStateScrolling) {
+        val targetLag = rawVelocityPx * ListRowScrollStagger.LagTimeSeconds
+        val alpha = 1f - exp(-dt / ListRowScrollStagger.VelocitySmoothTauSeconds)
+        val lag = state.lagPx + (targetLag - state.lagPx) * alpha
+        state.lagPx = if (abs(lag) < ListRowScrollStagger.EpsilonPx) 0f else lag
+    } else {
+        val decay = exp(-dt / ListRowScrollStagger.SettleTauSeconds)
+        val settled = state.lagPx * decay
+        state.lagPx = if (abs(settled) < ListRowScrollStagger.EpsilonPx) 0f else settled
+    }
+}
+
 @Composable
 fun rememberListScrollLagState(listState: LazyListState): ListScrollLagState {
     val state = remember(listState) { ListScrollLagState() }
@@ -128,10 +168,7 @@ fun rememberListScrollLagState(listState: LazyListState): ListScrollLagState {
         var lastPosition = continuousListScrollPosition(
             firstVisibleItemIndex = listState.firstVisibleItemIndex,
             firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
-            firstVisibleItemSize = listState.layoutInfo.visibleItemsInfo
-                .firstOrNull()
-                ?.size
-                ?: 1,
+            firstVisibleItemSize = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 1,
         )
         while (true) {
             withFrameNanos { nanos ->
@@ -141,7 +178,6 @@ fun rememberListScrollLagState(listState: LazyListState): ListScrollLagState {
                 }
                 val dt = ((nanos - lastNanos) / 1_000_000_000f).coerceIn(0.0005f, 0.05f)
                 lastNanos = nanos
-
                 val first = listState.layoutInfo.visibleItemsInfo.firstOrNull()
                 val position = continuousListScrollPosition(
                     firstVisibleItemIndex = listState.firstVisibleItemIndex,
@@ -150,36 +186,120 @@ fun rememberListScrollLagState(listState: LazyListState): ListScrollLagState {
                 )
                 val deltaItems = position - lastPosition
                 lastPosition = position
-
-                // 条目高度作 px 换算；列表头等不等高条目会有少量误差，但连续无跳变
-                val refSizePx = first?.size?.toFloat() ?: 1f
-                val rawVelocityPx = deltaItems / dt * refSizePx
-
-                if (listState.isScrollInProgress) {
-                    // 目标滞后 = 速度 × 基准时间；帧率无关低通 α = 1 - e^(-dt/τ)
-                    val targetLag = rawVelocityPx * ListRowScrollStagger.LagTimeSeconds
-                    val alpha = 1f - exp(-dt / ListRowScrollStagger.VelocitySmoothTauSeconds)
-                    val lag = state.lagPx + (targetLag - state.lagPx) * alpha
-                    state.lagPx = if (abs(lag) < ListRowScrollStagger.EpsilonPx) 0f else lag
-                } else {
-                    // 松手收束：按时间常数衰减，约 3τ 后贴回布局
-                    val decay = exp(-dt / ListRowScrollStagger.SettleTauSeconds)
-                    val settled = state.lagPx * decay
-                    state.lagPx = if (abs(settled) < ListRowScrollStagger.EpsilonPx) 0f else settled
-                }
+                updateLagForFrame(
+                    state = state,
+                    listStateScrolling = listState.isScrollInProgress,
+                    deltaItems = deltaItems,
+                    refSizePx = first?.size?.toFloat() ?: 1f,
+                    dt = dt,
+                )
             }
         }
     }
     return state
 }
 
+@Composable
+fun rememberListScrollLagState(gridState: LazyGridState): ListScrollLagState {
+    val state = remember(gridState) { ListScrollLagState() }
+    LaunchedEffect(gridState) {
+        var lastNanos = 0L
+        var lastPosition = continuousListScrollPosition(
+            firstVisibleItemIndex = gridState.firstVisibleItemIndex,
+            firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset,
+            firstVisibleItemSize = gridState.layoutInfo.visibleItemsInfo.firstOrNull()?.size?.height ?: 1,
+        )
+        while (true) {
+            withFrameNanos { nanos ->
+                if (lastNanos == 0L) {
+                    lastNanos = nanos
+                    return@withFrameNanos
+                }
+                val dt = ((nanos - lastNanos) / 1_000_000_000f).coerceIn(0.0005f, 0.05f)
+                lastNanos = nanos
+                val first = gridState.layoutInfo.visibleItemsInfo.firstOrNull()
+                val position = continuousListScrollPosition(
+                    firstVisibleItemIndex = gridState.firstVisibleItemIndex,
+                    firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset,
+                    firstVisibleItemSize = first?.size?.height ?: 1,
+                )
+                val deltaItems = position - lastPosition
+                lastPosition = position
+                updateLagForFrame(
+                    state = state,
+                    listStateScrolling = gridState.isScrollInProgress,
+                    deltaItems = deltaItems,
+                    refSizePx = first?.size?.height?.toFloat() ?: 1f,
+                    dt = dt,
+                )
+            }
+        }
+    }
+    return state
+}
+
+@Composable
+fun rememberListRowStagger(
+    listState: LazyListState,
+    enabled: Boolean,
+    maxLag: Dp = ListRowScrollStagger.DefaultMaxLag,
+): ListRowStaggerScope {
+    val lagState = rememberListScrollLagState(listState)
+    val maxLagPx = with(LocalDensity.current) { maxLag.toPx() }
+    return remember(lagState, maxLagPx, enabled, listState) {
+        ListRowStaggerScope(
+            lagState = lagState,
+            maxLagPx = maxLagPx,
+            enabled = enabled,
+            phaseLookup = { rowIndex ->
+                val info = listState.layoutInfo
+                val item = info.visibleItemsInfo.firstOrNull { it.index == rowIndex }
+                if (item == null) {
+                    0f
+                } else {
+                    val viewportHeight = (info.viewportEndOffset - info.viewportStartOffset)
+                        .toFloat()
+                        .coerceAtLeast(1f)
+                    val viewportY = (item.offset - info.viewportStartOffset).toFloat()
+                    (viewportY / viewportHeight).coerceIn(0f, ListRowScrollStagger.MaxPhaseNorm)
+                }
+            },
+        )
+    }
+}
+
+@Composable
+fun rememberListRowStagger(
+    gridState: LazyGridState,
+    enabled: Boolean,
+    maxLag: Dp = ListRowScrollStagger.DefaultMaxLag,
+): ListRowStaggerScope {
+    val lagState = rememberListScrollLagState(gridState)
+    val maxLagPx = with(LocalDensity.current) { maxLag.toPx() }
+    return remember(lagState, maxLagPx, enabled, gridState) {
+        ListRowStaggerScope(
+            lagState = lagState,
+            maxLagPx = maxLagPx,
+            enabled = enabled,
+            phaseLookup = { rowIndex ->
+                val info = gridState.layoutInfo
+                val item = info.visibleItemsInfo.firstOrNull { it.index == rowIndex }
+                if (item == null) {
+                    0f
+                } else {
+                    val viewportHeight = (info.viewportEndOffset - info.viewportStartOffset)
+                        .toFloat()
+                        .coerceAtLeast(1f)
+                    val viewportY = (item.offset.y - info.viewportStartOffset).toFloat()
+                    (viewportY / viewportHeight).coerceIn(0f, ListRowScrollStagger.MaxPhaseNorm)
+                }
+            },
+        )
+    }
+}
+
 /**
  * 行级滚动交错：下行更粘（视口内连续相位），快滚有拖尾，静止归位。
- *
- * @param lagState [rememberListScrollLagState] 的返回值
- * @param rowIndex 列表绝对下标（[androidx.compose.foundation.lazy.itemsIndexed]）
- * @param listState 同一个 LazyListState，用于查本行视口内偏移
- * @param maxLagPx 最大错位（px）
  */
 fun Modifier.listRowScrollStagger(
     lagState: ListScrollLagState,
@@ -200,6 +320,36 @@ fun Modifier.listRowScrollStagger(
                     .toFloat()
                     .coerceAtLeast(1f)
                 val viewportY = (item.offset - info.viewportStartOffset).toFloat()
+                (viewportY / viewportHeight).coerceIn(0f, ListRowScrollStagger.MaxPhaseNorm)
+            }
+            translationY = listRowStaggerTranslationY(
+                scrollLagPx = lagState.lagPx,
+                phaseNorm = phaseNorm,
+                maxLagPx = maxLagPx,
+            )
+        }
+    )
+}
+
+fun Modifier.listRowScrollStagger(
+    lagState: ListScrollLagState,
+    rowIndex: Int,
+    gridState: LazyGridState,
+    maxLagPx: Float,
+    enabled: Boolean = true,
+): Modifier {
+    if (!enabled) return this
+    return this.then(
+        Modifier.graphicsLayer {
+            val info = gridState.layoutInfo
+            val item = info.visibleItemsInfo.firstOrNull { it.index == rowIndex }
+            val phaseNorm = if (item == null) {
+                0f
+            } else {
+                val viewportHeight = (info.viewportEndOffset - info.viewportStartOffset)
+                    .toFloat()
+                    .coerceAtLeast(1f)
+                val viewportY = (item.offset.y - info.viewportStartOffset).toFloat()
                 (viewportY / viewportHeight).coerceIn(0f, ListRowScrollStagger.MaxPhaseNorm)
             }
             translationY = listRowStaggerTranslationY(

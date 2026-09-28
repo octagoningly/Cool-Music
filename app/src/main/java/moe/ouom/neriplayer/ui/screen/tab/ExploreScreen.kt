@@ -76,6 +76,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -235,6 +236,7 @@ import moe.ouom.neriplayer.ui.util.currentWindowWidthDp
 import moe.ouom.neriplayer.ui.util.rememberSongDisplayCoverUrl
 import moe.ouom.neriplayer.ui.util.ClipboardCopyResult
 import moe.ouom.neriplayer.ui.util.copyPlainTextSafely
+import moe.ouom.neriplayer.ui.util.rememberListRowStagger
 import moe.ouom.neriplayer.ui.haptic.HapticIconButton
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import moe.ouom.neriplayer.core.logging.NPLogger
@@ -462,6 +464,8 @@ fun ExploreScreen(
     val backgroundImageUri by AppContainer.settingsRepo.backgroundImageUriFlow.collectAsStateWithLifecycle(
         initialValue = null
     )
+    val coherentFeedbackEnabled by AppContainer.settingsRepo.coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
 
     val repo = remember(context) { LocalPlaylistRepository.getInstance(context) }
     val allLocalPlaylists by repo.playlists.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -1254,6 +1258,10 @@ fun ExploreScreen(
                                     ) { Text(stringResource(R.string.search_no_result)) }
                                 }
                                 else -> {
+                                val searchRowStagger = rememberListRowStagger(
+                                    listState = searchListState,
+                                    enabled = coherentFeedbackEnabled,
+                                )
                                 LazyColumn(
                                     state = searchListState,
                                     contentPadding = PaddingValues(
@@ -1283,6 +1291,7 @@ fun ExploreScreen(
                                                 favoriteActionEnabled = localPlaylistsReady,
                                                 offlineMode = offlineMode,
                                                 snackbarHostState = snackbarHostState,
+                                                rowStaggerModifier = searchRowStagger.modifier(index),
                                                 onClick = {
                                                     if (shouldShowBiliPartsPicker(song)) {
                                                         scope.launch {
@@ -2108,6 +2117,12 @@ private fun NeteaseDiscoveryPage(
     val gridHorizontalPadding = if (isTabletLayout) 56.dp else 16.dp
     val gridMinCellSize = if (isTabletLayout) 170.dp else 150.dp
     val gridSpacing = if (isTabletLayout) 16.dp else 12.dp
+    val coherentFeedbackEnabled by AppContainer.settingsRepo.coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
+    val gridRowStagger = rememberListRowStagger(
+        gridState = gridState,
+        enabled = coherentFeedbackEnabled,
+    )
 
     // 全幅滚动：上下都能进入 chrome 玻璃采样区
     Box(modifier = Modifier.fillMaxSize()) {
@@ -2134,11 +2149,12 @@ private fun NeteaseDiscoveryPage(
             modifier = Modifier.fillMaxSize()
         ) {
             if (ui.playlists.isNotEmpty()) {
-                items(items = ui.playlists, key = { it.id }) { playlist ->
+                itemsIndexed(items = ui.playlists, key = { _, it -> it.id }) { index, playlist ->
                     PlaylistCard(
                         playlist = playlist,
                         isFavorite = favoriteKeys.contains("netease:${playlist.id}"),
-                        onClick = { onPlay(playlist) }
+                        onClick = { onPlay(playlist) },
+                        rowStaggerModifier = gridRowStagger.modifier(index),
                     )
                 }
             } else if (!ui.loading) {
@@ -2608,6 +2624,7 @@ internal fun SongRow(
     favoriteActionEnabled: Boolean,
     offlineMode: Boolean,
     snackbarHostState: SnackbarHostState,
+    rowStaggerModifier: Modifier = Modifier,
     onClick: () -> Unit,
     onPlayNow: () -> Unit,
     onPlayNext: () -> Unit,
@@ -2623,7 +2640,7 @@ internal fun SongRow(
     var showMoreMenu by remember { mutableStateOf(false) }
     var showAddToPlaylistSheet by remember { mutableStateOf(false) }
     Row(
-        modifier = Modifier
+        modifier = rowStaggerModifier
             .fillMaxWidth()
             .clickable {
                 context.performHapticFeedback()
@@ -2849,6 +2866,12 @@ private fun YouTubeMusicExploreContent(
     val gridHorizontalPadding = if (isTabletLayout) 56.dp else 16.dp
     val gridMinCellSize = if (isTabletLayout) 156.dp else 120.dp
     val gridSpacing = if (isTabletLayout) 14.dp else 10.dp
+    val coherentFeedbackEnabled by AppContainer.settingsRepo.coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
+    val ytGridStagger = rememberListRowStagger(
+        gridState = gridState,
+        enabled = coherentFeedbackEnabled,
+    )
     when {
         ui.ytMusicPlaylistsLoading -> {
             Box(
@@ -2904,14 +2927,15 @@ private fun YouTubeMusicExploreContent(
                 horizontalArrangement = Arrangement.spacedBy(gridSpacing),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(
+                itemsIndexed(
                     items = ui.ytMusicPlaylists,
-                    key = { it.browseId }
-                ) { playlist ->
+                    key = { _, it -> it.browseId }
+                ) { index, playlist ->
                     YtMusicExploreCard(
                         playlist = playlist,
                         onClick = { onClick(playlist) },
-                        offlineMode = offlineMode
+                        offlineMode = offlineMode,
+                        rowStaggerModifier = ytGridStagger.modifier(index),
                     )
                 }
             }
@@ -2923,11 +2947,12 @@ private fun YouTubeMusicExploreContent(
 private fun YtMusicExploreCard(
     playlist: YouTubeMusicPlaylist,
     onClick: () -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    rowStaggerModifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     Column(
-        modifier = Modifier
+        modifier = rowStaggerModifier
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
     ) {

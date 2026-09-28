@@ -206,6 +206,7 @@ import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialogConte
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextField
 import moe.ouom.neriplayer.ui.util.currentWindowWidthDp
+import moe.ouom.neriplayer.ui.util.rememberListRowStagger
 import moe.ouom.neriplayer.util.format.formatPlayCount
 import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
 import org.burnoutcrew.reorderable.ItemPosition
@@ -970,6 +971,12 @@ private fun YouTubeMusicPlaylistList(
     val miniPlayerHeight = LocalMiniPlayerHeight.current
     val context = LocalContext.current
     val composeResources = LocalResources.current
+    val coherentFeedbackEnabled by AppContainer.settingsRepo.coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
+    val ytPlaylistStagger = rememberListRowStagger(
+        listState = listState,
+        enabled = coherentFeedbackEnabled,
+    )
     val clipboardManager = remember(context) {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
@@ -1045,10 +1052,10 @@ private fun YouTubeMusicPlaylistList(
                 }
             }
         }
-        items(
+        itemsIndexed(
             items = playlists,
-            key = { it.browseId }
-        ) { playlist ->
+            key = { _, it -> it.browseId }
+        ) { playlistIndex, playlist ->
             val ytCardBounds = remember { CardBoundsCapture() }
             val playlistFavoriteId = remember(playlist.playlistId, playlist.browseId) {
                 playlist.favoriteId()
@@ -1063,6 +1070,7 @@ private fun YouTubeMusicPlaylistList(
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 modifier = Modifier
+                    .then(ytPlaylistStagger.modifier(playlistIndex))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
                     .animateItem()
                     .clip(cardShape)
@@ -1210,6 +1218,12 @@ private fun BiliPlaylistList(
 ) {
     val context = LocalContext.current
     val miniPlayerHeight = LocalMiniPlayerHeight.current
+    val coherentFeedbackEnabled by AppContainer.settingsRepo.coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
+    val biliPlaylistStagger = rememberListRowStagger(
+        listState = listState,
+        enabled = coherentFeedbackEnabled,
+    )
     val createdLabel = stringResource(R.string.library_bili_created_favorite)
     val collectedLabel = stringResource(R.string.library_bili_collected_favorite)
     val collectionLabel = stringResource(R.string.library_bili_collection)
@@ -1327,10 +1341,10 @@ private fun BiliPlaylistList(
                 }
             }
         }
-        items(
+        itemsIndexed(
             items = filteredPlaylists,
-            key = { "${it.kind}:${it.mediaId}" }
-        ) { pl ->
+            key = { _, it -> "${it.kind}:${it.mediaId}" }
+        ) { playlistIndex, pl ->
             val kindLabel = when (pl.kind) {
                 BiliPlaylistKind.CREATED_FAVORITE -> stringResource(R.string.library_bili_created_favorite)
                 BiliPlaylistKind.COLLECTED_FAVORITE -> stringResource(R.string.library_bili_collected_favorite)
@@ -1344,6 +1358,7 @@ private fun BiliPlaylistList(
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 modifier = Modifier
+                    .then(biliPlaylistStagger.modifier(playlistIndex))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
                     .animateItem()
                     .clip(cardShape)
@@ -1408,6 +1423,12 @@ private fun LocalPlaylistList(
     onReorder: (List<Long>) -> Unit = {},
     offlineMode: Boolean
 ) {
+    val coherentFeedbackEnabled by AppContainer.settingsRepo.coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
+    val localPlaylistStagger = rememberListRowStagger(
+        listState = listState,
+        enabled = coherentFeedbackEnabled,
+    )
     val context = LocalContext.current
     val cachedSnapshot by produceState(initialValue = CachedSongsSnapshot.Empty) {
         while (true) {
@@ -2148,10 +2169,10 @@ private fun LocalPlaylistList(
             }
         }
 
-            items(
+            itemsIndexed(
                 items = displayedPlaylists,
-                key = { it.id }
-            ) { pl ->
+                key = { _, it -> it.id }
+            ) { playlistIndex, pl ->
             ReorderableItem(state = reorderState, key = pl.id) { _ ->
                 val systemPlaylist = SystemLocalPlaylists.resolve(pl.id, pl.name, context)
                 val displayName = systemPlaylist?.currentName ?: pl.name
@@ -2180,6 +2201,7 @@ private fun LocalPlaylistList(
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier
+                        .then(localPlaylistStagger.modifier(playlistIndex))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                         .then(if (localSortMode) Modifier else Modifier.animateItem())
                         .clip(cardShape)
@@ -3002,6 +3024,12 @@ private fun NeteaseLibraryList(
     val filteredAlbums = remember(albums, albumSearchQuery) {
         filterNeteaseAlbums(albums, albumSearchQuery)
     }
+    val coherentFeedbackEnabled by AppContainer.settingsRepo.coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
+    val neteaseRowStagger = rememberListRowStagger(
+        listState = listState,
+        enabled = coherentFeedbackEnabled,
+    )
 
     fun updateSearchQuery(category: Int, value: String) {
         if (category == NETEASE_CATEGORY_ALBUM) {
@@ -3061,15 +3089,16 @@ private fun NeteaseLibraryList(
                     )
                 }
             }
-            items(
+            itemsIndexed(
                 items = filteredAlbums,
-                key = { album -> "album:${album.id}" }
-            ) { album ->
+                key = { _, album -> "album:${album.id}" }
+            ) { index, album ->
                 NeteaseAlbumRow(
                     album = album,
                     cardShape = cardShape,
                     onClick = { onAlbumClick(album) },
-                    offlineMode = offlineMode
+                    offlineMode = offlineMode,
+                    rowStaggerModifier = neteaseRowStagger.modifier(index),
                 )
             }
         } else {
@@ -3092,10 +3121,10 @@ private fun NeteaseLibraryList(
                     )
                 }
             }
-            items(
+            itemsIndexed(
                 items = filteredPlaylists,
-                key = { playlist -> "playlist:${playlist.id}" }
-            ) { playlist ->
+                key = { _, playlist -> "playlist:${playlist.id}" }
+            ) { index, playlist ->
                 NeteasePlaylistRow(
                     playlist = playlist,
                     cardShape = cardShape,
@@ -3103,6 +3132,7 @@ private fun NeteaseLibraryList(
                     onClick = { onPlaylistClick(playlist) },
                     offlineMode = offlineMode,
                     onCardBounds = onCardBounds,
+                    rowStaggerModifier = neteaseRowStagger.modifier(index),
                 )
             }
         }
@@ -3223,13 +3253,14 @@ private fun NeteasePlaylistRow(
     onClick: () -> Unit,
     offlineMode: Boolean,
     onCardBounds: (androidx.compose.ui.geometry.Rect) -> Unit = {},
+    rowStaggerModifier: Modifier = Modifier
 ) {
     val rowBoundsCapture = remember { CardBoundsCapture() }
     Card(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier
+        modifier = rowStaggerModifier
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clip(cardShape)
             .onGloballyPositioned { rowBoundsCapture.bounds = it.boundsInRoot() }
@@ -3276,14 +3307,15 @@ private fun NeteaseAlbumRow(
     album: AlbumSummary,
     cardShape: RoundedCornerShape,
     onClick: () -> Unit,
-    offlineMode: Boolean
+    offlineMode: Boolean,
+    rowStaggerModifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     Card(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier
+        modifier = rowStaggerModifier
             .padding(horizontal = 8.dp, vertical = 4.dp)
             .clip(cardShape)
             .clickable(onClick = onClick)
@@ -3653,6 +3685,12 @@ private fun FavoritePlaylistList(
     val miniPlayerHeight = LocalMiniPlayerHeight.current
     val scope = rememberCoroutineScope()
     var sortMode by rememberSaveable { mutableStateOf(false) }
+    val coherentFeedbackEnabled by AppContainer.settingsRepo.coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
+    val favoriteRowStagger = rememberListRowStagger(
+        listState = listState,
+        enabled = coherentFeedbackEnabled,
+    )
     var selectedFavoriteCategory by rememberSaveable {
         mutableIntStateOf(FAVORITE_CATEGORY_PLAYLIST)
     }
@@ -4021,10 +4059,10 @@ private fun FavoritePlaylistList(
                 }
             }
         } else {
-            items(
+            itemsIndexed(
                 items = displayedFavorites,
-                key = { favoriteKey(it) }
-            ) { favorite ->
+                key = { _, it -> favoriteKey(it) }
+            ) { favoriteIndex, favorite ->
                 val itemKey = favoriteKey(favorite)
                 val isSelected = sortMode && selectedKeys.contains(itemKey)
                 ReorderableItem(state = reorderState, key = itemKey) {
@@ -4041,6 +4079,7 @@ private fun FavoritePlaylistList(
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         modifier = Modifier
+                            .then(favoriteRowStagger.modifier(favoriteIndex))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                             .animateItem()
                             .clip(cardShape)

@@ -1524,7 +1524,8 @@ fun PlaylistCard(
     isFavorite: Boolean,
     onClick: () -> Unit,
     onShowSnackbar: (String) -> Unit = {},
-    offlineMode: Boolean = false
+    offlineMode: Boolean = false,
+    rowStaggerModifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1536,7 +1537,7 @@ fun PlaylistCard(
     val favoriteSuccessText = stringResource(R.string.favorite_success)
 
     Column(
-        modifier = Modifier
+        modifier = rowStaggerModifier
             .clip(RoundedCornerShape(8.dp))
             .combinedClickable(
                 onClick = onClick,

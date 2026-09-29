@@ -1,15 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.playlist
 
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -19,60 +10,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
-import androidx.compose.foundation.shape.RoundedCornerShape
 import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
-
-/** 歌单封面共享 key（列表行左侧封面 → 详情左上角封面） */
-fun playlistCoverSharedKey(playlistId: String): String =
-    "playlist_detail_cover_$playlistId"
-
-/**
- * SharedTransition 作用域：NeriApp 的 SharedTransitionLayout 提供。
- * 为空则不挂 sharedElement（退化为开窗动画）。
- */
-@OptIn(ExperimentalSharedTransitionApi::class)
-val LocalPlaylistCoverSharedTransitionScope =
-    staticCompositionLocalOf<SharedTransitionScope?> { null }
-
-/** LibraryHost 的 AnimatedContent 提供：列表与详情同一作用域 */
-@OptIn(ExperimentalSharedTransitionApi::class)
-val LocalPlaylistCoverSharedVisibilityScope =
-    staticCompositionLocalOf<AnimatedVisibilityScope?> { null }
-
-/**
- * 歌单封面 sharedElement：从列表行左侧飞到详情 Hero 封面。
- * 与 MiniPlayer→NowPlaying 同一套：用 sharedElement 而非 sharedBounds，避免交叉溶解。
- */
-@OptIn(ExperimentalSharedTransitionApi::class)
-@Composable
-fun Modifier.playlistCoverSharedElement(
-    enabled: Boolean,
-    playlistId: String,
-    cornerRadius: Dp,
-): Modifier {
-    if (!enabled) return this
-    val transitionScope = LocalPlaylistCoverSharedTransitionScope.current ?: return this
-    val visibilityScope = LocalPlaylistCoverSharedVisibilityScope.current ?: return this
-    val shape = RoundedCornerShape(cornerRadius)
-    return with(transitionScope) {
-        val sharedContentState =
-            rememberSharedContentState(key = playlistCoverSharedKey(playlistId))
-        val overlayClip = remember(cornerRadius) { OverlayClip(shape) }
-        this@playlistCoverSharedElement.sharedElement(
-            sharedContentState = sharedContentState,
-            animatedVisibilityScope = visibilityScope,
-            boundsTransform = { _, _ ->
-                PlaylistCardContainerMotion.CoverSharedBoundsTween
-            },
-            renderInOverlayDuringTransition = true,
-            zIndexInOverlay = 10f,
-            clipInOverlayDuringTransition = overlayClip
-        )
-    }.clip(shape)
-}
 
 /**
  * 媒体库歌单卡片到详情页的容器变换。
@@ -94,12 +35,6 @@ internal object PlaylistCardContainerMotion {
      */
     val OpenEasing = CubicBezierEasing(0.35f, 0f, 0.15f, 1f)
     val CloseEasing = CubicBezierEasing(0.32f, 0f, 0.20f, 1f)
-
-    /** 封面飞向 Hero 的 bounds 插值（与开窗同拍） */
-    val CoverSharedBoundsTween = tween<Rect>(
-        durationMillis = OpenDurationMillis,
-        easing = OpenEasing
-    )
 
     /** 上下边缘描边峰值透明度；暂时关掉柔边 */
     const val EdgeStrokeAlpha = 0f

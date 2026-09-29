@@ -214,7 +214,6 @@ import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialogConte
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextField
 import moe.ouom.neriplayer.ui.util.currentWindowWidthDp
-import moe.ouom.neriplayer.ui.screen.playlist.playlistCoverSharedElement
 import moe.ouom.neriplayer.ui.util.rememberListRowStagger
 import moe.ouom.neriplayer.util.format.formatPlayCount
 import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
@@ -2392,11 +2391,7 @@ private fun LocalPlaylistList(
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier
                                             .size(56.dp)
-                                            .playlistCoverSharedElement(
-                                                enabled = coherentFeedbackEnabled,
-                                                playlistId = pl.id.toString(),
-                                                cornerRadius = 8.dp
-                                            )
+                                            .clip(RoundedCornerShape(8.dp))
                                     )
                                 } else {
                                     Icon(

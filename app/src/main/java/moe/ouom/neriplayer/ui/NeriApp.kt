@@ -250,7 +250,6 @@ import moe.ouom.neriplayer.ui.screen.host.SettingsHostScreen
 import moe.ouom.neriplayer.ui.screen.host.rememberHomeHostRuntimeState
 import moe.ouom.neriplayer.ui.screen.tab.shouldShowHomeContinueSection
 import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
-import moe.ouom.neriplayer.ui.screen.playlist.LocalPlaylistCoverSharedTransitionScope
 import moe.ouom.neriplayer.ui.screen.playlist.LocalPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.NeteaseAlbumDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.NeteasePlaylistDetailScreen
@@ -3424,8 +3423,7 @@ private fun NeriAppContent(
                 SharedTransitionLayout {
                 val nowPlayingExpandSharedScope = this
                 CompositionLocalProvider(
-                    LocalExpandCoverSharedBridge provides remember { ExpandCoverSharedBridge() },
-                    LocalPlaylistCoverSharedTransitionScope provides nowPlayingExpandSharedScope
+                    LocalExpandCoverSharedBridge provides remember { ExpandCoverSharedBridge() }
                 ) {
                 Box(
                     modifier = Modifier

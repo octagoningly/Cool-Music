@@ -84,7 +84,9 @@ internal object PlaylistCardContainerMotion {
         // 标准容器变换不是在固定全屏页面上开一扇窗：目标内容也应跟着当前容器
         // 从源卡片左上沿移动，并按容器宽度等比长大。歌单行虽很扁，但不会纵向拉伸。
         val contentScale = ((clipRight - clipLeft) / viewportWidth).coerceIn(0f, 1f)
-        val contentFade = smoothStep(start = 0.10f, end = 0.72f, value = p)
+        // 进出都走淡化衔接：展开时从卡片淡入详情，返回时在窗收到卡片前先淡掉，
+        // 否则 clip 收紧到行高时会露出纯底色，看起来像那一行突然变黑。
+        val contentFade = smoothStep(start = 0.06f, end = 0.52f, value = p)
         val cornerProgress = smoothStep(start = 0.18f, end = 1f, value = p)
         val depthProgress = smoothStep(start = 0.04f, end = 1f, value = p)
         val backgroundPivotFractionX =
@@ -97,7 +99,7 @@ internal object PlaylistCardContainerMotion {
             clipRight = clipRight,
             clipBottom = clipBottom,
             cornerRadiusDp = lerp(SourceCornerRadiusDp, 0f, cornerProgress),
-            // 实底始终不透明；详情内容在卡片边界附近平滑淡入/淡出。
+            // 整层（含底色）跟 contentAlpha 一起淡，末帧露出真实歌单行
             contentAlpha = contentFade,
             contentScale = contentScale,
             contentTranslationX = clipLeft,

@@ -772,6 +772,13 @@ fun LibraryHostScreen(
                                         )
                                     }
                                 )
+                                // 底色必须跟内容一起淡入淡出：clip 收到行高时若底色仍不透明，
+                                // 会盖住真实歌单行，看起来像那一行突然变黑再变回。
+                                .graphicsLayer {
+                                    if (cardFrame != null) {
+                                        alpha = cardFrame.contentAlpha
+                                    }
+                                }
                                 .background(MaterialTheme.colorScheme.background)
                         ) {
                         Box(
@@ -779,7 +786,7 @@ fun LibraryHostScreen(
                                 .fillMaxSize()
                                 .graphicsLayer {
                                     if (cardFrame != null) {
-                                        alpha = cardFrame.contentAlpha
+                                        // alpha 已由外层统一处理，这里只做几何
                                         scaleX = cardFrame.contentScale
                                         scaleY = cardFrame.contentScale
                                         translationX = cardFrame.contentTranslationX

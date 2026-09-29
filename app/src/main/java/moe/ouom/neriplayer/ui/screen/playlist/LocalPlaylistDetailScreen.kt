@@ -1855,19 +1855,11 @@ fun LocalPlaylistDetailScreen(
             ) { padding ->
                 val miniPlayerHeight = LocalMiniPlayerHeight.current
                 Box(Modifier.fillMaxSize()) {
-                if (coherentFeedbackEnabled) {
-                    PlaylistDetailBlurCoverBackdrop(
-                        coverUrl = detailBlurCoverUrl,
-                        offlineMode = offlineMode,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background)
-                    )
-                }
+                PlaylistDetailBlurCoverBackdrop(
+                    coverUrl = detailBlurCoverUrl,
+                    offlineMode = offlineMode,
+                    modifier = Modifier.fillMaxSize()
+                )
                 Column(Modifier.padding(padding).fillMaxSize()) {
                     if (searchSlotVisible) {
                         PlaylistModernVisualColorsProvider(

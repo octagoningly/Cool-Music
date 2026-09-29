@@ -49,6 +49,7 @@ import moe.ouom.neriplayer.data.stats.toPlaybackStatsSongItem
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 import moe.ouom.neriplayer.ui.haptic.HapticIconButton
 import moe.ouom.neriplayer.ui.screen.StatTrackRow
+import moe.ouom.neriplayer.data.model.displayCoverUrl
 import moe.ouom.neriplayer.util.format.formatPlayCount
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -121,6 +122,15 @@ fun HotPlaylistDetailScreen(
             )
         }
     ) { padding ->
+        val blurCoverUrl = songs.firstOrNull()
+            ?.displayCoverUrl(context)
+            ?.takeIf { it.isNotBlank() }
+        Box(Modifier.fillMaxSize()) {
+            PlaylistDetailBlurCoverBackdrop(
+                coverUrl = blurCoverUrl,
+                offlineMode = offlineMode,
+                modifier = Modifier.fillMaxSize()
+            )
         if (playlist == null) {
             Box(
                 modifier = Modifier
@@ -197,6 +207,7 @@ fun HotPlaylistDetailScreen(
                     }
                 }
             }
+        }
         }
     }
 }

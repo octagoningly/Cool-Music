@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,6 +54,7 @@ import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollection
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollectionType
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.loadLxOnlineCollectionSongs
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.data.model.displayCoverUrl
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 import moe.ouom.neriplayer.ui.screen.tab.SongRow
 
@@ -110,6 +112,12 @@ internal fun OnlineCollectionDetailScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
+        Box(Modifier.fillMaxSize()) {
+        PlaylistDetailBlurCoverBackdrop(
+            coverUrl = songs.firstOrNull()?.displayCoverUrl(),
+            offlineMode = offlineMode,
+            modifier = Modifier.fillMaxSize()
+        )
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -210,6 +218,7 @@ internal fun OnlineCollectionDetailScreen(
                     )
                 }
             }
+        }
         }
     }
 }

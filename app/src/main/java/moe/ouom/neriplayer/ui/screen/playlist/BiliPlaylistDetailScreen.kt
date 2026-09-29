@@ -439,6 +439,12 @@ fun BiliPlaylistDetailScreen(
             fadeOut() + slideOutVertically { it / 6 }
         }
     ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+        PlaylistDetailBlurCoverBackdrop(
+            coverUrl = displayHeaderCoverUrl?.takeIf { it.isNotBlank() },
+            offlineMode = offlineMode,
+            modifier = Modifier.fillMaxSize()
+        )
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = Color.Transparent
@@ -1140,6 +1146,7 @@ fun BiliPlaylistDetailScreen(
                 }
             }
             BackHandler(enabled = selectionMode) { exitSelection() }
+        }
         }
     }
 }

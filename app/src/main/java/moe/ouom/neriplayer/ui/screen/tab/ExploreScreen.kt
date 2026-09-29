@@ -992,53 +992,27 @@ fun ExploreScreen(
                                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
                                     // 搜索源：纯文字 + 小三角，点击只弹换源
-                                    // 仅保留居中倒三角，点击弹出换源
-                                    Icon(
-                                        imageVector = Icons.Filled.ArrowDropDown,
-                                        contentDescription = searchSourceLabel(ui.selectedSearchSource),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier
-                                            .size(22.dp)
-                                            .clip(ExplorePrimaryTabShape)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = ripple()
-                                            ) { sourceMenuExpanded = true }
-                                    )
-                                    if (searchQuery.isNotEmpty()) {
-                                        HapticIconButton(onClick = {
-                                            onSearchQueryChange("")
-                                            vm.search("")
-                                        }) { Icon(Icons.Default.Clear, "Clear") }
-                                    }
-                                }
-                            },
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(onSearch = {
-                                submitExploreSearch()
-                            }),
-                            singleLine = true,
-                            shape = ExploreSearchFieldShape,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged { focusState ->
-                                    if (focusState.isFocused) {
-                                        scope.launch { scrollExploreContentToTop() }
-                                    }
-                                }
-                        )
-                        GlassDropdownMenu(
-                            expanded = sourceMenuExpanded,
-                            onDismissRequest = { sourceMenuExpanded = false },
-                            shape = GlassMenuShape,
-                            preferDownward = true,
-                            modifier = Modifier
-                        ) {
+                                    // 菜单锚在箭头上，默认向下弹
+                                    Box {
+                                        Icon(
+                                            imageVector = Icons.Filled.ArrowDropDown,
+                                            contentDescription = searchSourceLabel(ui.selectedSearchSource),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .clip(ExplorePrimaryTabShape)
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = ripple()
+                                                ) { sourceMenuExpanded = true }
+                                        )
+                                        GlassDropdownMenu(
+                                            expanded = sourceMenuExpanded,
+                                            onDismissRequest = { sourceMenuExpanded = false },
+                                            shape = GlassMenuShape,
+                                            preferDownward = true,
+                                            maxHeight = 320.dp
+                                        ) {
                             // 标题：说明该菜单用途
                             Text(
                                 text = stringResource(R.string.explore_search_source_picker_title),
@@ -1077,6 +1051,34 @@ fun ExploreScreen(
                                 }
                             }
                         }
+                                    }
+                                    if (searchQuery.isNotEmpty()) {
+                                        HapticIconButton(onClick = {
+                                            onSearchQueryChange("")
+                                            vm.search("")
+                                        }) { Icon(Icons.Default.Clear, "Clear") }
+                                    }
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = {
+                                submitExploreSearch()
+                            }),
+                            singleLine = true,
+                            shape = ExploreSearchFieldShape,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        scope.launch { scrollExploreContentToTop() }
+                                    }
+                                }
+                        )
                     }
                 }
                 }

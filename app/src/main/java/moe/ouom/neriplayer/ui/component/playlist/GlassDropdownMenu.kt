@@ -301,11 +301,15 @@ private class GlassMenuPositionProvider(
             reservedBottomPx = reservedBottomPx(),
             preferDownward = preferDownward,
         )
-        val opensUpward = glassMenuOpensUpward(
-            position = position,
-            anchor = anchorBounds,
-            popupSize = popupContentSize,
-        )
+        val opensUpward = if (preferDownward) {
+            false
+        } else {
+            glassMenuOpensUpward(
+                position = position,
+                anchor = anchorBounds,
+                popupSize = popupContentSize,
+            )
+        }
         val menuLeftOfAnchor = glassMenuLeftOfAnchor(
             position = position,
             popupSize = popupContentSize,

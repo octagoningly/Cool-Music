@@ -26,8 +26,8 @@ internal object PlaylistCardContainerMotion {
     const val OpenDurationMillis = 600
     const val CloseDurationMillis = 480
     const val SourceCornerRadiusDp = 12f
-    /** 背景缩放幅度：约 20%（相对 2.5% 为 8 倍） */
-    const val BackgroundExpandedScale = SceneDepthMotion.ExpandedScale
+    /** 背景缩放幅度：约 40%（在 SceneDepthMotion 1.20 的 20% 上 ×2，便于试手感） */
+    const val BackgroundExpandedScale = 1.40f
     const val BackgroundDimmedAlpha = 0.76f
     /**
      * 起步稍慢：前 1/4 时间窗仍贴着行高，能看清「从上下沿长高」；

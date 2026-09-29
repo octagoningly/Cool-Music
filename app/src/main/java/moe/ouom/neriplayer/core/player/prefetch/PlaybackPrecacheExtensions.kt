@@ -18,6 +18,7 @@ import moe.ouom.neriplayer.core.player.url.resolveSongUrl
 import moe.ouom.neriplayer.core.player.url.synchronizeCachedPlaybackDescriptor
 import moe.ouom.neriplayer.data.local.media.LocalSongSupport
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.data.model.displayCoverUrl
 
 private const val LIST_MEDIA_MIN_BYTES = 384L * 1024L
 
@@ -221,6 +222,7 @@ internal suspend fun PlayerManager.precacheSongPrefix(
         "NERI-PlayerManager",
         "precached URL ready: label=$label, song=${song.name}, key=$cacheKey"
     )
+    warmLyricsAndCoverForPrecache(song)
 
     val mediaCacheKey = resolveGenericMediaPrefetchCacheKey(cacheKey, result)
     if (playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey)) return
@@ -315,4 +317,40 @@ internal fun PlayerManager.precacheEnabledForScenario(
     scenario: PlaybackPrecacheScenario
 ): Boolean {
     return playbackPrecacheConfig.isEnabled(scenario)
+}
+
+
+private suspend fun PlayerManager.warmLyricsAndCoverForPrecache(song: SongItem) {
+    runCatching {
+        val lyrics = getLyrics(song)
+        NPLogger.d(
+            "NERI-PlayerManager",
+            "precached lyrics: song=${song.name}, entries=${lyrics.size}"
+        )
+    }.onFailure { error ->
+        NPLogger.w(
+            "NERI-PlayerManager",
+            "precached lyrics failed: song=${song.name}, error=${error.message}"
+        )
+    }
+    runCatching {
+        val coverUrl = song.displayCoverUrl()
+        if (!coverUrl.isNullOrBlank()) {
+            val request = coil.request.ImageRequest.Builder(application)
+                .data(coverUrl)
+                .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                .build()
+            coil.Coil.imageLoader(application).execute(request)
+            NPLogger.d(
+                "NERI-PlayerManager",
+                "precached cover: song=${song.name}, url=$coverUrl"
+            )
+        }
+    }.onFailure { error ->
+        NPLogger.w(
+            "NERI-PlayerManager",
+            "precached cover failed: song=${song.name}, error=${error.message}"
+        )
+    }
 }

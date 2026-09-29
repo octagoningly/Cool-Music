@@ -86,6 +86,7 @@ import moe.ouom.neriplayer.ui.screen.playlist.NeteasePlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.YouTubeMusicPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.PlaylistCardContainerMotion
+import moe.ouom.neriplayer.ui.screen.playlist.LocalPlaylistCoverSharedVisibilityScope
 import moe.ouom.neriplayer.ui.screen.playlist.playlistCardContainerClip
 import moe.ouom.neriplayer.ui.screen.tab.LibraryChromeScrollState
 import moe.ouom.neriplayer.ui.screen.tab.LibraryTab
@@ -535,6 +536,9 @@ fun LibraryHostScreen(
                 }.using(SizeTransform(clip = !cardContainerTransitionActive))
             }
         ) { current ->
+            androidx.compose.runtime.CompositionLocalProvider(
+                LocalPlaylistCoverSharedVisibilityScope provides this
+            ) {
             val suppressRestoredSceneMotion = shouldSuppressRestoredMainTabHostEntry(
                 restoredEntry = suppressRestoredSceneEntry,
                 initialDepth = navigationTransition.currentState.navigationDepth,
@@ -941,6 +945,7 @@ fun LibraryHostScreen(
                         }
                         }
                     }
+            }
                 }
             }
         }

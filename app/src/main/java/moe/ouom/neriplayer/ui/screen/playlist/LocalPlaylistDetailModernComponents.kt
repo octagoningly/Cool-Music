@@ -994,6 +994,8 @@ internal fun PlaylistModernHeroHeader(
     offlineMode: Boolean,
     height: Dp,
     coverContentDescription: String = displayName,
+    sharedCoverPlaylistId: String = "",
+    sharedCoverEnabled: Boolean = false,
     actions: (@Composable () -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -1034,7 +1036,11 @@ internal fun PlaylistModernHeroHeader(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(PlaylistHeroCoverSize)
-                        .clip(RoundedCornerShape(PlaylistHeroCoverCornerRadius))
+                        .playlistCoverSharedElement(
+                            enabled = sharedCoverEnabled,
+                            playlistId = sharedCoverPlaylistId,
+                            cornerRadius = PlaylistHeroCoverCornerRadius
+                        )
                 )
                 Column(
                     modifier = Modifier.weight(1f),
@@ -1082,6 +1088,8 @@ internal fun LocalPlaylistHeroHeader(
     playCount: Long,
     offlineMode: Boolean,
     height: Dp,
+    sharedCoverPlaylistId: String = "",
+    sharedCoverEnabled: Boolean = false,
     actions: (@Composable () -> Unit)? = null
 ) {
     PlaylistModernHeroHeader(
@@ -1095,6 +1103,8 @@ internal fun LocalPlaylistHeroHeader(
         ),
         offlineMode = offlineMode,
         height = height,
+        sharedCoverPlaylistId = sharedCoverPlaylistId,
+        sharedCoverEnabled = sharedCoverEnabled,
         actions = actions
     )
 }

@@ -1937,6 +1937,8 @@ fun LocalPlaylistDetailScreen(
                                         playCount = playlistPlayCount,
                                         offlineMode = offlineMode,
                                         height = playlistHeroHeight,
+                                        sharedCoverPlaylistId = playlistId.toString(),
+                                        sharedCoverEnabled = coherentFeedbackEnabled,
                                         actions = if (headerSearchVisible) {
                                             {
                                                 Box(

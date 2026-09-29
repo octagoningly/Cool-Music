@@ -151,6 +151,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
@@ -454,15 +455,28 @@ fun LocalPlaylistDetailScreen(
     }
 
     val detailVisibilityState = rememberMainTabDetailVisibilityState(playlistId)
+    // 卡片容器变换（连贯反馈）负责开窗/收窗；页面内再叠一层全高 slideIn 会像抽屉从底下顶上来。
+    val coherentFeedbackForHostMotion by AppContainer.settingsRepo
+        .coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
     AnimatedVisibility(
         visibleState = detailVisibilityState,
-        enter = slideInVertically(
-            tween(300, easing = FastOutSlowInEasing),
-            initialOffsetY = { it }
-        ) + fadeIn(tween(150)),
-        exit = slideOutVertically(
-            tween(250, easing = FastOutSlowInEasing),
-            targetOffsetY = { it }) + fadeOut(tween(150))
+        enter = if (coherentFeedbackForHostMotion) {
+            fadeIn(tween(180))
+        } else {
+            slideInVertically(
+                tween(300, easing = FastOutSlowInEasing),
+                initialOffsetY = { it }
+            ) + fadeIn(tween(150))
+        },
+        exit = if (coherentFeedbackForHostMotion) {
+            fadeOut(tween(150))
+        } else {
+            slideOutVertically(
+                tween(250, easing = FastOutSlowInEasing),
+                targetOffsetY = { it }
+            ) + fadeOut(tween(150))
+        }
     ) {
         Surface(Modifier.fillMaxSize(), color = Color.Transparent) {
             if (playlist == null) {

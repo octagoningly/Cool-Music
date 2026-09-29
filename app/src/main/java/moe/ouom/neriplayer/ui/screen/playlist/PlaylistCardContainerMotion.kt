@@ -30,11 +30,10 @@ internal object PlaylistCardContainerMotion {
     const val BackgroundExpandedScale = SceneDepthMotion.ExpandedScale
     const val BackgroundDimmedAlpha = 0.76f
     /**
-     * Material emphasized 风格：起步保留卡片形态，中段完成主要形变，末段柔和落位。
-     * 不复用景深层的强 ease-out，否则窄高差的歌单行会在前 1/3 时间内近乎铺满屏幕，
-     * 剩余时间只剩静止长尾，观感会重新退化为抽屉弹出。
+     * 起步稍慢：前 1/4 时间窗仍贴着行高，能看清「从上下沿长高」；
+     * 中段拉完，末段柔和落位。过强 ease-out 会像一上来就撑满屏。
      */
-    val OpenEasing = CubicBezierEasing(0.20f, 0f, 0f, 1f)
+    val OpenEasing = CubicBezierEasing(0.35f, 0f, 0.15f, 1f)
     val CloseEasing = CubicBezierEasing(0.32f, 0f, 0.20f, 1f)
 
     /** 上下边缘描边峰值透明度；暂时关掉柔边 */
@@ -77,11 +76,13 @@ internal object PlaylistCardContainerMotion {
         progress: Float
     ): PlaylistCardContainerFrame {
         val p = progress.coerceIn(0f, 1f)
-        // 窗口：从卡片矩形同时向上下/左右撑到全屏（全宽行主要是上下沿同时长高）
-        val clipLeft = lerp(source.left, 0f, p)
-        val clipTop = lerp(source.top, 0f, p)
-        val clipRight = lerp(source.right, viewportWidth, p)
-        val clipBottom = lerp(source.bottom, viewportHeight, p)
+        // 窗口从卡片上下沿长高：前段贴住行高（二次方起步），后段撑满全屏。
+        // 线性 lerp 会让前几帧就高出一截，看起来像「上下留白很大」。
+        val grow = p * p
+        val clipLeft = lerp(source.left, 0f, grow)
+        val clipTop = lerp(source.top, 0f, grow)
+        val clipRight = lerp(source.right, viewportWidth, grow)
+        val clipBottom = lerp(source.bottom, viewportHeight, grow)
 
         // 详情钉在全屏坐标（scale=1、位移=0）：只靠裁切窗揭示。
         // 若 content 跟 clipTop 走，展开时内容会整体上移 → 抽屉感。

@@ -253,8 +253,10 @@ internal fun resolveLibraryTabsVisibility(
 ): Boolean {
     // 程序性补偿优先级最高：即使补偿把列表带到接近顶部，也不能伪装成用户上滑。
     if (compensatingContentTop) return currentVisible
-    // 重建后的首次发射不推断滚动方向；若列表确实已在顶部，才恢复完整顶栏。
+    // 重建后的首次发射不推断滚动方向；空列表（0）不能当成「已在顶部」，
+    // 否则详情返回时首帧列表未就绪会把顶栏莫名展开，看起来像「本地」行冒出来。
     if (initialEmission) {
+        if (currentScrollTotal == 0 && previousScrollTotal != 0) return currentVisible
         return if (currentScrollTotal <= LIBRARY_TABS_TOP_THRESHOLD_PX) true else currentVisible
     }
     if (currentScrollTotal <= LIBRARY_TABS_TOP_THRESHOLD_PX) return true
@@ -1594,20 +1596,16 @@ private fun LocalPlaylistList(
                 !FavoritesPlaylist.isSystemPlaylist(it, context)
         }
     }
-    // Stable list identity: never recreate during drag (remember(editablePlaylists) caused flicker)
+    // 排序拖拽用；平时不要用它当数据源——空列表首发会把 LazyListState 顶回顶部。
     val reorderablePlaylists = remember { mutableStateListOf<LocalPlaylist>() }
 
     LaunchedEffect(editablePlaylists, localSortMode) {
-        if (!localSortMode) {
+        if (!localSortMode) return@LaunchedEffect
+        val currentIds = reorderablePlaylists.map { it.id }.toSet()
+        val editableIds = editablePlaylists.map { it.id }.toSet()
+        if (currentIds != editableIds) {
             reorderablePlaylists.clear()
             reorderablePlaylists.addAll(editablePlaylists)
-        } else {
-            val currentIds = reorderablePlaylists.map { it.id }.toSet()
-            val editableIds = editablePlaylists.map { it.id }.toSet()
-            if (currentIds != editableIds) {
-                reorderablePlaylists.clear()
-                reorderablePlaylists.addAll(editablePlaylists)
-            }
         }
     }
 
@@ -1751,10 +1749,11 @@ private fun LocalPlaylistList(
         ?.takeIf { false } // favorites now lives in the sortable playlist list
     val displayedLocalFilesPlaylist = localFilesPlaylist
         ?.takeIf { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
+    // 非排序：直接吃 editablePlaylists，返回详情重建时首帧就有内容，列表位置不丢
     val displayedPlaylists = if (localSortMode) {
         reorderablePlaylists.toList()
     } else {
-        reorderablePlaylists.filter { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
+        editablePlaylists.filter { playlist -> playlist.matchesLocalPlaylistSearch(localSearchQuery, context) }
     }
     val hasPlaylistSearchMatches =
         displayedFavoritesPlaylist != null ||
@@ -3875,9 +3874,11 @@ private fun FavoritePlaylistList(
 
     BackHandler(enabled = sortMode) { exitEditMode() }
 
-    LaunchedEffect(visibleFavorites) {
-        reorderableFavorites.clear()
-        reorderableFavorites.addAll(visibleFavorites)
+    LaunchedEffect(visibleFavorites, sortMode) {
+        if (sortMode) {
+            reorderableFavorites.clear()
+            reorderableFavorites.addAll(visibleFavorites)
+        }
         val validKeys = visibleFavorites.map(::favoriteKey).toSet()
         selectedKeys = selectedKeys.intersect(validKeys)
         if (sortMode && visibleFavorites.isEmpty()) {
@@ -3925,7 +3926,10 @@ private fun FavoritePlaylistList(
             .reorderable(reorderState)
     ) {
         val cardShape = RoundedCornerShape(12.dp)
-        val displayedFavorites = filterFavoritePlaylists(reorderableFavorites, favoriteSearchQuery)
+        val displayedFavorites = filterFavoritePlaylists(
+        if (sortMode) reorderableFavorites else visibleFavorites,
+        favoriteSearchQuery
+    )
         item(key = "favorite_category_tabs") {
             Card(
                 shape = RoundedCornerShape(24.dp),

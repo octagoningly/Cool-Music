@@ -58,6 +58,7 @@ import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import moe.ouom.neriplayer.ui.util.boundedMaxHeight
@@ -464,11 +465,9 @@ fun LibraryHostScreen(
         val source = pendingScrollSource ?: return@LaunchedEffect
         val restoreIndex = pendingListRestoreIndex ?: return@LaunchedEffect
         if (selected != null) return@LaunchedEffect
-        // 等卡片收起动画结束再恢复，避免中途 remasure 把位置顶偏
-        if (cardContainerTransformEnabled && cardContainerProgress > 0.01f) {
-            snapshotFlow { cardContainerProgress }
-                .first { it <= 0.01f }
-        }
+        // 列表状态本来就在 host 上；立刻校正即可。
+        // 不要等收起动画结束才 restore——动画期间列表若已被空帧顶回顶部，用户会看到「回顶再跳回」。
+        withFrameNanos { }
         listStateFor(source).restoreHostScrollPosition(
             HostScrollPosition(
                 index = restoreIndex,
@@ -542,8 +541,11 @@ fun LibraryHostScreen(
                 targetDepth = navigationTransition.targetState.navigationDepth
             )
             val sceneMotion = if (
-                suppressRestoredSceneMotion || cardContainerTransitionActive
+                suppressRestoredSceneMotion ||
+                    cardContainerTransitionActive ||
+                    coherentFeedbackEnabled
             ) {
+                // 连贯反馈开启时不做抽屉下沉/上拉，返回背景保持原位
                 AdvancedGlassSceneMotion.None
             } else {
                 navigationTransition.animateAdvancedGlassSceneMotion(
@@ -577,7 +579,9 @@ fun LibraryHostScreen(
                                     }
                                 }
                                 .clipMainTabDetailCloseRoot(
-                                    if (cardContainerTransitionActive) {
+                                    // 连贯反馈 / 卡片容器变换：返回必须「所见即所留」，
+                                    // 禁止旧抽屉的自上而下 reveal（表现成背景被往下拉）。
+                                    if (cardContainerTransitionActive || coherentFeedbackEnabled) {
                                         1f
                                     } else {
                                         detailCloseRootRevealFraction

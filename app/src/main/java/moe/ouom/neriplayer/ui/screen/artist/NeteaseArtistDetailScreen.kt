@@ -48,6 +48,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -72,10 +74,14 @@ import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.viewmodel.artist.NeteaseArtistDetailUiState
 import moe.ouom.neriplayer.ui.viewmodel.artist.NeteaseArtistDetailViewModel
 import moe.ouom.neriplayer.ui.viewmodel.artist.NeteaseArtistHeader
+import moe.ouom.neriplayer.ui.viewmodel.artist.NeteaseArtistListPosition
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.ui.viewmodel.tab.AlbumSummary
 import moe.ouom.neriplayer.ui.haptic.HapticIconButton
+import moe.ouom.neriplayer.ui.screen.host.HostScrollPosition
+import moe.ouom.neriplayer.ui.screen.host.captureHostScrollPosition
+import moe.ouom.neriplayer.ui.screen.host.restoreHostScrollPosition
 import moe.ouom.neriplayer.ui.util.currentWindowWidthDp
 import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
 
@@ -102,9 +108,64 @@ fun NeteaseArtistDetailScreen(
     val listState = rememberSaveable(artist.id, saver = LazyListState.Saver) {
         LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0)
     }
+    // 原始坐标备份：LazyListState 在列表变空时会被夹到顶，这里存的是「意图位置」
+    var pendingTabIndex by rememberSaveable(artist.id) { mutableIntStateOf(-1) }
+    var pendingScrollIndex by rememberSaveable(artist.id) { mutableIntStateOf(0) }
+    var pendingScrollOffset by rememberSaveable(artist.id) { mutableIntStateOf(0) }
+    var pendingScrollKey by rememberSaveable(artist.id) { mutableStateOf<String?>(null) }
+    // 每次进入组合只恢复一次，避免加载更多/滚动后被拽回旧位置
+    var hasRestoredListPosition by remember(artist.id) { mutableStateOf(false) }
+
+    fun captureListPosition() {
+        val snapshot = listState.captureHostScrollPosition()
+        val position = NeteaseArtistListPosition(
+            selectedTab = selectedTab,
+            firstVisibleItemIndex = snapshot.index,
+            firstVisibleItemScrollOffset = snapshot.offset,
+            firstVisibleItemKey = snapshot.key
+        )
+        pendingTabIndex = position.selectedTab
+        pendingScrollIndex = position.firstVisibleItemIndex
+        pendingScrollOffset = position.firstVisibleItemScrollOffset
+        pendingScrollKey = position.firstVisibleItemKey
+        viewModel.saveListPosition(position)
+    }
 
     LaunchedEffect(artist.id) {
         viewModel.start(artist)
+    }
+
+    LaunchedEffect(artist.id, ui.loading, ui.songs.size, ui.albums.size, selectedTab) {
+        if (ui.loading || hasRestoredListPosition) return@LaunchedEffect
+        val vmPending = viewModel.peekListPosition()
+        val restoreTab = vmPending?.selectedTab ?: pendingTabIndex.takeIf { it >= 0 }
+        if (restoreTab == null) return@LaunchedEffect
+        if (restoreTab != selectedTab) {
+            selectedTab = restoreTab
+            return@LaunchedEffect
+        }
+        val itemCount = when (selectedTab) {
+            0 -> ui.songs.size
+            else -> ui.albums.size
+        }
+        // header + tab 还没铺出列表项时再等数据
+        if (itemCount <= 0) return@LaunchedEffect
+        val restoreIndex = vmPending?.firstVisibleItemIndex ?: pendingScrollIndex
+        val restoreOffset = vmPending?.firstVisibleItemScrollOffset ?: pendingScrollOffset
+        val restoreKey = vmPending?.firstVisibleItemKey ?: pendingScrollKey
+        listState.restoreHostScrollPosition(
+            position = HostScrollPosition(
+                index = restoreIndex,
+                offset = restoreOffset,
+                key = restoreKey
+            )
+        )
+        hasRestoredListPosition = true
+        viewModel.consumeListPosition()
+        pendingTabIndex = -1
+        pendingScrollIndex = 0
+        pendingScrollOffset = 0
+        pendingScrollKey = null
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
@@ -138,8 +199,14 @@ fun NeteaseArtistDetailScreen(
                 onToggleFollow = viewModel::toggleFollow,
                 onLoadMoreSongs = viewModel::loadMoreSongs,
                 onLoadMoreAlbums = viewModel::loadMoreAlbums,
-                onSongClick = onSongClick,
-                onAlbumClick = onAlbumClick,
+                onSongClick = { songs, index ->
+                    captureListPosition()
+                    onSongClick(songs, index)
+                },
+                onAlbumClick = { album ->
+                    captureListPosition()
+                    onAlbumClick(album)
+                },
                 offlineMode = offlineMode,
                 isTabletLayout = isTabletLayout
             )

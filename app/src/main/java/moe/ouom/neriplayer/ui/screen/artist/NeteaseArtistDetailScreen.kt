@@ -226,11 +226,12 @@ private fun ArtistContent(
                 shape = RoundedCornerShape(24.dp),
                 color = Color.Transparent
             ) {
+                // 内联 Tab 在 content 捕获层内，禁用 ScreenTopTab（自采样会糊掉文字）
                 AdvancedGlassSurface(
-                    role = AdvancedGlassRole.ScreenTopTab,
+                    role = AdvancedGlassRole.SemanticCard,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    fallbackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
+                    fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
                     tintColor = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     PrimaryTabRow(

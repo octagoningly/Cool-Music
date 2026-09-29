@@ -18,8 +18,9 @@ import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
 /**
  * 媒体库歌单卡片到详情页的容器变换。
  *
- * 源矩形与详情根容器使用同一个根坐标系；详情内容始终按最终尺寸布局，
- * 这里只让圆角裁切窗口从卡片的上下/左右边沿展开，避免缩放详情内容导致错位。
+ * 观感：以点击的那一行为窗，**上下沿同时向外长高**（全宽行则左右已满）。
+ * 详情内容钉在全屏坐标不动；窗外仍是歌单列表，窗内才是详情。
+ * 不要把内容再 translationY 到 clipTop——那会把详情往上拽，慢放就是抽屉从底下顶上来。
  */
 internal object PlaylistCardContainerMotion {
     const val OpenDurationMillis = 600
@@ -76,17 +77,15 @@ internal object PlaylistCardContainerMotion {
         progress: Float
     ): PlaylistCardContainerFrame {
         val p = progress.coerceIn(0f, 1f)
+        // 窗口：从卡片矩形同时向上下/左右撑到全屏（全宽行主要是上下沿同时长高）
         val clipLeft = lerp(source.left, 0f, p)
         val clipTop = lerp(source.top, 0f, p)
         val clipRight = lerp(source.right, viewportWidth, p)
         val clipBottom = lerp(source.bottom, viewportHeight, p)
 
-        // 标准容器变换不是在固定全屏页面上开一扇窗：目标内容也应跟着当前容器
-        // 从源卡片左上沿移动，并按容器宽度等比长大。歌单行虽很扁，但不会纵向拉伸。
-        val contentScale = ((clipRight - clipLeft) / viewportWidth).coerceIn(0f, 1f)
-        // 进出都走淡化衔接：展开时从卡片淡入详情，返回时在窗收到卡片前先淡掉，
-        // 否则 clip 收紧到行高时会露出纯底色，看起来像那一行突然变黑。
-        val contentFade = smoothStep(start = 0.06f, end = 0.52f, value = p)
+        // 详情钉在全屏坐标（scale=1、位移=0）：只靠裁切窗揭示。
+        // 若 content 跟 clipTop 走，展开时内容会整体上移 → 抽屉感。
+        val contentFade = smoothStep(start = 0.04f, end = 0.42f, value = p)
         val cornerProgress = smoothStep(start = 0.18f, end = 1f, value = p)
         val depthProgress = smoothStep(start = 0.04f, end = 1f, value = p)
         val backgroundPivotFractionX =
@@ -101,9 +100,9 @@ internal object PlaylistCardContainerMotion {
             cornerRadiusDp = lerp(SourceCornerRadiusDp, 0f, cornerProgress),
             // 整层（含底色）跟 contentAlpha 一起淡，末帧露出真实歌单行
             contentAlpha = contentFade,
-            contentScale = contentScale,
-            contentTranslationX = clipLeft,
-            contentTranslationY = clipTop,
+            contentScale = 1f,
+            contentTranslationX = 0f,
+            contentTranslationY = 0f,
             backgroundScale = lerp(1f, BackgroundExpandedScale, depthProgress),
             backgroundAlpha = lerp(1f, BackgroundDimmedAlpha, depthProgress),
             backgroundPivotFractionX = backgroundPivotFractionX,

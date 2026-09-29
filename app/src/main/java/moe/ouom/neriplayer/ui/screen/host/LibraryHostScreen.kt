@@ -86,6 +86,7 @@ import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.YouTubeMusicPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.PlaylistCardContainerMotion
 import moe.ouom.neriplayer.ui.screen.playlist.playlistCardContainerClip
+import moe.ouom.neriplayer.ui.screen.tab.LibraryChromeScrollState
 import moe.ouom.neriplayer.ui.screen.tab.LibraryTab
 import moe.ouom.neriplayer.ui.screen.tab.LibraryScreen
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
@@ -347,6 +348,8 @@ fun LibraryHostScreen(
     val qqMusicListState = rememberSaveable(saver = qqMusicListSaver) {
         LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0)
     }
+    // 必须活在 AnimatedContent 外：LibraryScreen 打开详情后会被释放，返回不能重置顶栏/留白。
+    val libraryChromeScrollState = remember { LibraryChromeScrollState() }
     val topAppBarState = rememberTopAppBarState()
     LaunchedEffect(mainTabReselectTick) {
         if (mainTabReselectTick <= 0) return@LaunchedEffect
@@ -593,6 +596,7 @@ fun LibraryHostScreen(
                             biliListState = biliListState,
                             qqMusicListState = qqMusicListState,
                             topAppBarState = topAppBarState,
+                            chromeScrollState = libraryChromeScrollState,
                             offlineMode = offlineMode,
                             chromeHidden = libraryChromeHidden,
                             onPlaylistCardBounds = { bounds, windowWidth, windowHeight ->

@@ -113,6 +113,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -229,6 +230,40 @@ import moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText
 /** 记录卡片 bounds 但不进 State，避免滚动时每帧重组 */
 private class CardBoundsCapture {
     var bounds: androidx.compose.ui.geometry.Rect = androidx.compose.ui.geometry.Rect.Zero
+}
+
+/**
+ * 媒体库根页面会在详情展开完成后离开 composition；这组状态由 LibraryHost 持有，
+ * 避免返回时先按默认顶栏/留白绘制一帧，再被滚动监听改回去。
+ */
+@Stable
+class LibraryChromeScrollState {
+    var showTabs by mutableStateOf(true)
+    var lastScrollTotal: Int = 0
+    var appliedContentTopDp: Float = LIBRARY_TABS_EXPANDED_TOP_DP
+    var isCompensatingContentTop: Boolean = false
+}
+
+internal fun resolveLibraryTabsVisibility(
+    currentVisible: Boolean,
+    previousScrollTotal: Int,
+    currentScrollTotal: Int,
+    initialEmission: Boolean,
+    compensatingContentTop: Boolean
+): Boolean {
+    // 程序性补偿优先级最高：即使补偿把列表带到接近顶部，也不能伪装成用户上滑。
+    if (compensatingContentTop) return currentVisible
+    // 重建后的首次发射不推断滚动方向；若列表确实已在顶部，才恢复完整顶栏。
+    if (initialEmission) {
+        return if (currentScrollTotal <= LIBRARY_TABS_TOP_THRESHOLD_PX) true else currentVisible
+    }
+    if (currentScrollTotal <= LIBRARY_TABS_TOP_THRESHOLD_PX) return true
+    val delta = currentScrollTotal - previousScrollTotal
+    return when {
+        delta > LIBRARY_TABS_SCROLL_THRESHOLD_PX -> false
+        delta < -LIBRARY_TABS_SCROLL_THRESHOLD_PX -> true
+        else -> currentVisible
+    }
 }
 
 enum class LibraryTab(val labelResId: Int) {
@@ -417,6 +452,11 @@ private fun libraryListBottomPadding(): Dp {
 /** 顶部为浮层标题+Tab 留出起始空白，滚动后内容可进入玻璃区被采样。 */
 private val LocalLibraryListTopPadding = staticCompositionLocalOf { 136.dp }
 
+private const val LIBRARY_TABS_EXPANDED_TOP_DP = 136f
+private const val LIBRARY_TABS_COLLAPSED_TOP_DP = 56f
+private const val LIBRARY_TABS_TOP_THRESHOLD_PX = 48
+private const val LIBRARY_TABS_SCROLL_THRESHOLD_PX = 12
+
 @Composable
 private fun libraryListTopPadding(): Dp = LocalLibraryListTopPadding.current
 
@@ -433,6 +473,7 @@ fun LibraryScreen(
     biliListState: LazyListState,
     qqMusicListState: LazyListState,
     topAppBarState: TopAppBarState,
+    chromeScrollState: LibraryChromeScrollState,
     onLocalPlaylistClick: (LocalPlaylist) -> Unit = {},
     onPlaylistCardBounds: (
         bounds: androidx.compose.ui.geometry.Rect,
@@ -593,39 +634,50 @@ fun LibraryScreen(
         LibraryTab.QQMUSIC -> qqMusicListState
         else -> localListState
     }
-    // 下滑收起 Tab 行；上滑意图时先弹出
-    // 根列表在详情展开完成后会被 AnimatedContent 释放；必须保存这两个状态，
-    // 否则关闭详情时顶部留白会从 56dp 重置到 136dp，源卡片整体下移。
-    var showLibraryTabs by rememberSaveable { mutableStateOf(true) }
-    var lastLibraryScrollTotal by rememberSaveable { mutableIntStateOf(0) }
+    // 下滑收起 Tab 行；上滑意图时先弹出。状态由 LibraryHost 持有，详情返回不重置。
+    val showLibraryTabs = chromeScrollState.showTabs
     LaunchedEffect(activeLibraryListState) {
+        var initialEmission = true
         snapshotFlow {
             activeLibraryListState.firstVisibleItemIndex * 100_000 +
                 activeLibraryListState.firstVisibleItemScrollOffset
         }.collect { total ->
-            val atTop = total <= 48
-            val delta = total - lastLibraryScrollTotal
-            if (atTop) {
-                showLibraryTabs = true
-            } else if (delta > 12) {
-                showLibraryTabs = false
-            } else if (delta < -12) {
-                showLibraryTabs = true
-            }
-            lastLibraryScrollTotal = total
+            chromeScrollState.showTabs = resolveLibraryTabsVisibility(
+                currentVisible = chromeScrollState.showTabs,
+                previousScrollTotal = chromeScrollState.lastScrollTotal,
+                currentScrollTotal = total,
+                initialEmission = initialEmission,
+                compensatingContentTop = chromeScrollState.isCompensatingContentTop
+            )
+            chromeScrollState.lastScrollTotal = total
+            initialEmission = false
         }
     }
     // 瞬时切换顶部留白：动画 Dp 会让列表每帧 remasure，滚动发卡。
-    // 收起/展开时用 scrollBy 补偿，列表视觉不跳（否则交错会把跳变当成甩动）。
-    var libraryContentTopDp by rememberSaveable { mutableFloatStateOf(136f) }
+    // 收起/展开时用 scrollBy 补偿；补偿滚动不能反向触发顶栏显隐。
+    val libraryContentTopDp = if (showLibraryTabs) {
+        LIBRARY_TABS_EXPANDED_TOP_DP
+    } else {
+        LIBRARY_TABS_COLLAPSED_TOP_DP
+    }
     val libraryDensity = LocalDensity.current
-    LaunchedEffect(showLibraryTabs, activeLibraryListState) {
-        val targetDp = if (showLibraryTabs) 136f else 56f
-        val deltaPx = with(libraryDensity) { (targetDp - libraryContentTopDp).dp.toPx() }
-        if (deltaPx != 0f) {
-            activeLibraryListState.scrollBy(deltaPx)
+    LaunchedEffect(libraryContentTopDp, activeLibraryListState) {
+        val deltaPx = with(libraryDensity) {
+            (libraryContentTopDp - chromeScrollState.appliedContentTopDp).dp.toPx()
         }
-        libraryContentTopDp = targetDp
+        if (deltaPx != 0f) {
+            // 先落目标值，协程即使因场景切换取消，也不会在下次进入时重复补偿。
+            chromeScrollState.appliedContentTopDp = libraryContentTopDp
+            chromeScrollState.isCompensatingContentTop = true
+            try {
+                activeLibraryListState.scrollBy(deltaPx)
+            } finally {
+                chromeScrollState.lastScrollTotal =
+                    activeLibraryListState.firstVisibleItemIndex * 100_000 +
+                        activeLibraryListState.firstVisibleItemScrollOffset
+                chromeScrollState.isCompensatingContentTop = false
+            }
+        }
     }
 
     CompositionLocalProvider(LocalLibraryListTopPadding provides libraryContentTopDp.dp) {

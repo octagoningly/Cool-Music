@@ -594,8 +594,10 @@ fun LibraryScreen(
         else -> localListState
     }
     // 下滑收起 Tab 行；上滑意图时先弹出
-    var showLibraryTabs by remember { mutableStateOf(true) }
-    var lastLibraryScrollTotal by remember { mutableIntStateOf(0) }
+    // 根列表在详情展开完成后会被 AnimatedContent 释放；必须保存这两个状态，
+    // 否则关闭详情时顶部留白会从 56dp 重置到 136dp，源卡片整体下移。
+    var showLibraryTabs by rememberSaveable { mutableStateOf(true) }
+    var lastLibraryScrollTotal by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(activeLibraryListState) {
         snapshotFlow {
             activeLibraryListState.firstVisibleItemIndex * 100_000 +
@@ -615,18 +617,18 @@ fun LibraryScreen(
     }
     // 瞬时切换顶部留白：动画 Dp 会让列表每帧 remasure，滚动发卡。
     // 收起/展开时用 scrollBy 补偿，列表视觉不跳（否则交错会把跳变当成甩动）。
-    var libraryContentTop by remember { mutableStateOf(136.dp) }
+    var libraryContentTopDp by rememberSaveable { mutableFloatStateOf(136f) }
     val libraryDensity = LocalDensity.current
     LaunchedEffect(showLibraryTabs, activeLibraryListState) {
-        val target = if (showLibraryTabs) 136.dp else 56.dp
-        val deltaPx = with(libraryDensity) { (target - libraryContentTop).toPx() }
+        val targetDp = if (showLibraryTabs) 136f else 56f
+        val deltaPx = with(libraryDensity) { (targetDp - libraryContentTopDp).dp.toPx() }
         if (deltaPx != 0f) {
             activeLibraryListState.scrollBy(deltaPx)
         }
-        libraryContentTop = target
+        libraryContentTopDp = targetDp
     }
 
-    CompositionLocalProvider(LocalLibraryListTopPadding provides libraryContentTop) {
+    CompositionLocalProvider(LocalLibraryListTopPadding provides libraryContentTopDp.dp) {
     Box(
         Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter

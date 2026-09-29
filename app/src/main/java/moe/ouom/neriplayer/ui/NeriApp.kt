@@ -2400,6 +2400,8 @@ private fun NeriAppContent(
             }
             var libraryChromeBackgroundScale by remember { mutableFloatStateOf(1f) }
             var libraryChromeBackgroundAlpha by remember { mutableFloatStateOf(1f) }
+            var libraryChromePivotFractionX by remember { mutableFloatStateOf(0.5f) }
+            var libraryChromePivotFractionY by remember { mutableFloatStateOf(0.5f) }
             var pendingMainTabRoute by remember(navHostStartDestination) {
                 mutableStateOf<String?>(null)
             }
@@ -2888,9 +2890,11 @@ private fun NeriAppContent(
                         },
                         offlineMode = offlineMode,
                         coherentFeedbackEnabled = coherentFeedbackEnabled,
-                        onCardBackgroundTransformChanged = { scale, alpha ->
+                        onCardBackgroundTransformChanged = { scale, alpha, pivotX, pivotY ->
                             libraryChromeBackgroundScale = scale
                             libraryChromeBackgroundAlpha = alpha
+                            libraryChromePivotFractionX = pivotX
+                            libraryChromePivotFractionY = pivotY
                         },
                         renderScene = { revealTop, translationY, scale, sceneDepth, sceneContent ->
                             RenderMainTabNavigationScene(
@@ -4335,7 +4339,10 @@ private fun NeriAppContent(
                                                     scaleX = libraryChromeBackgroundScale
                                                     scaleY = libraryChromeBackgroundScale
                                                     alpha = libraryChromeBackgroundAlpha
-                                                    transformOrigin = TransformOrigin.Center
+                                                    transformOrigin = TransformOrigin(
+                                                        pivotFractionX = libraryChromePivotFractionX,
+                                                        pivotFractionY = libraryChromePivotFractionY
+                                                    )
                                                 }
                                             }
                                     ) {

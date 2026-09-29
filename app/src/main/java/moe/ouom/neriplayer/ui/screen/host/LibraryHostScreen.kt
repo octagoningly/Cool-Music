@@ -31,7 +31,6 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import kotlinx.parcelize.Parcelize
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
@@ -63,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import moe.ouom.neriplayer.ui.util.boundedMaxHeight
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -190,7 +190,12 @@ fun LibraryHostScreen(
     onOpenStats: () -> Unit = {},
     offlineMode: Boolean = false,
     coherentFeedbackEnabled: Boolean = false,
-    onCardBackgroundTransformChanged: (scale: Float, alpha: Float) -> Unit = { _, _ -> },
+    onCardBackgroundTransformChanged: (
+        scale: Float,
+        alpha: Float,
+        pivotFractionX: Float,
+        pivotFractionY: Float
+    ) -> Unit = { _, _, _, _ -> },
     renderScene: @Composable (
         revealTopFraction: Float,
         contentTranslationYFraction: Float,
@@ -401,7 +406,13 @@ fun LibraryHostScreen(
                 } else {
                     PlaylistCardContainerMotion.CloseDurationMillis
                 },
-                easing = FastOutSlowInEasing
+                easing = if (
+                    targetState.navigationDepth > initialState.navigationDepth
+                ) {
+                    PlaylistCardContainerMotion.OpenEasing
+                } else {
+                    PlaylistCardContainerMotion.CloseEasing
+                }
             )
         },
         label = "library_playlist_card_container"
@@ -431,12 +442,14 @@ fun LibraryHostScreen(
     SideEffect {
         onCardBackgroundTransformChanged(
             cardBackgroundFrame?.backgroundScale ?: 1f,
-            cardBackgroundFrame?.backgroundAlpha ?: 1f
+            cardBackgroundFrame?.backgroundAlpha ?: 1f,
+            cardBackgroundFrame?.backgroundPivotFractionX ?: 0.5f,
+            cardBackgroundFrame?.backgroundPivotFractionY ?: 0.5f
         )
     }
     DisposableEffect(Unit) {
         onDispose {
-            onCardBackgroundTransformChanged(1f, 1f)
+            onCardBackgroundTransformChanged(1f, 1f, 0.5f, 0.5f)
         }
     }
 
@@ -554,6 +567,10 @@ fun LibraryHostScreen(
                                         scaleX = cardFrame.backgroundScale
                                         scaleY = cardFrame.backgroundScale
                                         alpha = cardFrame.backgroundAlpha
+                                         transformOrigin = TransformOrigin(
+                                             pivotFractionX = cardFrame.backgroundPivotFractionX,
+                                             pivotFractionY = cardFrame.backgroundPivotFractionY
+                                         )
                                     }
                                 }
                                 .clipMainTabDetailCloseRoot(

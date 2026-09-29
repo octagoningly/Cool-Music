@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
 
 /**
  * MiniPlayer ↔ NowPlaying 「连贯反馈」展开/收起动效。
@@ -125,10 +126,10 @@ object NowPlayingExpandMotion {
     const val MiniPlayerExitFadeMs = 160
     const val MiniPlayerExitScale = 0.92f
 
-    /** 背景轻度后退：保持完全不透明，只用缩放制造景深，避免浅色底透出形成白蒙层。 */
-    const val BackgroundRecedeScale = 0.97f
+    /** 与歌单卡片展开共用 1.20 倍背景推进；全程不透明，避免浅色底透出形成白蒙层。 */
+    const val BackgroundRecedeScale = SceneDepthMotion.ExpandedScale
     const val BackgroundRecedeAlpha = 1.0f
-    const val BackgroundRecedeDurationMs = 360
+    const val BackgroundRecedeDurationMs = SceneDepthMotion.OpenDurationMillis
 
     // —— 方案 B：跟手 ——
     /** 松手关闭：位移超过高度比例 或 甩动速度超过该值 (px/s) */
@@ -286,8 +287,16 @@ fun Modifier.nowPlayingBackgroundRecede(
     val progress by animateFloatAsState(
         targetValue = if (nowPlayingVisible) 1f else 0f,
         animationSpec = tween(
-            durationMillis = NowPlayingExpandMotion.BackgroundRecedeDurationMs,
-            easing = FastOutSlowInEasing
+            durationMillis = if (nowPlayingVisible) {
+                NowPlayingExpandMotion.BackgroundRecedeDurationMs
+            } else {
+                SceneDepthMotion.CloseDurationMillis
+            },
+            easing = if (nowPlayingVisible) {
+                SceneDepthMotion.OpenEasing
+            } else {
+                SceneDepthMotion.CloseEasing
+            }
         ),
         label = "np_bg_recede"
     )

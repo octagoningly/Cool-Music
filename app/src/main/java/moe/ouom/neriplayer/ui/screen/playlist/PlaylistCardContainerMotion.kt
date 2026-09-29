@@ -12,6 +12,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
 
 /**
  * 媒体库歌单卡片到详情页的容器变换。
@@ -20,12 +21,14 @@ import androidx.compose.ui.util.lerp
  * 这里只让圆角裁切窗口从卡片的上下/左右边沿展开，避免缩放详情内容导致错位。
  */
 internal object PlaylistCardContainerMotion {
-    const val OpenDurationMillis = 460
-    const val CloseDurationMillis = 360
+    const val OpenDurationMillis = SceneDepthMotion.OpenDurationMillis
+    const val CloseDurationMillis = SceneDepthMotion.CloseDurationMillis
     const val SourceCornerRadiusDp = 12f
     /** 背景缩放幅度：约 20%（相对 2.5% 为 8 倍） */
-    const val BackgroundExpandedScale = 1.20f
-    const val BackgroundDimmedAlpha = 0.82f
+    const val BackgroundExpandedScale = SceneDepthMotion.ExpandedScale
+    const val BackgroundDimmedAlpha = 0.76f
+    val OpenEasing = SceneDepthMotion.OpenEasing
+    val CloseEasing = SceneDepthMotion.CloseEasing
 
     /** 上下边缘描边峰值透明度；暂时关掉柔边 */
     const val EdgeStrokeAlpha = 0f
@@ -67,16 +70,24 @@ internal object PlaylistCardContainerMotion {
         progress: Float
     ): PlaylistCardContainerFrame {
         val p = progress.coerceIn(0f, 1f)
+        val contentReveal = (p / 0.46f).coerceIn(0f, 1f)
+        val contentFade = contentReveal * contentReveal * (3f - 2f * contentReveal)
+        val backgroundPivotFractionX =
+            ((source.left + source.right) * 0.5f / viewportWidth).coerceIn(0f, 1f)
+        val backgroundPivotFractionY =
+            ((source.top + source.bottom) * 0.5f / viewportHeight).coerceIn(0f, 1f)
         return PlaylistCardContainerFrame(
             clipLeft = lerp(source.left, 0f, p),
             clipTop = lerp(source.top, 0f, p),
             clipRight = lerp(source.right, viewportWidth, p),
             clipBottom = lerp(source.bottom, viewportHeight, p),
             cornerRadiusDp = lerp(SourceCornerRadiusDp, 0f, p),
-            // 实底始终不透明，仅让详情内容轻微淡入。
-            contentAlpha = lerp(0.72f, 1f, (p / 0.32f).coerceIn(0f, 1f)),
+            // 实底始终不透明；详情内容在卡片边界附近平滑淡入/淡出。
+            contentAlpha = contentFade,
             backgroundScale = lerp(1f, BackgroundExpandedScale, p),
             backgroundAlpha = lerp(1f, BackgroundDimmedAlpha, p),
+            backgroundPivotFractionX = backgroundPivotFractionX,
+            backgroundPivotFractionY = backgroundPivotFractionY,
             edgeAlpha = 0f
         )
     }
@@ -91,6 +102,8 @@ internal data class PlaylistCardContainerFrame(
     val contentAlpha: Float,
     val backgroundScale: Float,
     val backgroundAlpha: Float,
+    val backgroundPivotFractionX: Float,
+    val backgroundPivotFractionY: Float,
     val edgeAlpha: Float = 0f
 )
 

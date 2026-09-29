@@ -18,7 +18,7 @@ class PlaylistCardContainerMotionTest {
         assertEquals(source.top, start.clipTop, 0.001f)
         assertEquals(source.right, start.clipRight, 0.001f)
         assertEquals(source.bottom, start.clipBottom, 0.001f)
-        assertEquals(0.72f, start.contentAlpha, 0.001f)
+        assertEquals(0f, start.contentAlpha, 0.001f)
         assertEquals(0f, end.clipLeft, 0.001f)
         assertEquals(0f, end.clipTop, 0.001f)
         assertEquals(1080f, end.clipRight, 0.001f)
@@ -26,6 +26,8 @@ class PlaylistCardContainerMotionTest {
         assertEquals(1f, end.contentAlpha, 0.001f)
         assertEquals(PlaylistCardContainerMotion.BackgroundExpandedScale, end.backgroundScale, 0.001f)
         assertEquals(PlaylistCardContainerMotion.BackgroundDimmedAlpha, end.backgroundAlpha, 0.001f)
+        assertEquals(0.5f, end.backgroundPivotFractionX, 0.001f)
+        assertEquals(380f / 2400f, end.backgroundPivotFractionY, 0.001f)
     }
 
     @Test

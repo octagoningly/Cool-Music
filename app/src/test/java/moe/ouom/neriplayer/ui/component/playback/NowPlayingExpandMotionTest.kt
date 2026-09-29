@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.ui.component.playback
 
+import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -58,6 +59,7 @@ class NowPlayingExpandMotionTest {
 
         assertEquals(1f, resting.scale, 0.0001f)
         assertEquals(NowPlayingExpandMotion.BackgroundRecedeScale, receded.scale, 0.0001f)
+        assertEquals(SceneDepthMotion.ExpandedScale, receded.scale, 0.0001f)
         assertEquals(1f, resting.alpha, 0.0001f)
         assertEquals(1f, receded.alpha, 0.0001f)
     }

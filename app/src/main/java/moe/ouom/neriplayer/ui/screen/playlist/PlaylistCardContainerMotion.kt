@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.playlist
 
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -21,14 +22,19 @@ import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
  * 这里只让圆角裁切窗口从卡片的上下/左右边沿展开，避免缩放详情内容导致错位。
  */
 internal object PlaylistCardContainerMotion {
-    const val OpenDurationMillis = SceneDepthMotion.OpenDurationMillis
-    const val CloseDurationMillis = SceneDepthMotion.CloseDurationMillis
+    const val OpenDurationMillis = 600
+    const val CloseDurationMillis = 480
     const val SourceCornerRadiusDp = 12f
     /** 背景缩放幅度：约 20%（相对 2.5% 为 8 倍） */
     const val BackgroundExpandedScale = SceneDepthMotion.ExpandedScale
     const val BackgroundDimmedAlpha = 0.76f
-    val OpenEasing = SceneDepthMotion.OpenEasing
-    val CloseEasing = SceneDepthMotion.CloseEasing
+    /**
+     * Material emphasized 风格：起步保留卡片形态，中段完成主要形变，末段柔和落位。
+     * 不复用景深层的强 ease-out，否则窄高差的歌单行会在前 1/3 时间内近乎铺满屏幕，
+     * 剩余时间只剩静止长尾，观感会重新退化为抽屉弹出。
+     */
+    val OpenEasing = CubicBezierEasing(0.20f, 0f, 0f, 1f)
+    val CloseEasing = CubicBezierEasing(0.32f, 0f, 0.20f, 1f)
 
     /** 上下边缘描边峰值透明度；暂时关掉柔边 */
     const val EdgeStrokeAlpha = 0f
@@ -70,26 +76,44 @@ internal object PlaylistCardContainerMotion {
         progress: Float
     ): PlaylistCardContainerFrame {
         val p = progress.coerceIn(0f, 1f)
-        val contentReveal = (p / 0.46f).coerceIn(0f, 1f)
-        val contentFade = contentReveal * contentReveal * (3f - 2f * contentReveal)
+        val clipLeft = lerp(source.left, 0f, p)
+        val clipTop = lerp(source.top, 0f, p)
+        val clipRight = lerp(source.right, viewportWidth, p)
+        val clipBottom = lerp(source.bottom, viewportHeight, p)
+
+        // 标准容器变换不是在固定全屏页面上开一扇窗：目标内容也应跟着当前容器
+        // 从源卡片左上沿移动，并按容器宽度等比长大。歌单行虽很扁，但不会纵向拉伸。
+        val contentScale = ((clipRight - clipLeft) / viewportWidth).coerceIn(0f, 1f)
+        val contentFade = smoothStep(start = 0.10f, end = 0.72f, value = p)
+        val cornerProgress = smoothStep(start = 0.18f, end = 1f, value = p)
+        val depthProgress = smoothStep(start = 0.04f, end = 1f, value = p)
         val backgroundPivotFractionX =
             ((source.left + source.right) * 0.5f / viewportWidth).coerceIn(0f, 1f)
         val backgroundPivotFractionY =
             ((source.top + source.bottom) * 0.5f / viewportHeight).coerceIn(0f, 1f)
         return PlaylistCardContainerFrame(
-            clipLeft = lerp(source.left, 0f, p),
-            clipTop = lerp(source.top, 0f, p),
-            clipRight = lerp(source.right, viewportWidth, p),
-            clipBottom = lerp(source.bottom, viewportHeight, p),
-            cornerRadiusDp = lerp(SourceCornerRadiusDp, 0f, p),
+            clipLeft = clipLeft,
+            clipTop = clipTop,
+            clipRight = clipRight,
+            clipBottom = clipBottom,
+            cornerRadiusDp = lerp(SourceCornerRadiusDp, 0f, cornerProgress),
             // 实底始终不透明；详情内容在卡片边界附近平滑淡入/淡出。
             contentAlpha = contentFade,
-            backgroundScale = lerp(1f, BackgroundExpandedScale, p),
-            backgroundAlpha = lerp(1f, BackgroundDimmedAlpha, p),
+            contentScale = contentScale,
+            contentTranslationX = clipLeft,
+            contentTranslationY = clipTop,
+            backgroundScale = lerp(1f, BackgroundExpandedScale, depthProgress),
+            backgroundAlpha = lerp(1f, BackgroundDimmedAlpha, depthProgress),
             backgroundPivotFractionX = backgroundPivotFractionX,
             backgroundPivotFractionY = backgroundPivotFractionY,
             edgeAlpha = 0f
         )
+    }
+
+    private fun smoothStep(start: Float, end: Float, value: Float): Float {
+        if (end <= start) return if (value >= end) 1f else 0f
+        val fraction = ((value - start) / (end - start)).coerceIn(0f, 1f)
+        return fraction * fraction * (3f - 2f * fraction)
     }
 }
 
@@ -100,6 +124,9 @@ internal data class PlaylistCardContainerFrame(
     val clipBottom: Float,
     val cornerRadiusDp: Float,
     val contentAlpha: Float,
+    val contentScale: Float,
+    val contentTranslationX: Float,
+    val contentTranslationY: Float,
     val backgroundScale: Float,
     val backgroundAlpha: Float,
     val backgroundPivotFractionX: Float,

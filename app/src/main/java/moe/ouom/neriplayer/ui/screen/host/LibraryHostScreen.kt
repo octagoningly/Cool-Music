@@ -774,7 +774,14 @@ fun LibraryHostScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer {
-                                    alpha = cardFrame?.contentAlpha ?: 1f
+                                    if (cardFrame != null) {
+                                        alpha = cardFrame.contentAlpha
+                                        scaleX = cardFrame.contentScale
+                                        scaleY = cardFrame.contentScale
+                                        translationX = cardFrame.contentTranslationX
+                                        translationY = cardFrame.contentTranslationY
+                                        transformOrigin = TransformOrigin(0f, 0f)
+                                    }
                                 }
                         ) {
                         when (current) {

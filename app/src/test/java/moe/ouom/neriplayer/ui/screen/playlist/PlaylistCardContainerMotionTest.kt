@@ -19,11 +19,17 @@ class PlaylistCardContainerMotionTest {
         assertEquals(source.right, start.clipRight, 0.001f)
         assertEquals(source.bottom, start.clipBottom, 0.001f)
         assertEquals(0f, start.contentAlpha, 0.001f)
+        assertEquals(source.width / 1080f, start.contentScale, 0.001f)
+        assertEquals(source.left, start.contentTranslationX, 0.001f)
+        assertEquals(source.top, start.contentTranslationY, 0.001f)
         assertEquals(0f, end.clipLeft, 0.001f)
         assertEquals(0f, end.clipTop, 0.001f)
         assertEquals(1080f, end.clipRight, 0.001f)
         assertEquals(2400f, end.clipBottom, 0.001f)
         assertEquals(1f, end.contentAlpha, 0.001f)
+        assertEquals(1f, end.contentScale, 0.001f)
+        assertEquals(0f, end.contentTranslationX, 0.001f)
+        assertEquals(0f, end.contentTranslationY, 0.001f)
         assertEquals(PlaylistCardContainerMotion.BackgroundExpandedScale, end.backgroundScale, 0.001f)
         assertEquals(PlaylistCardContainerMotion.BackgroundDimmedAlpha, end.backgroundAlpha, 0.001f)
         assertEquals(0.5f, end.backgroundPivotFractionX, 0.001f)
@@ -68,5 +74,26 @@ class PlaylistCardContainerMotionTest {
                 viewportInRoot = viewportInRoot
             )
         )
+    }
+
+    @Test
+    fun contentTransformTracksMorphingContainerInsteadOfRevealingFixedPage() {
+        val source = Rect(32f, 760f, 1048f, 900f)
+        val frame = PlaylistCardContainerMotion.frame(
+            source = source,
+            viewportWidth = 1080f,
+            viewportHeight = 2400f,
+            progress = 0.5f
+        )
+
+        assertEquals(frame.clipLeft, frame.contentTranslationX, 0.001f)
+        assertEquals(frame.clipTop, frame.contentTranslationY, 0.001f)
+        assertEquals(
+            frame.clipRight - frame.clipLeft,
+            1080f * frame.contentScale,
+            0.001f
+        )
+        assertTrue(frame.cornerRadiusDp > PlaylistCardContainerMotion.SourceCornerRadiusDp * 0.5f)
+        assertTrue(frame.contentAlpha in 0f..1f)
     }
 }

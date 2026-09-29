@@ -1011,6 +1011,7 @@ fun ExploreScreen(
                                             onDismissRequest = { sourceMenuExpanded = false },
                                             shape = GlassMenuShape,
                                             preferDownward = true,
+                                            offsetY = 16.dp,
                                             maxHeight = 320.dp
                                         ) {
                             // 标题：说明该菜单用途

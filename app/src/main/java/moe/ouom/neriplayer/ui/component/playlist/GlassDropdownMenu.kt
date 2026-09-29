@@ -355,6 +355,7 @@ fun GlassDropdownMenu(
     maxHeight: Dp = 440.dp,
     forceSolid: Boolean = false,
     preferDownward: Boolean = false,
+    offsetY: Dp = 8.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val controller = LocalAdvancedGlassController.current
@@ -375,9 +376,9 @@ fun GlassDropdownMenu(
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
 
-    val positionProvider = remember(density, reservedBottom, preferDownward) {
+    val positionProvider = remember(density, reservedBottom, preferDownward, offsetY) {
         GlassMenuPositionProvider(
-            contentOffset = DpOffset(0.dp, 8.dp),
+            contentOffset = DpOffset(0.dp, offsetY),
             reservedBottomPx = { with(density) { reservedBottom.roundToPx() } },
             preferDownward = preferDownward,
             onMenuPlacement = { bounds, up, leftOfAnchor ->

@@ -50,11 +50,14 @@ internal suspend fun searchLxOnlineCollections(
     val engines = lxOnlineSearchEngines()
     val platforms = LX_ONLINE_SEARCH_PLATFORM_ORDER.filter { it in engines }
     val client = AppContainer.sharedOkHttpClient
+    NPLogger.d(TAG, "search begin: keyword=$keyword, page=$page, type=$type, platforms=$platforms")
     val pages = platforms.map { platform ->
         async {
             try {
                 val body = client.lxCollectionGet(searchUrl(platform, keyword, page, type))
-                parseLxOnlineCollectionPage(platform, type, body, page)
+                val parsed = parseLxOnlineCollectionPage(platform, type, body, page)
+                NPLogger.d(TAG, "$platform $type hits=${parsed.items.size}")
+                parsed
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -63,8 +66,10 @@ internal suspend fun searchLxOnlineCollections(
             }
         }
     }.awaitAll()
+    val merged = pages.flatMap { it.items }.distinctBy { "${it.sourceId}|${it.type}|${it.id}" }
+    NPLogger.d(TAG, "search done: keyword=$keyword, type=$type, items=${merged.size}")
     LxOnlineCollectionPage(
-        items = pages.flatMap { it.items }.distinctBy { "${it.sourceId}|${it.type}|${it.id}" },
+        items = merged,
         hasMore = pages.any { it.hasMore }
     )
 }

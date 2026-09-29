@@ -22,7 +22,12 @@ internal suspend fun searchLxDefaultSongs(keyword: String, page: Int): LxDefault
     val engines = lxOnlineSearchEngines()
     val platforms = LX_ONLINE_SEARCH_PLATFORM_ORDER.filter { it in engines }
     val useSourceCover = isLxSourceCoverFallbackEnabled()
+    NPLogger.d(
+        "NERI-LxDefaultSearch",
+        "search begin: keyword=$keyword, page=$page, engines=$engines, platforms=$platforms"
+    )
     if (platforms.isEmpty()) {
+        NPLogger.w("NERI-LxDefaultSearch", "no engine enabled, return empty")
         return@coroutineScope LxDefaultSearchPage(songs = emptyList(), hasMore = false)
     }
     val results = platforms.map { platform ->
@@ -47,6 +52,9 @@ internal suspend fun searchLxDefaultSongs(keyword: String, page: Int): LxDefault
             }
         }
     }.map { it.await() }
+    results.forEachIndexed { index, hits ->
+        NPLogger.d("NERI-LxDefaultSearch", "platform=${platforms[index]} hits=${hits.size}")
+    }
     val mapped = results.flatten()
         .distinctBy { "${it.sourceId}|${it.songMid}" }
         .mapNotNull { hit ->
@@ -61,6 +69,10 @@ internal suspend fun searchLxDefaultSongs(keyword: String, page: Int): LxDefault
     } else {
         mapped
     }
+    NPLogger.d(
+        "NERI-LxDefaultSearch",
+        "search done: keyword=$keyword, mapped=${mapped.size}, songs=${songs.size}"
+    )
     LxDefaultSearchPage(
         songs = songs,
         hasMore = results.any { it.size >= LX_DEFAULT_SEARCH_PAGE_SIZE }

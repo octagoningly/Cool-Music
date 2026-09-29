@@ -1036,6 +1036,7 @@ fun ExploreScreen(
                             expanded = sourceMenuExpanded,
                             onDismissRequest = { sourceMenuExpanded = false },
                             shape = GlassMenuShape,
+                            preferDownward = true,
                             modifier = Modifier
                         ) {
                             // 标题：说明该菜单用途
@@ -1233,62 +1234,100 @@ fun ExploreScreen(
                         if (shouldRenderExploreSearchResults(page, pagerState.currentPage)) {
                             when {
                                 ui.searching -> {
-                                    Column(
-                                        Modifier
-                                            .fillMaxSize()
-                                            .padding(bottom = miniPlayerHeight)
+                                    LazyColumn(
+                                        state = searchListState,
+                                        contentPadding = PaddingValues(
+                                            top = exploreListContentTop,
+                                            bottom = exploreSearchResultsBottomPadding(miniPlayerHeight)
+                                        ),
+                                        modifier = Modifier.fillMaxSize()
                                     ) {
-                                        SearchTypeSongRow(
-                                            source = searchTypeBarSource,
-                                            selectedDefaultSearchType = ui.selectedDefaultSearchType,
-                                            selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
-                                            selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
-                                            onDefaultSearchTypeClick = vm::setDefaultSearchType,
-                                            onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
-                                            onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
-                                        )
-                                        Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
-                                            CircularProgressIndicator()
+                                        item(key = "explore-search-type-song-row-pad") {
+                                            Spacer(Modifier.height(86.dp))
+                                        }
+                                        item(key = "explore-search-type-song-row") {
+                                            SearchTypeSongRow(
+                                                source = searchTypeBarSource,
+                                                selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                                selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                                selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                                onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                                onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                                onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                            )
+                                        }
+                                        item(key = "explore-search-status") {
+                                            Box(
+                                                Modifier.fillMaxWidth().padding(top = 48.dp),
+                                                Alignment.Center
+                                            ) { CircularProgressIndicator() }
                                         }
                                     }
                                 }
                                 ui.searchError != null -> {
-                                    Column(
-                                        Modifier
-                                            .fillMaxSize()
-                                            .padding(bottom = miniPlayerHeight)
+                                    LazyColumn(
+                                        state = searchListState,
+                                        contentPadding = PaddingValues(
+                                            top = exploreListContentTop,
+                                            bottom = exploreSearchResultsBottomPadding(miniPlayerHeight)
+                                        ),
+                                        modifier = Modifier.fillMaxSize()
                                     ) {
-                                        SearchTypeSongRow(
-                                            source = searchTypeBarSource,
-                                            selectedDefaultSearchType = ui.selectedDefaultSearchType,
-                                            selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
-                                            selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
-                                            onDefaultSearchTypeClick = vm::setDefaultSearchType,
-                                            onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
-                                            onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
-                                        )
-                                        Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
-                                            Text(ui.searchError!!, color = MaterialTheme.colorScheme.error)
+                                        item(key = "explore-search-type-song-row-pad") {
+                                            Spacer(Modifier.height(86.dp))
+                                        }
+                                        item(key = "explore-search-type-song-row") {
+                                            SearchTypeSongRow(
+                                                source = searchTypeBarSource,
+                                                selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                                selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                                selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                                onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                                onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                                onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                            )
+                                        }
+                                        item(key = "explore-search-status") {
+                                            Box(
+                                                Modifier.fillMaxWidth().padding(top = 48.dp),
+                                                Alignment.Center
+                                            ) {
+                                                Text(
+                                                    ui.searchError!!,
+                                                    color = MaterialTheme.colorScheme.error
+                                                )
+                                            }
                                         }
                                     }
                                 }
                                 ui.searchItems.isEmpty() -> {
-                                    Column(
-                                        Modifier
-                                            .fillMaxSize()
-                                            .padding(bottom = miniPlayerHeight)
+                                    LazyColumn(
+                                        state = searchListState,
+                                        contentPadding = PaddingValues(
+                                            top = exploreListContentTop,
+                                            bottom = exploreSearchResultsBottomPadding(miniPlayerHeight)
+                                        ),
+                                        modifier = Modifier.fillMaxSize()
                                     ) {
-                                        SearchTypeSongRow(
-                                            source = searchTypeBarSource,
-                                            selectedDefaultSearchType = ui.selectedDefaultSearchType,
-                                            selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
-                                            selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
-                                            onDefaultSearchTypeClick = vm::setDefaultSearchType,
-                                            onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
-                                            onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
-                                        )
-                                        Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
-                                            Text(stringResource(R.string.search_no_result))
+                                        item(key = "explore-search-type-song-row-pad") {
+                                            Spacer(Modifier.height(86.dp))
+                                        }
+                                        item(key = "explore-search-type-song-row") {
+                                            SearchTypeSongRow(
+                                                source = searchTypeBarSource,
+                                                selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                                selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                                selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                                onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                                onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                                onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                            )
+                                        }
+                                        item(key = "explore-search-status") {
+                                            Box(
+                                                Modifier.fillMaxWidth().padding(top = 48.dp),
+                                                Alignment.Center
+                                            ) { Text(stringResource(R.string.search_no_result)) }
                                         }
                                     }
                                 }

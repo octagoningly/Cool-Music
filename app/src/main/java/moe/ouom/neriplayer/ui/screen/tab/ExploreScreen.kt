@@ -2143,7 +2143,7 @@ internal fun ExploreSearchTypeBar(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_DEFAULT_SEARCH_TYPE_BAR_TAG),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
                 ) {
                     DefaultExploreSearchType.entries.forEach { type ->
                         ExploreTagChip(
@@ -2169,7 +2169,7 @@ internal fun ExploreSearchTypeBar(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_NETEASE_SEARCH_TYPE_BAR_TAG),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
                 ) {
                     NeteaseExploreSearchType.entries.forEach { type ->
                         ExploreTagChip(
@@ -2195,7 +2195,7 @@ internal fun ExploreSearchTypeBar(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_YOUTUBE_SEARCH_TYPE_BAR_TAG),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
                 ) {
                     YouTubeExploreSearchType.entries.forEach { type ->
                         ExploreTagChip(
@@ -2336,9 +2336,9 @@ private fun ExploreTagChip(
         MaterialTheme.colorScheme.onSurface
     }
     val borderColor = if (selected) {
-        MaterialTheme.colorScheme.secondary.copy(alpha = borderAlpha)
+        MaterialTheme.colorScheme.secondary.copy(alpha = borderAlpha * 0.55f)
     } else {
-        MaterialTheme.colorScheme.outline.copy(alpha = borderAlpha)
+        MaterialTheme.colorScheme.outline.copy(alpha = borderAlpha * 0.35f)
     }
 
     ExploreGlassPillSurface(
@@ -2349,32 +2349,15 @@ private fun ExploreTagChip(
             else -> MaterialTheme.colorScheme.surface
         },
         contentColor = contentColor,
-        border = if (showLabel) BorderStroke(1.dp, borderColor) else null,
+        // 边框画在整个胶囊外沿，不再在内容内侧再套一圈
+        border = BorderStroke(1.dp, borderColor),
         shape = ExplorePillShape,
         modifier = Modifier,
         onClick = onClick
     ) {
         if (!showLabel && icon != null) {
             Column(
-                modifier = Modifier
-                    .padding(horizontal = 6.dp, vertical = 4.dp)
-                    .then(
-                        if (selected) {
-                            Modifier
-                                .clip(ExplorePillShape)
-                                .background(
-                                    MaterialTheme.colorScheme.secondaryContainer.copy(
-                                        alpha = selectedAlpha.coerceAtLeast(0.85f)
-                                    )
-                                )
-                                .border(
-                                    BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = borderAlpha)),
-                                    ExplorePillShape
-                                )
-                        } else {
-                            Modifier
-                        }
-                    ),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -2384,10 +2367,11 @@ private fun ExploreTagChip(
                     tint = contentColor,
                     modifier = Modifier.size(20.dp)
                 )
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = label,
                     color = contentColor,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -2395,8 +2379,8 @@ private fun ExploreTagChip(
         } else {
         Row(
             modifier = Modifier
-                .height(36.dp)
-                .padding(horizontal = if (showLabel) 14.dp else 12.dp),
+                .height(40.dp)
+                .padding(horizontal = if (showLabel) 16.dp else 14.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -2407,7 +2391,7 @@ private fun ExploreTagChip(
                     modifier = Modifier.size(20.dp)
                 )
                 if (showLabel) {
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                 }
             }
             if (showLabel) {

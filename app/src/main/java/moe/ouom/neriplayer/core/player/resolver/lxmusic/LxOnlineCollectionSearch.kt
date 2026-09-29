@@ -137,12 +137,10 @@ private fun searchUrl(
     type: LxOnlineCollectionType
 ): HttpUrl = when (sourceId) {
     LX_QQ_PLATFORM_ID -> if (type == LxOnlineCollectionType.ARTIST) {
+        // client_search_cp?t=9 已整体 500，改用仍在服务的 smartbox 歌手联想
         HttpUrl.Builder().scheme("https").host("c.y.qq.com")
-            .addPathSegments("soso/fcgi-bin/client_search_cp")
-            .addQueryParameter("p", page.toString())
-            .addQueryParameter("n", PAGE_SIZE.toString())
-            .addQueryParameter("w", keyword)
-            .addQueryParameter("t", "9")
+            .addPathSegments("splcloud/fcgi-bin/smartbox_new.fcg")
+            .addQueryParameter("key", keyword)
             .addQueryParameter("format", "json")
             .build()
     } else {
@@ -264,11 +262,22 @@ internal fun parseLxOnlineCollectionPage(
     when (sourceId) {
         LX_QQ_PLATFORM_ID -> {
             if (root.optInt("code", -1) != 0) return LxOnlineCollectionPage(emptyList(), false)
-            data = if (type == LxOnlineCollectionType.ARTIST) {
-                root.optJSONObject("data")?.optJSONObject("singer")
-            } else root.optJSONObject("data")
-            list = data?.optJSONArray("list")
-            total = data?.optInt(if (type == LxOnlineCollectionType.ARTIST) "totalnum" else "sum") ?: 0
+            if (type == LxOnlineCollectionType.ARTIST) {
+                data = root.optJSONObject("data")?.optJSONObject("singer")
+                // smartbox（itemlist/count，不分页）与旧 client_search_cp（list/totalnum）两种写法
+                list = data?.optJSONArray("itemlist") ?: data?.optJSONArray("list")
+                total = when {
+                    data?.has("itemlist") == true -> data.optInt("count", list?.length() ?: 0)
+                    else -> data?.optInt("totalnum", 0) ?: 0
+                }
+                if (data?.has("itemlist") == true && page > 1) {
+                    return LxOnlineCollectionPage(emptyList(), false)
+                }
+            } else {
+                data = root.optJSONObject("data")
+                list = data?.optJSONArray("list")
+                total = data?.optInt("sum") ?: 0
+            }
         }
         LX_KUWO_PLATFORM_ID -> {
             data = root
@@ -317,9 +326,10 @@ private fun parseLxOnlineCollection(
     val playCount: Long
     when (sourceId) {
         LX_QQ_PLATFORM_ID -> if (type == LxOnlineCollectionType.ARTIST) {
-            id = item.optString("singerMID")
-            name = item.optString("singerName")
-            cover = item.optString("singerPic")
+            // 兼容旧 client_search_cp（singerMID/…）与 smartbox（mid/name/pic）
+            id = item.optString("singerMID").ifBlank { item.optString("mid") }
+            name = item.optString("singerName").ifBlank { item.optString("name") }
+            cover = item.optString("singerPic").ifBlank { item.optString("pic") }
             creator = ""
             trackCount = item.optInt("songNum")
             playCount = 0L

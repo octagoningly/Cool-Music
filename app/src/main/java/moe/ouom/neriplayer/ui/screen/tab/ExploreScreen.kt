@@ -1233,30 +1233,64 @@ fun ExploreScreen(
                         if (shouldRenderExploreSearchResults(page, pagerState.currentPage)) {
                             when {
                                 ui.searching -> {
-                                    Box(
+                                    Column(
                                         Modifier
                                             .fillMaxSize()
-                                            .padding(bottom = miniPlayerHeight),
-                                        Alignment.Center
-                                    ) { CircularProgressIndicator() }
+                                            .padding(bottom = miniPlayerHeight)
+                                    ) {
+                                        SearchTypeSongRow(
+                                            source = searchTypeBarSource,
+                                            selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                            selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                            selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                            onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                            onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                            onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                        )
+                                        Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
+                                            CircularProgressIndicator()
+                                        }
+                                    }
                                 }
                                 ui.searchError != null -> {
-                                    Box(
+                                    Column(
                                         Modifier
                                             .fillMaxSize()
-                                            .padding(bottom = miniPlayerHeight),
-                                        Alignment.Center
+                                            .padding(bottom = miniPlayerHeight)
                                     ) {
-                                        Text(ui.searchError!!, color = MaterialTheme.colorScheme.error)
+                                        SearchTypeSongRow(
+                                            source = searchTypeBarSource,
+                                            selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                            selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                            selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                            onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                            onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                            onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                        )
+                                        Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
+                                            Text(ui.searchError!!, color = MaterialTheme.colorScheme.error)
+                                        }
                                     }
                                 }
                                 ui.searchItems.isEmpty() -> {
-                                    Box(
+                                    Column(
                                         Modifier
                                             .fillMaxSize()
-                                            .padding(bottom = miniPlayerHeight),
-                                        Alignment.Center
-                                    ) { Text(stringResource(R.string.search_no_result)) }
+                                            .padding(bottom = miniPlayerHeight)
+                                    ) {
+                                        SearchTypeSongRow(
+                                            source = searchTypeBarSource,
+                                            selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                            selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                            selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                            onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                            onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                            onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                        )
+                                        Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
+                                            Text(stringResource(R.string.search_no_result))
+                                        }
+                                    }
                                 }
                                 else -> {
                                 val searchRowStagger = rememberListRowStagger(

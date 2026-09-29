@@ -125,9 +125,9 @@ object NowPlayingExpandMotion {
     const val MiniPlayerExitFadeMs = 160
     const val MiniPlayerExitScale = 0.92f
 
-    /** 背景轻度后退：只做透明度，避免与播放页展开叠全屏 scale（掉帧主因之一） */
-    const val BackgroundRecedeScale = 1.0f
-    const val BackgroundRecedeAlpha = 0.65f
+    /** 背景轻度后退：保持完全不透明，只用缩放制造景深，避免浅色底透出形成白蒙层。 */
+    const val BackgroundRecedeScale = 0.97f
+    const val BackgroundRecedeAlpha = 1.0f
     const val BackgroundRecedeDurationMs = 360
 
     // —— 方案 B：跟手 ——
@@ -162,6 +162,21 @@ object NowPlayingExpandMotion {
     val HeartUnlikeSpring = spring<Float>(
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = Spring.StiffnessMedium
+    )
+}
+
+internal data class NowPlayingBackgroundFrame(
+    val scale: Float,
+    val alpha: Float
+)
+
+internal fun resolveNowPlayingBackgroundFrame(progress: Float): NowPlayingBackgroundFrame {
+    val normalizedProgress = progress.coerceIn(0f, 1f)
+    return NowPlayingBackgroundFrame(
+        scale = 1f -
+            (1f - NowPlayingExpandMotion.BackgroundRecedeScale) * normalizedProgress,
+        alpha = 1f -
+            (1f - NowPlayingExpandMotion.BackgroundRecedeAlpha) * normalizedProgress
     )
 }
 
@@ -277,10 +292,10 @@ fun Modifier.nowPlayingBackgroundRecede(
         label = "np_bg_recede"
     )
     return this.graphicsLayer {
-        val scale = 1f - (1f - NowPlayingExpandMotion.BackgroundRecedeScale) * progress
-        scaleX = scale
-        scaleY = scale
-        alpha = 1f - (1f - NowPlayingExpandMotion.BackgroundRecedeAlpha) * progress
+        val frame = resolveNowPlayingBackgroundFrame(progress)
+        scaleX = frame.scale
+        scaleY = frame.scale
+        alpha = frame.alpha
     }
 }
 

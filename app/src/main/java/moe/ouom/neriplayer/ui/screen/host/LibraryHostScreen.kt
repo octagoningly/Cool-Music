@@ -45,7 +45,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -188,6 +190,7 @@ fun LibraryHostScreen(
     onOpenStats: () -> Unit = {},
     offlineMode: Boolean = false,
     coherentFeedbackEnabled: Boolean = false,
+    onCardBackgroundTransformChanged: (scale: Float, alpha: Float) -> Unit = { _, _ -> },
     renderScene: @Composable (
         revealTopFraction: Float,
         contentTranslationYFraction: Float,
@@ -412,6 +415,30 @@ fun LibraryHostScreen(
         openViewportHeight > 1f
     val cardContainerTransitionActive = cardContainerTransformEnabled &&
         (navigationTransition.currentState == null || navigationTransition.targetState == null)
+    val cardBackgroundFrame = openOrigin
+        ?.takeIf { cardContainerTransformEnabled }
+        ?.let { source ->
+            PlaylistCardContainerMotion.frame(
+                source = source,
+                viewportWidth = openViewportWidth,
+                viewportHeight = openViewportHeight,
+                progress = cardContainerProgress
+            )
+        }
+
+    // 媒体库顶栏被提升到捕获层外，必须把同一帧变换交给根宿主；
+    // 根宿主使用全屏容器作为 transform origin，才能与列表的实际倍率一致。
+    SideEffect {
+        onCardBackgroundTransformChanged(
+            cardBackgroundFrame?.backgroundScale ?: 1f,
+            cardBackgroundFrame?.backgroundAlpha ?: 1f
+        )
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            onCardBackgroundTransformChanged(1f, 1f)
+        }
+    }
 
     LaunchedEffect(
         selected,
@@ -510,16 +537,7 @@ fun LibraryHostScreen(
                     label = "library_host_scene"
                 )
             }
-            val cardFrame = openOrigin
-                ?.takeIf { cardContainerTransformEnabled }
-                ?.let { source ->
-                    PlaylistCardContainerMotion.frame(
-                        source = source,
-                        viewportWidth = openViewportWidth,
-                        viewportHeight = openViewportHeight,
-                        progress = cardContainerProgress
-                    )
-                }
+            val cardFrame = cardBackgroundFrame
             renderScene(
                 sceneMotion.revealTopFraction,
                 sceneMotion.contentTranslationYFraction,

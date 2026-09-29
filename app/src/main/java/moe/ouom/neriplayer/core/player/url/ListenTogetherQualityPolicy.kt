@@ -19,6 +19,8 @@ internal fun maxListenTogetherStreamUrlCandidates(source: PlaybackAudioSource): 
         PlaybackAudioSource.NETEASE -> MAX_LISTEN_TOGETHER_STREAM_URL_CANDIDATES
         PlaybackAudioSource.BILIBILI -> MAX_LISTEN_TOGETHER_BILI_STREAM_URL_CANDIDATES
         PlaybackAudioSource.YOUTUBE_MUSIC -> MAX_LISTEN_TOGETHER_YOUTUBE_STREAM_URL_CANDIDATES
+        // QQ 一起听候选策略接入（M6）前不分享流
+        PlaybackAudioSource.QQ_MUSIC -> 0
         PlaybackAudioSource.LOCAL,
         PlaybackAudioSource.CUSTOM_LX -> 0
     }

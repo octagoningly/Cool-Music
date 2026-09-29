@@ -1810,6 +1810,8 @@ object PlayerManager {
                 PlaybackAudioSource.NETEASE -> settingsRepo.setAudioQuality(normalizedKey)
                 PlaybackAudioSource.BILIBILI -> settingsRepo.setBiliAudioQuality(normalizedKey)
                 PlaybackAudioSource.YOUTUBE_MUSIC -> settingsRepo.setYouTubeAudioQuality(normalizedKey)
+                // QQ 音质设置项接入（M3/M5）后在此持久化
+                PlaybackAudioSource.QQ_MUSIC -> Unit
                 PlaybackAudioSource.LOCAL -> Unit
                 PlaybackAudioSource.CUSTOM_LX -> settingsRepo.setLxAudioQuality(normalizedKey)
             }
@@ -2022,6 +2024,8 @@ object PlayerManager {
             PlaybackAudioSource.YOUTUBE_MUSIC -> ::youtubeQualityRefreshJob
             PlaybackAudioSource.BILIBILI -> ::biliQualityRefreshJob
             PlaybackAudioSource.CUSTOM_LX -> ::customLxQualityRefreshJob
+            // QQ 专用刷新任务接入（M3/M5）后挂接
+            PlaybackAudioSource.QQ_MUSIC -> return
             PlaybackAudioSource.LOCAL -> return
         }
         targetJob.get()?.cancel()

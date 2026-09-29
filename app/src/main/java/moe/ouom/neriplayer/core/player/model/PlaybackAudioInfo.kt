@@ -7,7 +7,8 @@ enum class PlaybackAudioSource {
     NETEASE,
     BILIBILI,
     YOUTUBE_MUSIC,
-    CUSTOM_LX
+    CUSTOM_LX,
+    QQ_MUSIC
 }
 
 data class PlaybackQualityOption(
@@ -133,7 +134,9 @@ data class PreferredQualityKeys(
     val netease: String = "exhigh",
     val youtube: String = "high",
     val bili: String = "high",
-    val lx: String = "320k"
+    val lx: String = "320k",
+    /** QQ 免费账号可用最高为 128k；会员可上调（见 QQMusicQuality） */
+    val qqMusic: String = "128k"
 )
 
 fun PreferredQualityKeys.forSource(source: PlaybackAudioSource): String? {
@@ -142,6 +145,7 @@ fun PreferredQualityKeys.forSource(source: PlaybackAudioSource): String? {
         PlaybackAudioSource.YOUTUBE_MUSIC -> youtube
         PlaybackAudioSource.BILIBILI -> bili
         PlaybackAudioSource.CUSTOM_LX -> lx
+        PlaybackAudioSource.QQ_MUSIC -> qqMusic
         PlaybackAudioSource.LOCAL -> null
     }
 }

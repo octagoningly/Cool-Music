@@ -213,4 +213,7 @@
     <string name="login_paste_youtube_cookie_hint">粘贴 Cookie 或浏览器请求头（需包含 Cookie）</string>
     <string name="settings_cookie_input_hint">请输入 Cookie</string>
     <string name="settings_lx_online_search_engines_count">%d 个引擎</string>
+    <string name="qq_web_login">QQ音乐登录</string>
+    <string name="settings_qq_music_status_valid">已登录，最近更新于 %1$s</string>
+    <string name="settings_qq_music_status_missing">未登录，点击登录 QQ 音乐</string>
 </resources>

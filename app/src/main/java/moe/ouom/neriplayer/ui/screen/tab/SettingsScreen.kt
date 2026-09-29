@@ -143,6 +143,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.di.AppContainer
+import moe.ouom.neriplayer.activity.auth.QQWebLoginActivity
+import org.json.JSONObject
 import moe.ouom.neriplayer.core.download.GlobalDownloadManager
 import moe.ouom.neriplayer.core.download.ManagedDownloadStorage
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.LX_ONLINE_SEARCH_PLATFORM_ORDER
@@ -4494,6 +4496,10 @@ private fun SettingsLoginExpandedContent(
     val youtubeAuthUiState by youtubeVm.uiState.collectAsStateWithLifecycleCompat()
     val neteaseAuthUiState by neteaseVm.uiState.collectAsStateWithLifecycleCompat()
 
+    val qqMusicCookieRepo = AppContainer.qqMusicCookieRepo
+    val qqMusicHealth by qqMusicCookieRepo.authHealthFlow.collectAsStateWithLifecycleCompat()
+    LaunchedEffect(qqMusicCookieRepo) { qqMusicCookieRepo.refreshHealth() }
+
     LaunchedEffect(biliVm, youtubeVm, neteaseVm) {
         biliVm.refreshAuthHealth()
         neteaseVm.refreshAuthHealth()
@@ -4638,6 +4644,36 @@ private fun SettingsLoginExpandedContent(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 
+        val qqMusicStatusText = when (qqMusicHealth.state) {
+            SavedCookieAuthState.Valid -> {
+                val relativeTime = qqMusicHealth.savedAt
+                    .takeIf { it > 0L }
+                    ?.let { formatSyncTime(it) }
+                    ?: stringResource(R.string.time_just_now)
+                stringResource(R.string.settings_qq_music_status_valid, relativeTime)
+            }
+            else -> stringResource(R.string.settings_qq_music_status_missing)
+        }
+        val qqMusicContext = LocalContext.current
+        val qqMusicLoginLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                val json = result.data?.getStringExtra(QQWebLoginActivity.RESULT_COOKIE) ?: "{}"
+                val cookies = runCatching {
+                    val obj = JSONObject(json)
+                    val out = LinkedHashMap<String, String>()
+                    val keys = obj.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        out[key] = obj.optString(key, "")
+                    }
+                    out
+                }.getOrDefault(emptyMap())
+                qqMusicCookieRepo.saveCookies(cookies)
+            }
+        }
+
         ListItem(
             leadingContent = {
                 Icon(
@@ -4648,8 +4684,12 @@ private fun SettingsLoginExpandedContent(
                 )
             },
             headlineContent = { Text(stringResource(R.string.settings_qq_music)) },
-            supportingContent = { Text(stringResource(R.string.common_coming_soon)) },
-            modifier = Modifier.settingsItemClickable { },
+            supportingContent = { Text(qqMusicStatusText) },
+            modifier = Modifier.settingsItemClickable {
+                qqMusicLoginLauncher.launch(
+                    Intent(qqMusicContext, QQWebLoginActivity::class.java)
+                )
+            },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }

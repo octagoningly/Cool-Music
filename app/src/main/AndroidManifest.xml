@@ -135,6 +135,12 @@
             android:theme="@style/Theme.Material3.DayNight.NoActionBar"
             />
         <activity
+            android:name=".activity.auth.QQWebLoginActivity"
+            android:exported="false"
+            android:process=":qq_web_login"
+            android:theme="@style/Theme.Material3.DayNight.NoActionBar"
+            />
+        <activity
             android:name=".activity.auth.BiliQrLoginActivity"
             android:exported="false"
             android:process=":bili_web_login"

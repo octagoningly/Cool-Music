@@ -1,0 +1,502 @@
+package moe.ouom.neriplayer.activity.auth
+
+/*
+ * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
+ * Copyright (C) 2025-2025 NeriPlayer developers
+ * https://github.com/cwuom/NeriPlayer
+ *
+ * This software is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this software.
+ * If not, see <https://www.gnu.org/licenses/>.
+ *
+ * File: moe.ouom.neriplayer.activity.auth/QQWebLoginActivity
+ * Created: 2026/9/28
+ */
+
+import android.annotation.SuppressLint
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.net.http.SslError
+import android.net.Uri
+import android.os.Bundle
+import android.view.MenuItem
+import android.view.ViewGroup
+import android.webkit.ConsoleMessage
+import android.webkit.CookieManager
+import android.webkit.SslErrorHandler
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebStorage
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
+import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.core.net.toUri
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
+import com.google.android.material.appbar.AppBarLayout
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.color.MaterialColors
+import com.google.android.material.snackbar.Snackbar
+import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.data.auth.web.ForegroundWebLoginGuard
+import moe.ouom.neriplayer.data.auth.web.shouldAutoCompleteQQMusicWebLogin
+import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.ui.feedback.showNeriViewSnackbar
+import moe.ouom.neriplayer.util.network.hostMatchesAnyDomain
+import moe.ouom.neriplayer.util.network.isAllowedMainFrameRequest
+import moe.ouom.neriplayer.util.platform.lockPortraitIfPhone
+
+/**
+ * 用内置 WebView 登录 QQ 音乐（y.qq.com 页面头像 → QQ/微信扫码授权）
+ * 登录后读取 Cookie 并返回 JSON(Map<String,String>)
+ *
+ * 通过 Intent Extra 约定返回:
+ *   - RESULT_COOKIE: String(JSON of Map<String,String>)
+ */
+class QQWebLoginActivity : ComponentActivity() {
+
+    companion object {
+        const val RESULT_COOKIE = "result_cookie_json"
+        private const val LOG_TAG = "NERI-QQLogin"
+        private const val LOGIN_URL = "https://y.qq.com/"
+
+        // QQ 登录链路全部落在 *.qq.com（y / graph / ssl.ptlogin2 / xui.ptlogin2 …）
+        private val ALLOWED_LOGIN_DOMAINS = setOf(
+            "qq.com"
+        )
+
+        private val IMPORTANT_COOKIE_KEYS = listOf(
+            "uin",
+            "qm_keyst",
+            "qqmusic_key"
+        )
+
+        private val COOKIE_READ_URLS = listOf(
+            "y.qq.com",
+            "music.qq.com"
+        )
+
+        private val COOKIE_CLEAR_URLS = listOf(
+            "https://y.qq.com",
+            "https://music.qq.com"
+        )
+    }
+
+    private lateinit var webView: WebView
+    private lateinit var toolbar: MaterialToolbar
+    private var foregroundWebLoginToken: AutoCloseable? = null
+    private var hasReturned = false
+    private val loginCompletionWatcher = WebLoginCompletionWatcher(::maybeReturnIfLoggedIn)
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        lockPortraitIfPhone()
+        enableEdgeToEdge()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        NPLogger.d(LOG_TAG, "QQ Music login activity created")
+        foregroundWebLoginToken = ForegroundWebLoginGuard.enter("qqmusic")
+
+        val root = CoordinatorLayout(this).apply {
+            fitsSystemWindows = false
+            setBackgroundColor(
+                MaterialColors.getColor(
+                    this,
+                    com.google.android.material.R.attr.colorSurface,
+                    Color.WHITE
+                )
+            )
+        }
+
+        val appBar = AppBarLayout(this).apply {
+            layoutParams = CoordinatorLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            setBackgroundColor(
+                MaterialColors.getColor(
+                    this,
+                    com.google.android.material.R.attr.colorSurface,
+                    Color.WHITE
+                )
+            )
+        }
+        toolbar = MaterialToolbar(this).apply {
+            title = getString(R.string.qq_web_login)
+            setNavigationIcon(R.drawable.ic_arrow_back_24)
+            setNavigationOnClickListener { finish() }
+            inflateMenu(R.menu.menu_netease_web_login)
+            setOnMenuItemClickListener { onToolbarMenu(it) }
+        }
+        appBar.addView(toolbar)
+
+        webView = WebView(this).apply {
+            layoutParams = CoordinatorLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ).apply {
+                behavior = AppBarLayout.ScrollingViewBehavior()
+            }
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
+            settings.javaScriptCanOpenWindowsAutomatically = true
+
+            settings.cacheMode = WebSettings.LOAD_NO_CACHE
+            CookieManager.getInstance().setAcceptCookie(true)
+            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+
+            webChromeClient = InnerChromeClient()
+            webViewClient = InnerClient()
+        }
+        webView.resumeTimers()
+        forceFreshWebContext()
+
+        root.addView(webView)
+        root.addView(appBar)
+        appBar.bringToFront()
+        setContentView(root)
+
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val status = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val nav = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            appBar.updatePadding(top = status.top)
+            webView.updatePadding(bottom = nav.bottom)
+            insets
+        }
+
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (this@QQWebLoginActivity::webView.isInitialized && webView.canGoBack()) {
+                        webView.goBack()
+                    } else {
+                        finish()
+                    }
+                }
+            }
+        )
+
+        loginCompletionWatcher.start()
+        reloadLoginPage("create")
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        NPLogger.d(LOG_TAG, "QQ Music login activity received new intent")
+        forceFreshWebContext()
+        reloadLoginPage("newIntent")
+    }
+
+    override fun onPause() {
+        CookieManager.getInstance().flush()
+        if (this::webView.isInitialized) {
+            webView.onPause()
+        }
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (this::webView.isInitialized) {
+            webView.resumeTimers()
+            webView.onResume()
+        }
+    }
+
+    override fun onDestroy() {
+        loginCompletionWatcher.stop()
+        if (this::webView.isInitialized) {
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.destroy()
+        }
+        foregroundWebLoginToken?.close()
+        foregroundWebLoginToken = null
+        super.onDestroy()
+    }
+
+    private fun onToolbarMenu(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_refresh -> {
+                webView.reload()
+                true
+            }
+            R.id.action_read_cookie -> {
+                readAndReturnCookies()
+                true
+            }
+            else -> false
+        }
+    }
+
+    private fun readAndReturnCookies() {
+        try {
+            CookieManager.getInstance().flush()
+            val map = readCookieForDomains(COOKIE_READ_URLS)
+            if (!shouldAutoCompleteQQMusicWebLogin(map)) {
+                showNeriViewSnackbar(
+                    webView,
+                    getString(R.string.snackbar_cookie_empty),
+                    Snackbar.LENGTH_SHORT
+                )
+                return
+            }
+
+            val json = org.json.JSONObject().apply {
+                map.forEach { (key, value) -> put(key, value) }
+            }.toString()
+            setResult(RESULT_OK, Intent().putExtra(RESULT_COOKIE, json))
+            finish()
+        } catch (error: Throwable) {
+            showNeriViewSnackbar(
+                webView,
+                getString(R.string.snackbar_read_failed, error.message ?: error.javaClass.simpleName),
+                Snackbar.LENGTH_LONG
+            )
+        }
+    }
+
+    private fun forceFreshWebContext() {
+        NPLogger.d(LOG_TAG, "Clearing QQ Music WebView state")
+        val cm = CookieManager.getInstance()
+        COOKIE_CLEAR_URLS.forEach { url ->
+            IMPORTANT_COOKIE_KEYS.forEach { k ->
+                expireCookie(cm, url, k, domain = null)
+                expireCookie(cm, url, k, domain = ".qq.com")
+                expireCookie(cm, url, k, domain = "qq.com")
+            }
+        }
+        cm.flush()
+
+        COOKIE_CLEAR_URLS.forEach(WebStorage.getInstance()::deleteOrigin)
+        if (this::webView.isInitialized) {
+            webView.clearCache(true)
+            webView.clearHistory()
+        }
+    }
+
+    private fun expireCookie(
+        cookieManager: CookieManager,
+        url: String,
+        key: String,
+        domain: String?
+    ) {
+        val domainPart = domain?.let { "; Domain=$it" }.orEmpty()
+        cookieManager.setCookie(
+            url,
+            "$key=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0$domainPart; Path=/; Secure"
+        )
+    }
+
+    private fun reloadLoginPage(reason: String) {
+        if (hasReturned || !this::webView.isInitialized) {
+            return
+        }
+        NPLogger.d(LOG_TAG, "Loading QQ Music login reason=$reason url=$LOGIN_URL")
+        if (!webView.url.isNullOrBlank()) {
+            webView.stopLoading()
+        }
+        webView.loadUrl(LOGIN_URL)
+    }
+
+    private inner class InnerClient : WebViewClient() {
+
+        override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+            val currentRequest = request ?: return false
+            val uri = currentRequest.url
+            if (!isAllowedMainFrameRequest(currentRequest) { isAllowedLoginUri(it) }) {
+                NPLogger.w(LOG_TAG, "Blocked unexpected navigation: $uri")
+                return true
+            }
+            if (currentRequest.isForMainFrame) {
+                loginCompletionWatcher.scheduleCheck()
+            }
+            return false
+        }
+
+        override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+            super.onPageStarted(view, url, favicon)
+            NPLogger.d(LOG_TAG, "Page started: $url")
+            val host = runCatching { url?.toUri()?.host }.getOrNull()
+            if (hostMatchesAnyDomain(host, ALLOWED_LOGIN_DOMAINS)) {
+                loginCompletionWatcher.scheduleCheck()
+            }
+        }
+
+        override fun shouldInterceptRequest(
+            view: WebView?,
+            request: WebResourceRequest?
+        ): WebResourceResponse? {
+            view?.post { loginCompletionWatcher.scheduleCheck() }
+            return super.shouldInterceptRequest(view, request)
+        }
+
+        override fun onPageFinished(view: WebView?, url: String?) {
+            super.onPageFinished(view, url)
+            NPLogger.d(LOG_TAG, "Page finished: $url")
+            val host = runCatching { url?.toUri()?.host }.getOrNull()
+            if (hostMatchesAnyDomain(host, ALLOWED_LOGIN_DOMAINS)) {
+                loginCompletionWatcher.scheduleCheck()
+            }
+        }
+
+        override fun onReceivedError(
+            view: WebView?,
+            request: WebResourceRequest?,
+            error: WebResourceError?
+        ) {
+            super.onReceivedError(view, request, error)
+            if (shouldLogWebRequest(request)) {
+                NPLogger.w(
+                    LOG_TAG,
+                    "Web error main=${request?.isForMainFrame} " +
+                        "code=${error?.errorCode} desc=${error?.description} url=${request?.url}"
+                )
+            }
+        }
+
+        override fun onReceivedHttpError(
+            view: WebView?,
+            request: WebResourceRequest?,
+            errorResponse: WebResourceResponse?
+        ) {
+            super.onReceivedHttpError(view, request, errorResponse)
+            if (shouldLogWebRequest(request)) {
+                NPLogger.w(
+                    LOG_TAG,
+                    "HTTP error main=${request?.isForMainFrame} " +
+                        "status=${errorResponse?.statusCode} reason=${errorResponse?.reasonPhrase} " +
+                        "url=${request?.url}"
+                )
+            }
+        }
+
+        override fun onReceivedSslError(
+            view: WebView?,
+            handler: SslErrorHandler?,
+            error: SslError?
+        ) {
+            NPLogger.e(LOG_TAG, "SSL error: $error")
+            handler?.cancel()
+        }
+    }
+
+    private inner class InnerChromeClient : WebChromeClient() {
+
+        override fun onProgressChanged(view: WebView?, newProgress: Int) {
+            super.onProgressChanged(view, newProgress)
+            if (newProgress == 100 || newProgress % 25 == 0) {
+                NPLogger.d(LOG_TAG, "Progress=$newProgress url=${view?.url}")
+            }
+        }
+
+        override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+            val message = consoleMessage ?: return super.onConsoleMessage(consoleMessage)
+            val logMessage = "Console ${message.messageLevel()} " +
+                "${message.sourceId()}:${message.lineNumber()} ${message.message().compactForLog()}"
+
+            when (message.messageLevel()) {
+                ConsoleMessage.MessageLevel.ERROR -> NPLogger.e(LOG_TAG, logMessage)
+                ConsoleMessage.MessageLevel.WARNING -> NPLogger.w(LOG_TAG, logMessage)
+                else -> NPLogger.d(LOG_TAG, logMessage)
+            }
+            return super.onConsoleMessage(consoleMessage)
+        }
+    }
+
+    private fun maybeReturnIfLoggedIn(): Boolean {
+        if (hasReturned) {
+            return true
+        }
+        CookieManager.getInstance().flush()
+        val cookieMap = readCookieForDomains(COOKIE_READ_URLS)
+        if (!shouldAutoCompleteQQMusicWebLogin(cookieMap)) {
+            NPLogger.d(
+                LOG_TAG,
+                "Still waiting for login cookies, observed=${cookieMap.keys.intersect(IMPORTANT_COOKIE_KEYS.toSet())}"
+            )
+            return false
+        }
+
+        hasReturned = true
+        val json = org.json.JSONObject().apply {
+            cookieMap.forEach { (key, value) -> put(key, value) }
+        }.toString()
+        setResult(RESULT_OK, Intent().putExtra(RESULT_COOKIE, json))
+        NPLogger.d(LOG_TAG, "Login OK, cookie keys=${cookieMap.keys}")
+        finish()
+        return true
+    }
+
+    private fun shouldLogWebRequest(request: WebResourceRequest?): Boolean {
+        val currentRequest = request ?: return false
+        if (currentRequest.isForMainFrame) {
+            return true
+        }
+        return hostMatchesAnyDomain(currentRequest.url.host, ALLOWED_LOGIN_DOMAINS)
+    }
+
+    private fun String.compactForLog(maxLength: Int = 400): String {
+        val compact = replace('\r', ' ')
+            .replace('\n', ' ')
+            .trim()
+        if (compact.length <= maxLength) {
+            return compact
+        }
+        return "${compact.take(maxLength)}..."
+    }
+
+    private fun isAllowedLoginUri(uri: Uri?): Boolean {
+        val resolvedUri = uri ?: return false
+        if (resolvedUri.toString() == "about:blank") {
+            return true
+        }
+        if (!resolvedUri.scheme.equals("https", ignoreCase = true)) {
+            return false
+        }
+        return hostMatchesAnyDomain(resolvedUri.host, ALLOWED_LOGIN_DOMAINS)
+    }
+
+    private fun readCookieForDomains(domains: List<String>): Map<String, String> {
+        val cm = CookieManager.getInstance()
+        val result = linkedMapOf<String, String>()
+        domains.forEach { d ->
+            val raw = cm.getCookie("https://$d").orEmpty()
+            if (raw.isBlank()) return@forEach
+            raw.split(';')
+                .map { it.trim() }
+                .forEach { pair ->
+                    val eq = pair.indexOf('=')
+                    if (eq > 0) {
+                        val k = pair.substring(0, eq)
+                        val v = pair.substring(eq + 1)
+                        result[k] = v
+                    }
+                }
+        }
+        return result
+    }
+}

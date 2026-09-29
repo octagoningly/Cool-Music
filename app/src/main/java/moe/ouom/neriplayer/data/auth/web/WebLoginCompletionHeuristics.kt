@@ -9,6 +9,8 @@ import moe.ouom.neriplayer.data.auth.netease.validateAndSanitizeNeteaseCookies
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthBundle
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthState
 import moe.ouom.neriplayer.data.auth.youtube.evaluateYouTubeAuthHealth
+import moe.ouom.neriplayer.data.auth.qqmusic.QQMusicAuthBundle
+import moe.ouom.neriplayer.data.auth.qqmusic.evaluateQQMusicAuthHealth
 
 private const val SYNTHETIC_SAVED_AT = 1L
 private const val SYNTHETIC_CHECKED_AT = 2L
@@ -17,6 +19,22 @@ private const val SYNTHETIC_CHECKED_AT = 2L
 internal fun shouldAutoCompleteBiliWebLogin(cookies: Map<String, String>): Boolean {
     val health = evaluateBiliAuthHealth(
         bundle = BiliAuthBundle(
+            cookies = cookies,
+            savedAt = SYNTHETIC_SAVED_AT
+        ),
+        now = SYNTHETIC_CHECKED_AT
+    )
+    return health.state != SavedCookieAuthState.Missing
+}
+
+/**
+ * QQ 音乐 WebView 登录完成判定。
+ * 登录页打开前会清空 uin/qm_keyst/qqmusic_key（forceFreshWebContext），
+ * 因此「关键键非空且组合可构成登录态」即视为扫码授权成功。
+ */
+internal fun shouldAutoCompleteQQMusicWebLogin(cookies: Map<String, String>): Boolean {
+    val health = evaluateQQMusicAuthHealth(
+        bundle = QQMusicAuthBundle(
             cookies = cookies,
             savedAt = SYNTHETIC_SAVED_AT
         ),

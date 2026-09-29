@@ -236,6 +236,9 @@ object AppContainer {
     val listenTogetherPreferences by lazy { ListenTogetherPreferences(application) }
     val neteaseCookieRepo by lazy { NeteaseCookieRepository(application) }
     val biliCookieRepo by lazy { BiliCookieRepository(application) }
+    val qqMusicCookieRepo by lazy { moe.ouom.neriplayer.data.auth.qqmusic.QQMusicCookieRepository(application) }
+    val qqMusicClient by lazy { moe.ouom.neriplayer.core.api.qqmusic.QQMusicClient(qqMusicCookieRepo) }
+    val qqMusicPlaybackRepository by lazy { moe.ouom.neriplayer.core.api.qqmusic.QQMusicPlaybackRepository(qqMusicClient) }
     val youtubeAuthRepo by lazy { YouTubeAuthRepository(application) }
     internal val youtubeAuthAutoRefreshManager by lazy {
         YouTubeAuthAutoRefreshManager(

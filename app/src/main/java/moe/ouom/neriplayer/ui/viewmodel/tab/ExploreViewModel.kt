@@ -424,43 +424,13 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     fun setDefaultSearchType(type: DefaultExploreSearchType) {
         if (type == _uiState.value.selectedDefaultSearchType) return
         NPLogger.d(TAG, "setDefaultSearchType: ${_uiState.value.selectedDefaultSearchType} -> $type")
-        searchJob?.cancel()
-        searchMoreJob?.cancel()
-        invalidateSearchRequest()
-        _uiState.value = _uiState.value.copy(
-            selectedDefaultSearchType = type,
-            searching = false,
-            searchError = null,
-            searchResults = emptyList(),
-            searchItems = emptyList(),
-            searchHasMore = false,
-            searchLoadingMore = false,
-            searchLoadMoreError = null,
-            searchPage = 0,
-            searchKeyword = "",
-            searchDisplayQuery = ""
-        )
+        switchSearchTypeAndRetry(selectedDefaultSearchType = type)
     }
 
     fun setNeteaseSearchType(type: NeteaseExploreSearchType) {
         if (type == _uiState.value.selectedNeteaseSearchType) return
         NPLogger.d(TAG, "setNeteaseSearchType: ${_uiState.value.selectedNeteaseSearchType} -> $type")
-        searchJob?.cancel()
-        searchMoreJob?.cancel()
-        invalidateSearchRequest()
-        _uiState.value = _uiState.value.copy(
-            selectedNeteaseSearchType = type,
-            searching = false,
-            searchError = null,
-            searchResults = emptyList(),
-            searchItems = emptyList(),
-            searchHasMore = false,
-            searchLoadingMore = false,
-            searchLoadMoreError = null,
-            searchPage = 0,
-            searchKeyword = "",
-            searchDisplayQuery = ""
-        )
+        switchSearchTypeAndRetry(selectedNeteaseSearchType = type)
     }
 
     fun setYouTubeMusicSearchType(type: YouTubeExploreSearchType) {
@@ -469,12 +439,30 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             TAG,
             "setYouTubeMusicSearchType: ${_uiState.value.selectedYouTubeMusicSearchType} -> $type"
         )
+        switchSearchTypeAndRetry(selectedYouTubeMusicSearchType = type)
+    }
+
+    /**
+     * 切换搜索类型时立刻进入 loading 并保留关键词重搜，
+     * 避免先闪一帧「无搜索结果」再转圈。
+     */
+    private fun switchSearchTypeAndRetry(
+        selectedDefaultSearchType: DefaultExploreSearchType = _uiState.value.selectedDefaultSearchType,
+        selectedNeteaseSearchType: NeteaseExploreSearchType = _uiState.value.selectedNeteaseSearchType,
+        selectedYouTubeMusicSearchType: YouTubeExploreSearchType =
+            _uiState.value.selectedYouTubeMusicSearchType,
+    ) {
+        val current = _uiState.value
+        val keyword = current.searchKeyword
+        val displayQuery = current.searchDisplayQuery
         searchJob?.cancel()
         searchMoreJob?.cancel()
         invalidateSearchRequest()
-        _uiState.value = _uiState.value.copy(
-            selectedYouTubeMusicSearchType = type,
-            searching = false,
+        _uiState.value = current.copy(
+            selectedDefaultSearchType = selectedDefaultSearchType,
+            selectedNeteaseSearchType = selectedNeteaseSearchType,
+            selectedYouTubeMusicSearchType = selectedYouTubeMusicSearchType,
+            searching = keyword.isNotBlank(),
             searchError = null,
             searchResults = emptyList(),
             searchItems = emptyList(),
@@ -482,9 +470,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             searchLoadingMore = false,
             searchLoadMoreError = null,
             searchPage = 0,
-            searchKeyword = "",
-            searchDisplayQuery = ""
+            searchKeyword = keyword,
+            searchDisplayQuery = displayQuery
         )
+        if (keyword.isNotBlank()) {
+            search(keyword, displayQuery = displayQuery)
+        }
     }
 
     /** 统一搜索入口 */

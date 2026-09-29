@@ -220,8 +220,9 @@ internal fun resolveGlassMenuPosition(
         x = (windowSize.width - edgeMargin - popupSize.width).coerceAtLeast(edgeMargin)
     }
 
-    // —— 纵向：默认优先向下贴着按钮；preferDownward 时尽量不翻到上方 ——
-    var y = anchor.bottom + gapY
+    // —— 纵向：默认优先向下贴着按钮；preferDownward 时顶边不得高于按钮 ——
+    val minDownY = anchor.bottom + gapY
+    var y = minDownY
     val roomBelow = maxBottom - y
     val flipUpThreshold = if (preferDownward) 0 else minOf(popupSize.height / 4, 96)
     if (!preferDownward && roomBelow < flipUpThreshold) {
@@ -230,11 +231,14 @@ internal fun resolveGlassMenuPosition(
     }
     if (y + popupSize.height > maxBottom) {
         y = if (preferDownward) {
-            // 向下优先：放不下时压到底部边界，而不是翻到锚点上方
-            maxBottom - popupSize.height
+            // 顶边贴着按钮下沿，宁可底部被裁也不把菜单顶到按钮上方
+            minDownY
         } else {
             maxTop
         }
+    }
+    if (preferDownward) {
+        y = y.coerceAtLeast(minDownY)
     }
     if (y < edgeMargin) y = edgeMargin
 

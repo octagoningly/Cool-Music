@@ -1191,6 +1191,7 @@ fun ExploreScreen(
                                     expanded = tagMenuExpanded,
                                     onDismissRequest = { tagMenuExpanded = false },
                                     shape = GlassMenuShape,
+                                    preferDownward = true,
                                     maxWidth = 240.dp,
                                     maxHeight = 300.dp,
                                     modifier = Modifier
@@ -2336,7 +2337,7 @@ private fun ExploreTagChip(
         MaterialTheme.colorScheme.onSurface
     }
     val borderColor = if (selected) {
-        MaterialTheme.colorScheme.secondary.copy(alpha = borderAlpha * 0.55f)
+        MaterialTheme.colorScheme.secondary.copy(alpha = (borderAlpha * 0.85f).coerceIn(0f, 1f))
     } else {
         MaterialTheme.colorScheme.outline.copy(alpha = borderAlpha * 0.35f)
     }
@@ -2349,29 +2350,34 @@ private fun ExploreTagChip(
             else -> MaterialTheme.colorScheme.surface
         },
         contentColor = contentColor,
-        // 边框画在整个胶囊外沿，不再在内容内侧再套一圈
-        border = BorderStroke(1.dp, borderColor),
+        // 边框画在整个胶囊外沿；选中时加粗一点，反馈更明显
+        border = BorderStroke(
+            width = if (selected) 1.5.dp else 1.dp,
+            color = borderColor
+        ),
         shape = ExplorePillShape,
         modifier = Modifier,
         onClick = onClick
     ) {
         if (!showLabel && icon != null) {
-            Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+            // 图标在左、文字在右，压扁拉宽
+            Row(
+                modifier = Modifier
+                    .height(36.dp)
+                    .padding(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = label,
+                    contentDescription = null,
                     tint = contentColor,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
-                Spacer(Modifier.height(4.dp))
                 Text(
                     text = label,
                     color = contentColor,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -2379,20 +2385,17 @@ private fun ExploreTagChip(
         } else {
         Row(
             modifier = Modifier
-                .height(40.dp)
+                .height(36.dp)
                 .padding(horizontal = if (showLabel) 16.dp else 14.dp),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (icon != null) {
                 Icon(
                     imageVector = icon,
                     contentDescription = if (showLabel) null else label,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
-                if (showLabel) {
-                    Spacer(Modifier.width(8.dp))
-                }
             }
             if (showLabel) {
                 Text(
@@ -2842,7 +2845,8 @@ internal fun SongRow(
             }
             GlassDropdownMenu(
                 expanded = showMoreMenu,
-                onDismissRequest = { showMoreMenu = false }
+                onDismissRequest = { showMoreMenu = false },
+                preferDownward = true
             ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.search_result_play_keep_queue)) },

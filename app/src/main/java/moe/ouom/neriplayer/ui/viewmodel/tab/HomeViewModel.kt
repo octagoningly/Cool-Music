@@ -47,6 +47,8 @@ import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.netease.mergeNeteaseSessionCookies
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicHomeShelf
 import moe.ouom.neriplayer.core.di.AppContainer
+import moe.ouom.neriplayer.data.cache.RecommendationsCacheRepository
+import moe.ouom.neriplayer.data.cache.shouldApplyHomeFeedCache
 import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthBundle
 import moe.ouom.neriplayer.data.auth.youtube.buildRefreshObserverFingerprint
@@ -65,6 +67,7 @@ private const val HOME_YT_MUSIC_PLAYLIST_LIMIT = 24
 private const val HOME_INITIAL_LOAD_DEFER_MS = 250L
 private const val HOME_SECTION_LOAD_PARALLELISM = 6
 private const val HOME_SECTION_LOAD_PARALLELISM_PER_GROUP = 2
+private const val HOME_CACHE_SAVE_DEBOUNCE_MS = 400L
 
 private fun shouldFallbackRecommend(code: Int): Boolean = code == 301 || code == 50000005
 
@@ -240,6 +243,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var lastNeteaseRadarCacheContext = neteaseRadarCacheContext(repo.getCookiesOnce())
     private var radarPlaylistLoadGeneration: Long = 0L
     private var offlineMode = false
+    private val recommendationsCacheRepo = RecommendationsCacheRepository(application)
+    private var homeCacheSaveJob: Job? = null
+    private var homeCacheBootstrapped = false
+    private var homeCacheBootstrapMode: Boolean? = null
 
     private fun localizedAppContext() = LanguageManager.applyLanguage(getApplication())
 
@@ -332,7 +339,20 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         updated: HomeNeteaseSongSectionState
     ): List<HomeNeteaseSongSectionState> {
         return sections.map { sectionState ->
-            if (sectionState.source == updated.source) updated else sectionState
+            if (sectionState.source != updated.source) {
+                sectionState
+            } else if (
+                updated.section.items.isEmpty() &&
+                updated.section.error != null &&
+                sectionState.section.items.isNotEmpty()
+            ) {
+                // SWR：网络失败时保留已有条目（缓存/上次成功）
+                sectionState.copy(
+                    section = sectionState.section.copy(loading = false, error = null)
+                )
+            } else {
+                updated
+            }
         }
     }
 
@@ -341,7 +361,61 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         updated: HomeNeteasePlaylistSectionState
     ): List<HomeNeteasePlaylistSectionState> {
         return sections.map { sectionState ->
-            if (sectionState.source == updated.source) updated else sectionState
+            if (sectionState.source != updated.source) {
+                sectionState
+            } else if (
+                updated.section.items.isEmpty() &&
+                updated.section.error != null &&
+                sectionState.section.items.isNotEmpty()
+            ) {
+                sectionState.copy(
+                    section = sectionState.section.copy(loading = false, error = null)
+                )
+            } else {
+                updated
+            }
+        }
+    }
+
+    /** 冷启动/模式切换时先画磁盘缓存，再由网络刷新覆盖（SWR） */
+    private fun bootstrapHomeFeedCache() {
+        val useYouTubeHome = _uiState.value.internationalizationEnabled
+        if (homeCacheBootstrapped && homeCacheBootstrapMode == useYouTubeHome) return
+        homeCacheBootstrapped = true
+        homeCacheBootstrapMode = useYouTubeHome
+        viewModelScope.launch(Dispatchers.IO) {
+            val snapshot = recommendationsCacheRepo.readHomeFeed() ?: return@launch
+            val youtubeAuthFingerprint = buildYouTubeAuthFingerprint(youtubeAuthRepo.getAuthOnce())
+            if (
+                !shouldApplyHomeFeedCache(
+                    snapshot = snapshot,
+                    neteaseAccountContext = neteaseRadarCacheContext(repo.getCookiesOnce()),
+                    youtubeAuthFingerprint = youtubeAuthFingerprint,
+                    useYouTubeHome = useYouTubeHome
+                )
+            ) {
+                NPLogger.d(TAG, "home feed cache skipped (fingerprint/mode mismatch)")
+                return@launch
+            }
+            NPLogger.d(
+                TAG,
+                "home feed cache applied: savedAtMs=${snapshot.savedAtMs}, useYouTubeHome=$useYouTubeHome"
+            )
+            _uiState.update { state -> state.withHomeFeedCache(snapshot) }
+        }
+    }
+
+    private fun scheduleHomeFeedCacheSave() {
+        homeCacheSaveJob?.cancel()
+        homeCacheSaveJob = viewModelScope.launch {
+            delay(HOME_CACHE_SAVE_DEBOUNCE_MS)
+            val snapshot = _uiState.value.toHomeFeedCacheSnapshot(
+                neteaseAccountContext = neteaseRadarCacheContext(repo.getCookiesOnce()),
+                youtubeAuthFingerprint = buildYouTubeAuthFingerprint(youtubeAuthRepo.getAuthOnce())
+            )
+            withContext(Dispatchers.IO) {
+                recommendationsCacheRepo.saveHomeFeed(snapshot)
+            }
         }
     }
 
@@ -364,6 +438,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.value = _uiState.value.copy(
                     internationalizationEnabled = useYouTubeHome
                 )
+                // 模式确定后再决定是否套用磁盘缓存
+                bootstrapHomeFeedCache()
                 if (useYouTubeHome) {
                     refreshYtMusicHome()
                 } else {
@@ -571,6 +647,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     )
                 }
+                scheduleHomeFeedCacheSave()
             }
         }
     }
@@ -628,6 +705,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     )
                 }
+                scheduleHomeFeedCacheSave()
             }
         }
     }
@@ -682,20 +760,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 fetch = { source -> fetchSongSection("refreshRadarSongs", source) }
             ) { section ->
                 _uiState.update { state ->
-                    val previousBySource = state.radarSongSections.associateBy { it.source }
-                    val merged = availableNeteaseHomeSongSources(
-                        candidates = NeteaseHomeRadarSongSources,
-                        hasLogin = hasRecommendLogin
-                    ).map { source ->
-                        if (source == section.source) {
+                    state.copy(
+                        radarSongSections = replaceSongSection(
+                            state.radarSongSections,
                             section
-                        } else {
-                            previousBySource[source]
-                                ?: HomeNeteaseSongSectionState(source = source)
-                        }
-                    }
-                    state.copy(radarSongSections = merged)
+                        )
+                    )
                 }
+                scheduleHomeFeedCacheSave()
             }
         }
     }
@@ -724,17 +796,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.value = _uiState.value.copy(
                         radarPlaylists = HomeSectionState(items = result.items)
                     )
+                    scheduleHomeFeedCacheSave()
                 }
                 is RetryLoadResult.Failure -> {
                     if (!isCurrentRadarPlaylistLoad(loadGeneration, requestRadarCacheContext)) {
                         return@launch
                     }
                     NPLogger.e(TAG, "refreshRadarPlaylists failed", result.throwable)
+                    // SWR：失败时优先保留已有条目，否则退回雷达定义占位
+                    val fallbackItems = previous.items.ifEmpty {
+                        NeteaseRadarPlaylistDefinitions.map { it.toPlaylistSummary() }
+                    }
                     _uiState.value = _uiState.value.copy(
-                        radarPlaylists = HomeSectionState(
-                            items = NeteaseRadarPlaylistDefinitions.map { it.toPlaylistSummary() }
-                        )
+                        radarPlaylists = HomeSectionState(items = fallbackItems)
                     )
+                    scheduleHomeFeedCacheSave()
                 }
             }
         }
@@ -826,6 +902,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                                 ytMusicHomeShelves = HomeSectionState(items = snapshot.shelves)
                             )
                         }
+                        scheduleHomeFeedCacheSave()
                     }
                     is RetryLoadResult.Failure -> {
                         if (!isCurrentYouTubeMusicHomeLoad(
@@ -839,14 +916,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         NPLogger.e(TAG, "refreshYtMusicHome failed", result.throwable)
                         val error = buildHomeErrorMessage(result.throwable)
                         _uiState.update { state ->
+                            // SWR：已有条目时失败不打断展示
+                            val keepPlaylists = state.ytMusicPlaylists.items.isNotEmpty()
+                            val keepShelves = state.ytMusicHomeShelves.items.isNotEmpty()
                             state.copy(
                                 ytMusicPlaylists = state.ytMusicPlaylists.copy(
                                     loading = false,
-                                    error = error
+                                    error = if (keepPlaylists) null else error
                                 ),
                                 ytMusicHomeShelves = state.ytMusicHomeShelves.copy(
                                     loading = false,
-                                    error = error
+                                    error = if (keepShelves) null else error
                                 )
                             )
                         }

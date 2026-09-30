@@ -992,52 +992,28 @@ fun ExploreScreen(
                                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
                                     // 搜索源：纯文字 + 小三角，点击只弹换源
-                                    // 仅保留居中倒三角，点击弹出换源
-                                    Icon(
-                                        imageVector = Icons.Filled.ArrowDropDown,
-                                        contentDescription = searchSourceLabel(ui.selectedSearchSource),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier
-                                            .size(22.dp)
-                                            .clip(ExplorePrimaryTabShape)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = ripple()
-                                            ) { sourceMenuExpanded = true }
-                                    )
-                                    if (searchQuery.isNotEmpty()) {
-                                        HapticIconButton(onClick = {
-                                            onSearchQueryChange("")
-                                            vm.search("")
-                                        }) { Icon(Icons.Default.Clear, "Clear") }
-                                    }
-                                }
-                            },
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(onSearch = {
-                                submitExploreSearch()
-                            }),
-                            singleLine = true,
-                            shape = ExploreSearchFieldShape,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged { focusState ->
-                                    if (focusState.isFocused) {
-                                        scope.launch { scrollExploreContentToTop() }
-                                    }
-                                }
-                        )
-                        GlassDropdownMenu(
-                            expanded = sourceMenuExpanded,
-                            onDismissRequest = { sourceMenuExpanded = false },
-                            shape = GlassMenuShape,
-                            modifier = Modifier
-                        ) {
+                                    // 菜单锚在箭头上，默认向下弹
+                                    Box {
+                                        Icon(
+                                            imageVector = Icons.Filled.ArrowDropDown,
+                                            contentDescription = searchSourceLabel(ui.selectedSearchSource),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .clip(ExplorePrimaryTabShape)
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = ripple()
+                                                ) { sourceMenuExpanded = true }
+                                        )
+                                        GlassDropdownMenu(
+                                            expanded = sourceMenuExpanded,
+                                            onDismissRequest = { sourceMenuExpanded = false },
+                                            shape = GlassMenuShape,
+                                            preferDownward = true,
+                                            offsetY = 16.dp,
+                                            maxHeight = 320.dp
+                                        ) {
                             // 标题：说明该菜单用途
                             Text(
                                 text = stringResource(R.string.explore_search_source_picker_title),
@@ -1076,6 +1052,34 @@ fun ExploreScreen(
                                 }
                             }
                         }
+                                    }
+                                    if (searchQuery.isNotEmpty()) {
+                                        HapticIconButton(onClick = {
+                                            onSearchQueryChange("")
+                                            vm.search("")
+                                        }) { Icon(Icons.Default.Clear, "Clear") }
+                                    }
+                                }
+                            },
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = {
+                                submitExploreSearch()
+                            }),
+                            singleLine = true,
+                            shape = ExploreSearchFieldShape,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        scope.launch { scrollExploreContentToTop() }
+                                    }
+                                }
+                        )
                     }
                 }
                 }
@@ -1188,6 +1192,7 @@ fun ExploreScreen(
                                     expanded = tagMenuExpanded,
                                     onDismissRequest = { tagMenuExpanded = false },
                                     shape = GlassMenuShape,
+                                    preferDownward = true,
                                     maxWidth = 240.dp,
                                     maxHeight = 300.dp,
                                     modifier = Modifier
@@ -1233,30 +1238,102 @@ fun ExploreScreen(
                         if (shouldRenderExploreSearchResults(page, pagerState.currentPage)) {
                             when {
                                 ui.searching -> {
-                                    Box(
-                                        Modifier
-                                            .fillMaxSize()
-                                            .padding(bottom = miniPlayerHeight),
-                                        Alignment.Center
-                                    ) { CircularProgressIndicator() }
+                                    LazyColumn(
+                                        state = searchListState,
+                                        contentPadding = PaddingValues(
+                                            top = exploreListContentTop,
+                                            bottom = exploreSearchResultsBottomPadding(miniPlayerHeight)
+                                        ),
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        item(key = "explore-search-type-song-row-pad") {
+                                            Spacer(Modifier.height(86.dp))
+                                        }
+                                        item(key = "explore-search-type-song-row") {
+                                            SearchTypeSongRow(
+                                                source = searchTypeBarSource,
+                                                selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                                selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                                selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                                onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                                onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                                onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                            )
+                                        }
+                                        item(key = "explore-search-status") {
+                                            Box(
+                                                Modifier.fillMaxWidth().padding(top = 48.dp),
+                                                Alignment.Center
+                                            ) { CircularProgressIndicator() }
+                                        }
+                                    }
                                 }
                                 ui.searchError != null -> {
-                                    Box(
-                                        Modifier
-                                            .fillMaxSize()
-                                            .padding(bottom = miniPlayerHeight),
-                                        Alignment.Center
+                                    LazyColumn(
+                                        state = searchListState,
+                                        contentPadding = PaddingValues(
+                                            top = exploreListContentTop,
+                                            bottom = exploreSearchResultsBottomPadding(miniPlayerHeight)
+                                        ),
+                                        modifier = Modifier.fillMaxSize()
                                     ) {
-                                        Text(ui.searchError!!, color = MaterialTheme.colorScheme.error)
+                                        item(key = "explore-search-type-song-row-pad") {
+                                            Spacer(Modifier.height(86.dp))
+                                        }
+                                        item(key = "explore-search-type-song-row") {
+                                            SearchTypeSongRow(
+                                                source = searchTypeBarSource,
+                                                selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                                selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                                selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                                onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                                onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                                onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                            )
+                                        }
+                                        item(key = "explore-search-status") {
+                                            Box(
+                                                Modifier.fillMaxWidth().padding(top = 48.dp),
+                                                Alignment.Center
+                                            ) {
+                                                Text(
+                                                    ui.searchError!!,
+                                                    color = MaterialTheme.colorScheme.error
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                                 ui.searchItems.isEmpty() -> {
-                                    Box(
-                                        Modifier
-                                            .fillMaxSize()
-                                            .padding(bottom = miniPlayerHeight),
-                                        Alignment.Center
-                                    ) { Text(stringResource(R.string.search_no_result)) }
+                                    LazyColumn(
+                                        state = searchListState,
+                                        contentPadding = PaddingValues(
+                                            top = exploreListContentTop,
+                                            bottom = exploreSearchResultsBottomPadding(miniPlayerHeight)
+                                        ),
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        item(key = "explore-search-type-song-row-pad") {
+                                            Spacer(Modifier.height(86.dp))
+                                        }
+                                        item(key = "explore-search-type-song-row") {
+                                            SearchTypeSongRow(
+                                                source = searchTypeBarSource,
+                                                selectedDefaultSearchType = ui.selectedDefaultSearchType,
+                                                selectedNeteaseSearchType = ui.selectedNeteaseSearchType,
+                                                selectedYouTubeSearchType = ui.selectedYouTubeMusicSearchType,
+                                                onDefaultSearchTypeClick = vm::setDefaultSearchType,
+                                                onNeteaseSearchTypeClick = vm::setNeteaseSearchType,
+                                                onYouTubeSearchTypeClick = vm::setYouTubeMusicSearchType,
+                                            )
+                                        }
+                                        item(key = "explore-search-status") {
+                                            Box(
+                                                Modifier.fillMaxWidth().padding(top = 48.dp),
+                                                Alignment.Center
+                                            ) { Text(stringResource(R.string.search_no_result)) }
+                                        }
+                                    }
                                 }
                                 else -> {
                                 val searchRowStagger = rememberListRowStagger(
@@ -2068,7 +2145,7 @@ internal fun ExploreSearchTypeBar(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_DEFAULT_SEARCH_TYPE_BAR_TAG),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
                 ) {
                     DefaultExploreSearchType.entries.forEach { type ->
                         ExploreTagChip(
@@ -2094,7 +2171,7 @@ internal fun ExploreSearchTypeBar(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_NETEASE_SEARCH_TYPE_BAR_TAG),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
                 ) {
                     NeteaseExploreSearchType.entries.forEach { type ->
                         ExploreTagChip(
@@ -2120,7 +2197,7 @@ internal fun ExploreSearchTypeBar(
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .testTag(EXPLORE_YOUTUBE_SEARCH_TYPE_BAR_TAG),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
                 ) {
                     YouTubeExploreSearchType.entries.forEach { type ->
                         ExploreTagChip(
@@ -2261,9 +2338,9 @@ private fun ExploreTagChip(
         MaterialTheme.colorScheme.onSurface
     }
     val borderColor = if (selected) {
-        MaterialTheme.colorScheme.secondary.copy(alpha = borderAlpha)
+        MaterialTheme.colorScheme.secondary.copy(alpha = (borderAlpha * 0.85f).coerceIn(0f, 1f))
     } else {
-        MaterialTheme.colorScheme.outline.copy(alpha = borderAlpha)
+        MaterialTheme.colorScheme.outline.copy(alpha = borderAlpha * 0.35f)
     }
 
     ExploreGlassPillSurface(
@@ -2274,45 +2351,34 @@ private fun ExploreTagChip(
             else -> MaterialTheme.colorScheme.surface
         },
         contentColor = contentColor,
-        border = if (showLabel) BorderStroke(1.dp, borderColor) else null,
+        // 边框画在整个胶囊外沿；选中时加粗一点，反馈更明显
+        border = BorderStroke(
+            width = if (selected) 1.5.dp else 1.dp,
+            color = borderColor
+        ),
         shape = ExplorePillShape,
         modifier = Modifier,
         onClick = onClick
     ) {
         if (!showLabel && icon != null) {
-            Column(
+            // 图标在左、文字在右，压扁拉宽
+            Row(
                 modifier = Modifier
-                    .padding(horizontal = 6.dp, vertical = 4.dp)
-                    .then(
-                        if (selected) {
-                            Modifier
-                                .clip(ExplorePillShape)
-                                .background(
-                                    MaterialTheme.colorScheme.secondaryContainer.copy(
-                                        alpha = selectedAlpha.coerceAtLeast(0.85f)
-                                    )
-                                )
-                                .border(
-                                    BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = borderAlpha)),
-                                    ExplorePillShape
-                                )
-                        } else {
-                            Modifier
-                        }
-                    ),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .height(36.dp)
+                    .padding(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = label,
+                    contentDescription = null,
                     tint = contentColor,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
                 Text(
                     text = label,
                     color = contentColor,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -2321,19 +2387,16 @@ private fun ExploreTagChip(
         Row(
             modifier = Modifier
                 .height(36.dp)
-                .padding(horizontal = if (showLabel) 14.dp else 12.dp),
-            horizontalArrangement = Arrangement.Center,
+                .padding(horizontal = if (showLabel) 16.dp else 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (icon != null) {
                 Icon(
                     imageVector = icon,
                     contentDescription = if (showLabel) null else label,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
-                if (showLabel) {
-                    Spacer(Modifier.width(6.dp))
-                }
             }
             if (showLabel) {
                 Text(
@@ -2783,7 +2846,8 @@ internal fun SongRow(
             }
             GlassDropdownMenu(
                 expanded = showMoreMenu,
-                onDismissRequest = { showMoreMenu = false }
+                onDismissRequest = { showMoreMenu = false },
+                preferDownward = true
             ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.search_result_play_keep_queue)) },

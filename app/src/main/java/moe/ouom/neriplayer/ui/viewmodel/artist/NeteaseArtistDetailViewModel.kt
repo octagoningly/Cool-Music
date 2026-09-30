@@ -54,6 +54,13 @@ data class NeteaseArtistDetailUiState(
     val albumsLoadingMore: Boolean = false
 )
 
+data class NeteaseArtistListPosition(
+    val selectedTab: Int,
+    val firstVisibleItemIndex: Int,
+    val firstVisibleItemScrollOffset: Int,
+    val firstVisibleItemKey: String? = null
+)
+
 class NeteaseArtistDetailViewModel(application: Application) : AndroidViewModel(application) {
     private val client = AppContainer.neteaseClient
     private val favoriteRepo = FavoritePlaylistRepository.getInstance(application)
@@ -65,6 +72,24 @@ class NeteaseArtistDetailViewModel(application: Application) : AndroidViewModel(
     private var albumOffset: Int = 0
     private var loadJob: Job? = null
 
+    /**
+     * 打开专辑等二级页再返回时用来恢复列表位置。
+     * rememberSaveable 在列表短暂变空时会被夹到顶部，这里在 ViewModel 里兜底。
+     */
+    private var savedListPosition: NeteaseArtistListPosition? = null
+
+    fun saveListPosition(position: NeteaseArtistListPosition) {
+        savedListPosition = position
+    }
+
+    fun peekListPosition(): NeteaseArtistListPosition? = savedListPosition
+
+    fun consumeListPosition(): NeteaseArtistListPosition? {
+        val position = savedListPosition
+        savedListPosition = null
+        return position
+    }
+
     fun start(summary: NeteaseArtistSummary, forceRefresh: Boolean = false) {
         if (!forceRefresh && shouldKeepCurrentArtist(summary.id)) {
             refreshFollowState()
@@ -74,6 +99,7 @@ class NeteaseArtistDetailViewModel(application: Application) : AndroidViewModel(
         artistId = summary.id
         songOffset = 0
         albumOffset = 0
+        savedListPosition = null
         loadJob?.cancel()
         _uiState.value = NeteaseArtistDetailUiState(
             loading = true,

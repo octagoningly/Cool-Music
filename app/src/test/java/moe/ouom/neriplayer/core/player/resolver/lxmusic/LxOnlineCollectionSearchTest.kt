@@ -30,6 +30,38 @@ class LxOnlineCollectionSearchTest {
     }
 
     @Test
+    fun `QQ artist smartbox response parses mid name and pic`() {
+        val artist = parseLxOnlineCollectionPage(
+            LX_QQ_PLATFORM_ID,
+            LxOnlineCollectionType.ARTIST,
+            """{"code":0,"data":{"singer":{"count":1,"itemlist":[{"docid":"1066","id":"1066","mid":"003zHcYF44FVEV","name":"方大同","pic":"http://y.gtimg.cn/music/photo_new/T001R150x150M000003zHcYF44FVEV_8.jpg"}]}}}""",
+            page = 1
+        )
+
+        assertEquals(1, artist.items.size)
+        assertEquals("003zHcYF44FVEV", artist.items.single().id)
+        assertEquals("方大同", artist.items.single().name)
+        assertEquals(
+            "https://y.gtimg.cn/music/photo_new/T001R150x150M000003zHcYF44FVEV_8.jpg",
+            artist.items.single().coverUrl
+        )
+        assertFalse(artist.hasMore)
+    }
+
+    @Test
+    fun `QQ artist smartbox ignores page beyond first`() {
+        val artist = parseLxOnlineCollectionPage(
+            LX_QQ_PLATFORM_ID,
+            LxOnlineCollectionType.ARTIST,
+            """{"code":0,"data":{"singer":{"count":1,"itemlist":[{"mid":"m1","name":"A","pic":""}]}}}""",
+            page = 2
+        )
+
+        assertTrue(artist.items.isEmpty())
+        assertFalse(artist.hasMore)
+    }
+
+    @Test
     fun `Kuwo single quoted playlist response and Kugou singer array parse`() {
         val kuwo = parseLxOnlineCollectionPage(
             LX_KUWO_PLATFORM_ID,

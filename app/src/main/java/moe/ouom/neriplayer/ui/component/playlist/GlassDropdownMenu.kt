@@ -200,6 +200,7 @@ internal fun resolveGlassMenuPosition(
     offsetX: Int,
     offsetY: Int,
     reservedBottomPx: Int,
+    preferDownward: Boolean = false,
 ): IntOffset {
     // 与 ⋮ 的空隙：够看清按钮即可，不要拉太远
     val gapX = maxOf(offsetX, 8)
@@ -219,15 +220,25 @@ internal fun resolveGlassMenuPosition(
         x = (windowSize.width - edgeMargin - popupSize.width).coerceAtLeast(edgeMargin)
     }
 
-    // —— 纵向：优先向下贴着按钮；下方几乎放不下才翻到上方 ——
-    var y = anchor.bottom + gapY
+    // —— 纵向：默认优先向下贴着按钮；preferDownward 时顶边不得高于按钮 ——
+    val minDownY = anchor.bottom + gapY
+    var y = minDownY
     val roomBelow = maxBottom - y
-    if (roomBelow < minOf(popupSize.height / 4, 96)) {
+    val flipUpThreshold = if (preferDownward) 0 else minOf(popupSize.height / 4, 96)
+    if (!preferDownward && roomBelow < flipUpThreshold) {
         // 上弹时额外上移，避免与底部 Dock/工具栏重叠
         y = anchor.top - popupSize.height - gapY - 72
     }
     if (y + popupSize.height > maxBottom) {
-        y = maxTop
+        y = if (preferDownward) {
+            // 顶边贴着按钮下沿，宁可底部被裁也不把菜单顶到按钮上方
+            minDownY
+        } else {
+            maxTop
+        }
+    }
+    if (preferDownward) {
+        y = y.coerceAtLeast(minDownY)
     }
     if (y < edgeMargin) y = edgeMargin
 
@@ -240,7 +251,7 @@ internal fun resolveGlassMenuPosition(
         val above = anchor.top - popupSize.height - gapY
         y = when {
             below + popupSize.height <= maxBottom -> below
-            above >= edgeMargin -> above
+            !preferDownward && above >= edgeMargin -> above
             else -> y
         }
     }
@@ -268,6 +279,7 @@ internal fun glassMenuBoundsInMainWindow(
 private class GlassMenuPositionProvider(
     private val contentOffset: DpOffset,
     private val reservedBottomPx: () -> Int,
+    private val preferDownward: Boolean = false,
     private val onMenuPlacement: (bounds: Rect, opensUpward: Boolean, menuLeftOfAnchor: Boolean) -> Unit,
 ) : PopupPositionProvider {
     private var density: Density = Density(1f)
@@ -291,12 +303,17 @@ private class GlassMenuPositionProvider(
             offsetX = offsetX,
             offsetY = offsetY,
             reservedBottomPx = reservedBottomPx(),
+            preferDownward = preferDownward,
         )
-        val opensUpward = glassMenuOpensUpward(
-            position = position,
-            anchor = anchorBounds,
-            popupSize = popupContentSize,
-        )
+        val opensUpward = if (preferDownward) {
+            false
+        } else {
+            glassMenuOpensUpward(
+                position = position,
+                anchor = anchorBounds,
+                popupSize = popupContentSize,
+            )
+        }
         val menuLeftOfAnchor = glassMenuLeftOfAnchor(
             position = position,
             popupSize = popupContentSize,
@@ -337,6 +354,8 @@ fun GlassDropdownMenu(
     // 歌曲列表可达 8 项（含本地详情/分享），默认加高避免截断
     maxHeight: Dp = 440.dp,
     forceSolid: Boolean = false,
+    preferDownward: Boolean = false,
+    offsetY: Dp = 8.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val controller = LocalAdvancedGlassController.current
@@ -357,10 +376,11 @@ fun GlassDropdownMenu(
         MaterialTheme.colorScheme.surfaceContainerHigh
     }
 
-    val positionProvider = remember(density, reservedBottom) {
+    val positionProvider = remember(density, reservedBottom, preferDownward, offsetY) {
         GlassMenuPositionProvider(
-            contentOffset = DpOffset(0.dp, 8.dp),
+            contentOffset = DpOffset(0.dp, offsetY),
             reservedBottomPx = { with(density) { reservedBottom.roundToPx() } },
+            preferDownward = preferDownward,
             onMenuPlacement = { bounds, up, leftOfAnchor ->
                 menuBoundsInMainWindow = bounds
                 opensUpward = up

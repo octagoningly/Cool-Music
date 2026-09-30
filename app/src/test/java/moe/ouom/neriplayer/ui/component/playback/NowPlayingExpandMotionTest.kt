@@ -1,5 +1,7 @@
 package moe.ouom.neriplayer.ui.component.playback
 
+import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -48,5 +50,29 @@ class NowPlayingExpandMotionTest {
                 NowPlayingExpandMotion.StaggerTitleDelayMs
         )
         assertTrue(NowPlayingExpandMotion.StaggerDurationMs in 150..500)
+    }
+
+    @Test
+    fun `background remains opaque while it recedes and returns`() {
+        val resting = resolveNowPlayingBackgroundFrame(0f)
+        val receded = resolveNowPlayingBackgroundFrame(1f)
+
+        assertEquals(1f, resting.scale, 0.0001f)
+        assertEquals(NowPlayingExpandMotion.BackgroundRecedeScale, receded.scale, 0.0001f)
+        assertEquals(SceneDepthMotion.ExpandedScale, receded.scale, 0.0001f)
+        assertEquals(1f, resting.alpha, 0.0001f)
+        assertEquals(1f, receded.alpha, 0.0001f)
+    }
+
+    @Test
+    fun `background progress is clamped to valid range`() {
+        assertEquals(
+            resolveNowPlayingBackgroundFrame(0f),
+            resolveNowPlayingBackgroundFrame(-1f)
+        )
+        assertEquals(
+            resolveNowPlayingBackgroundFrame(1f),
+            resolveNowPlayingBackgroundFrame(2f)
+        )
     }
 }

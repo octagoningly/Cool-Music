@@ -128,6 +128,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import moe.ouom.neriplayer.data.model.displayCoverUrl
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.download.GlobalDownloadManager
@@ -531,10 +532,16 @@ fun DetailScreen(
         exit = fadeOut() + slideOutVertically { it / 6 }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            PlaylistDetailBlurCoverBackdrop(
+                coverUrl = ui.tracks.firstOrNull()?.displayCoverUrl()
+                    ?.takeIf { it.isNotBlank() }
+                    ?: displayCoverUrl,
+                offlineMode = offlineMode,
+                modifier = Modifier.fillMaxSize()
+            )
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                // 专辑页不透明，避免透出首页 chrome/推荐（从播放页进入时尤其明显）
-                color = MaterialTheme.colorScheme.background
+                color = Color.Transparent
             ) {
                 val miniPlayerHeight = LocalMiniPlayerHeight.current
                 Column {

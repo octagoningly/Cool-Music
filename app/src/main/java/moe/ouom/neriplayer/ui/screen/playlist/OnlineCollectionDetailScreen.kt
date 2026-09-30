@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -53,12 +52,127 @@ import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollection
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollectionType
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.loadLxOnlineCollectionSongs
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.data.model.stableKey
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 import moe.ouom.neriplayer.ui.screen.tab.SongRow
+import moe.ouom.neriplayer.ui.viewmodel.playlist.NeteaseCollectionDetailUiState
+import moe.ouom.neriplayer.ui.viewmodel.playlist.NeteaseCollectionHeader
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 探索页「在线」搜索点进的歌手 / 歌单详情。
+ *
+ * - 歌手：保持精简列表布局，**不铺**封面模糊底（不再走 [PlaylistDetailBlurCoverBackdrop]）。
+ * - 歌单：复用网易云歌单详情 [DetailScreen] 的现代布局（Hero / 操作区 / 搜索 / 多选等）。
+ */
 @Composable
 internal fun OnlineCollectionDetailScreen(
+    collection: LxOnlineCollection,
+    onBack: () -> Unit,
+    onSongClick: (List<SongItem>, Int) -> Unit,
+    onSongPlayPreservingQueue: (SongItem) -> Unit,
+    onSongPlayNext: (SongItem) -> Unit,
+    onSongAddToQueueEnd: (SongItem) -> Unit,
+    offlineMode: Boolean
+) {
+    if (collection.type == LxOnlineCollectionType.PLAYLIST) {
+        OnlinePlaylistCollectionDetailScreen(
+            collection = collection,
+            onBack = onBack,
+            onSongClick = onSongClick,
+            offlineMode = offlineMode
+        )
+    } else {
+        OnlineArtistCollectionDetailScreen(
+            collection = collection,
+            onBack = onBack,
+            onSongClick = onSongClick,
+            onSongPlayPreservingQueue = onSongPlayPreservingQueue,
+            onSongPlayNext = onSongPlayNext,
+            onSongAddToQueueEnd = onSongAddToQueueEnd,
+            offlineMode = offlineMode
+        )
+    }
+}
+
+/** 在线歌单：与网易云歌单页共用 [DetailScreen]，保证布局 / 按键一致。 */
+@Composable
+private fun OnlinePlaylistCollectionDetailScreen(
+    collection: LxOnlineCollection,
+    onBack: () -> Unit,
+    onSongClick: (List<SongItem>, Int) -> Unit,
+    offlineMode: Boolean
+) {
+    val context = LocalContext.current
+    var songs by remember(collection) { mutableStateOf<List<SongItem>>(emptyList()) }
+    var page by remember(collection) { mutableIntStateOf(0) }
+    var hasMore by remember(collection) { mutableStateOf(true) }
+    var loading by remember(collection) { mutableStateOf(true) }
+    var error by remember(collection) { mutableStateOf<String?>(null) }
+    var reloadTick by remember(collection) { mutableIntStateOf(0) }
+
+    LaunchedEffect(collection, reloadTick) {
+        songs = emptyList()
+        page = 0
+        hasMore = true
+        error = null
+        loading = true
+        try {
+            // 兜底上限，避免接口一直 hasMore 时死循环
+            while (hasMore && page < 20) {
+                val result = loadLxOnlineCollectionSongs(collection, page + 1)
+                songs = (songs + result.songs).distinctBy { it.stableKey() }
+                page++
+                hasMore = result.hasMore
+            }
+            error = null
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            error = failure.message ?: context.getString(R.string.search_error)
+        } finally {
+            loading = false
+        }
+    }
+
+    val playlistId = remember(collection) {
+        ("lxOnline|${collection.type}|${collection.sourceId}|${collection.id}")
+            .hashCode()
+            .toLong()
+    }
+    val trackCount = when {
+        collection.trackCount > 0 -> collection.trackCount
+        else -> songs.size
+    }
+    val ui = NeteaseCollectionDetailUiState(
+        loading = loading,
+        error = error,
+        header = NeteaseCollectionHeader(
+            id = playlistId,
+            isAlbum = false,
+            name = collection.name,
+            coverUrl = collection.coverUrl.orEmpty(),
+            playCount = collection.playCount,
+            trackCount = trackCount
+        ),
+        tracks = songs
+    )
+
+    DetailScreen(
+        ui = ui,
+        playlistId = playlistId,
+        playlistSource = "lxOnline",
+        initialCoverUrl = collection.coverUrl,
+        onRetry = { reloadTick++ },
+        onBack = onBack,
+        onSongClick = onSongClick,
+        offlineMode = offlineMode
+    )
+}
+
+/** 在线歌手：精简列表，无封面模糊底。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OnlineArtistCollectionDetailScreen(
     collection: LxOnlineCollection,
     onBack: () -> Unit,
     onSongClick: (List<SongItem>, Int) -> Unit,
@@ -110,6 +224,7 @@ internal fun OnlineCollectionDetailScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
+        // 故意不铺 PlaylistDetailBlurCoverBackdrop：在线歌手页取消背景模糊
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -130,9 +245,7 @@ internal fun OnlineCollectionDetailScreen(
                         )
                     } else {
                         Icon(
-                            imageVector = if (collection.type == LxOnlineCollectionType.ARTIST) {
-                                Icons.Filled.AccountCircle
-                            } else Icons.AutoMirrored.Filled.QueueMusic,
+                            imageVector = Icons.Filled.AccountCircle,
                             contentDescription = null,
                             modifier = Modifier.size(88.dp)
                         )

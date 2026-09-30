@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
 
 /**
  * MiniPlayer ↔ NowPlaying 「连贯反馈」展开/收起动效。
@@ -125,10 +126,10 @@ object NowPlayingExpandMotion {
     const val MiniPlayerExitFadeMs = 160
     const val MiniPlayerExitScale = 0.92f
 
-    /** 背景轻度后退：只做透明度，避免与播放页展开叠全屏 scale（掉帧主因之一） */
-    const val BackgroundRecedeScale = 1.0f
-    const val BackgroundRecedeAlpha = 0.65f
-    const val BackgroundRecedeDurationMs = 360
+    /** 与歌单卡片展开共用 1.20 倍背景推进；全程不透明，避免浅色底透出形成白蒙层。 */
+    const val BackgroundRecedeScale = SceneDepthMotion.ExpandedScale
+    const val BackgroundRecedeAlpha = 1.0f
+    const val BackgroundRecedeDurationMs = SceneDepthMotion.OpenDurationMillis
 
     // —— 方案 B：跟手 ——
     /** 松手关闭：位移超过高度比例 或 甩动速度超过该值 (px/s) */
@@ -162,6 +163,21 @@ object NowPlayingExpandMotion {
     val HeartUnlikeSpring = spring<Float>(
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = Spring.StiffnessMedium
+    )
+}
+
+internal data class NowPlayingBackgroundFrame(
+    val scale: Float,
+    val alpha: Float
+)
+
+internal fun resolveNowPlayingBackgroundFrame(progress: Float): NowPlayingBackgroundFrame {
+    val normalizedProgress = progress.coerceIn(0f, 1f)
+    return NowPlayingBackgroundFrame(
+        scale = 1f -
+            (1f - NowPlayingExpandMotion.BackgroundRecedeScale) * normalizedProgress,
+        alpha = 1f -
+            (1f - NowPlayingExpandMotion.BackgroundRecedeAlpha) * normalizedProgress
     )
 }
 
@@ -271,16 +287,24 @@ fun Modifier.nowPlayingBackgroundRecede(
     val progress by animateFloatAsState(
         targetValue = if (nowPlayingVisible) 1f else 0f,
         animationSpec = tween(
-            durationMillis = NowPlayingExpandMotion.BackgroundRecedeDurationMs,
-            easing = FastOutSlowInEasing
+            durationMillis = if (nowPlayingVisible) {
+                NowPlayingExpandMotion.BackgroundRecedeDurationMs
+            } else {
+                SceneDepthMotion.CloseDurationMillis
+            },
+            easing = if (nowPlayingVisible) {
+                SceneDepthMotion.OpenEasing
+            } else {
+                SceneDepthMotion.CloseEasing
+            }
         ),
         label = "np_bg_recede"
     )
     return this.graphicsLayer {
-        val scale = 1f - (1f - NowPlayingExpandMotion.BackgroundRecedeScale) * progress
-        scaleX = scale
-        scaleY = scale
-        alpha = 1f - (1f - NowPlayingExpandMotion.BackgroundRecedeAlpha) * progress
+        val frame = resolveNowPlayingBackgroundFrame(progress)
+        scaleX = frame.scale
+        scaleY = frame.scale
+        alpha = frame.alpha
     }
 }
 

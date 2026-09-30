@@ -29,8 +29,10 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
@@ -52,6 +54,12 @@ import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollection
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.LxOnlineCollectionType
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.searchLxOnlineCollections
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
+import moe.ouom.neriplayer.data.auth.youtube.buildRefreshObserverFingerprint
+import moe.ouom.neriplayer.data.cache.ExploreGridCacheSnapshot
+import moe.ouom.neriplayer.data.cache.ExploreYtLibraryCacheSnapshot
+import moe.ouom.neriplayer.data.cache.RecommendationsCacheRepository
+import moe.ouom.neriplayer.data.cache.exploreGridFromCache
+import moe.ouom.neriplayer.data.cache.shouldApplyExploreYtLibraryCache
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
@@ -68,6 +76,7 @@ private const val YOUTUBE_MUSIC_SEARCH_LIMIT = 30
 private const val BILI_RESOURCE_TYPE_COLLECTION = 21
 private const val FEATURED_PLAYLIST_COUNT = 30
 private const val DISCOVERY_MIN_CACHED_PLAYLISTS = 20
+private const val EXPLORE_CACHE_SAVE_DEBOUNCE_MS = 400L
 
 /**
  * Tag key to Chinese API category mapping
@@ -346,6 +355,10 @@ private data class ExploreSearchFetchResult(
 class ExploreViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application
     private val neteaseRepo = AppContainer.neteaseCookieRepo
+    private val recommendationsCacheRepo = RecommendationsCacheRepository(application)
+    private var exploreCacheSaveJob: Job? = null
+    private var exploreGridCache: ExploreGridCacheSnapshot? = null
+    private var exploreYtCacheBootstrapped = false
     private var highQualityLoadJob: Job? = null
     private var searchJob: Job? = null
     private var searchMoreJob: Job? = null
@@ -358,6 +371,20 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     val uiState: StateFlow<ExploreUiState> = _uiState
 
     init {
+        viewModelScope.launch(Dispatchers.IO) {
+            exploreGridCache = recommendationsCacheRepo.readExploreGrid()
+            val cached = exploreGridFromCache(exploreGridCache, _uiState.value.selectedTag)
+            if (cached.isNotEmpty()) {
+                NPLogger.d(TAG, "explore grid cache applied: tag=${_uiState.value.selectedTag}, count=${cached.size}")
+                _uiState.update { state ->
+                    state.copy(
+                        playlists = cached.map { it.toPlaylistSummary() },
+                        loading = false,
+                        error = null
+                    )
+                }
+            }
+        }
         viewModelScope.launch {
             neteaseRepo.authHealthFlow.collect { health ->
                 val isLoggedIn = isNeteaseExploreSearchAvailable(health.state)
@@ -424,43 +451,13 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     fun setDefaultSearchType(type: DefaultExploreSearchType) {
         if (type == _uiState.value.selectedDefaultSearchType) return
         NPLogger.d(TAG, "setDefaultSearchType: ${_uiState.value.selectedDefaultSearchType} -> $type")
-        searchJob?.cancel()
-        searchMoreJob?.cancel()
-        invalidateSearchRequest()
-        _uiState.value = _uiState.value.copy(
-            selectedDefaultSearchType = type,
-            searching = false,
-            searchError = null,
-            searchResults = emptyList(),
-            searchItems = emptyList(),
-            searchHasMore = false,
-            searchLoadingMore = false,
-            searchLoadMoreError = null,
-            searchPage = 0,
-            searchKeyword = "",
-            searchDisplayQuery = ""
-        )
+        switchSearchTypeAndRetry(selectedDefaultSearchType = type)
     }
 
     fun setNeteaseSearchType(type: NeteaseExploreSearchType) {
         if (type == _uiState.value.selectedNeteaseSearchType) return
         NPLogger.d(TAG, "setNeteaseSearchType: ${_uiState.value.selectedNeteaseSearchType} -> $type")
-        searchJob?.cancel()
-        searchMoreJob?.cancel()
-        invalidateSearchRequest()
-        _uiState.value = _uiState.value.copy(
-            selectedNeteaseSearchType = type,
-            searching = false,
-            searchError = null,
-            searchResults = emptyList(),
-            searchItems = emptyList(),
-            searchHasMore = false,
-            searchLoadingMore = false,
-            searchLoadMoreError = null,
-            searchPage = 0,
-            searchKeyword = "",
-            searchDisplayQuery = ""
-        )
+        switchSearchTypeAndRetry(selectedNeteaseSearchType = type)
     }
 
     fun setYouTubeMusicSearchType(type: YouTubeExploreSearchType) {
@@ -469,12 +466,30 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             TAG,
             "setYouTubeMusicSearchType: ${_uiState.value.selectedYouTubeMusicSearchType} -> $type"
         )
+        switchSearchTypeAndRetry(selectedYouTubeMusicSearchType = type)
+    }
+
+    /**
+     * 切换搜索类型时立刻进入 loading 并保留关键词重搜，
+     * 避免先闪一帧「无搜索结果」再转圈。
+     */
+    private fun switchSearchTypeAndRetry(
+        selectedDefaultSearchType: DefaultExploreSearchType = _uiState.value.selectedDefaultSearchType,
+        selectedNeteaseSearchType: NeteaseExploreSearchType = _uiState.value.selectedNeteaseSearchType,
+        selectedYouTubeMusicSearchType: YouTubeExploreSearchType =
+            _uiState.value.selectedYouTubeMusicSearchType,
+    ) {
+        val current = _uiState.value
+        val keyword = current.searchKeyword
+        val displayQuery = current.searchDisplayQuery
         searchJob?.cancel()
         searchMoreJob?.cancel()
         invalidateSearchRequest()
-        _uiState.value = _uiState.value.copy(
-            selectedYouTubeMusicSearchType = type,
-            searching = false,
+        _uiState.value = current.copy(
+            selectedDefaultSearchType = selectedDefaultSearchType,
+            selectedNeteaseSearchType = selectedNeteaseSearchType,
+            selectedYouTubeMusicSearchType = selectedYouTubeMusicSearchType,
+            searching = keyword.isNotBlank(),
             searchError = null,
             searchResults = emptyList(),
             searchItems = emptyList(),
@@ -482,9 +497,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             searchLoadingMore = false,
             searchLoadMoreError = null,
             searchPage = 0,
-            searchKeyword = "",
-            searchDisplayQuery = ""
+            searchKeyword = keyword,
+            searchDisplayQuery = displayQuery
         )
+        if (keyword.isNotBlank()) {
+            search(keyword, displayQuery = displayQuery)
+        }
     }
 
     /** 统一搜索入口 */
@@ -809,14 +827,23 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val previousPlaylists = currentState.playlists
 
         highQualityLoadJob?.cancel()
+        // SWR：该 tag 的磁盘缓存先上屏，再后台刷新
+        val cachedPlaylists = exploreGridFromCache(exploreGridCache, realCat)
+            .map { it.toPlaylistSummary() }
+        val immediatePlaylists = when {
+            cachedPlaylists.isNotEmpty() -> cachedPlaylists
+            realCat == previousTag -> previousPlaylists
+            else -> emptyList()
+        }
         _uiState.value = currentState.copy(
             loading = true,
             error = null,
-            selectedTag = realCat
+            selectedTag = realCat,
+            playlists = immediatePlaylists
         )
         NPLogger.d(
             TAG,
-            "loadHighQuality start: tag=$realCat, apiCategory=${TAG_TO_API_CATEGORY[realCat] ?: realCat}, previousCount=${previousPlaylists.size}"
+            "loadHighQuality start: tag=$realCat, apiCategory=${TAG_TO_API_CATEGORY[realCat] ?: realCat}, cacheCount=${cachedPlaylists.size}, previousCount=${previousPlaylists.size}"
         )
         highQualityLoadJob = viewModelScope.launch {
             try {
@@ -834,24 +861,90 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     playlists = mapped,
                     selectedTag = realCat
                 )
+                scheduleExploreGridCacheSave(realCat, mapped)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                val shouldRestorePreviousContent = previousPlaylists.isNotEmpty() && realCat != previousTag
-                NPLogger.e(
-                    TAG,
-                    "loadHighQuality failed: tag=$realCat, restorePrevious=$shouldRestorePreviousContent",
-                    e
-                )
+                NPLogger.e(TAG, "loadHighQuality failed: tag=$realCat", e)
+                // SWR：失败时尽量保留已上屏内容
+                val keepItems = immediatePlaylists.ifEmpty {
+                    if (realCat == previousTag) previousPlaylists else emptyList()
+                }
                 _uiState.value = _uiState.value.copy(
                     loading = false,
-                    error = app.getString(
-                        R.string.error_load_playlist,
-                        e.message ?: app.getString(R.string.github_sync_failed_message)
-                    ),
-                    playlists = if (shouldRestorePreviousContent) previousPlaylists else emptyList(),
-                    selectedTag = if (shouldRestorePreviousContent) previousTag else realCat
+                    error = if (keepItems.isNotEmpty()) {
+                        null
+                    } else {
+                        app.getString(
+                            R.string.error_load_playlist,
+                            e.message ?: app.getString(R.string.github_sync_failed_message)
+                        )
+                    },
+                    playlists = keepItems,
+                    selectedTag = realCat
                 )
+            }
+        }
+    }
+
+    private fun scheduleExploreGridCacheSave(tag: String, playlists: List<PlaylistSummary>) {
+        exploreCacheSaveJob?.cancel()
+        exploreCacheSaveJob = viewModelScope.launch {
+            delay(EXPLORE_CACHE_SAVE_DEBOUNCE_MS)
+            val current = exploreGridCache ?: ExploreGridCacheSnapshot()
+            val next = current.copy(
+                savedAtMs = System.currentTimeMillis(),
+                grids = current.grids.toMutableMap().apply {
+                    put(tag, playlists.map { it.toCachedPlaylistDto() })
+                }
+            )
+            exploreGridCache = next
+            withContext(Dispatchers.IO) {
+                recommendationsCacheRepo.saveExploreGrid(next)
+            }
+        }
+    }
+
+    private fun scheduleExploreYtLibraryCacheSave(playlists: List<YouTubeMusicPlaylist>) {
+        exploreCacheSaveJob?.cancel()
+        exploreCacheSaveJob = viewModelScope.launch {
+            delay(EXPLORE_CACHE_SAVE_DEBOUNCE_MS)
+            val snapshot = ExploreYtLibraryCacheSnapshot(
+                savedAtMs = System.currentTimeMillis(),
+                youtubeAuthFingerprint = buildYouTubeAuthFingerprint(),
+                playlists = playlists.map { it.toCachedYtPlaylistDto() }
+            )
+            withContext(Dispatchers.IO) {
+                recommendationsCacheRepo.saveExploreYtLibrary(snapshot)
+            }
+        }
+    }
+
+    private fun buildYouTubeAuthFingerprint(): String {
+        return AppContainer.youtubeAuthRepo.getAuthOnce().buildRefreshObserverFingerprint()
+    }
+
+    private fun bootstrapExploreYtLibraryCache() {
+        if (exploreYtCacheBootstrapped) return
+        exploreYtCacheBootstrapped = true
+        viewModelScope.launch(Dispatchers.IO) {
+            val snapshot = recommendationsCacheRepo.readExploreYtLibrary() ?: return@launch
+            val fingerprint = buildYouTubeAuthFingerprint()
+            if (!shouldApplyExploreYtLibraryCache(snapshot, fingerprint)) {
+                NPLogger.d(TAG, "explore yt library cache skipped")
+                return@launch
+            }
+            NPLogger.d(TAG, "explore yt library cache applied: count=${snapshot.playlists.size}")
+            _uiState.update { state ->
+                if (state.ytMusicPlaylists.isNotEmpty()) {
+                    state
+                } else {
+                    state.copy(
+                        ytMusicPlaylists = snapshot.playlists.map { it.toYouTubeMusicPlaylist() },
+                        ytMusicPlaylistsLoading = false,
+                        ytMusicPlaylistsError = null
+                    )
+                }
             }
         }
     }
@@ -1566,13 +1659,20 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     /** 加载 YouTube Music 歌单列表 */
     fun loadYtMusicPlaylists() {
         if (!youtubeEnabled) return
+        bootstrapExploreYtLibraryCache()
         if (ytMusicPlaylistsJob?.isActive == true) {
             ytMusicPlaylistsPending = true
             NPLogger.d(TAG, "loadYtMusicPlaylists coalesced while loading")
             return
         }
         ytMusicPlaylistsPending = false
-        _uiState.value = _uiState.value.copy(ytMusicPlaylistsLoading = true, ytMusicPlaylistsError = null)
+        val previousPlaylists = _uiState.value.ytMusicPlaylists
+        _uiState.value = _uiState.value.copy(
+            ytMusicPlaylistsLoading = true,
+            ytMusicPlaylistsError = null,
+            // SWR：已有条目时不先清空
+            ytMusicPlaylists = previousPlaylists
+        )
         NPLogger.d(TAG, "loadYtMusicPlaylists start")
         ytMusicPlaylistsJob = viewModelScope.launch {
             try {
@@ -1597,12 +1697,18 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     ytMusicPlaylists = playlists,
                     ytMusicPlaylistsError = null
                 )
+                scheduleExploreYtLibraryCacheSave(playlists)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 NPLogger.e(TAG, "loadYtMusicPlaylists failed", e)
                 _uiState.value = _uiState.value.copy(
                     ytMusicPlaylistsLoading = false,
-                    ytMusicPlaylistsError = "YouTube Music: ${e.message ?: "unknown error"}"
+                    ytMusicPlaylistsError = if (previousPlaylists.isNotEmpty()) {
+                        null
+                    } else {
+                        "YouTube Music: ${e.message ?: "unknown error"}"
+                    },
+                    ytMusicPlaylists = previousPlaylists
                 )
             } finally {
                 val completedJob = coroutineContext[Job]

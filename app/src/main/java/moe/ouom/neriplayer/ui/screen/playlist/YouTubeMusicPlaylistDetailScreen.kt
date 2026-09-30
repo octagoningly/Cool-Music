@@ -631,6 +631,12 @@ fun YouTubeMusicPlaylistDetailScreen(
             }
         }
     ) { innerPadding ->
+        Box(Modifier.fillMaxSize()) {
+        PlaylistDetailBlurCoverBackdrop(
+            coverUrl = resolvedPlaylist.coverUrl,
+            offlineMode = offlineMode,
+            modifier = Modifier.fillMaxSize()
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -884,6 +890,7 @@ fun YouTubeMusicPlaylistDetailScreen(
                     }
                 }
             }
+        }
         }
         
         if (showExportSheet) {

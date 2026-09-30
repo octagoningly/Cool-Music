@@ -1448,8 +1448,6 @@ private fun NeriAppContent(
     )
     var showNowPlaying by rememberSaveable { mutableStateOf(false) }
     var showNowPlayingLyrics by rememberSaveable { mutableStateOf(false) }
-    /** 播放页是否仍在台上（含退场动画中）；退场播完才 false，背景/玻璃不要和退场叠在一起 */
-    var nowPlayingPresented by remember { mutableStateOf(false) }
     /**
      * 退场锁：关闭后到动画结束前禁止再次进入。
      * 否则退场途中若有一帧 showNowPlaying 被写回 true，AnimatedVisibility 会重进，
@@ -2400,6 +2398,10 @@ private fun NeriAppContent(
             var selectedMainTabRoute by rememberSaveable(navHostStartDestination) {
                 mutableStateOf(navHostStartDestination)
             }
+            var libraryChromeBackgroundScale by remember { mutableFloatStateOf(1f) }
+            var libraryChromeBackgroundAlpha by remember { mutableFloatStateOf(1f) }
+            var libraryChromePivotFractionX by remember { mutableFloatStateOf(0.5f) }
+            var libraryChromePivotFractionY by remember { mutableFloatStateOf(0.5f) }
             var pendingMainTabRoute by remember(navHostStartDestination) {
                 mutableStateOf<String?>(null)
             }
@@ -2888,6 +2890,12 @@ private fun NeriAppContent(
                         },
                         offlineMode = offlineMode,
                         coherentFeedbackEnabled = coherentFeedbackEnabled,
+                        onCardBackgroundTransformChanged = { scale, alpha, pivotX, pivotY ->
+                            libraryChromeBackgroundScale = scale
+                            libraryChromeBackgroundAlpha = alpha
+                            libraryChromePivotFractionX = pivotX
+                            libraryChromePivotFractionY = pivotY
+                        },
                         renderScene = { revealTop, translationY, scale, sceneDepth, sceneContent ->
                             RenderMainTabNavigationScene(
                                 revealTop,
@@ -3420,10 +3428,11 @@ private fun NeriAppContent(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        // 连贯反馈：播放页打开时主界面轻微后退；退场动画期间保持后退，等页面卸掉再回位
+                        // 连贯反馈：播放页打开时主界面轻微后退，关闭时与播放页退场同步回位。
+                        // 必须由实际 visible 驱动；若等 presented 卸台才恢复，浅色底会在退场时形成白蒙层。
                         .nowPlayingBackgroundRecede(
                             enabled = coherentFeedbackEnabled,
-                            nowPlayingVisible = nowPlayingPresented
+                            nowPlayingVisible = nowPlayingVisible
                         )
                 ) {
                 Box(
@@ -4319,7 +4328,26 @@ private fun NeriAppContent(
                                 // 只显示当前 route，避免媒体库 chrome 残留到设置页
                                 // Hide main-tab chrome under transparent detail routes (stats/recent)
                                 if (currentRoute == null || currentRoute in MAIN_TAB_ROUTES) {
-                                    mainTabChromeSlot.ContentFor(selectedMainTabRoute)
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .graphicsLayer {
+                                                if (
+                                                    selectedMainTabRoute ==
+                                                    Destinations.Library.route
+                                                ) {
+                                                    scaleX = libraryChromeBackgroundScale
+                                                    scaleY = libraryChromeBackgroundScale
+                                                    alpha = libraryChromeBackgroundAlpha
+                                                    transformOrigin = TransformOrigin(
+                                                        pivotFractionX = libraryChromePivotFractionX,
+                                                        pivotFractionY = libraryChromePivotFractionY
+                                                    )
+                                                }
+                                            }
+                                    ) {
+                                        mainTabChromeSlot.ContentFor(selectedMainTabRoute)
+                                    }
                                 }
 
                                 AnimatedVisibility(
@@ -4384,11 +4412,8 @@ private fun NeriAppContent(
                 ) {
                     val nowPlayingExpandVisibilityScope = this
                     DisposableEffect(Unit) {
-                        nowPlayingPresented = true
                         latestOnNowPlayingVisibilityChanged(true)
                         onDispose {
-                            // 退场动画结束后才卸台，背景回位从这里起
-                            nowPlayingPresented = false
                             latestOnNowPlayingVisibilityChanged(false)
                         }
                     }

@@ -213,6 +213,7 @@ import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialogContent
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextField
+import moe.ouom.neriplayer.ui.util.contentTopPaddingCompensationPx
 import moe.ouom.neriplayer.ui.util.currentWindowWidthDp
 import moe.ouom.neriplayer.ui.util.rememberListRowStagger
 import moe.ouom.neriplayer.util.format.formatPlayCount
@@ -638,41 +639,68 @@ fun LibraryScreen(
     }
     // 下滑收起 Tab 行；上滑意图时先弹出。状态由 LibraryHost 持有，详情返回不重置。
     val showLibraryTabs = chromeScrollState.showTabs
+    val libraryDensity = LocalDensity.current
+    // 顶部留白瞬时切换（动画 Dp 会每帧 remasure 发卡）。
+    // 显隐与滚动补偿必须同一拍：contentPadding 变多少，就用 dispatchRawDelta 反向补多少。
+    // 不能用 scrollBy —— 用户拖拽中会被 MutatorMutex 取消，列表会整体瞬移。
     LaunchedEffect(activeLibraryListState) {
         var initialEmission = true
         snapshotFlow {
             activeLibraryListState.firstVisibleItemIndex * 100_000 +
                 activeLibraryListState.firstVisibleItemScrollOffset
         }.collect { total ->
-            chromeScrollState.showTabs = resolveLibraryTabsVisibility(
+            val newVisible = resolveLibraryTabsVisibility(
                 currentVisible = chromeScrollState.showTabs,
                 previousScrollTotal = chromeScrollState.lastScrollTotal,
                 currentScrollTotal = total,
                 initialEmission = initialEmission,
                 compensatingContentTop = chromeScrollState.isCompensatingContentTop
             )
-            chromeScrollState.lastScrollTotal = total
+            if (newVisible != chromeScrollState.showTabs) {
+                val fromDp = chromeScrollState.appliedContentTopDp
+                val toDp = if (newVisible) {
+                    LIBRARY_TABS_EXPANDED_TOP_DP
+                } else {
+                    LIBRARY_TABS_COLLAPSED_TOP_DP
+                }
+                val deltaPx = contentTopPaddingCompensationPx(
+                    fromTopDp = fromDp,
+                    toTopDp = toDp,
+                    density = libraryDensity.density,
+                )
+                chromeScrollState.appliedContentTopDp = toDp
+                chromeScrollState.isCompensatingContentTop = true
+                try {
+                    // 先补滚动再切 showTabs，下一帧布局里 padding 与 offset 同时到位
+                    activeLibraryListState.dispatchRawDelta(deltaPx)
+                    chromeScrollState.showTabs = newVisible
+                } finally {
+                    chromeScrollState.lastScrollTotal =
+                        activeLibraryListState.firstVisibleItemIndex * 100_000 +
+                            activeLibraryListState.firstVisibleItemScrollOffset
+                    chromeScrollState.isCompensatingContentTop = false
+                }
+            } else {
+                chromeScrollState.lastScrollTotal = total
+            }
             initialEmission = false
         }
     }
-    // 瞬时切换顶部留白：动画 Dp 会让列表每帧 remasure，滚动发卡。
-    // 收起/展开时用 scrollBy 补偿；补偿滚动不能反向触发顶栏显隐。
     val libraryContentTopDp = if (showLibraryTabs) {
         LIBRARY_TABS_EXPANDED_TOP_DP
     } else {
         LIBRARY_TABS_COLLAPSED_TOP_DP
     }
-    val libraryDensity = LocalDensity.current
+    // 兜底：换列表/状态恢复后 applied 与目标不一致时再补一次（正常路径上面已补齐）
     LaunchedEffect(libraryContentTopDp, activeLibraryListState) {
         val deltaPx = with(libraryDensity) {
             (libraryContentTopDp - chromeScrollState.appliedContentTopDp).dp.toPx()
         }
         if (deltaPx != 0f) {
-            // 先落目标值，协程即使因场景切换取消，也不会在下次进入时重复补偿。
             chromeScrollState.appliedContentTopDp = libraryContentTopDp
             chromeScrollState.isCompensatingContentTop = true
             try {
-                activeLibraryListState.scrollBy(deltaPx)
+                activeLibraryListState.dispatchRawDelta(deltaPx)
             } finally {
                 chromeScrollState.lastScrollTotal =
                     activeLibraryListState.firstVisibleItemIndex * 100_000 +

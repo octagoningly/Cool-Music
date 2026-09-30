@@ -6,6 +6,28 @@ import org.junit.Test
 
 class ListRowScrollStaggerTest {
     @Test
+    fun `content top padding compensation cancels padding jump`() {
+        val density = 2.75f
+        // Tab 行弹出：56dp → 136dp，内容下移 80dp，需向前滚 +80dp 抵消
+        assertEquals(
+            80f * density,
+            contentTopPaddingCompensationPx(fromTopDp = 56f, toTopDp = 136f, density = density),
+            0.01f,
+        )
+        // Tab 行收起：136dp → 56dp，内容上移，需向后滚
+        assertEquals(
+            -80f * density,
+            contentTopPaddingCompensationPx(fromTopDp = 136f, toTopDp = 56f, density = density),
+            0.01f,
+        )
+        assertEquals(
+            0f,
+            contentTopPaddingCompensationPx(fromTopDp = 136f, toTopDp = 136f, density = density),
+            0f,
+        )
+    }
+
+    @Test
     fun `idle or top row stays at layout position`() {
         assertEquals(0f, listRowStaggerTranslationY(0f, phaseNorm = 0.6f, maxLagPx = 8f), 0f)
         assertEquals(0f, listRowStaggerTranslationY(20f, phaseNorm = 0f, maxLagPx = 8f), 0f)

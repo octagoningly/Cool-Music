@@ -213,24 +213,41 @@ class ListRowStaggerScope internal constructor(
     }
 }
 
-suspend fun compensateListContentTopScroll(
+/**
+ * contentPadding.top 从 [fromTopDp] 变到 [toTopDp] 时，为保持可视位置所需的反向滚动像素。
+ * 正值 = 向列表尾部滚（padding 变大时内容下移，需向前滚抵消）。
+ */
+fun contentTopPaddingCompensationPx(
+    fromTopDp: Float,
+    toTopDp: Float,
+    density: Float,
+): Float = (toTopDp - fromTopDp) * density
+
+/**
+ * 顶栏收展补偿滚动。
+ *
+ * 必须用 [androidx.compose.foundation.lazy.LazyListState.dispatchRawDelta] 而不是
+ * `scrollBy`：后者走 MutatorMutex，用户拖拽（UserInput）会把它取消或推迟到松手后，
+ * 表现为 contentPadding 已变、列表整体瞬移。RawDelta 与 showTabs 同帧生效，互相抵消。
+ */
+fun compensateListContentTopScroll(
     listState: LazyListState,
     deltaTopPx: Float,
     stagger: ListRowStaggerScope? = null,
 ) {
     if (deltaTopPx == 0f) return
     stagger?.cancelLag()
-    listState.scrollBy(deltaTopPx)
+    listState.dispatchRawDelta(deltaTopPx)
 }
 
-suspend fun compensateGridContentTopScroll(
+fun compensateGridContentTopScroll(
     gridState: LazyGridState,
     deltaTopPx: Float,
     stagger: ListRowStaggerScope? = null,
 ) {
     if (deltaTopPx == 0f) return
     stagger?.cancelLag()
-    gridState.scrollBy(deltaTopPx)
+    gridState.dispatchRawDelta(deltaTopPx)
 }
 
 fun continuousListScrollPosition(

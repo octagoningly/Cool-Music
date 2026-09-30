@@ -4415,9 +4415,10 @@ private fun NeriAppContent(
 
                 AnimatedVisibility(
                     visible = nowPlayingVisible,
-                    // 有歌曲行 bounds：上下沿开窗，不要整页 slide（会像迷你栏抽屉）
+                    // 有歌曲行 bounds：上下沿开窗。
+                    // 窗内内容必须立刻实心：再叠长 fadeIn 会「窗开了页面还糊着」。
                     enter = if (nowPlayingOpenOrigin != null) {
-                        fadeIn(tween(durationMillis = PlaylistCardContainerMotion.OpenDurationMillis))
+                        EnterTransition.None
                     } else {
                         nowPlayingExpandEnterTransition(coherentFeedbackEnabled)
                             ?: slideInVertically(
@@ -4426,7 +4427,7 @@ private fun NeriAppContent(
                             ) + fadeIn(animationSpec = tween(durationMillis = 150))
                     },
                     exit = if (nowPlayingOpenOrigin != null) {
-                        fadeOut(tween(durationMillis = PlaylistCardContainerMotion.CloseDurationMillis))
+                        ExitTransition.None
                     } else {
                         nowPlayingExpandExitTransition(coherentFeedbackEnabled)
                             ?: slideOutVertically(

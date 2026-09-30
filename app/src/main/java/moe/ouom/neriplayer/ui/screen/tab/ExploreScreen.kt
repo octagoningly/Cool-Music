@@ -259,13 +259,20 @@ internal fun exploreSearchSourceDisplayOrder(
     youtubeEnabled: Boolean
 ): List<SearchSource> {
     return if (!youtubeEnabled) {
-        listOf(SearchSource.DEFAULT, SearchSource.NETEASE, SearchSource.BILIBILI, SearchSource.LINK_RECOGNITION)
+        listOf(
+            SearchSource.DEFAULT,
+            SearchSource.NETEASE,
+            SearchSource.BILIBILI,
+            SearchSource.QQ_MUSIC,
+            SearchSource.LINK_RECOGNITION
+        )
     } else if (isInternational) {
         listOf(
             SearchSource.YOUTUBE_MUSIC,
             SearchSource.DEFAULT,
             SearchSource.NETEASE,
             SearchSource.BILIBILI,
+            SearchSource.QQ_MUSIC,
             SearchSource.LINK_RECOGNITION
         )
     } else {
@@ -273,6 +280,7 @@ internal fun exploreSearchSourceDisplayOrder(
             SearchSource.DEFAULT,
             SearchSource.NETEASE,
             SearchSource.BILIBILI,
+            SearchSource.QQ_MUSIC,
             SearchSource.YOUTUBE_MUSIC,
             SearchSource.LINK_RECOGNITION
         )
@@ -334,6 +342,7 @@ private fun searchSourceLabel(source: SearchSource): String {
         SearchSource.YOUTUBE_MUSIC -> stringResource(R.string.explore_tab_youtube)
         SearchSource.NETEASE -> stringResource(R.string.platform_netease_short)
         SearchSource.BILIBILI -> stringResource(R.string.platform_bilibili)
+        SearchSource.QQ_MUSIC -> stringResource(R.string.platform_qq_music)
         SearchSource.LINK_RECOGNITION -> stringResource(R.string.explore_tab_links)
     }
 }
@@ -1540,6 +1549,11 @@ fun ExploreScreen(
                         SearchSource.BILIBILI -> {
                             Box(Modifier.fillMaxSize(), Alignment.Center) {
                                 Text(stringResource(R.string.explore_bili_desc), style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                        SearchSource.QQ_MUSIC -> {
+                            Box(Modifier.fillMaxSize(), Alignment.Center) {
+                                Text(stringResource(R.string.explore_qq_desc), style = MaterialTheme.typography.bodyLarge)
                             }
                         }
                         SearchSource.YOUTUBE_MUSIC -> {

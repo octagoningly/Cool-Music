@@ -65,6 +65,7 @@ import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
 import moe.ouom.neriplayer.data.platform.youtube.buildYouTubeMusicMediaUri
 import moe.ouom.neriplayer.data.platform.youtube.stableYouTubeMusicId
+import moe.ouom.neriplayer.listentogether.protocol.ListenTogetherChannels
 import moe.ouom.neriplayer.data.platform.youtube.youtubeMusicThumbnailUrl
 import moe.ouom.neriplayer.util.search.SearchTextMatcher
 import moe.ouom.neriplayer.util.search.searchValues
@@ -116,6 +117,7 @@ enum class SearchSource {
     YOUTUBE_MUSIC,
     NETEASE,
     BILIBILI,
+    QQ_MUSIC,
     LINK_RECOGNITION
 }
 
@@ -538,6 +540,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             SearchSource.DEFAULT -> searchDefault(apiKeyword, matchQuery, requestVersion)
             SearchSource.NETEASE -> searchNetease(apiKeyword, matchQuery, requestVersion)
             SearchSource.BILIBILI -> searchBilibili(apiKeyword, matchQuery, requestVersion)
+            SearchSource.QQ_MUSIC -> searchQQMusic(apiKeyword, matchQuery, requestVersion)
             SearchSource.YOUTUBE_MUSIC -> searchYouTubeMusic(apiKeyword, matchQuery, requestVersion)
             SearchSource.LINK_RECOGNITION -> searchRecognizedLink(apiKeyword, requestVersion)
         }
@@ -599,6 +602,11 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         type = neteaseType
                     )
                     SearchSource.BILIBILI -> fetchBilibiliSearchPage(
+                        keyword = keyword,
+                        matchQuery = matchQuery,
+                        page = nextPage
+                    )
+                    SearchSource.QQ_MUSIC -> fetchQQMusicSearchPage(
                         keyword = keyword,
                         matchQuery = matchQuery,
                         page = nextPage
@@ -754,6 +762,73 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
+    }
+
+    /** 搜索 QQ 音乐 */
+    private fun searchQQMusic(keyword: String, matchQuery: String, requestVersion: Long) {
+        searchJob = viewModelScope.launch {
+            try {
+                val result = fetchQQMusicSearchPage(keyword, matchQuery, page = 1)
+                NPLogger.d(
+                    TAG,
+                    "search QQ Music success: request=$requestVersion, keyword=$keyword, count=${result.items.size}, page=${result.page}, hasMore=${result.hasMore}"
+                )
+                updateSearchStateIfCurrent(requestVersion, SearchSource.QQ_MUSIC) {
+                    it.copy(
+                        searching = false,
+                        searchError = null,
+                        searchLoadMoreError = null,
+                        searchResults = result.songs,
+                        searchItems = result.items,
+                        searchPage = result.page,
+                        searchHasMore = result.hasMore
+                    )
+                }
+                precacheSearchSongs(result.songs)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                NPLogger.e(
+                    TAG,
+                    "search QQ Music failed: request=$requestVersion, keyword=$keyword",
+                    e
+                )
+                updateSearchStateIfCurrent(requestVersion, SearchSource.QQ_MUSIC) {
+                    it.copy(
+                        searching = false,
+                        searchError = app.getString(
+                            R.string.error_qq_music_search,
+                            e.message ?: app.getString(R.string.github_sync_failed_message)
+                        ),
+                        searchResults = emptyList(),
+                        searchItems = emptyList(),
+                        searchHasMore = false,
+                        searchLoadingMore = false,
+                        searchLoadMoreError = null,
+                        searchPage = 0
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchQQMusicSearchPage(
+        keyword: String,
+        matchQuery: String,
+        page: Int
+    ): ExploreSearchFetchResult {
+        val items = withContext(Dispatchers.IO) {
+            AppContainer.qqMusicSearchApi.search(keyword, page)
+        }
+        val songs = rankExploreSongSearchResults(
+            query = matchQuery,
+            songs = items.map { it.toQQMusicSongItem(app) }
+        )
+        return ExploreSearchFetchResult(
+            items = songs.map { ExploreSearchResult.Song(it) },
+            page = page,
+            hasMore = songs.isNotEmpty()
+        )
     }
 
     private suspend fun fetchBilibiliSearchPage(
@@ -1743,6 +1818,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             SearchSource.DEFAULT -> app.getString(R.string.error_search_failed, fallback)
             SearchSource.NETEASE -> app.getString(R.string.error_netease_search, fallback)
             SearchSource.BILIBILI -> app.getString(R.string.error_bilibili_search, fallback)
+            SearchSource.QQ_MUSIC -> app.getString(R.string.error_qq_music_search, fallback)
             SearchSource.YOUTUBE_MUSIC -> app.getString(R.string.error_youtube_search, fallback)
             SearchSource.LINK_RECOGNITION -> app.getString(R.string.error_link_recognition, fallback)
         }
@@ -1762,6 +1838,38 @@ private fun BiliClient.SearchVideoItem.toSongItem(): SongItem {
         channelId = "bilibili",
         audioId = this.aid.toString()
     )
+}
+
+/** QQ 音乐搜索结果到通用 SongItem 的转换器 */
+private fun moe.ouom.neriplayer.core.api.search.SongSearchInfo.toQQMusicSongItem(
+    app: Application
+): SongItem {
+    val songMid = id.trim()
+    val displayAlbum = albumName?.trim()?.takeIf { it.isNotBlank() }
+        ?: app.getString(R.string.settings_qq_music)
+    return SongItem(
+        id = stableYouTubeMusicId("qqmusic|$songMid"),
+        name = songName,
+        artist = singer.ifBlank { "QQ音乐" },
+        // "QQMusic" 前缀供 SongIdentity 的渠道推断兜底
+        album = "QQMusic|$displayAlbum",
+        albumId = stableYouTubeMusicId("qqmusic|$songMid|${displayAlbum}"),
+        durationMs = parseExploreDurationMs(duration),
+        coverUrl = coverUrl,
+        channelId = ListenTogetherChannels.QQMUSIC,
+        audioId = songMid
+    )
+}
+
+/** 解析 "m:ss" / "mm:ss" 时长为毫秒；无法解析返回 0 */
+internal fun parseExploreDurationMs(raw: String?): Long {
+    val normalized = raw?.trim().orEmpty()
+    if (normalized.isEmpty()) return 0L
+    val parts = normalized.split(':')
+    if (parts.size != 2) return 0L
+    val minutes = parts[0].toLongOrNull() ?: return 0L
+    val seconds = parts[1].toLongOrNull() ?: return 0L
+    return (minutes * 60L + seconds) * 1000L
 }
 
 private fun BiliClient.VideoBasicInfo.toSongItem(): SongItem {

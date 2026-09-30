@@ -25,6 +25,7 @@ class ExploreScreenYouTubeGateTest {
                 SearchSource.DEFAULT,
                 SearchSource.NETEASE,
                 SearchSource.BILIBILI,
+                SearchSource.QQ_MUSIC,
                 SearchSource.LINK_RECOGNITION
             ),
             sources

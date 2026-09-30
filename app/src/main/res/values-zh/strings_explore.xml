@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Explore & Tags -->
     <string name="genre_pop">流行</string>
@@ -26,6 +26,7 @@
     <string name="language_korean">韩语</string>
     <string name="language_cantonese">粤语</string>
     <string name="explore_bili_desc">在哔哩哔哩中发现更多精彩视频</string>
+    <string name="explore_qq_desc">在上方搜索框切换到 QQ音乐 即可搜索曲目</string>
     <string name="explore_new_discovery">新发现</string>
     <string name="explore_offline_disabled">探索内容暂时无法加载，可能是网络不佳。恢复网络后会自动重试。</string>
     <string name="explore_tag_netease">网易云</string>

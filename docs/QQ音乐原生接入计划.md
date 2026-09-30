@@ -46,7 +46,7 @@
 | **M1 · 登录打通（原 M5 提前）** | WebView 登录 y.qq.com 捕获 Cookie（先例：`NeteaseWebLoginActivity` 等三套）+ 手动粘贴 Cookie 兜底 + key 刷新（`musics.fcg` + security sign，GPL 代码可移植） | 拿到可用的 `uin` + `qm_keyst`，刷新接口验证通过 |
 | **M2 · 取流原型 + 客户端** ✅ **已完成** | 带登录态复现取流；`QQMusicClient` + 取流仓库 + 质量选择（仿 `BiliPlaybackRepository`） | ✅ `QQMusicClient`（`{comm,req}` 规格 + 104003 分类）+ `QQMusicPlaybackRepository`（降级链）+ `QQMusicQuality` 模型 + 单测 37 项全绿；真机播放闭环并入 M3 |
 | **M3 · 播放接入** ✅ **代码完成**（真机手测待设备） | `resolveSongUrl` 分发、`isQQMusicTrack`、缓存 key、音质 UI | ✅ `SongIdentity` 渠道、`isQQMusicTrack`、`getQQMusicAudioUrl` 分发、`qualityLabelForQQMusic`、来源徽章、音质偏好/设置项/刷新任务全链路接线；QQ 单测绿；**真机播放手测待手机连接**（`adb devices` 为空） |
-| **M4 · 搜索/探索** | Explore 搜索源 + Library QQ 标签 + 链接识别 | 搜 QQ、进详情、播放闭环 |
+| **M4 · 搜索/探索** ✅ **搜索闭环完成** | Explore 搜索源 + Library QQ 标签 + 链接识别 | ✅ `SearchSource.QQ_MUSIC` + 分页搜索 + SongItem 映射（songmid→audioId）+ 平台标签 UI；**Library QQ 歌单标签未做**（数据层较重，可后置）；链接识别未做 |
 | **M5 · 登录完善与高音质** | 自动续期、过期引导、VIP 音质联动、账号页 | 登录态长期稳定，高音质可选 |
 | **M6 · 周边** | 下载、歌词完善、元数据补全、统计、一起听 | 下载与歌词全平台一致 |
 | **M7 · 收尾** | 测试、文档、`更新记录.md`、发版检查 | 全量单测绿 |

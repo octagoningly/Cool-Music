@@ -20,6 +20,7 @@
     <string name="snackbar_read_failed">读取失败：%s</string>
     <string name="error_parse">解析/未知错误：%s</string>
     <string name="error_bilibili_search">哔哩哔哩搜索失败: %s</string>
+    <string name="error_qq_music_search">QQ音乐搜索失败: %s</string>
     <string name="error_netease_search">网易云搜索失败: %s</string>
     <string name="error_youtube_search">YouTube 搜索失败: %s</string>
     <string name="error_link_recognition">链接识别失败: %s</string>

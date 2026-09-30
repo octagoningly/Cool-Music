@@ -355,6 +355,11 @@ private data class PendingNeteaseRemotePlaylistSync(
     val target: NeteaseRemotePlaylist
 )
 
+/** 行 bounds 持有器：写 onGloballyPositioned 不进 State，避免滚动时重组 */
+private class RectBoundsHolder {
+    var rect: androidx.compose.ui.geometry.Rect = androidx.compose.ui.geometry.Rect.Zero
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class,
     DelicateCoroutinesApi::class
 )
@@ -2074,9 +2079,8 @@ fun LocalPlaylistDetailScreen(
                                     } else {
                                         Color.Transparent
                                     }
-                                    var rowBoundsInRoot by remember {
-                                        mutableStateOf(androidx.compose.ui.geometry.Rect.Zero)
-                                    }
+                                    // 行 bounds 不用 State：滚动时 onGloballyPositioned 会频繁写
+                                    val rowBoundsHolder = remember { RectBoundsHolder() }
                                     val reportNowPlayingOpenBounds =
                                         LocalNowPlayingOpenBoundsReporter.current
 
@@ -2104,7 +2108,7 @@ fun LocalPlaylistDetailScreen(
                                                 .fillMaxWidth()
                                                 .background(rowContainerColor)
                                                 .onGloballyPositioned {
-                                                    rowBoundsInRoot = it.boundsInRoot()
+                                                    rowBoundsHolder.rect = it.boundsInRoot()
                                                 }
                                                 .combinedClickable(
                                                     onClick = {
@@ -2115,7 +2119,7 @@ fun LocalPlaylistDetailScreen(
                                                             val pos = queueIndexBySongKey[song.stableKey()] ?: -1
                                                             if (pos >= 0) {
                                                                 // 上报行 bounds，播放页按上下沿开窗
-                                                                reportNowPlayingOpenBounds?.invoke(rowBoundsInRoot)
+                                                                reportNowPlayingOpenBounds?.invoke(rowBoundsHolder.rect)
                                                                 onSongClick(tabSongs, pos)
                                                             }
                                                         }

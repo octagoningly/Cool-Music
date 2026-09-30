@@ -15,7 +15,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
@@ -199,7 +201,9 @@ internal fun Modifier.playlistCardContainerClip(
 
 /**
  * 播放页/详情开窗：从行矩形上下沿同时撑到全屏。
- * 窗外透明露出下层页面；[visible] 驱动进入 0→1、退出 1→0。
+ *
+ * 性能：progress **只在 draw 里读**（State），不触发 NowPlaying 整页重组；
+ * 用 clipRect 而不是圆角 clipPath，避免每帧 Path 分配。
  */
 @Composable
 fun Modifier.playlistOpenWindowClip(
@@ -214,7 +218,7 @@ fun Modifier.playlistOpenWindowClip(
     ) {
         return this
     }
-    val progress by animateFloatAsState(
+    val progressState = animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(
             durationMillis = if (visible) {
@@ -230,14 +234,22 @@ fun Modifier.playlistOpenWindowClip(
         ),
         label = "playlist_open_window"
     )
-    val frame = PlaylistCardContainerMotion.frame(
-        source = origin,
-        viewportWidth = viewportWidth,
-        viewportHeight = viewportHeight,
-        progress = progress
-    )
-    val cornerRadiusPx = with(LocalDensity.current) {
-        frame.cornerRadiusDp.dp.toPx()
+    val src = origin
+    val vw = viewportWidth
+    val vh = viewportHeight
+    return this.drawWithContent {
+        val p = progressState.value
+        if (p >= 0.999f) {
+            drawContent()
+            return@drawWithContent
+        }
+        val grow = p * p
+        val left = androidx.compose.ui.util.lerp(src.left, 0f, grow)
+        val top = androidx.compose.ui.util.lerp(src.top, 0f, grow)
+        val right = androidx.compose.ui.util.lerp(src.right, vw, grow)
+        val bottom = androidx.compose.ui.util.lerp(src.bottom, vh, grow)
+        clipRect(left = left, top = top, right = right, bottom = bottom) {
+            this@drawWithContent.drawContent()
+        }
     }
-    return playlistCardContainerClip(frame = frame, cornerRadiusPx = cornerRadiusPx)
 }

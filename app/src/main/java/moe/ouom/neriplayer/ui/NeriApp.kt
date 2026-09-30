@@ -110,7 +110,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
@@ -251,6 +253,9 @@ import moe.ouom.neriplayer.ui.screen.host.rememberHomeHostRuntimeState
 import moe.ouom.neriplayer.ui.screen.tab.shouldShowHomeContinueSection
 import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.LocalPlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.LocalNowPlayingOpenBoundsReporter
+import moe.ouom.neriplayer.ui.screen.playlist.PlaylistCardContainerMotion
+import moe.ouom.neriplayer.ui.screen.playlist.playlistOpenWindowClip
 import moe.ouom.neriplayer.ui.screen.playlist.NeteaseAlbumDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.NeteasePlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.YouTubeMusicPlaylistDetailScreen
@@ -1454,6 +1459,8 @@ private fun NeriAppContent(
      * 表现为「关闭中的播放页又闪出来」。
      */
     var nowPlayingExitLocked by remember { mutableStateOf(false) }
+    /** 点歌行 bounds（root）：非空时播放页走上下沿开窗，为空走迷你栏 slide */
+    var nowPlayingOpenOrigin by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
 
     fun openNowPlaying() {
         nowPlayingExitLocked = false
@@ -1463,6 +1470,12 @@ private fun NeriAppContent(
     fun closeNowPlaying() {
         showNowPlaying = false
         nowPlayingExitLocked = true
+        nowPlayingOpenOrigin = null
+    }
+
+    fun openNowPlayingFromMiniPlayer() {
+        nowPlayingOpenOrigin = null
+        openNowPlaying()
     }
 
     val nowPlayingVisible = showNowPlaying && !nowPlayingExitLocked
@@ -3423,7 +3436,10 @@ private fun NeriAppContent(
                 SharedTransitionLayout {
                 val nowPlayingExpandSharedScope = this
                 CompositionLocalProvider(
-                    LocalExpandCoverSharedBridge provides remember { ExpandCoverSharedBridge() }
+                    LocalExpandCoverSharedBridge provides remember { ExpandCoverSharedBridge() },
+                    LocalNowPlayingOpenBoundsReporter provides { rect ->
+                        nowPlayingOpenOrigin = rect
+                    }
                 ) {
                 Box(
                     modifier = Modifier
@@ -4381,7 +4397,7 @@ private fun NeriAppContent(
                                     onPlayPause = { PlayerManager.togglePlayPause() },
                                     onPrevious = { PlayerManager.previous() },
                                     onNext = { PlayerManager.next() },
-                                    onExpand = { openNowPlaying() },
+                                    onExpand = { openNowPlayingFromMiniPlayer() },
                                     enableBlur = effectiveAdvancedBlurEnabled,
                                     offlineMode = offlineMode,
                                     isPlaybackWaiting = isPlaybackWaiting,
@@ -4399,18 +4415,37 @@ private fun NeriAppContent(
 
                 AnimatedVisibility(
                     visible = nowPlayingVisible,
-                    enter = nowPlayingExpandEnterTransition(coherentFeedbackEnabled)
-                        ?: slideInVertically(
-                            animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-                            initialOffsetY = { fullHeight -> fullHeight }
-                        ) + fadeIn(animationSpec = tween(durationMillis = 150)),
-                    exit = nowPlayingExpandExitTransition(coherentFeedbackEnabled)
-                        ?: slideOutVertically(
-                            animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
-                            targetOffsetY = { fullHeight -> fullHeight }
-                        ) + fadeOut(animationSpec = tween(durationMillis = 150))
+                    // 有歌曲行 bounds：上下沿开窗，不要整页 slide（会像迷你栏抽屉）
+                    enter = if (nowPlayingOpenOrigin != null) {
+                        fadeIn(tween(durationMillis = PlaylistCardContainerMotion.OpenDurationMillis))
+                    } else {
+                        nowPlayingExpandEnterTransition(coherentFeedbackEnabled)
+                            ?: slideInVertically(
+                                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                                initialOffsetY = { fullHeight -> fullHeight }
+                            ) + fadeIn(animationSpec = tween(durationMillis = 150))
+                    },
+                    exit = if (nowPlayingOpenOrigin != null) {
+                        fadeOut(tween(durationMillis = PlaylistCardContainerMotion.CloseDurationMillis))
+                    } else {
+                        nowPlayingExpandExitTransition(coherentFeedbackEnabled)
+                            ?: slideOutVertically(
+                                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+                                targetOffsetY = { fullHeight -> fullHeight }
+                            ) + fadeOut(animationSpec = tween(durationMillis = 150))
+                    }
                 ) {
                     val nowPlayingExpandVisibilityScope = this
+                    val npWindowClipModifier = Modifier.playlistOpenWindowClip(
+                        origin = nowPlayingOpenOrigin,
+                        visible = nowPlayingVisible,
+                        viewportWidth = with(LocalDensity.current) {
+                            LocalConfiguration.current.screenWidthDp.dp.toPx()
+                        },
+                        viewportHeight = with(LocalDensity.current) {
+                            LocalConfiguration.current.screenHeightDp.dp.toPx()
+                        }
+                    )
                     DisposableEffect(Unit) {
                         latestOnNowPlayingVisibilityChanged(true)
                         onDispose {
@@ -4694,6 +4729,7 @@ private fun NeriAppContent(
 
                             CompositionLocalProvider(LocalMiniPlayerHeight provides 0.dp) {
                                 val currentSourceRoute = currentPlaybackSourceRoute
+                                androidx.compose.foundation.layout.Box(modifier = npWindowClipModifier) {
                                 NowPlayingScreen(
                         trackChangeBackgroundReveal = trackChangeBackgroundReveal,
                                     onNavigateUp = { closeNowPlaying() },
@@ -4733,6 +4769,7 @@ private fun NeriAppContent(
                                     expandAnimatedVisibilityScope = nowPlayingExpandVisibilityScope,
                                     expandCoverSharedEnabled = coherentFeedbackEnabled
                                 )
+                                }
                             }
                         }
                     }

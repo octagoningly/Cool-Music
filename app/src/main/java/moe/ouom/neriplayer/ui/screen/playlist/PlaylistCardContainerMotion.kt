@@ -1,6 +1,12 @@
 package moe.ouom.neriplayer.ui.screen.playlist
 
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -10,10 +16,17 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
+
+/**
+ * 歌曲行点击时上报 bounds（root 坐标），供播放页做上下沿开窗。
+ * 未上报时播放页走迷你栏式 slide。
+ */
+val LocalNowPlayingOpenBoundsReporter =
+    staticCompositionLocalOf<((Rect) -> Unit)?> { null }
 
 /**
  * 媒体库歌单卡片到详情页的容器变换。
@@ -182,4 +195,49 @@ internal fun Modifier.playlistCardContainerClip(
             }
         }
     }
+}
+
+/**
+ * 播放页/详情开窗：从行矩形上下沿同时撑到全屏。
+ * 窗外透明露出下层页面；[visible] 驱动进入 0→1、退出 1→0。
+ */
+@Composable
+fun Modifier.playlistOpenWindowClip(
+    origin: Rect?,
+    visible: Boolean,
+    viewportWidth: Float,
+    viewportHeight: Float,
+): Modifier {
+    if (origin == null ||
+        !viewportWidth.isFinite() || !viewportHeight.isFinite() ||
+        viewportWidth <= 1f || viewportHeight <= 1f
+    ) {
+        return this
+    }
+    val progress by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = if (visible) {
+                PlaylistCardContainerMotion.OpenDurationMillis
+            } else {
+                PlaylistCardContainerMotion.CloseDurationMillis
+            },
+            easing = if (visible) {
+                PlaylistCardContainerMotion.OpenEasing
+            } else {
+                PlaylistCardContainerMotion.CloseEasing
+            }
+        ),
+        label = "playlist_open_window"
+    )
+    val frame = PlaylistCardContainerMotion.frame(
+        source = origin,
+        viewportWidth = viewportWidth,
+        viewportHeight = viewportHeight,
+        progress = progress
+    )
+    val cornerRadiusPx = with(LocalDensity.current) {
+        frame.cornerRadiusDp.dp.toPx()
+    }
+    return playlistCardContainerClip(frame = frame, cornerRadiusPx = cornerRadiusPx)
 }

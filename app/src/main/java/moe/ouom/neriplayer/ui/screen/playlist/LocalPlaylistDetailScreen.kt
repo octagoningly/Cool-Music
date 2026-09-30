@@ -137,6 +137,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -2072,6 +2074,11 @@ fun LocalPlaylistDetailScreen(
                                     } else {
                                         Color.Transparent
                                     }
+                                    var rowBoundsInRoot by remember {
+                                        mutableStateOf(androidx.compose.ui.geometry.Rect.Zero)
+                                    }
+                                    val reportNowPlayingOpenBounds =
+                                        LocalNowPlayingOpenBoundsReporter.current
 
                                     PlaylistModernListItemSurface(
                                         coverUrl = headerCover,
@@ -2096,6 +2103,9 @@ fun LocalPlaylistDetailScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .background(rowContainerColor)
+                                                .onGloballyPositioned {
+                                                    rowBoundsInRoot = it.boundsInRoot()
+                                                }
                                                 .combinedClickable(
                                                     onClick = {
                                                         context.performHapticFeedback()
@@ -2103,7 +2113,11 @@ fun LocalPlaylistDetailScreen(
                                                             toggleSelect(song)
                                                         } else {
                                                             val pos = queueIndexBySongKey[song.stableKey()] ?: -1
-                                                            if (pos >= 0) onSongClick(tabSongs, pos)
+                                                            if (pos >= 0) {
+                                                                // 上报行 bounds，播放页按上下沿开窗
+                                                                reportNowPlayingOpenBounds?.invoke(rowBoundsInRoot)
+                                                                onSongClick(tabSongs, pos)
+                                                            }
                                                         }
                                                     },
                                                     onLongClick = {

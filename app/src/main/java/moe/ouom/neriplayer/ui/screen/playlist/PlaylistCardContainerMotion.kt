@@ -1,12 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.playlist
 
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -15,20 +9,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
-
-/**
- * 歌曲行点击时上报 bounds（root 坐标），供播放页做上下沿开窗。
- * 未上报时播放页走迷你栏式 slide。
- */
-val LocalNowPlayingOpenBoundsReporter =
-    staticCompositionLocalOf<((Rect) -> Unit)?> { null }
 
 /**
  * 媒体库歌单卡片到详情页的容器变换。
@@ -195,61 +180,6 @@ internal fun Modifier.playlistCardContainerClip(
                     strokeWidth = strokePx
                 )
             }
-        }
-    }
-}
-
-/**
- * 播放页/详情开窗：从行矩形上下沿同时撑到全屏。
- *
- * 性能：progress **只在 draw 里读**（State），不触发 NowPlaying 整页重组；
- * 用 clipRect 而不是圆角 clipPath，避免每帧 Path 分配。
- */
-@Composable
-fun Modifier.playlistOpenWindowClip(
-    origin: Rect?,
-    visible: Boolean,
-    viewportWidth: Float,
-    viewportHeight: Float,
-): Modifier {
-    if (origin == null ||
-        !viewportWidth.isFinite() || !viewportHeight.isFinite() ||
-        viewportWidth <= 1f || viewportHeight <= 1f
-    ) {
-        return this
-    }
-    val progressState = animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = if (visible) {
-                PlaylistCardContainerMotion.OpenDurationMillis
-            } else {
-                PlaylistCardContainerMotion.CloseDurationMillis
-            },
-            easing = if (visible) {
-                PlaylistCardContainerMotion.OpenEasing
-            } else {
-                PlaylistCardContainerMotion.CloseEasing
-            }
-        ),
-        label = "playlist_open_window"
-    )
-    val src = origin
-    val vw = viewportWidth
-    val vh = viewportHeight
-    return this.drawWithContent {
-        val p = progressState.value
-        if (p >= 0.999f) {
-            drawContent()
-            return@drawWithContent
-        }
-        val grow = p * p
-        val left = androidx.compose.ui.util.lerp(src.left, 0f, grow)
-        val top = androidx.compose.ui.util.lerp(src.top, 0f, grow)
-        val right = androidx.compose.ui.util.lerp(src.right, vw, grow)
-        val bottom = androidx.compose.ui.util.lerp(src.bottom, vh, grow)
-        clipRect(left = left, top = top, right = right, bottom = bottom) {
-            this@drawWithContent.drawContent()
         }
     }
 }

@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material3.Icon
@@ -131,6 +134,9 @@ internal fun SettingsAboutUpdateItem() {
             MiuixSettingsDialog(
                 onDismissRequest = { state = AppUpdateUiState.Idle },
                 title = { Text(stringResource(R.string.about_update_available)) },
+                // 更新说明较长：加大弹窗，正文可滚，保证「下载安装 / 取消」始终可见
+                maxWidth = 320.dp,
+                maxHeight = 520.dp,
                 text = {
                     Column {
                         Text(
@@ -140,13 +146,21 @@ internal fun SettingsAboutUpdateItem() {
                             )
                         )
                         Spacer(Modifier.height(8.dp))
-                        val notes = s.info.notes.take(400)
+                        val notes = remember(s.info.notes) {
+                            sanitizeReleaseNotes(s.info.notes).take(2400)
+                        }
                         if (notes.isNotBlank()) {
-                            Text(
-                                text = notes,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .heightIn(max = 280.dp)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                Text(
+                                    text = notes,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                         s.info.apkSizeBytes?.let { size ->
                             Spacer(Modifier.height(8.dp))
@@ -332,4 +346,15 @@ internal fun SettingsAboutUpdateItem() {
 private fun formatApkSize(bytes: Long): String {
     val mb = bytes / 1024.0 / 1024.0
     return String.format(Locale.US, "%.1f MB", mb)
+}
+
+/** GitHub Release 正文去掉 Markdown 标题/加粗/链接，弹窗里更易读 */
+internal fun sanitizeReleaseNotes(raw: String): String {
+    if (raw.isBlank()) return ""
+    return raw
+        .replace(Regex("^#{1,6}\\s*", RegexOption.MULTILINE), "")
+        .replace(Regex("\\*\\*(.+?)\\*\\*"), "$1")
+        .replace(Regex("\\[(.+?)]\\([^)]+\\)"), "$1")
+        .replace(Regex("^[-*_]{3,}\\s*$", RegexOption.MULTILINE), "")
+        .trim()
 }

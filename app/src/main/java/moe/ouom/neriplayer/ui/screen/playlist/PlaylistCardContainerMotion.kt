@@ -88,7 +88,8 @@ internal object PlaylistCardContainerMotion {
         // 若 content 跟 clipTop 走，展开时内容会整体上移 → 抽屉感。
         val contentFade = smoothStep(start = 0.04f, end = 0.42f, value = p)
         val cornerProgress = smoothStep(start = 0.18f, end = 1f, value = p)
-        val depthProgress = smoothStep(start = 0.04f, end = 1f, value = p)
+        // 背景景深：先快后慢（ease-out），前段就拉开层次，后段缓缓贴到终值
+        val depthProgress = 1f - (1f - p) * (1f - p)
         val backgroundPivotFractionX =
             ((source.left + source.right) * 0.5f / viewportWidth).coerceIn(0f, 1f)
         val backgroundPivotFractionY =

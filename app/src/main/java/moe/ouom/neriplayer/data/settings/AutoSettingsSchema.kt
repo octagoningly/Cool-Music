@@ -339,6 +339,19 @@ object AutoSettingsSchema {
         )
 
         @AutoSetting(
+            key = "qq_music_audio_quality",
+            type = SettingValueType.String,
+            defaultString = "128k",
+            order = 32,
+            ui = SettingUiType.Custom,
+            access = SettingAccessMode.KeyOnly
+        )
+        val qqMusicAudioQuality = autoSetting(
+            titleRes = R.string.quality_qq_music_default,
+            iconRes = R.drawable.ic_qq_music
+        )
+
+        @AutoSetting(
             key = "lx_audio_quality",
             type = SettingValueType.String,
             defaultString = "128k",

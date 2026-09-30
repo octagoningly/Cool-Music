@@ -58,6 +58,14 @@ internal fun qualityLabelForYouTube(key: String, getLocalizedString: (Int) -> St
     else -> key
 }
 
+internal fun qualityLabelForQQMusic(key: String, getLocalizedString: (Int) -> String): String = when (key) {
+    "flac" -> getLocalizedString(R.string.quality_lossless)
+    "320k" -> getLocalizedString(R.string.settings_audio_quality_high)
+    "128k" -> getLocalizedString(R.string.settings_audio_quality_medium)
+    "m4a" -> getLocalizedString(R.string.player_netease_preview_only)
+    else -> key
+}
+
 internal fun buildNeteaseQualityOptions(getLocalizedString: (Int) -> String): List<PlaybackQualityOption> = listOf(
     PlaybackQualityOption("standard", qualityLabelForNetease("standard", getLocalizedString)),
     PlaybackQualityOption("higher", qualityLabelForNetease("higher", getLocalizedString)),
@@ -74,6 +82,13 @@ internal fun buildYouTubeQualityOptions(getLocalizedString: (Int) -> String): Li
     PlaybackQualityOption("medium", qualityLabelForYouTube("medium", getLocalizedString)),
     PlaybackQualityOption("high", qualityLabelForYouTube("high", getLocalizedString)),
     PlaybackQualityOption("very_high", qualityLabelForYouTube("very_high", getLocalizedString))
+)
+
+internal fun buildQQMusicQualityOptions(getLocalizedString: (Int) -> String): List<PlaybackQualityOption> = listOf(
+    PlaybackQualityOption("flac", qualityLabelForQQMusic("flac", getLocalizedString)),
+    PlaybackQualityOption("320k", qualityLabelForQQMusic("320k", getLocalizedString)),
+    PlaybackQualityOption("128k", qualityLabelForQQMusic("128k", getLocalizedString)),
+    PlaybackQualityOption("m4a", qualityLabelForQQMusic("m4a", getLocalizedString))
 )
 
 internal fun inferBiliQualityKey(biliAudioStream: BiliAudioStreamInfo): String {
@@ -216,6 +231,33 @@ internal fun buildYouTubePlaybackAudioInfo(
         bitrateKbps = playableAudio.bitrateKbps,
         sampleRateHz = playableAudio.sampleRateHz
     )
+}
+
+internal fun buildQQMusicPlaybackAudioInfo(
+    stream: moe.ouom.neriplayer.data.platform.qqmusic.QQMusicStreamInfo,
+    preferredKey: String,
+    getLocalizedString: (Int) -> String
+): PlaybackAudioInfo {
+    val qualityKey = stream.qualityKey.ifBlank {
+        preferredKey.trim().lowercase().ifBlank { "128k" }
+    }
+    return PlaybackAudioInfo(
+        source = PlaybackAudioSource.QQ_MUSIC,
+        qualityKey = qualityKey,
+        qualityLabel = qualityLabelForQQMusic(qualityKey, getLocalizedString),
+        qualityOptions = buildQQMusicQualityOptions(getLocalizedString),
+        codecLabel = deriveCodecLabel(stream.mimeType),
+        mimeType = stream.mimeType
+    )
+}
+
+internal fun buildQQMusicRepresentationIdentity(stream: moe.ouom.neriplayer.data.platform.qqmusic.QQMusicStreamInfo): String {
+    return listOf(
+        stream.songmid,
+        stream.qualityKey,
+        stream.mimeType.trim().lowercase(),
+        stream.guid
+    ).joinToString(separator = "|")
 }
 
 internal fun buildBiliRepresentationIdentity(stream: BiliAudioStreamInfo): String {

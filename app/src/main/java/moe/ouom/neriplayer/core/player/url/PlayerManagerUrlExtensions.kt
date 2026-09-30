@@ -51,6 +51,7 @@ import moe.ouom.neriplayer.core.player.quality.effectiveYouTubeQuality
 import moe.ouom.neriplayer.core.player.resolver.netease.NeteasePlaybackResponseParser
 import moe.ouom.neriplayer.core.player.resolver.netease.tryResolveNeteaseAutoBiliSource
 import moe.ouom.neriplayer.core.player.resolver.netease.tryResolveNeteaseMatchedLocalSource
+import moe.ouom.neriplayer.core.player.resolver.qqmusic.getQQMusicAudioUrl
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.tryResolveLxMusicCustomSource
 import moe.ouom.neriplayer.core.player.watchdog.configureActivePlaybackCandidates
 import moe.ouom.neriplayer.core.player.watchdog.currentPlaybackCandidate
@@ -394,6 +395,11 @@ internal suspend fun PlayerManager.resolveSongUrl(
                 suppressError = suppressError,
                 sideEffects = resolverSideEffects,
                 playbackRequestTokenOverride = playbackRequestTokenOverride
+            )
+            isQQMusicTrack(song) -> getQQMusicAudioUrl(
+                song = song,
+                suppressError = suppressError,
+                sideEffects = resolverSideEffects
             )
             else -> getNeteaseSongUrl(
                 song = song,

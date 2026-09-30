@@ -141,6 +141,9 @@ class SettingsRepository(private val context: Context) {
     val biliAudioQualityFlow: Flow<String> =
         dataStoreSettingFlow { it[SettingsKeys.BILI_AUDIO_QUALITY] ?: "high" }
 
+    val qqMusicAudioQualityFlow: Flow<String> =
+        dataStoreSettingFlow { it[SettingsKeys.QQ_MUSIC_AUDIO_QUALITY] ?: "128k" }
+
     val lxAudioQualityFlow: Flow<String> =
         dataStoreSettingFlow { it[SettingsKeys.LX_AUDIO_QUALITY] ?: "128k" }
 
@@ -699,6 +702,10 @@ class SettingsRepository(private val context: Context) {
     suspend fun setBiliAudioQuality(value: String) {
         context.dataStore.edit { it[SettingsKeys.BILI_AUDIO_QUALITY] = value }
         updatePlaybackPreferenceSnapshot(context) { it.copy(biliAudioQuality = value) }
+    }
+
+    suspend fun setQQMusicAudioQuality(value: String) {
+        context.dataStore.edit { it[SettingsKeys.QQ_MUSIC_AUDIO_QUALITY] = value }
     }
 
     suspend fun setLxAudioQuality(value: String) {

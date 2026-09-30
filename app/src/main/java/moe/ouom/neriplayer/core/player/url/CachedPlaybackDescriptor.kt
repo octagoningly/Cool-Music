@@ -171,8 +171,7 @@ private fun qualityLabelForCachedSource(
         PlaybackAudioSource.NETEASE -> qualityLabelForNetease(key, getLocalizedString)
         PlaybackAudioSource.BILIBILI -> qualityLabelForBili(key, getLocalizedString)
         PlaybackAudioSource.YOUTUBE_MUSIC -> qualityLabelForYouTube(key, getLocalizedString)
-        // QQ 专用 label（qualityLabelForQQ）接入（M3）后替换为本地化文案
-        PlaybackAudioSource.QQ_MUSIC -> key
+        PlaybackAudioSource.QQ_MUSIC -> qualityLabelForQQMusic(key, getLocalizedString)
         PlaybackAudioSource.LOCAL,
         PlaybackAudioSource.CUSTOM_LX -> key
     }

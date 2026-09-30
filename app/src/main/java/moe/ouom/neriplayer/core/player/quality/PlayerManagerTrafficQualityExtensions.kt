@@ -36,6 +36,13 @@ internal fun PlayerManager.effectiveLxQuality(): String {
     )
 }
 
+internal fun PlayerManager.effectiveQQMusicQuality(): String {
+    return resolveTrafficAwareQuality(
+        source = PlaybackAudioSource.QQ_MUSIC,
+        defaultQuality = qqMusicPreferredQuality
+    )
+}
+
 private fun PlayerManager.resolveTrafficAwareQuality(
     source: PlaybackAudioSource,
     defaultQuality: String

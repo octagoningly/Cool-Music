@@ -45,6 +45,7 @@ data class SongIdentity(
 
 private const val YOUTUBE_MUSIC_IDENTITY_ALBUM = "youtube_music"
 private const val BILIBILI_IDENTITY_HINT = "Bilibili"
+private const val QQ_MUSIC_IDENTITY_HINT = "QQMusic"
 
 fun SongIdentity.stableKey(): String = buildString {
     append(id)
@@ -314,6 +315,7 @@ private fun normalizedChannelId(
     return when {
         extractYouTubeMusicVideoId(mediaUri) != null -> YOUTUBE_MUSIC_IDENTITY_ALBUM
         album.startsWith(BILIBILI_IDENTITY_HINT, ignoreCase = true) -> "bilibili"
+        album.startsWith(QQ_MUSIC_IDENTITY_HINT, ignoreCase = true) -> "qqmusic"
         album.startsWith("Netease", ignoreCase = true) -> "netease"
         inferNeteaseForBlankRemote && mediaUri.isNullOrBlank() -> "netease"
         else -> null

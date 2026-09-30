@@ -382,6 +382,7 @@ object PlayerManager {
     internal var neteaseQualityRefreshJob: Job? = null
     internal var youtubeQualityRefreshJob: Job? = null
     internal var biliQualityRefreshJob: Job? = null
+    internal var qqMusicQualityRefreshJob: Job? = null
     internal var customLxQualityRefreshJob: Job? = null
     internal var playbackStatsPersistJob: Job? = null
     internal val playbackStatsPersistLock = Any()
@@ -412,6 +413,11 @@ object PlayerManager {
             field = value
             publishPreferredQualityKeys()
         }
+    internal var qqMusicPreferredQuality: String = "128k"
+        set(value) {
+            field = value
+            publishPreferredQualityKeys()
+        }
 
     private val _preferredQualityKeys = MutableStateFlow(PreferredQualityKeys())
 
@@ -429,7 +435,8 @@ object PlayerManager {
             netease = preferredQuality,
             youtube = youtubePreferredQuality,
             bili = biliPreferredQuality,
-            lx = lxPreferredQuality
+            lx = lxPreferredQuality,
+            qqMusic = qqMusicPreferredQuality
         )
     }
     internal var mobileDataFollowDefaultAudioQuality = true
@@ -1553,6 +1560,10 @@ object PlayerManager {
         return song.channelId == ListenTogetherChannels.BILIBILI ||
             song.album.startsWith(BILI_SOURCE_TAG)
     }
+
+    internal fun isQQMusicTrack(song: SongItem): Boolean {
+        return song.channelId == ListenTogetherChannels.QQMUSIC
+    }
     internal fun shouldPersistEmbeddedLyrics(song: SongItem): Boolean {
         return song.matchedLyric != null ||
             song.matchedTranslatedLyric != null ||
@@ -1810,8 +1821,7 @@ object PlayerManager {
                 PlaybackAudioSource.NETEASE -> settingsRepo.setAudioQuality(normalizedKey)
                 PlaybackAudioSource.BILIBILI -> settingsRepo.setBiliAudioQuality(normalizedKey)
                 PlaybackAudioSource.YOUTUBE_MUSIC -> settingsRepo.setYouTubeAudioQuality(normalizedKey)
-                // QQ 音质设置项接入（M3/M5）后在此持久化
-                PlaybackAudioSource.QQ_MUSIC -> Unit
+                PlaybackAudioSource.QQ_MUSIC -> settingsRepo.setQQMusicAudioQuality(normalizedKey)
                 PlaybackAudioSource.LOCAL -> Unit
                 PlaybackAudioSource.CUSTOM_LX -> settingsRepo.setLxAudioQuality(normalizedKey)
             }
@@ -2023,9 +2033,8 @@ object PlayerManager {
             PlaybackAudioSource.NETEASE -> ::neteaseQualityRefreshJob
             PlaybackAudioSource.YOUTUBE_MUSIC -> ::youtubeQualityRefreshJob
             PlaybackAudioSource.BILIBILI -> ::biliQualityRefreshJob
+            PlaybackAudioSource.QQ_MUSIC -> ::qqMusicQualityRefreshJob
             PlaybackAudioSource.CUSTOM_LX -> ::customLxQualityRefreshJob
-            // QQ 专用刷新任务接入（M3/M5）后挂接
-            PlaybackAudioSource.QQ_MUSIC -> return
             PlaybackAudioSource.LOCAL -> return
         }
         targetJob.get()?.cancel()

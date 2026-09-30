@@ -1031,6 +1031,18 @@ internal fun PlayerManager.initializeImpl(
             }
         }
         ioScope.launch {
+            settingsRepo.qqMusicAudioQualityFlow.collect { q ->
+                val previousQuality = qqMusicPreferredQuality
+                qqMusicPreferredQuality = q
+                if (previousQuality != q) {
+                    scheduleQualityRefresh(
+                        source = PlaybackAudioSource.QQ_MUSIC,
+                        reason = "qqmusic_quality_changed"
+                    )
+                }
+            }
+        }
+        ioScope.launch {
             settingsRepo.lxAudioQualityFlow.collect { q ->
                 val previousQuality = lxPreferredQuality
                 lxPreferredQuality = q

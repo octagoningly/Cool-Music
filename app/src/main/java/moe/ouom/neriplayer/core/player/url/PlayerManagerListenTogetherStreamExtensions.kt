@@ -9,6 +9,7 @@ import moe.ouom.neriplayer.core.player.model.PlaybackQualityOption
 import moe.ouom.neriplayer.core.player.model.PlaybackUrlCandidate
 import moe.ouom.neriplayer.core.player.quality.effectiveBiliQuality
 import moe.ouom.neriplayer.core.player.quality.effectiveNeteaseQuality
+import moe.ouom.neriplayer.core.player.quality.effectiveQQMusicQuality
 import moe.ouom.neriplayer.core.player.quality.effectiveYouTubeQuality
 import moe.ouom.neriplayer.core.player.model.SongUrlResult
 import moe.ouom.neriplayer.data.model.SongItem
@@ -353,7 +354,7 @@ internal fun PlayerManager.listenTogetherFallbackResult(song: SongItem): SongUrl
         PlaybackAudioSource.NETEASE -> effectiveNeteaseQuality()
         PlaybackAudioSource.BILIBILI -> effectiveBiliQuality()
         PlaybackAudioSource.YOUTUBE_MUSIC -> effectiveYouTubeQuality()
-        PlaybackAudioSource.QQ_MUSIC -> ""
+        PlaybackAudioSource.QQ_MUSIC -> effectiveQQMusicQuality()
         PlaybackAudioSource.LOCAL,
         PlaybackAudioSource.CUSTOM_LX -> ""
     }
@@ -390,7 +391,7 @@ internal fun PlayerManager.listenTogetherPreferredQualityKey(song: SongItem): St
         PlaybackAudioSource.NETEASE -> effectiveNeteaseQuality()
         PlaybackAudioSource.BILIBILI -> effectiveBiliQuality()
         PlaybackAudioSource.YOUTUBE_MUSIC -> effectiveYouTubeQuality()
-        PlaybackAudioSource.QQ_MUSIC -> null
+        PlaybackAudioSource.QQ_MUSIC -> effectiveQQMusicQuality()
         PlaybackAudioSource.LOCAL,
         PlaybackAudioSource.CUSTOM_LX -> null
     }

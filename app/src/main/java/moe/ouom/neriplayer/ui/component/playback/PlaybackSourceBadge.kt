@@ -48,6 +48,7 @@ enum class PlaybackSourceType {
     NETEASE,
     BILIBILI,
     YOUTUBE_MUSIC,
+    QQ_MUSIC,
     LOCAL,
     CUSTOM_LX
 }
@@ -105,6 +106,20 @@ fun PlaybackSourceBadge(
                 )
                 Text(
                     text = stringResource(R.string.nowplaying_youtube_music),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            PlaybackSourceType.QQ_MUSIC -> {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_qq_music),
+                    contentDescription = stringResource(R.string.nowplaying_qqmusic),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = stringResource(R.string.nowplaying_qqmusic),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )

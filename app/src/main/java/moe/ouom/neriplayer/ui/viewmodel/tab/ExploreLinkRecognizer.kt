@@ -13,6 +13,7 @@ internal sealed class ExploreLinkTarget {
     data class NeteasePlaylist(val id: Long) : ExploreLinkTarget()
     data class NeteaseArtist(val id: Long) : ExploreLinkTarget()
     data class NeteaseShortLink(val url: String) : ExploreLinkTarget()
+    data class QqMusicSong(val songMid: String) : ExploreLinkTarget()
     data class BiliVideo(
         val avid: Long? = null,
         val bvid: String? = null,
@@ -41,12 +42,30 @@ internal fun recognizeExploreLink(input: String): ExploreLinkTarget? {
     return when {
         host.endsWith("music.163.com") -> recognizeNeteaseLink(uri)
         host == "163cn.tv" -> ExploreLinkTarget.NeteaseShortLink(normalized)
+        host.endsWith("y.qq.com") || host.endsWith("qq.com") -> recognizeQqMusicLink(uri)
         host.endsWith("bilibili.com") || host == "b23.tv" -> recognizeBiliLink(uri, normalized)
         host == "youtu.be" || host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com") -> {
             recognizeYouTubeLink(uri)
         }
         else -> null
     }
+}
+
+private fun recognizeQqMusicLink(uri: URI): ExploreLinkTarget? {
+    val params = queryParameters(uri.rawQuery)
+    val pathSegments = uri.pathSegments()
+    val path = uri.path.orEmpty().lowercase(Locale.US)
+    val songMid = params["songmid"]?.takeIf { it.isNotBlank() }
+        ?: params["mid"]?.takeIf { it.isNotBlank() }
+        ?: when {
+            path.contains("songdetail") -> pathSegments.lastOrNull()
+            pathSegments.firstOrNull()?.equals("song", ignoreCase = true) == true -> pathSegments.getOrNull(1)
+            else -> null
+        }
+    return songMid
+        ?.trim()
+        ?.takeIf { it.isNotBlank() && it.length <= 64 && it.matches(Regex("[A-Za-z0-9_-]+")) }
+        ?.let(ExploreLinkTarget::QqMusicSong)
 }
 
 private fun recognizeNeteaseLink(uri: URI): ExploreLinkTarget? {

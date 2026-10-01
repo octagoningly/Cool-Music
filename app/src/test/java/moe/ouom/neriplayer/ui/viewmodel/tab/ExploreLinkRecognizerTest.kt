@@ -125,6 +125,18 @@ class ExploreLinkRecognizerTest {
     }
 
     @Test
+    fun `QQ Music song links recognize song mid from detail path or query`() {
+        assertEquals(
+            ExploreLinkTarget.QqMusicSong("0039MnYb0qxYhV"),
+            recognizeExploreLink("https://y.qq.com/n/ryqq/songDetail/0039MnYb0qxYhV")
+        )
+        assertEquals(
+            ExploreLinkTarget.QqMusicSong("001abcXYZ"),
+            recognizeExploreLink("https://i.y.qq.com/v8/playsong.html?songmid=001abcXYZ")
+        )
+    }
+
+    @Test
     fun `YouTube video playlist and artist links are classified`() {
         assertEquals(
             ExploreLinkTarget.YouTubeVideo(videoId = "abcdefghijk", playlistId = "PL123"),

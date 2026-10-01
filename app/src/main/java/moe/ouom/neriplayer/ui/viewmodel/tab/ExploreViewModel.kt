@@ -1279,6 +1279,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             is ExploreLinkTarget.NeteaseShortLink -> resolveExploreLinkTarget(
                 resolveNeteaseShortLink(target.url)
             )
+            is ExploreLinkTarget.QqMusicSong -> ExploreSearchResult.Song(
+                fetchLinkedQQMusicSong(target.songMid)
+            )
             is ExploreLinkTarget.BiliVideo -> fetchLinkedBiliVideo(target)
             is ExploreLinkTarget.BiliFavoriteFolder -> ExploreSearchResult.BilibiliPlaylist(
                 fetchLinkedBiliFavoriteFolder(target.mediaId)
@@ -1336,6 +1339,25 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             mediaUri = "https://music.163.com/#/song?id=$songId",
             channelId = "netease",
             audioId = songId.toString()
+        )
+    }
+
+    private suspend fun fetchLinkedQQMusicSong(songMid: String): SongItem {
+        val details = AppContainer.qqMusicSearchApi.getNativeSongInfo(songMid)
+        val displayAlbum = details.album.ifBlank { app.getString(R.string.settings_qq_music) }
+        return SongItem(
+            id = stableYouTubeMusicId("qqmusic|$songMid"),
+            name = details.songName,
+            artist = details.singer.ifBlank { "QQ音乐" },
+            album = "QQMusic|$displayAlbum",
+            albumId = stableYouTubeMusicId("qqmusic|$songMid|$displayAlbum"),
+            durationMs = 0L,
+            coverUrl = details.coverUrl,
+            matchedLyric = details.lyric,
+            matchedTranslatedLyric = details.translatedLyric,
+            channelId = ListenTogetherChannels.QQMUSIC,
+            audioId = songMid,
+            mediaUri = "https://y.qq.com/n/ryqq/songDetail/$songMid"
         )
     }
 

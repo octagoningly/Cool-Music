@@ -51,6 +51,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.bili.resolveBiliSong
+import moe.ouom.neriplayer.core.api.qqmusic.QQMusicPlayUrlResult
 import moe.ouom.neriplayer.core.api.youtube.YouTubePlayableAudio
 import moe.ouom.neriplayer.core.api.youtube.YouTubePlayableStreamType
 import moe.ouom.neriplayer.core.di.AppContainer
@@ -75,6 +76,7 @@ import moe.ouom.neriplayer.data.model.identity
 import moe.ouom.neriplayer.data.platform.youtube.extractYouTubeMusicVideoId
 import moe.ouom.neriplayer.data.platform.youtube.isTrustedYouTubeHost
 import moe.ouom.neriplayer.data.platform.youtube.isYouTubeMusicSong
+import moe.ouom.neriplayer.data.platform.qqmusic.QQMusicQuality
 import moe.ouom.neriplayer.data.platform.youtube.isYouTubeWebRemixDirectMissingPoToken
 import moe.ouom.neriplayer.data.model.stableKey
 import moe.ouom.neriplayer.data.settings.AutoSettingsSchema
@@ -83,6 +85,7 @@ import moe.ouom.neriplayer.data.traffic.TrafficByteAccumulator
 import moe.ouom.neriplayer.data.traffic.TrafficNetworkType
 import moe.ouom.neriplayer.data.traffic.TrafficUsageSource
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.listentogether.protocol.ListenTogetherChannels
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.data.traffic.currentTrafficNetworkType
 import moe.ouom.neriplayer.data.traffic.hasLikelyInternetAccess
@@ -123,6 +126,8 @@ object AudioDownloadManager {
     private const val TAG = "NERI-Downloader"
     private const val BILI_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     private const val BILI_REFERER = "https://www.bilibili.com"
+    private const val QQ_MUSIC_UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36"
+    private const val QQ_MUSIC_REFERER = "https://y.qq.com/"
     internal const val DEFAULT_MAX_CONCURRENT_DOWNLOADS = DEFAULT_DOWNLOAD_PARALLELISM
     internal const val MAX_CONCURRENT_DOWNLOADS_LIMIT = MAX_DOWNLOAD_PARALLELISM
     private const val PROGRESS_EMIT_INTERVAL_NS = 180_000_000L
@@ -1135,6 +1140,7 @@ object AudioDownloadManager {
 
                     val isYouTubeMusic = isYouTubeMusicSong(song)
                     val isBili = song.album.startsWith(PlayerManager.BILI_SOURCE_TAG)
+                    val isQQMusic = song.channelId.equals(ListenTogetherChannels.QQMUSIC, ignoreCase = true)
                     var attemptNumber = 1
                     var activeTransportKind: DownloadTransportKind? = null
                     var activeWorkingFileName: String? = null
@@ -1151,6 +1157,7 @@ object AudioDownloadManager {
                                     avoidDirect = avoidYouTubeDirectSource
                                 )
                                 isBili -> resolveBili(song)
+                                isQQMusic -> resolveQQMusic(song)
                                 else -> resolveNetease(song.id)
                             }
                             if (resolved == null) {
@@ -1233,6 +1240,20 @@ object AudioDownloadManager {
                                 // 整档单请求会被 googlevideo 全量下载风控 403(同一直链能 range 播放却下不了)
                                 // 直链下载改由 resolveDownloadTransportKind/singleThreadDownload 统一走分块 range
                                 // 显式整档头会命中 hasExplicitRangeHeader 反而退回 DIRECT, 故此处不再设置
+                            } else if (isQQMusic) {
+                                val auth = AppContainer.qqMusicCookieRepo.getAuthBundleOnce()
+                                val cookieHeader = buildString {
+                                    auth.uin()?.let { append("uin=").append(it) }
+                                    auth.musicKey()?.let { key ->
+                                        if (isNotEmpty()) append("; ")
+                                        append("qm_keyst=").append(key)
+                                        append("; qqmusic_key=").append(key)
+                                    }
+                                }
+                                reqBuilder
+                                    .header("User-Agent", QQ_MUSIC_UA)
+                                    .header("Referer", QQ_MUSIC_REFERER)
+                                    .apply { if (cookieHeader.isNotBlank()) header("Cookie", cookieHeader) }
                             }
 
                             val request = reqBuilder.build()
@@ -2482,6 +2503,7 @@ object AudioDownloadManager {
             }
             val isYouTubeMusic = isYouTubeMusicSong(song)
             val isBili = song.album.startsWith(PlayerManager.BILI_SOURCE_TAG)
+            val isQQMusic = song.channelId.equals(ListenTogetherChannels.QQMUSIC, ignoreCase = true)
 
             when {
                 isYouTubeMusic -> {
@@ -2490,6 +2512,18 @@ object AudioDownloadManager {
                     }
                 }
                 isBili -> { /* B站暂无歌词源 */ }
+                isQQMusic -> {
+                    val songmid = song.audioId?.trim().orEmpty()
+                    if (songmid.isNotBlank() && (shouldFetchPrimaryLyric || shouldFetchTranslatedLyric)) {
+                        val details = AppContainer.qqMusicSearchApi.getNativeSongInfo(songmid)
+                        if (lyricText == null && shouldFetchPrimaryLyric) {
+                            lyricText = details.lyric
+                        }
+                        if (translatedText == null && shouldFetchTranslatedLyric) {
+                            translatedText = details.translatedLyric
+                        }
+                    }
+                }
                 else -> {
                     val downloaded = downloadNeteaseLyrics(
                         song = song,
@@ -3016,6 +3050,31 @@ object AudioDownloadManager {
         val mime = chosen.mimeType
         val ext = mimeToExt(mime)
         return ResolvedDownloadSource(url = url, mimeType = mime, fileExtensionHint = ext)
+    }
+
+    private suspend fun resolveQQMusic(song: SongItem): ResolvedDownloadSource? {
+        val songmid = song.audioId?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        val preferred = try {
+            AppContainer.settingsRepo.qqMusicAudioQualityFlow.first()
+        } catch (_: Exception) {
+            QQMusicQuality.FREE_ACCOUNT_TOP.key
+        }
+        return when (val result = AppContainer.qqMusicPlaybackRepository
+            .getBestPlayableStream(songmid = songmid, preferredKey = preferred)) {
+            is QQMusicPlayUrlResult.Success -> {
+                val stream = result.stream
+                ResolvedDownloadSource(
+                    url = stream.url,
+                    mimeType = stream.mimeType,
+                    fileExtensionHint = stream.filename.substringAfterLast('.', "")
+                        .takeIf { it.isNotBlank() }
+                )
+            }
+            is QQMusicPlayUrlResult.Failure -> {
+                NPLogger.w(TAG, "QQ 音乐下载取流失败: song=${song.name}, reason=${result.reason}")
+                null
+            }
+        }
     }
 
     private data class DownloadedLyrics(

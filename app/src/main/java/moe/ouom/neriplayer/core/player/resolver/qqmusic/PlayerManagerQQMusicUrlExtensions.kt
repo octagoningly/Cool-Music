@@ -82,6 +82,12 @@ internal suspend fun PlayerManager.getQQMusicAudioUrl(
             }
             is QQMusicPlayUrlResult.Failure -> {
                 NPLogger.w(LOG_TAG, "resolve failed song=$songmid reason=${result.reason}")
+                // 登录态可能已失效：刷新健康状态以驱动设置页提示重新登录
+                if (result.reason == QQMusicPlayUrlFailure.NOT_LOGGED_IN ||
+                    result.reason == QQMusicPlayUrlFailure.NO_AUTHORITY_OR_NO_FILE
+                ) {
+                    runCatching { AppContainer.qqMusicCookieRepo.refreshHealth() }
+                }
                 if (!suppressError) {
                     val messageRes = when (result.reason) {
                         QQMusicPlayUrlFailure.NOT_LOGGED_IN ->

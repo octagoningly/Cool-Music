@@ -93,6 +93,8 @@ internal fun SettingsAudioQualitySection(
     biliQualityLabel: String,
     biliPreferredQuality: String,
     onBiliQualityChange: (String) -> Unit,
+    qqMusicPreferredQuality: String = "128k",
+    onQQMusicQualityChange: (String) -> Unit = {},
     lxPreferredQuality: String = "128k",
     onLxQualityChange: (String) -> Unit = {},
     mobileDataFollowDefaultAudioQuality: Boolean,
@@ -112,6 +114,8 @@ internal fun SettingsAudioQualitySection(
     onShowYouTubeQualityDialogChange: (Boolean) -> Unit,
     showBiliQualityDialog: Boolean,
     onShowBiliQualityDialogChange: (Boolean) -> Unit,
+    showQQMusicQualityDialog: Boolean = false,
+    onShowQQMusicQualityDialogChange: (Boolean) -> Unit = {},
     showLxQualityDialog: Boolean = false,
     onShowLxQualityDialogChange: (Boolean) -> Unit = {},
     showMobileDataNeteaseQualityDialog: Boolean,
@@ -181,6 +185,25 @@ internal fun SettingsAudioQualitySection(
                 preferredQuality = biliPreferredQuality,
                 iconRes = R.drawable.ic_bilibili,
                 onClick = { onShowBiliQualityDialogChange(true) },
+                highlightTargetId = highlightTargetId,
+                highlightPulse = highlightPulse,
+                onHighlightFinished = onHighlightFinished
+            )
+
+            // QQ 音乐默认音质
+            val qqMusicQualityLabel = when (qqMusicPreferredQuality) {
+                "flac" -> "FLAC"
+                "320k" -> "320kbps"
+                "128k" -> "128kbps"
+                "m4a" -> stringResource(R.string.player_netease_preview_only)
+                else -> qqMusicPreferredQuality
+            }
+            AudioQualityListItem(
+                setting = AutoSettingsMetadata.requireSetting(AutoSettingsKeys.QQ_MUSIC_AUDIO_QUALITY),
+                valueLabel = qqMusicQualityLabel,
+                preferredQuality = qqMusicPreferredQuality,
+                iconRes = R.drawable.ic_qq_music,
+                onClick = { onShowQQMusicQualityDialogChange(true) },
                 highlightTargetId = highlightTargetId,
                 highlightPulse = highlightPulse,
                 onHighlightFinished = onHighlightFinished
@@ -347,6 +370,24 @@ internal fun SettingsAudioQualitySection(
                 if (level == BILI_DOLBY_QUALITY && biliPreferredQuality != level) {
                     audioQualityNotice = AudioQualityNotice.BiliDolby
                 }
+            }
+        )
+    }
+
+    if (showQQMusicQualityDialog) {
+        QualityOptionsDialog(
+            title = stringResource(R.string.quality_qq_music_default),
+            selectedValue = qqMusicPreferredQuality,
+            options = listOf(
+                "flac" to stringResource(R.string.quality_lossless),
+                "320k" to stringResource(R.string.settings_audio_quality_high),
+                "128k" to stringResource(R.string.settings_audio_quality_medium),
+                "m4a" to stringResource(R.string.player_netease_preview_only)
+            ),
+            onDismiss = { onShowQQMusicQualityDialogChange(false) },
+            onSelect = { level ->
+                onQQMusicQualityChange(level)
+                onShowQQMusicQualityDialogChange(false)
             }
         )
     }

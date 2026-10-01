@@ -135,6 +135,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -693,6 +694,7 @@ fun SettingsScreen(
     var showNeteaseSheet by remember { mutableStateOf(false) }
     var showYouTubeQualityDialog by remember { mutableStateOf(false) }
     var showBiliQualityDialog by remember { mutableStateOf(false) }
+    var showQQMusicQualityDialog by remember { mutableStateOf(false) }
     var showLxQualityDialog by remember { mutableStateOf(false) }
     var showMobileDataNeteaseQualityDialog by remember { mutableStateOf(false) }
     var showMobileDataYouTubeQualityDialog by remember { mutableStateOf(false) }
@@ -704,6 +706,9 @@ fun SettingsScreen(
     var showBiliSavedCookieDialog by remember { mutableStateOf(false) }
     var showYouTubeSheet by remember { mutableStateOf(false) }
     var showYouTubeSavedCookieDialog by remember { mutableStateOf(false) }
+
+    val qqMusicPreferredQuality by AppContainer.settingsRepo.qqMusicAudioQualityFlow
+        .collectAsStateWithLifecycle(initialValue = "128k")
 
     var showColorPickerDialog by remember { mutableStateOf(false) }
     var showDpiDialog by remember { mutableStateOf(false) }
@@ -2168,6 +2173,14 @@ fun SettingsScreen(
                             biliQualityLabel = biliQualityLabel,
                             biliPreferredQuality = biliPreferredQuality,
                             onBiliQualityChange = onBiliQualityChange,
+                            qqMusicPreferredQuality = qqMusicPreferredQuality,
+                            onQQMusicQualityChange = { level ->
+                                scope.launch {
+                                    AppContainer.settingsRepo.setQQMusicAudioQuality(level)
+                                }
+                            },
+                            showQQMusicQualityDialog = showQQMusicQualityDialog,
+                            onShowQQMusicQualityDialogChange = { showQQMusicQualityDialog = it },
                             lxPreferredQuality = lxPreferredQuality,
                             onLxQualityChange = onLxQualityChange,
                             showLxQualityDialog = showLxQualityDialog,

@@ -7,6 +7,7 @@ import moe.ouom.neriplayer.data.auth.qqmusic.qqMusicGtk
 import moe.ouom.neriplayer.data.auth.web.shouldAutoCompleteQQMusicWebLogin
 import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicCookieHeader
 import moe.ouom.neriplayer.core.api.qqmusic.parseQQMusicQrCallback
+import moe.ouom.neriplayer.core.api.qqmusic.mergeQQMusicLoginResponseCookies
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -15,6 +16,42 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class QQMusicAuthRepositoryTest {
+
+    @Test
+    fun qqMusicQrLogin_mergesCredentialsReturnedInLoginServerBody() {
+        val merged = mergeQQMusicLoginResponseCookies(
+            cookies = mapOf("p_skey" to "synthetic-p-skey"),
+            body = """{
+                "code": 0,
+                "req": {
+                    "code": 0,
+                    "data": {
+                        "userInfo": {
+                            "musicid": 123456789,
+                            "musickey": "synthetic-music-key"
+                        }
+                    }
+                }
+            }""".trimIndent()
+        )
+
+        assertEquals("123456789", merged["uin"])
+        assertEquals("synthetic-music-key", merged["qm_keyst"])
+        assertEquals("synthetic-music-key", merged["qqmusic_key"])
+        assertEquals("synthetic-p-skey", merged["p_skey"])
+        assertTrue(moe.ouom.neriplayer.core.api.qqmusic.isUsableQQMusicCookies(merged))
+    }
+
+    @Test
+    fun qqMusicQrLogin_ignoresIncompleteOrInvalidLoginServerBody() {
+        val original = mapOf("p_skey" to "synthetic-p-skey")
+
+        assertEquals(
+            original,
+            mergeQQMusicLoginResponseCookies(original, """{"req":{"data":{"musicid":"abc"}}}""")
+        )
+        assertEquals(original, mergeQQMusicLoginResponseCookies(original, "not-json"))
+    }
 
     @Test
     fun qqMusicQrCallback_distinguishesExpiredRefusedAndConfirmed() {

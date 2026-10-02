@@ -141,6 +141,9 @@ class QQMusicQrLoginActivity : ComponentActivity() {
                             status.text = getString(R.string.qq_music_qr_failed)
                             refresh.isEnabled = true
                         }
+                        // 授权 code 通常只能消费一次。无论凭据交换成功与否都停止轮询，
+                        // 避免对同一个已确认二维码反复执行 OAuth 交换直至过期。
+                        break
                     }
                     QQMusicQrStatus.EXPIRED -> {
                         status.text = getString(R.string.qq_music_qr_expired)

@@ -62,6 +62,51 @@ internal fun isUsableQQMusicCookies(cookies: Map<String, String>): Boolean {
     return uin.isNotEmpty() && uin.all(Char::isDigit) && key.isNotEmpty()
 }
 
+/**
+ * QQConnectLogin.LoginServer 会把 QQ 音乐身份放在 JSON 正文的
+ * musicid/musickey 中，而不保证通过 Set-Cookie 返回。不同网关版本会把
+ * userInfo 放在 req、req_0 或更深一层，因此只在 JSON 对象中成对查找这两个字段。
+ */
+internal fun mergeQQMusicLoginResponseCookies(
+    cookies: Map<String, String>,
+    body: String
+): Map<String, String> {
+    val root = runCatching { JSONObject(body) }.getOrNull() ?: return cookies
+    val credentials = findQQMusicCredentials(root) ?: return cookies
+    val musicId = credentials.first.trim().removePrefix("o")
+    val musicKey = credentials.second.trim()
+    if (musicId.isEmpty() || !musicId.all(Char::isDigit) || musicKey.isEmpty()) return cookies
+    return cookies + mapOf(
+        "uin" to musicId,
+        "qm_keyst" to musicKey,
+        "qqmusic_key" to musicKey
+    )
+}
+
+private fun findQQMusicCredentials(value: Any?, depth: Int = 0): Pair<String, String>? {
+    if (depth > 8) return null
+    return when (value) {
+        is JSONObject -> {
+            val musicId = value.opt("musicid")
+                ?.takeUnless { it == JSONObject.NULL }
+                ?.toString()
+                .orEmpty()
+            val musicKey = value.optString("musickey")
+            if (musicId.isNotBlank() && musicKey.isNotBlank()) {
+                musicId to musicKey
+            } else {
+                value.keys().asSequence()
+                    .mapNotNull { key -> findQQMusicCredentials(value.opt(key), depth + 1) }
+                    .firstOrNull()
+            }
+        }
+        is org.json.JSONArray -> (0 until value.length()).asSequence()
+            .mapNotNull { index -> findQQMusicCredentials(value.opt(index), depth + 1) }
+            .firstOrNull()
+        else -> null
+    }
+}
+
 internal class QQMusicQrLoginClient {
     private val http = OkHttpClient.Builder()
         .followRedirects(false)
@@ -131,7 +176,10 @@ internal class QQMusicQrLoginClient {
                     else -> QQMusicQrPollResult(callback.status)
                 }
             }
-        }.getOrElse { QQMusicQrPollResult(QQMusicQrStatus.FAILED) }
+        }.getOrElse { error ->
+            NPLogger.w(LOG_TAG, "QR poll failed at ${error.javaClass.simpleName}")
+            QQMusicQrPollResult(QQMusicQrStatus.FAILED)
+        }
     }
 
     private fun hash33(value: String): String {
@@ -163,6 +211,7 @@ internal class QQMusicQrLoginClient {
             ?: return cookies
         checkSig.use { collect(it) }
         val pSkey = cookies["p_skey"].orEmpty()
+        NPLogger.d(LOG_TAG, "QR exchange check_sig hasPSkey=${pSkey.isNotBlank()}")
         if (pSkey.isBlank()) return cookies
 
         val authorizePayload = buildString {
@@ -184,9 +233,11 @@ internal class QQMusicQrLoginClient {
             collect(it)
             it.header("Location")
         } ?: return cookies
-        val code = runCatching {
-            URLDecoder.decode(location.substringAfter("code=").substringBefore('&'), "UTF-8")
-        }.getOrDefault("")
+        val encodedCode = Regex("(?:[?&])code=([^&]+)").find(location)?.groupValues?.getOrNull(1)
+        val code = encodedCode?.let {
+            runCatching { URLDecoder.decode(it, "UTF-8") }.getOrDefault("")
+        }.orEmpty()
+        NPLogger.d(LOG_TAG, "QR exchange authorize hasCode=${code.isNotBlank()}")
         if (code.isBlank()) return cookies
 
         val musicPayload = JSONObject().apply {
@@ -198,12 +249,20 @@ internal class QQMusicQrLoginClient {
                 put("param", JSONObject().put("code", code))
             })
         }.toString()
-        request(
+        val loginResponse = request(
             Request.Builder()
                 .url("https://u.y.qq.com/cgi-bin/musicu.fcg")
                 .post(musicPayload.toRequestBody(JSON_MEDIA_TYPE))
                 .header("Referer", "https://y.qq.com/")
-        )?.use(::collect)
+        ) ?: return cookies
+        loginResponse.use { response ->
+            collect(response)
+            cookies = mergeQQMusicLoginResponseCookies(cookies, response.body?.string().orEmpty())
+            NPLogger.d(
+                LOG_TAG,
+                "QR exchange loginServer http=${response.code} usable=${isUsableQQMusicCookies(cookies)}"
+            )
+        }
         return cookies
     }
 

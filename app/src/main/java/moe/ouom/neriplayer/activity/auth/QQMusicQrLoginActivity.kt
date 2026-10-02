@@ -146,6 +146,11 @@ class QQMusicQrLoginActivity : ComponentActivity() {
                         status.text = getString(R.string.qq_music_qr_expired)
                         break
                     }
+                    QQMusicQrStatus.REFUSED -> {
+                        status.text = getString(R.string.qq_music_qr_refused)
+                        refresh.isEnabled = true
+                        break
+                    }
                     QQMusicQrStatus.FAILED -> {
                         status.text = getString(R.string.qq_music_qr_failed)
                         break

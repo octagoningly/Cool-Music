@@ -6,6 +6,8 @@ import moe.ouom.neriplayer.data.auth.qqmusic.evaluateQQMusicAuthHealth
 import moe.ouom.neriplayer.data.auth.qqmusic.qqMusicGtk
 import moe.ouom.neriplayer.data.auth.web.shouldAutoCompleteQQMusicWebLogin
 import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicCookieHeader
+import moe.ouom.neriplayer.core.api.qqmusic.parseQQMusicQrCallback
+import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -13,6 +15,23 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class QQMusicAuthRepositoryTest {
+
+    @Test
+    fun qqMusicQrCallback_distinguishesExpiredRefusedAndConfirmed() {
+        assertEquals(
+            QQMusicQrStatus.EXPIRED,
+            parseQQMusicQrCallback("ptuiCB('65','0','','0','二维码已失效。', '')").status
+        )
+        assertEquals(
+            QQMusicQrStatus.REFUSED,
+            parseQQMusicQrCallback("ptuiCB('68','0','','0','本次登录已被拒绝。', '')").status
+        )
+        val confirmed = parseQQMusicQrCallback(
+            "ptuiCB('0','0','https://ssl.ptlogin2.qq.com/check_sig?a=1\\x26b=2','0','登录成功！','tester')"
+        )
+        assertEquals(QQMusicQrStatus.CONFIRMED, confirmed.status)
+        assertEquals("https://ssl.ptlogin2.qq.com/check_sig?a=1&b=2", confirmed.jumpUrl)
+    }
 
     @Test
     fun qqMusicGtk_matchesPrecomputedSyntheticSamples() {

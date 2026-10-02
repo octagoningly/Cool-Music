@@ -4,6 +4,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaType
+import moe.ouom.neriplayer.core.logging.NPLogger
 import java.net.HttpCookie
 import java.net.URLDecoder
 import java.util.concurrent.TimeUnit
@@ -20,6 +21,7 @@ internal enum class QQMusicQrStatus {
     SCANNED,
     CONFIRMED,
     EXPIRED,
+    REFUSED,
     FAILED
 }
 
@@ -27,6 +29,30 @@ internal data class QQMusicQrPollResult(
     val status: QQMusicQrStatus,
     val cookies: Map<String, String> = emptyMap()
 )
+
+internal data class QQMusicQrCallback(
+    val status: QQMusicQrStatus,
+    val jumpUrl: String? = null
+)
+
+/** 解析 ptuiCB 回调；68 是拒绝授权，不是二维码过期。 */
+internal fun parseQQMusicQrCallback(body: String): QQMusicQrCallback {
+    val values = Regex("'([^']*)'")
+        .findAll(body.trim())
+        .map { it.groupValues[1] }
+        .toList()
+    return when (values.firstOrNull()) {
+        "0" -> QQMusicQrCallback(
+            status = QQMusicQrStatus.CONFIRMED,
+            jumpUrl = values.getOrNull(2)?.replace("\\x26", "&")
+        )
+        "66" -> QQMusicQrCallback(QQMusicQrStatus.WAITING)
+        "67" -> QQMusicQrCallback(QQMusicQrStatus.SCANNED)
+        "65" -> QQMusicQrCallback(QQMusicQrStatus.EXPIRED)
+        "68" -> QQMusicQrCallback(QQMusicQrStatus.REFUSED)
+        else -> QQMusicQrCallback(QQMusicQrStatus.FAILED)
+    }
+}
 
 internal fun isUsableQQMusicCookies(cookies: Map<String, String>): Boolean {
     val uin = (cookies["uin"] ?: cookies["wxuin"]).orEmpty().trim().removePrefix("o")
@@ -74,13 +100,15 @@ internal class QQMusicQrLoginClient {
             "?ptqrtoken=$token&from_ui=1&aid=716027609&daid=383" +
             "&pt_3rd_aid=100497308" +
             "&u1=https%3A%2F%2Fgraph.qq.com%2Foauth2.0%2Flogin_jump"
-        val cookie = session.cookies.entries.joinToString("; ") { "${it.key}=${it.value}" } +
-            "; qrsig=${session.qrsig}"
         val request = Request.Builder()
             .url(url)
-            .header("Cookie", cookie)
+            // ptqrlogin 只需要这次二维码对应的 qrsig。重复同名 Cookie 会导致
+            // 服务端在确认瞬间读取到错误会话，并把已确认二维码判成失效。
+            .header("Cookie", "qrsig=${session.qrsig}")
             .header("Referer", LOGIN_REFERER)
             .header("User-Agent", UA)
+            .header("Cache-Control", "no-cache")
+            .header("Pragma", "no-cache")
             .build()
         return runCatching {
             http.newCall(request).execute().use { response ->
@@ -88,24 +116,19 @@ internal class QQMusicQrLoginClient {
                 val returnedCookies = response.headers.values("Set-Cookie")
                     .flatMap { parseCookieHeader(it).entries }
                     .associate { it.key to it.value }
-                when {
-                    body.startsWith("ptuiCB('0'") -> {
-                        val jumpUrl = Regex("ptuiCB\\('0','0','([^']*)'").find(body)
-                            ?.groupValues?.getOrNull(1)
-                            ?.replace("\\x26", "&")
+                val callback = parseQQMusicQrCallback(body)
+                NPLogger.d(LOG_TAG, "QR poll status=${callback.status}")
+                when (callback.status) {
+                    QQMusicQrStatus.CONFIRMED -> {
                         QQMusicQrPollResult(
                             QQMusicQrStatus.CONFIRMED,
                             exchangeForQQMusicCookies(
-                                jumpUrl,
+                                callback.jumpUrl,
                                 session.cookies + returnedCookies
                             )
                         )
                     }
-                    body.startsWith("ptuiCB('67'") -> QQMusicQrPollResult(QQMusicQrStatus.SCANNED)
-                    body.startsWith("ptuiCB('66'") -> QQMusicQrPollResult(QQMusicQrStatus.WAITING)
-                    body.startsWith("ptuiCB('65'") || body.startsWith("ptuiCB('68'") ->
-                        QQMusicQrPollResult(QQMusicQrStatus.EXPIRED)
-                    else -> QQMusicQrPollResult(QQMusicQrStatus.FAILED)
+                    else -> QQMusicQrPollResult(callback.status)
                 }
             }
         }.getOrElse { QQMusicQrPollResult(QQMusicQrStatus.FAILED) }
@@ -178,7 +201,7 @@ internal class QQMusicQrLoginClient {
         request(
             Request.Builder()
                 .url("https://u.y.qq.com/cgi-bin/musicu.fcg")
-                .post(musicPayload.toRequestBody(FORM_MEDIA_TYPE))
+                .post(musicPayload.toRequestBody(JSON_MEDIA_TYPE))
                 .header("Referer", "https://y.qq.com/")
         )?.use(::collect)
         return cookies
@@ -200,8 +223,11 @@ internal class QQMusicQrLoginClient {
 
     private companion object {
         val FORM_MEDIA_TYPE = "application/x-www-form-urlencoded".toMediaType()
+        val JSON_MEDIA_TYPE = "application/json;charset=utf-8".toMediaType()
         const val MUSIC_REDIRECT_URI = "https://y.qq.com/portal/wx_redirect.html?login_type=1&surl=https://y.qq.com/"
-        const val UA = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36"
+        const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        const val LOG_TAG = "NERI-QQMusicQrLogin"
         const val LOGIN_REFERER = "https://xui.ptlogin2.qq.com/cgi-bin/xlogin" +
             "?appid=716027609&style=20" +
             "&s_url=https%3A%2F%2Fgraph.qq.com%2Foauth2.0%2Flogin_jump" +

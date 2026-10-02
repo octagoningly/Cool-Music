@@ -220,6 +220,7 @@
     <string name="qq_music_qr_waiting">请使用手机 QQ 扫码</string>
     <string name="qq_music_qr_scanned">已扫码，请在手机上确认</string>
     <string name="qq_music_qr_expired">二维码已过期，请刷新</string>
+    <string name="qq_music_qr_refused">授权未完成，请在手机 QQ 中重新确认</string>
     <string name="qq_music_qr_failed">二维码获取失败，请重试</string>
     <string name="qq_music_qr_refresh">刷新二维码</string>
     <string name="qq_music_web_login_fallback">网页登录兜底</string>

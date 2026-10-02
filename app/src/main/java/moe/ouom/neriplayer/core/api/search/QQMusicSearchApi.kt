@@ -35,9 +35,11 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import moe.ouom.neriplayer.BuildConfig
 import moe.ouom.neriplayer.core.api.lyrics.AmllTtmlClient
+import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicCookieHeader
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.metadata.AmllLyricsResolver
+import moe.ouom.neriplayer.data.auth.qqmusic.QQMusicCookieRepository
 import moe.ouom.neriplayer.util.network.awaitResponse
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -173,6 +175,7 @@ private fun htmlUnescapeQQMusic(value: String): String {
 
 class QQMusicSearchApi(
     private val amllTtmlClient: AmllTtmlClient = AppContainer.amllTtmlClient,
+    private val qqMusicCookieRepo: QQMusicCookieRepository = AppContainer.qqMusicCookieRepo,
     private val amllLyricsEnabledProvider: suspend () -> Boolean = {
         AppContainer.settingsRepo.amllLyricsEnabledFlow.first()
     }
@@ -188,16 +191,36 @@ class QQMusicSearchApi(
 
     override suspend fun search(keyword: String, page: Int): List<SongSearchInfo> {
         return withContext(Dispatchers.IO) {
+            val auth = qqMusicCookieRepo.getAuthBundleOnce()
             val url = "https://c.y.qq.com/soso/fcgi-bin/client_search_cp".toHttpUrl().newBuilder()
                 .addQueryParameter("format", "json")
                 .addQueryParameter("n", "20")
                 .addQueryParameter("p", page.toString())
                 .addQueryParameter("w", keyword)
                 .addQueryParameter("cr", "1")
-                .addQueryParameter("g_tk", "5381")
+                .addQueryParameter("ct", "24")
+                .addQueryParameter("t", "0")
+                .addQueryParameter("aggr", "1")
+                .addQueryParameter("lossless", "0")
+                .addQueryParameter("catZhida", "1")
+                .addQueryParameter("remoteplace", "txt.yqq.song")
+                .addQueryParameter("g_tk", (auth.gtk() ?: 5381).toString())
+                .addQueryParameter("loginUin", auth.uin().orEmpty())
+                .addQueryParameter("hostUin", "0")
                 .build()
 
-            val responseJson = executeRequest(url.toString()) as String
+            val request = Request.Builder()
+                .url(url)
+                .header("Referer", "https://y.qq.com/")
+                .header(
+                    "User-Agent",
+                    "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36"
+                )
+                .apply {
+                    if (auth.hasLoginCookies()) header("Cookie", buildQQMusicCookieHeader(auth))
+                }
+                .build()
+            val responseJson = executeRequest(request) as String
             val searchResult = json.decodeFromString<QQMusicSearchResponse>(responseJson)
 
             searchResult.data?.song?.list?.map { song ->

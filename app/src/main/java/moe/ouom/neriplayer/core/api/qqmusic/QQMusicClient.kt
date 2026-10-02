@@ -208,8 +208,8 @@ internal fun parsePlayUrlResponse(
     if (sipList.isEmpty()) return QQMusicPlayUrlParseResult.Malformed
 
     // tc.qq.com 是旧 CDN，在部分网络已持续返回 404。优先服务端提供的
-    // stream.qqmusic.qq.com HTTPS 节点，并把同一 vkey 的其余节点保留为即时备用。
-    val normalizedSips = sipList.map(::normalizeQQMusicSip).distinct()
+    // stream.qqmusic.qq.com 节点，并保留服务端给出的协议（部分节点会校验它）。
+    val normalizedSips = sipList.map { it.trim() }.distinct()
     val streamCdnSips = normalizedSips.filter(::isQQMusicStreamCdn)
     val usableSips = streamCdnSips.ifEmpty {
         normalizedSips.filterNot(::isLegacyQQMusicCdn).ifEmpty { normalizedSips }
@@ -245,15 +245,6 @@ internal fun parsePlayUrlResponse(
             fromTag = fromTag
         )
     )
-}
-
-private fun normalizeQQMusicSip(sip: String): String {
-    val normalized = sip.trim()
-    return if (isQQMusicStreamCdn(normalized) && normalized.startsWith("http://", ignoreCase = true)) {
-        normalized.replaceFirst("http://", "https://")
-    } else {
-        normalized
-    }
 }
 
 private fun isQQMusicStreamCdn(sip: String): Boolean =

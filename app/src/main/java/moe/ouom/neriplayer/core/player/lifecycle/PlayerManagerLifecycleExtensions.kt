@@ -412,6 +412,7 @@ internal fun PlayerManager.initializeImpl(
         val conditionalFactory = ConditionalHttpDataSourceFactory(
             upstreamFactory,
             biliCookieRepo,
+            AppContainer.qqMusicCookieRepo,
             AppContainer.youtubeAuthRepo,
             trafficStatsRepository = AppContainer.trafficStatsRepo
         )

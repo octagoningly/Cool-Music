@@ -396,7 +396,7 @@ internal suspend fun PlayerManager.resolveSongUrl(
                 sideEffects = resolverSideEffects,
                 playbackRequestTokenOverride = playbackRequestTokenOverride
             )
-            isQQMusicTrack(song) -> getQQMusicAudioUrl(
+            isQQMusicTrack(song) -> resolveQQMusicUrlWithGlobalFallback(
                 song = song,
                 suppressError = suppressError,
                 sideEffects = resolverSideEffects
@@ -449,6 +449,45 @@ internal suspend fun PlayerManager.resolveSongUrl(
         )
     } else {
         resolvedResult
+    }
+}
+
+/**
+ * QQ 歌单保留 QQ 原生直连作为首选；直连 CDN 不可用时，播放器会立即尝试
+ * 已启用的 LX 在线音源，再按用户的自动换源设置尝试 B 站候选。
+ */
+private suspend fun PlayerManager.resolveQQMusicUrlWithGlobalFallback(
+    song: SongItem,
+    suppressError: Boolean,
+    sideEffects: RefreshResolverSideEffects
+): SongUrlResult {
+    val qqResult = getQQMusicAudioUrl(
+        song = song,
+        suppressError = true,
+        sideEffects = sideEffects
+    )
+    val globalFallback = tryResolveLxMusicCustomSource(song, isFallbackAttempt = true)
+        ?: tryResolveNeteaseAutoBiliSource(song, sideEffects)
+    return when {
+        qqResult is SongUrlResult.Success && globalFallback is SongUrlResult.Success -> {
+            NPLogger.w(
+                "NERI-PlayerManager",
+                "QQ stream resolved with global fallback candidate: song=${song.name}"
+            )
+            qqResult.copy(
+                fallbackCandidates = qqResult.fallbackCandidates + globalFallback.playbackCandidates()
+            )
+        }
+        qqResult is SongUrlResult.Success -> qqResult
+        globalFallback is SongUrlResult.Success -> globalFallback
+        else -> {
+            if (!suppressError) {
+                sideEffects.emitError {
+                    postPlayerEvent(PlayerEvent.ShowError(getLocalizedString(R.string.error_no_play_url)))
+                }
+            }
+            qqResult
+        }
     }
 }
 

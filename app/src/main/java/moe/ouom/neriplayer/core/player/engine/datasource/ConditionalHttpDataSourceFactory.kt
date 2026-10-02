@@ -34,9 +34,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.data.auth.bili.BiliCookieRepository
+import moe.ouom.neriplayer.data.auth.qqmusic.QQMusicAuthBundle
+import moe.ouom.neriplayer.data.auth.qqmusic.QQMusicCookieRepository
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthBundle
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthRepository
 import moe.ouom.neriplayer.data.auth.youtube.YOUTUBE_MUSIC_ORIGIN
+import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicCookieHeader
 import moe.ouom.neriplayer.data.platform.bili.isBiliStreamHost
 import moe.ouom.neriplayer.data.platform.bili.isBiliStreamUrl
 import moe.ouom.neriplayer.data.platform.youtube.buildYouTubeStreamRequestHeaders
@@ -55,13 +58,14 @@ internal fun removeExplicitRangeHeader(headers: Map<String, String>): Map<String
 
 /**
  * 自定义的 HttpDataSource.Factory:
- * - 按 host/路径动态注入请求头 (B 站 / YouTube 拉流)
+ * - 按 host/路径动态注入请求头 (B 站 / QQ 音乐 / YouTube 拉流)
  * - 监听鉴权仓库变化, 实时刷新注入的 Cookie 字符串
  */
 @UnstableApi
 class ConditionalHttpDataSourceFactory(
     private val baseFactory: HttpDataSource.Factory,
     cookieRepo: BiliCookieRepository,
+    qqMusicCookieRepo: QQMusicCookieRepository,
     youtubeAuthRepo: YouTubeAuthRepository,
     private val trafficStatsRepository: TrafficStatsRepository? = null
 ) : HttpDataSource.Factory {
@@ -71,10 +75,15 @@ class ConditionalHttpDataSourceFactory(
                 "AppleWebKit/537.36 (KHTML, like Gecko) " +
                 "Chrome/124.0.0.0 Safari/537.36"
         private const val YOUTUBE_WEB_REFERER = "https://www.youtube.com/"
+        private const val QQ_MUSIC_REFERER = "https://y.qq.com/"
+        private const val QQ_MUSIC_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
     }
 
     @Volatile
     private var latestCookieHeader: String = ""
+    @Volatile
+    private var latestQQMusicAuth: QQMusicAuthBundle = QQMusicAuthBundle()
     @Volatile
     private var latestYouTubeAuth: YouTubeAuthBundle = YouTubeAuthBundle()
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -83,6 +92,11 @@ class ConditionalHttpDataSourceFactory(
         scope.launch {
             cookieRepo.cookieFlow.collect { cookies ->
                 latestCookieHeader = cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+            }
+        }
+        scope.launch {
+            qqMusicCookieRepo.authFlow.collect { auth ->
+                latestQQMusicAuth = auth.normalized()
             }
         }
         scope.launch {
@@ -105,6 +119,12 @@ class ConditionalHttpDataSourceFactory(
                     }
                     shouldInjectYouTubeHeaders(dataSpec.uri) -> {
                         buildYouTubeDataSpec(dataSpec)
+                    }
+                    shouldInjectQQMusicHeaders(dataSpec.uri) -> {
+                        val headers = buildQQMusicHeaders(dataSpec.httpRequestHeaders)
+                        dataSpec.buildUpon()
+                            .setHttpRequestHeaders(headers)
+                            .build()
                     }
                     else -> dataSpec
                 }
@@ -150,6 +170,9 @@ class ConditionalHttpDataSourceFactory(
             rawUrl.contains("/videoplayback")
     }
 
+    private fun shouldInjectQQMusicHeaders(uri: Uri): Boolean =
+        uri.host.orEmpty().lowercase().endsWith(".stream.qqmusic.qq.com")
+
     /**
      * 基于原始请求头构建 B 站拉流所需的头部 (Referer/UA/Cookie)
      */
@@ -173,6 +196,18 @@ class ConditionalHttpDataSourceFactory(
             refererOrigin = refererOrigin,
             streamUrl = streamUrl
         )
+    }
+
+    /** QQ 的 vkey 仅签发地址；CDN 拉流仍需要与签发请求一致的浏览器登录上下文。 */
+    private fun buildQQMusicHeaders(original: Map<String, String>): Map<String, String> {
+        val headers = LinkedHashMap(original)
+        headers["Referer"] = QQ_MUSIC_REFERER
+        headers["Origin"] = "https://y.qq.com"
+        headers["User-Agent"] = QQ_MUSIC_USER_AGENT
+        buildQQMusicCookieHeader(latestQQMusicAuth)
+            .takeIf { it.isNotBlank() }
+            ?.let { headers["Cookie"] = it }
+        return headers
     }
 
     private fun buildYouTubeDataSpec(dataSpec: DataSpec): DataSpec {

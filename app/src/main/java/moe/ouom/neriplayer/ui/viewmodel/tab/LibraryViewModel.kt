@@ -404,7 +404,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    /** 登录后的云端歌单落地为 QQ 音乐来源的本地歌单，播放仍走原生 QQ 在线取流。 */
+    /** 登录后的云端歌单落地为 QQ 音乐来源的本地歌单，播放统一走用户配置的在线音源。 */
     private suspend fun autoImportQQMusicPlaylists(playlists: List<QQMusicPlaylistSummary>) {
         val existingNames = localRepo.playlists.value
             .filter { playlist -> playlist.songs.any { it.channelId.equals("qqmusic", true) } }

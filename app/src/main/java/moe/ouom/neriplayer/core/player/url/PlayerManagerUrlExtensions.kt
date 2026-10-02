@@ -51,7 +51,6 @@ import moe.ouom.neriplayer.core.player.quality.effectiveYouTubeQuality
 import moe.ouom.neriplayer.core.player.resolver.netease.NeteasePlaybackResponseParser
 import moe.ouom.neriplayer.core.player.resolver.netease.tryResolveNeteaseAutoBiliSource
 import moe.ouom.neriplayer.core.player.resolver.netease.tryResolveNeteaseMatchedLocalSource
-import moe.ouom.neriplayer.core.player.resolver.qqmusic.getQQMusicAudioUrl
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.tryResolveLxMusicCustomSource
 import moe.ouom.neriplayer.core.player.watchdog.configureActivePlaybackCandidates
 import moe.ouom.neriplayer.core.player.watchdog.currentPlaybackCandidate
@@ -396,7 +395,7 @@ internal suspend fun PlayerManager.resolveSongUrl(
                 sideEffects = resolverSideEffects,
                 playbackRequestTokenOverride = playbackRequestTokenOverride
             )
-            isQQMusicTrack(song) -> resolveQQMusicUrlWithGlobalFallback(
+            isQQMusicTrack(song) -> resolveQQMusicWithConfiguredSource(
                 song = song,
                 suppressError = suppressError,
                 sideEffects = resolverSideEffects
@@ -453,42 +452,29 @@ internal suspend fun PlayerManager.resolveSongUrl(
 }
 
 /**
- * QQ 歌单保留 QQ 原生直连作为首选；直连 CDN 不可用时，播放器会立即尝试
- * 已启用的 LX 在线音源，再按用户的自动换源设置尝试 B 站候选。
+ * QQ 登录只负责同步歌单。歌单中的曲目从第一步即使用用户配置的在线音源，
+ * 不请求不稳定的 QQ 原生 CDN；LX 音源不可用时再按自动换源设置尝试 B 站。
  */
-private suspend fun PlayerManager.resolveQQMusicUrlWithGlobalFallback(
+private suspend fun PlayerManager.resolveQQMusicWithConfiguredSource(
     song: SongItem,
     suppressError: Boolean,
     sideEffects: RefreshResolverSideEffects
 ): SongUrlResult {
-    val qqResult = getQQMusicAudioUrl(
-        song = song,
-        suppressError = true,
-        sideEffects = sideEffects
-    )
-    val globalFallback = tryResolveLxMusicCustomSource(song, isFallbackAttempt = true)
+    val globalResult = tryResolveLxMusicCustomSource(song)
         ?: tryResolveNeteaseAutoBiliSource(song, sideEffects)
-    return when {
-        qqResult is SongUrlResult.Success && globalFallback is SongUrlResult.Success -> {
-            NPLogger.w(
-                "NERI-PlayerManager",
-                "QQ stream resolved with global fallback candidate: song=${song.name}"
-            )
-            qqResult.copy(
-                fallbackCandidates = qqResult.fallbackCandidates + globalFallback.playbackCandidates()
-            )
-        }
-        qqResult is SongUrlResult.Success -> qqResult
-        globalFallback is SongUrlResult.Success -> globalFallback
-        else -> {
-            if (!suppressError) {
-                sideEffects.emitError {
-                    postPlayerEvent(PlayerEvent.ShowError(getLocalizedString(R.string.error_no_play_url)))
-                }
-            }
-            qqResult
+    if (globalResult != null) {
+        NPLogger.d(
+            "NERI-PlayerManager",
+            "QQ playlist track resolved by configured online source: song=${song.name}"
+        )
+        return globalResult
+    }
+    if (!suppressError) {
+        sideEffects.emitError {
+            postPlayerEvent(PlayerEvent.ShowError(getLocalizedString(R.string.error_no_play_url)))
         }
     }
+    return SongUrlResult.Failure
 }
 
 internal fun shouldPlayCachedPlaylistEntry(

@@ -8,6 +8,7 @@ import moe.ouom.neriplayer.core.api.qqmusic.QQMusicPlayUrlSource
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicPlaybackRepository
 import moe.ouom.neriplayer.core.api.qqmusic.buildPlayUrlRequestJson
 import moe.ouom.neriplayer.core.api.qqmusic.parsePlayUrlResponse
+import moe.ouom.neriplayer.core.api.qqmusic.parseQQMusicUserPlaylists
 import moe.ouom.neriplayer.data.auth.qqmusic.QQMusicAuthBundle
 import moe.ouom.neriplayer.data.auth.qqmusic.qqMusicGtk
 import moe.ouom.neriplayer.data.platform.qqmusic.QQMusicQuality
@@ -19,6 +20,34 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class QQMusicPlaybackTest {
+
+    @Test
+    fun userPlaylistsParser_readsCreatedPlaylistsAndDeduplicatesIds() {
+        val result = parseQQMusicUserPlaylists(
+            """{"code":0,"data":{"disslist":[
+                {"dissid":123,"dissname":"我的收藏","songnum":8,"logo":"https://img/1.jpg"},
+                {"dissid":123,"dissname":"重复项"},
+                {"dirid":456,"name":"旅行歌单","song_cnt":3}
+            ]}}"""
+        )
+
+        assertEquals(2, result.size)
+        assertEquals(123L, result[0].dissId)
+        assertEquals("我的收藏", result[0].name)
+        assertEquals(8, result[0].songCount)
+        assertEquals(456L, result[1].dissId)
+        assertEquals("旅行歌单", result[1].name)
+    }
+
+    @Test
+    fun userPlaylistsParser_ignoresMalformedEntries() {
+        val result = parseQQMusicUserPlaylists(
+            """{"data":{"list":[{"dissid":0,"dissname":"无效"},{"dissid":9,"dissname":"有效"}]}}"""
+        )
+
+        assertEquals(1, result.size)
+        assertEquals(9L, result.single().dissId)
+    }
 
     // ---------- QQMusicQuality ----------
 

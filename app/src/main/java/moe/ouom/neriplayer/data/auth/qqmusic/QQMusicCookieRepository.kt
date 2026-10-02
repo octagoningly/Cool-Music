@@ -166,6 +166,7 @@ internal fun evaluateQQMusicAuthHealth(
 class QQMusicCookieRepository(private val context: Context) {
     private val encryptedPrefs: SharedPreferences
     private val _authFlow: MutableStateFlow<QQMusicAuthBundle>
+    val authFlow: StateFlow<QQMusicAuthBundle>
     private val _cookieFlow: MutableStateFlow<Map<String, String>>
     private val _authHealthFlow: MutableStateFlow<SavedCookieAuthHealth>
 
@@ -179,6 +180,7 @@ class QQMusicCookieRepository(private val context: Context) {
         encryptedPrefs = openEncryptedPrefsWithRecovery()
         val initialBundle = loadAuthBundle()
         _authFlow = MutableStateFlow(initialBundle)
+        authFlow = _authFlow.asStateFlow()
         _cookieFlow = MutableStateFlow(initialBundle.cookies)
         _authHealthFlow = MutableStateFlow(
             evaluateQQMusicAuthHealth(initialBundle)

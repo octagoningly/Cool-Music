@@ -40,6 +40,7 @@ import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.bili.BiliClient
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicLibraryPlaylist
+import moe.ouom.neriplayer.core.api.qqmusic.QQMusicPlaylistSummary
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.auth.youtube.buildRefreshObserverFingerprint
 import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
@@ -64,7 +65,9 @@ data class LibraryUiState(
     val youtubeMusicPlaylists: List<YouTubeMusicPlaylist> = emptyList(),
     val youtubeMusicError: String? = null,
     val biliPlaylists: List<BiliPlaylist> = emptyList(),
-    val biliError: String? = null
+    val biliError: String? = null,
+    val qqMusicPlaylists: List<QQMusicPlaylistSummary> = emptyList(),
+    val qqMusicError: String? = null
 )
 
 @Suppress("unused")
@@ -77,6 +80,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     private val biliCookieRepo = AppContainer.biliCookieRepo
     private val biliClient = AppContainer.biliClient
     private val youtubeAuthRepo = AppContainer.youtubeAuthRepo
+    private val qqMusicCookieRepo = AppContainer.qqMusicCookieRepo
+    private val qqMusicClient = AppContainer.qqMusicClient
 
 
     private val _uiState = MutableStateFlow(
@@ -169,6 +174,20 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                     _uiState.value = _uiState.value.copy(
                         biliPlaylists = emptyList(),
                         biliError = null
+                    )
+                }
+            }
+        }
+
+        // QQ Music 用户歌单（只读；歌单曲目仍通过现有外部导入链路落地到本地）
+        viewModelScope.launch {
+            qqMusicCookieRepo.authFlow.collect { auth ->
+                if (auth.hasLoginCookies()) {
+                    refreshQQMusicPlaylists()
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        qqMusicPlaylists = emptyList(),
+                        qqMusicError = null
                     )
                 }
             }
@@ -360,6 +379,25 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                         refreshYouTubeMusicPlaylists()
                     }
                 }
+            }
+        }
+    }
+
+    fun refreshQQMusicPlaylists() {
+        viewModelScope.launch {
+            try {
+                val playlists = withContext(Dispatchers.IO) {
+                    qqMusicClient.getUserCreatedPlaylists()
+                }
+                _uiState.value = _uiState.value.copy(
+                    qqMusicPlaylists = playlists,
+                    qqMusicError = null
+                )
+            } catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    qqMusicPlaylists = emptyList(),
+                    qqMusicError = error.message
+                )
             }
         }
     }

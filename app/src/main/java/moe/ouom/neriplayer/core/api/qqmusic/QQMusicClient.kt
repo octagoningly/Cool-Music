@@ -34,9 +34,49 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
+
+data class QQMusicPlaylistSummary(
+    val dissId: Long,
+    val name: String,
+    val coverUrl: String? = null,
+    val songCount: Int = 0
+)
+
+internal fun parseQQMusicUserPlaylists(body: String): List<QQMusicPlaylistSummary> {
+    val root = runCatching { JSONObject(body) }.getOrNull() ?: return emptyList()
+    val data = root.optJSONObject("data") ?: root.optJSONObject("playlist") ?: root
+    val list = data.optJSONArray("disslist")
+        ?: data.optJSONArray("list")
+        ?: data.optJSONArray("playlists")
+        ?: return emptyList()
+    return buildList {
+        for (index in 0 until list.length()) {
+            val item = list.optJSONObject(index) ?: continue
+            val id = item.optLong("dissid", 0L).takeIf { it > 0L }
+                ?: item.optLong("dirid", 0L).takeIf { it > 0L }
+                ?: item.optLong("tid", 0L).takeIf { it > 0L }
+                ?: continue
+            val name = item.optString("dissname")
+                .ifBlank { item.optString("name") }
+                .ifBlank { item.optString("title") }
+                .trim()
+                .takeIf { it.isNotBlank() }
+                ?: continue
+            val cover = item.optString("cover_url")
+                .ifBlank { item.optString("coverUrl") }
+                .ifBlank { item.optString("logo") }
+                .takeIf { it.isNotBlank() }
+            val count = item.optInt("songnum", 0).takeIf { it > 0 }
+                ?: item.optInt("song_cnt", 0).takeIf { it > 0 }
+                ?: 0
+            add(QQMusicPlaylistSummary(id, name, cover, count))
+        }
+    }.distinctBy { it.dissId }
+}
 
 /**
  * 取流失败原因分类。
@@ -257,6 +297,43 @@ class QQMusicClient(
                 NPLogger.w(LOG_TAG, "getPlayUrl malformed song=$songmid q=${quality.key}")
                 QQMusicPlayUrlResult.Failure(QQMusicPlayUrlFailure.MALFORMED_RESPONSE)
             }
+        }
+    }
+
+    suspend fun getUserCreatedPlaylists(): List<QQMusicPlaylistSummary> = withContext(Dispatchers.IO) {
+        val auth = cookieRepo.getAuthBundleOnce()
+        val uin = auth.uin().orEmpty()
+        if (uin.isBlank() || !auth.hasLoginCookies()) return@withContext emptyList()
+        val url = "https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss".toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("hostUin", "0")
+            .addQueryParameter("hostuin", uin)
+            .addQueryParameter("sin", "0")
+            .addQueryParameter("size", "200")
+            .addQueryParameter("g_tk", auth.gtk().toString())
+            .addQueryParameter("loginUin", uin)
+            .addQueryParameter("format", "json")
+            .addQueryParameter("inCharset", "utf8")
+            .addQueryParameter("outCharset", "utf-8")
+            .addQueryParameter("notice", "0")
+            .addQueryParameter("platform", "yqq.json")
+            .addQueryParameter("needNewCode", "0")
+            .build()
+        val cookie = "uin=${auth.uin()}; qm_keyst=${auth.musicKey()}; qqmusic_key=${auth.musicKey()}"
+        val request = Request.Builder()
+            .url(url)
+            .header("Referer", "https://y.qq.com/portal/profile.html")
+            .header("User-Agent", PLAY_URL_UA)
+            .header("Cookie", cookie)
+            .build()
+        runCatching {
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext emptyList()
+                parseQQMusicUserPlaylists(response.body?.string().orEmpty())
+            }
+        }.getOrElse { error ->
+            NPLogger.w(LOG_TAG, "getUserCreatedPlaylists failed", error)
+            emptyList()
         }
     }
 }

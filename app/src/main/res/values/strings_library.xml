@@ -62,6 +62,10 @@
     <string name="library_qqmusic_imported_empty">No imported QQ Music playlists</string>
     <string name="library_qqmusic_imported_hint">Imported QQ Music playlists will appear here</string>
     <string name="library_qqmusic_song_count">%d songs</string>
+    <string name="library_qqmusic_cloud_title">QQ Music cloud playlists</string>
+    <string name="library_qqmusic_imported_title">Imported playlists</string>
+    <string name="library_qqmusic_import">Import</string>
+    <string name="library_qqmusic_cloud_error">Failed to load QQ Music cloud playlists</string>
     <string name="library_netease_tab_playlists">歌单</string>
     <string name="library_netease_tab_albums">专辑</string>
     <string name="library_netease_search_hint">搜索歌单 / 专辑</string>

@@ -811,6 +811,16 @@ fun LibraryScreen(
                     )
 
                     LibraryTab.QQMUSIC -> QqMusicPlaylistList(
+                        cloudPlaylists = ui.qqMusicPlaylists,
+                        cloudError = ui.qqMusicError,
+                        onRetryCloud = { vm.refreshQQMusicPlaylists() },
+                        onImportCloud = { playlist ->
+                            scope.launch {
+                                vm.importExternalPlaylist(
+                                    "https://y.qq.com/n/ryqq/playlist/${playlist.dissId}"
+                                )
+                            }
+                        },
                         playlists = ui.localPlaylists.filter { playlist ->
                             playlist.songs.any { song ->
                                 song.channelId.equals("qqmusic", ignoreCase = true)
@@ -4486,6 +4496,10 @@ private fun favoriteSourceLabel(source: String): String {
 
 @Composable
 private fun QqMusicPlaylistList(
+    cloudPlaylists: List<moe.ouom.neriplayer.core.api.qqmusic.QQMusicPlaylistSummary>,
+    cloudError: String?,
+    onRetryCloud: () -> Unit,
+    onImportCloud: (moe.ouom.neriplayer.core.api.qqmusic.QQMusicPlaylistSummary) -> Unit,
     playlists: List<LocalPlaylist>,
     listState: LazyListState,
     onClick: (LocalPlaylist) -> Unit
@@ -4498,7 +4512,46 @@ private fun QqMusicPlaylistList(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        if (playlists.isEmpty()) {
+        if (cloudError != null) {
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.library_qqmusic_cloud_error)) },
+                    supportingContent = { Text(cloudError, color = MaterialTheme.colorScheme.error) },
+                    trailingContent = {
+                        HapticTextButton(onClick = onRetryCloud) { Text(stringResource(R.string.action_retry)) }
+                    }
+                )
+            }
+        }
+        if (cloudPlaylists.isNotEmpty()) {
+            item {
+                Text(
+                    stringResource(R.string.library_qqmusic_cloud_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
+            items(cloudPlaylists, key = { "cloud_${it.dissId}" }) { playlist ->
+                ListItem(
+                    headlineContent = { Text(playlist.name, maxLines = 1) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.library_qqmusic_song_count, playlist.songCount),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    leadingContent = {
+                        Icon(Icons.AutoMirrored.Filled.QueueMusic, null, tint = MaterialTheme.colorScheme.primary)
+                    },
+                    trailingContent = {
+                        HapticTextButton(onClick = { onImportCloud(playlist) }) {
+                            Text(stringResource(R.string.library_qqmusic_import))
+                        }
+                    }
+                )
+            }
+        }
+        if (playlists.isEmpty() && cloudPlaylists.isEmpty() && cloudError == null) {
             item {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.library_qqmusic_imported_empty)) },
@@ -4516,7 +4569,14 @@ private fun QqMusicPlaylistList(
                     }
                 )
             }
-        } else {
+        } else if (playlists.isNotEmpty()) {
+            item {
+                Text(
+                    stringResource(R.string.library_qqmusic_imported_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
             items(playlists, key = { it.id }) { playlist ->
                 ListItem(
                     headlineContent = { Text(playlist.name, maxLines = 1) },

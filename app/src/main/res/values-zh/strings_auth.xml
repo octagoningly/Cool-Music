@@ -157,6 +157,10 @@
     <string name="qq_music_qr_failed">二维码获取失败，请重试</string>
     <string name="qq_music_qr_refresh">刷新二维码</string>
     <string name="qq_music_web_login_fallback">网页登录兜底</string>
+    <string name="qq_music_login_choice_title">QQ音乐登录</string>
+    <string name="qq_music_login_choice_desc">推荐使用手机 QQ 扫码登录；如果二维码不可用，可切换到网页登录。</string>
+    <string name="qq_music_login_choice_qr">扫码登录</string>
+    <string name="qq_music_login_choice_web">网页登录</string>
     <string name="settings_qq_music_status_valid">已登录，最近更新于 %1$s</string>
     <string name="settings_qq_music_status_missing">未登录，点击登录 QQ 音乐</string>
 </resources>

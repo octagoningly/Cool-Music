@@ -17,10 +17,6 @@ import androidx.core.graphics.drawable.toDrawable
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.EncodeHintType
-import com.google.zxing.qrcode.QRCodeWriter
-import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -130,8 +126,8 @@ class QQMusicQrLoginActivity : ComponentActivity() {
             while (!returned) {
                 delay(POLL_MS)
                 val current = session ?: break
-                when (val result = withContext(Dispatchers.IO) { client.poll(current) }) {
-                    is moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrPollResult -> when (result.status) {
+                val result = withContext(Dispatchers.IO) { client.poll(current) }
+                when (result.status) {
                     QQMusicQrStatus.WAITING -> status.text = getString(R.string.qq_music_qr_waiting)
                     QQMusicQrStatus.SCANNED -> status.text = getString(R.string.qq_music_qr_scanned)
                     QQMusicQrStatus.CONFIRMED -> {
@@ -147,7 +143,6 @@ class QQMusicQrLoginActivity : ComponentActivity() {
                     QQMusicQrStatus.FAILED -> {
                         status.text = getString(R.string.qq_music_qr_failed)
                         break
-                    }
                     }
                 }
             }

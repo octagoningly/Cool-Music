@@ -144,7 +144,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.activity.auth.QQWebLoginActivity
+import moe.ouom.neriplayer.activity.auth.QQMusicQrLoginActivity
 import org.json.JSONObject
 import moe.ouom.neriplayer.core.download.GlobalDownloadManager
 import moe.ouom.neriplayer.core.download.ManagedDownloadStorage
@@ -4672,7 +4672,7 @@ private fun SettingsLoginExpandedContent(
             contract = ActivityResultContracts.StartActivityForResult()
         ) { result ->
             if (result.resultCode == android.app.Activity.RESULT_OK) {
-                val json = result.data?.getStringExtra(QQWebLoginActivity.RESULT_COOKIE) ?: "{}"
+                val json = result.data?.getStringExtra(QQMusicQrLoginActivity.RESULT_COOKIE) ?: "{}"
                 val cookies = runCatching {
                     val obj = JSONObject(json)
                     val out = LinkedHashMap<String, String>()
@@ -4700,7 +4700,7 @@ private fun SettingsLoginExpandedContent(
             supportingContent = { Text(qqMusicStatusText) },
             modifier = Modifier.settingsItemClickable {
                 qqMusicLoginLauncher.launch(
-                    Intent(qqMusicContext, QQWebLoginActivity::class.java)
+                    Intent(qqMusicContext, QQMusicQrLoginActivity::class.java)
                 )
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)

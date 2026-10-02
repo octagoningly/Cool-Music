@@ -98,8 +98,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.ouom.neriplayer.R
-import moe.ouom.neriplayer.activity.auth.QQWebLoginActivity
 import moe.ouom.neriplayer.activity.auth.QQMusicQrLoginActivity
+import moe.ouom.neriplayer.activity.auth.QQWebLoginActivity
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthState
@@ -402,6 +402,7 @@ fun StartupOnboardingScreen(
     var showYouTubeSheet by remember { mutableStateOf(false) }
     var showYouTubeSavedCookieDialog by remember { mutableStateOf(false) }
     var youTubeSheetTab by rememberSaveable { mutableIntStateOf(0) }
+    var showQQMusicLoginChoice by remember { mutableStateOf(false) }
     var showGitHubConfigDialog by remember { mutableStateOf(false) }
     var showClearGitHubConfigDialog by remember { mutableStateOf(false) }
     var showWebDavConfigDialog by remember { mutableStateOf(false) }
@@ -428,7 +429,7 @@ fun StartupOnboardingScreen(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val json = result.data?.getStringExtra(QQWebLoginActivity.RESULT_COOKIE) ?: "{}"
+            val json = result.data?.getStringExtra(QQMusicQrLoginActivity.RESULT_COOKIE) ?: "{}"
             val cookies = runCatching {
                 val obj = JSONObject(json)
                 buildMap {
@@ -851,9 +852,7 @@ fun StartupOnboardingScreen(
                         showYouTubeSavedCookieDialog = true
                     },
                     onOpenQQMusic = {
-                        qqMusicLoginLauncher.launch(
-                            Intent(context, QQMusicQrLoginActivity::class.java)
-                        )
+                        showQQMusicLoginChoice = true
                     }
                 )
                 StartupStep.PlaybackSources -> StartupPlaybackSourceContent(
@@ -1242,6 +1241,37 @@ fun StartupOnboardingScreen(
                     youTubeVm.clearAuth()
                 }
             )
+            if (showQQMusicLoginChoice) {
+                AlertDialog(
+                    onDismissRequest = { showQQMusicLoginChoice = false },
+                    title = { Text(stringResource(R.string.qq_music_login_choice_title)) },
+                    text = { Text(stringResource(R.string.qq_music_login_choice_desc)) },
+                    confirmButton = {
+                        HapticButton(
+                            onClick = {
+                                showQQMusicLoginChoice = false
+                                qqMusicLoginLauncher.launch(
+                                    Intent(context, QQMusicQrLoginActivity::class.java)
+                                )
+                            }
+                        ) {
+                            Text(stringResource(R.string.qq_music_login_choice_qr))
+                        }
+                    },
+                    dismissButton = {
+                        HapticTextButton(
+                            onClick = {
+                                showQQMusicLoginChoice = false
+                                qqMusicLoginLauncher.launch(
+                                    Intent(context, QQWebLoginActivity::class.java)
+                                )
+                            }
+                        ) {
+                            Text(stringResource(R.string.qq_music_login_choice_web))
+                        }
+                    }
+                )
+            }
             SettingsGitHubDialogs(
                 showGitHubConfigDialog = showGitHubConfigDialog,
                 onShowGitHubConfigDialogChange = { showGitHubConfigDialog = it },

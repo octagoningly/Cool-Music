@@ -3,7 +3,6 @@ package moe.ouom.neriplayer.core.api.qqmusic
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.HttpCookie
-import java.net.URI
 import java.util.concurrent.TimeUnit
 
 internal data class QQMusicQrSession(
@@ -33,8 +32,14 @@ internal class QQMusicQrLoginClient {
 
     fun create(): QQMusicQrSession? {
         val url = "https://ssl.ptlogin2.qq.com/ptqrshow" +
-            "?appid=716027609&e=2&l=M&s=3&d=72&v=4&daid=383&pt_3rd_aid=100497308"
-        val request = Request.Builder().url(url).header("User-Agent", UA).build()
+            "?appid=716027609&e=2&l=M&s=3&d=72&v=4&t=${Math.random()}" +
+            "&daid=383&pt_3rd_aid=100497308" +
+            "&u1=https%3A%2F%2Fgraph.qq.com%2Foauth2.0%2Flogin_jump"
+        val request = Request.Builder()
+            .url(url)
+            .header("Referer", LOGIN_REFERER)
+            .header("User-Agent", UA)
+            .build()
         return runCatching {
             http.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
@@ -54,16 +59,15 @@ internal class QQMusicQrLoginClient {
     fun poll(session: QQMusicQrSession): QQMusicQrPollResult {
         val token = hash33(session.qrsig)
         val url = "https://ssl.ptlogin2.qq.com/ptqrlogin" +
-            "?u1=https%3A%2F%2Fy.qq.com%2F&ptqrtoken=$token&ptredirect=0&h=1&t=1" +
-            "&g=1&from_ui=1&ptlang=2052&action=0-0-0&js_ver=210" +
-            "&js_type=1&pt_uistyle=40&aid=716027609&daid=383&has_onekey=1" +
-            "&pt_3rd_aid=100497308"
+            "?ptqrtoken=$token&from_ui=1&aid=716027609&daid=383" +
+            "&pt_3rd_aid=100497308" +
+            "&u1=https%3A%2F%2Fgraph.qq.com%2Foauth2.0%2Flogin_jump"
         val cookie = session.cookies.entries.joinToString("; ") { "${it.key}=${it.value}" } +
             "; qrsig=${session.qrsig}"
         val request = Request.Builder()
             .url(url)
             .header("Cookie", cookie)
-            .header("Referer", "https://xui.ptlogin2.qq.com/")
+            .header("Referer", LOGIN_REFERER)
             .header("User-Agent", UA)
             .build()
         return runCatching {
@@ -77,9 +81,9 @@ internal class QQMusicQrLoginClient {
                         QQMusicQrStatus.CONFIRMED,
                         session.cookies + returnedCookies
                     )
-                    body.startsWith("ptuiCB('65'") -> QQMusicQrPollResult(QQMusicQrStatus.SCANNED)
+                    body.startsWith("ptuiCB('67'") -> QQMusicQrPollResult(QQMusicQrStatus.SCANNED)
                     body.startsWith("ptuiCB('66'") -> QQMusicQrPollResult(QQMusicQrStatus.WAITING)
-                    body.startsWith("ptuiCB('68'") || body.startsWith("ptuiCB('67'") ->
+                    body.startsWith("ptuiCB('65'") || body.startsWith("ptuiCB('68'") ->
                         QQMusicQrPollResult(QQMusicQrStatus.EXPIRED)
                     else -> QQMusicQrPollResult(QQMusicQrStatus.FAILED)
                 }
@@ -89,7 +93,7 @@ internal class QQMusicQrLoginClient {
 
     private fun hash33(value: String): String {
         var hash = 0L
-        value.forEach { hash = (hash shl 5) - hash + it.code }
+        value.forEach { hash += (hash shl 5) + it.code }
         return (hash and 0x7fffffff).toString()
     }
 
@@ -100,5 +104,9 @@ internal class QQMusicQrLoginClient {
 
     private companion object {
         const val UA = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36"
+        const val LOGIN_REFERER = "https://xui.ptlogin2.qq.com/cgi-bin/xlogin" +
+            "?appid=716027609&style=20" +
+            "&s_url=https%3A%2F%2Fgraph.qq.com%2Foauth2.0%2Flogin_jump" +
+            "&maskOpacity=60&daid=383&target=self"
     }
 }

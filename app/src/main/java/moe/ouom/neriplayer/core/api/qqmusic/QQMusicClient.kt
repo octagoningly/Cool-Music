@@ -78,6 +78,19 @@ internal fun parseQQMusicUserPlaylists(body: String): List<QQMusicPlaylistSummar
     }.distinctBy { it.dissId }
 }
 
+/** 保留网页登录返回的全部 Cookie，微信登录所需 wx* 字段不能在请求时丢掉。 */
+internal fun buildQQMusicCookieHeader(auth: QQMusicAuthBundle): String {
+    val cookies = LinkedHashMap(auth.cookies).apply {
+        put("uin", auth.uin().orEmpty())
+        val key = auth.musicKey().orEmpty()
+        if (key.isNotBlank()) {
+            putIfAbsent("qm_keyst", key)
+            putIfAbsent("qqmusic_key", key)
+        }
+    }
+    return cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+}
+
 /**
  * 取流失败原因分类。
  *
@@ -249,11 +262,7 @@ class QQMusicClient(
 
         val filename = quality.fileNameFor(songmid)
         val bodyJson = buildPlayUrlRequestJson(auth, songmid, filename, guid)
-        val cookieHeader = buildString {
-            append("uin=").append(auth.uin().orEmpty())
-            append("; qm_keyst=").append(auth.musicKey().orEmpty())
-            append("; qqmusic_key=").append(auth.musicKey().orEmpty())
-        }
+        val cookieHeader = buildQQMusicCookieHeader(auth)
 
         val request = Request.Builder()
             .url(PLAY_URL_ENDPOINT)
@@ -319,7 +328,7 @@ class QQMusicClient(
             .addQueryParameter("platform", "yqq.json")
             .addQueryParameter("needNewCode", "0")
             .build()
-        val cookie = "uin=${auth.uin()}; qm_keyst=${auth.musicKey()}; qqmusic_key=${auth.musicKey()}"
+        val cookie = buildQQMusicCookieHeader(auth)
         val request = Request.Builder()
             .url(url)
             .header("Referer", "https://y.qq.com/portal/profile.html")

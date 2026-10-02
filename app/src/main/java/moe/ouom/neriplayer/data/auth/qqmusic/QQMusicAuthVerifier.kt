@@ -25,6 +25,7 @@ package moe.ouom.neriplayer.data.auth.qqmusic
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicCookieHeader
 import moe.ouom.neriplayer.core.logging.NPLogger
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -72,11 +73,7 @@ class QQMusicAuthVerifier(
                 return@withContext QQMusicAuthVerifyResult.EXPIRED
             }
 
-            val cookieHeader = buildString {
-                append("uin=").append(auth.uin().orEmpty())
-                append("; qm_keyst=").append(auth.musicKey().orEmpty())
-                append("; qqmusic_key=").append(auth.musicKey().orEmpty())
-            }
+            val cookieHeader = buildQQMusicCookieHeader(auth)
             val request = Request.Builder()
                 .url("$VERIFY_URL&uin=${auth.uin().orEmpty()}")
                 .header("Referer", "https://y.qq.com/")

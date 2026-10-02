@@ -5,6 +5,7 @@ import moe.ouom.neriplayer.data.auth.qqmusic.QQMusicAuthBundle
 import moe.ouom.neriplayer.data.auth.qqmusic.evaluateQQMusicAuthHealth
 import moe.ouom.neriplayer.data.auth.qqmusic.qqMusicGtk
 import moe.ouom.neriplayer.data.auth.web.shouldAutoCompleteQQMusicWebLogin
+import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicCookieHeader
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -86,6 +87,22 @@ class QQMusicAuthRepositoryTest {
 
         assertEquals("12345", bundle.cookies["uin"])
         assertEquals("12345", bundle.uin())
+    }
+
+    @Test
+    fun qqMusicAuthBundle_acceptsWechatMusicCookiesAndKeepsThemInRequestHeader() {
+        val auth = QQMusicAuthBundle(
+            cookies = mapOf(
+                "wxuin" to "12345",
+                "wxskey" to "W_X_synthetic_key",
+                "wxopenid" to "synthetic-open-id"
+            )
+        ).normalized()
+
+        assertTrue(auth.hasLoginCookies())
+        assertEquals("12345", auth.uin())
+        assertEquals("W_X_synthetic_key", auth.musicKey())
+        assertTrue(buildQQMusicCookieHeader(auth).contains("wxopenid=synthetic-open-id"))
     }
 
     @Test

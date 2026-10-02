@@ -43,8 +43,11 @@ private const val KEY_QQ_MUSIC_AUTH_BUNDLE = "qqmusic_auth_bundle"
 
 private val QQ_MUSIC_LOGIN_COOKIE_KEYS = listOf(
     "uin",
+    "wxuin",
     "qm_keyst",
-    "qqmusic_key"
+    "qqmusic_key",
+    "music_key",
+    "wxskey"
 )
 
 data class QQMusicAuthBundle(
@@ -52,7 +55,7 @@ data class QQMusicAuthBundle(
     val savedAt: Long = 0L
 ) {
     fun hasLoginCookies(): Boolean {
-        val uin = cookies["uin"]?.trim().orEmpty().removePrefix("o")
+        val uin = (cookies["uin"] ?: cookies["wxuin"]).orEmpty().trim().removePrefix("o")
         if (uin.isEmpty() || !uin.all { it.isDigit() }) {
             return false
         }
@@ -64,10 +67,13 @@ data class QQMusicAuthBundle(
     fun musicKey(): String? {
         return cookies["qm_keyst"]?.trim()?.takeIf { it.isNotEmpty() }
             ?: cookies["qqmusic_key"]?.trim()?.takeIf { it.isNotEmpty() }
+            ?: cookies["music_key"]?.trim()?.takeIf { it.isNotEmpty() }
+            ?: cookies["wxskey"]?.trim()?.takeIf { it.isNotEmpty() }
     }
 
     fun uin(): String? {
-        return cookies["uin"]?.trim()?.removePrefix("o")?.takeIf { it.isNotEmpty() }
+        return (cookies["uin"] ?: cookies["wxuin"])
+            ?.trim()?.removePrefix("o")?.takeIf { it.isNotEmpty() }
     }
 
     /**
@@ -79,6 +85,9 @@ data class QQMusicAuthBundle(
     fun normalized(savedAt: Long = this.savedAt): QQMusicAuthBundle {
         val normalizedCookies = LinkedHashMap(cookies.filterKeys { it.isNotBlank() }).apply {
             this["uin"] = this["uin"].orEmpty().trim().removePrefix("o")
+            if (this["uin"].isNullOrBlank()) {
+                this["uin"] = this["wxuin"].orEmpty().trim().removePrefix("o")
+            }
         }.filterValues { it.isNotBlank() }
         return copy(
             cookies = normalizedCookies,

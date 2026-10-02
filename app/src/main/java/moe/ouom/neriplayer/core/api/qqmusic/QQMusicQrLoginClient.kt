@@ -29,8 +29,10 @@ internal data class QQMusicQrPollResult(
 )
 
 internal fun isUsableQQMusicCookies(cookies: Map<String, String>): Boolean {
-    val uin = cookies["uin"].orEmpty().trim().removePrefix("o")
-    val key = cookies["qm_keyst"].orEmpty().ifBlank { cookies["qqmusic_key"].orEmpty() }.trim()
+    val uin = (cookies["uin"] ?: cookies["wxuin"]).orEmpty().trim().removePrefix("o")
+    val key = sequenceOf("qm_keyst", "qqmusic_key", "music_key", "wxskey")
+        .map { cookies[it].orEmpty().trim() }
+        .firstOrNull { it.isNotEmpty() }.orEmpty()
     return uin.isNotEmpty() && uin.all(Char::isDigit) && key.isNotEmpty()
 }
 

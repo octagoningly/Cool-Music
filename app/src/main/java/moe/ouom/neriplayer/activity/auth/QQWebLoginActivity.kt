@@ -88,13 +88,21 @@ class QQWebLoginActivity : ComponentActivity() {
 
         private val IMPORTANT_COOKIE_KEYS = listOf(
             "uin",
+            "wxuin",
             "qm_keyst",
-            "qqmusic_key"
+            "qqmusic_key",
+            "music_key",
+            "wxskey",
+            "wxopenid",
+            "wxrefresh_token"
         )
 
         private val COOKIE_READ_URLS = listOf(
             "y.qq.com",
-            "music.qq.com"
+            "music.qq.com",
+            "u.y.qq.com",
+            "c.y.qq.com",
+            "i.y.qq.com"
         )
 
         private val COOKIE_CLEAR_URLS = listOf(
@@ -257,7 +265,7 @@ class QQWebLoginActivity : ComponentActivity() {
     private fun readAndReturnCookies() {
         try {
             CookieManager.getInstance().flush()
-            val map = readCookieForDomains(COOKIE_READ_URLS)
+            val map = readAllLoginCookies()
             if (!shouldAutoCompleteQQMusicWebLogin(map)) {
                 showNeriViewSnackbar(
                     webView,
@@ -434,7 +442,7 @@ class QQWebLoginActivity : ComponentActivity() {
             return true
         }
         CookieManager.getInstance().flush()
-        val cookieMap = readCookieForDomains(COOKIE_READ_URLS)
+        val cookieMap = readAllLoginCookies()
         if (!shouldAutoCompleteQQMusicWebLogin(cookieMap)) {
             NPLogger.d(
                 LOG_TAG,
@@ -500,5 +508,14 @@ class QQWebLoginActivity : ComponentActivity() {
                 }
         }
         return result
+    }
+
+    private fun readAllLoginCookies(): Map<String, String> {
+        val currentHost = runCatching { webView.url?.toUri()?.host }.getOrNull()
+        val domains = buildList {
+            currentHost?.takeIf { hostMatchesAnyDomain(it, ALLOWED_LOGIN_DOMAINS) }?.let(::add)
+            addAll(COOKIE_READ_URLS)
+        }.distinct()
+        return readCookieForDomains(domains)
     }
 }

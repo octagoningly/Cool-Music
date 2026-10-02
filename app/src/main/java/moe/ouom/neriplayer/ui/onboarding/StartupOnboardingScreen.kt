@@ -3,6 +3,7 @@ package moe.ouom.neriplayer.ui.onboarding
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
@@ -97,6 +98,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.activity.auth.QQWebLoginActivity
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthState
@@ -146,6 +148,7 @@ import androidx.core.view.drawToBitmap
 import kotlin.coroutines.resume
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
+import org.json.JSONObject
 import androidx.core.graphics.createBitmap
 import androidx.core.content.ContextCompat
 import moe.ouom.neriplayer.core.startup.permission.StartupMediaPermission
@@ -201,10 +204,12 @@ internal fun shouldShowStartupNotificationPermissionWarning(
 internal fun shouldWarnStartupNoPlatformConnected(
     biliState: SavedCookieAuthState,
     neteaseState: SavedCookieAuthState,
-    youTubeState: YouTubeAuthState
+    youTubeState: YouTubeAuthState,
+    qqMusicState: SavedCookieAuthState = SavedCookieAuthState.Missing
 ): Boolean = biliState == SavedCookieAuthState.Missing &&
     neteaseState == SavedCookieAuthState.Missing &&
-    youTubeState == YouTubeAuthState.Missing
+    youTubeState == YouTubeAuthState.Missing &&
+    qqMusicState == SavedCookieAuthState.Missing
 
 internal fun hasFinishedStartupNotificationPermissionWarning(
     attempts: Int
@@ -417,6 +422,25 @@ fun StartupOnboardingScreen(
     val biliState by biliVm.uiState.collectAsStateWithLifecycle()
     val youTubeVm: YouTubeAuthViewModel = viewModel()
     val youTubeState by youTubeVm.uiState.collectAsStateWithLifecycle()
+    val qqMusicHealth by AppContainer.qqMusicCookieRepo.authHealthFlow.collectAsStateWithLifecycle()
+    val qqMusicLoginLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val json = result.data?.getStringExtra(QQWebLoginActivity.RESULT_COOKIE) ?: "{}"
+            val cookies = runCatching {
+                val obj = JSONObject(json)
+                buildMap {
+                    val keys = obj.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        put(key, obj.optString(key, ""))
+                    }
+                }
+            }.getOrDefault(emptyMap())
+            AppContainer.qqMusicCookieRepo.saveCookies(cookies)
+        }
+    }
     val githubVm: GitHubSyncViewModel = viewModel()
     val githubState by githubVm.uiState.collectAsStateWithLifecycle()
     val webDavVm: WebDavSyncViewModel = viewModel()
@@ -656,7 +680,8 @@ fun StartupOnboardingScreen(
             shouldWarnStartupNoPlatformConnected(
                 biliState = biliState.health.state,
                 neteaseState = neteaseState.health.state,
-                youTubeState = youTubeState.health.state
+                youTubeState = youTubeState.health.state,
+                qqMusicState = qqMusicHealth.state
             )
         ) {
             noPlatformWarningVisible = true
@@ -796,6 +821,7 @@ fun StartupOnboardingScreen(
                     hasSavedNeteaseCookies = neteaseState.hasSavedCookies,
                     youTubeState = youTubeState.health.state,
                     hasSavedYouTubeAuth = youTubeState.hasSavedAuth,
+                    qqMusicState = qqMusicHealth.state,
                     onOpenBili = {
                         inlineMessage = null
                         biliSheetTab = 0
@@ -822,6 +848,11 @@ fun StartupOnboardingScreen(
                     onManageYouTube = {
                         inlineMessage = null
                         showYouTubeSavedCookieDialog = true
+                    },
+                    onOpenQQMusic = {
+                        qqMusicLoginLauncher.launch(
+                            Intent(context, QQWebLoginActivity::class.java)
+                        )
                     }
                 )
                 StartupStep.PlaybackSources -> StartupPlaybackSourceContent(
@@ -1361,12 +1392,14 @@ private fun PlatformContent(
     hasSavedNeteaseCookies: Boolean,
     youTubeState: YouTubeAuthState,
     hasSavedYouTubeAuth: Boolean,
+    qqMusicState: SavedCookieAuthState,
     onOpenBili: () -> Unit,
     onManageBili: () -> Unit,
     onOpenNetease: () -> Unit,
     onManageNetease: () -> Unit,
     onOpenYouTube: () -> Unit,
-    onManageYouTube: () -> Unit
+    onManageYouTube: () -> Unit,
+    onOpenQQMusic: () -> Unit
 ) {
     StepHeader(
         icon = Icons.Outlined.Tune,
@@ -1421,6 +1454,19 @@ private fun PlatformContent(
             stringResource(R.string.onboarding_platform_action_connect)
         },
         onClick = if (hasSavedYouTubeAuth) onManageYouTube else onOpenYouTube
+    )
+    Spacer(Modifier.height(18.dp))
+    PlatformCard(
+        icon = painterResource(R.drawable.ic_qq_music),
+        title = stringResource(R.string.settings_qq_music),
+        status = statusTextForSavedCookie(qqMusicState),
+        connected = qqMusicState == SavedCookieAuthState.Valid,
+        actionText = if (qqMusicState == SavedCookieAuthState.Valid) {
+            stringResource(R.string.onboarding_platform_action_manage)
+        } else {
+            stringResource(R.string.onboarding_platform_action_connect)
+        },
+        onClick = onOpenQQMusic
     )
     Spacer(Modifier.height(18.dp))
     HintCard(body = stringResource(R.string.onboarding_platforms_hint))

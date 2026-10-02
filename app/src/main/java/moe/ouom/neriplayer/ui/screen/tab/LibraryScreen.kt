@@ -811,7 +811,13 @@ fun LibraryScreen(
                     )
 
                     LibraryTab.QQMUSIC -> QqMusicPlaylistList(
-                        listState = qqMusicListState
+                        playlists = ui.localPlaylists.filter { playlist ->
+                            playlist.songs.any { song ->
+                                song.channelId.equals("qqmusic", ignoreCase = true)
+                            }
+                        },
+                        listState = qqMusicListState,
+                        onClick = onLocalPlaylistClick
                     )
                 }
             }
@@ -4480,7 +4486,9 @@ private fun favoriteSourceLabel(source: String): String {
 
 @Composable
 private fun QqMusicPlaylistList(
-    listState: LazyListState
+    playlists: List<LocalPlaylist>,
+    listState: LazyListState,
+    onClick: (LocalPlaylist) -> Unit
 ) {
     val miniPlayerHeight = LocalMiniPlayerHeight.current
 
@@ -4490,27 +4498,14 @@ private fun QqMusicPlaylistList(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        val cardShape = RoundedCornerShape(12.dp)
-        // TODO: Implement QQ Music playlist list when type is available
-        item {
-            Card(
-                shape = cardShape,
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.Transparent
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .clip(cardShape)
-            ) {
+        if (playlists.isEmpty()) {
+            item {
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.library_qqmusic_coming)) },
+                    headlineContent = { Text(stringResource(R.string.library_qqmusic_imported_empty)) },
                     supportingContent = {
-                        Text(stringResource(R.string.library_coming_soon), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.library_qqmusic_imported_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
-                    colors = ListItemDefaults.colors(
-                        containerColor = Color.Transparent
-                    ),
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     leadingContent = {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.QueueMusic,
@@ -4519,6 +4514,27 @@ private fun QqMusicPlaylistList(
                             modifier = Modifier.size(56.dp)
                         )
                     }
+                )
+            }
+        } else {
+            items(playlists, key = { it.id }) { playlist ->
+                ListItem(
+                    headlineContent = { Text(playlist.name, maxLines = 1) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.library_qqmusic_song_count, playlist.songs.size),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    },
+                    modifier = Modifier.clickable { onClick(playlist) }
                 )
             }
         }

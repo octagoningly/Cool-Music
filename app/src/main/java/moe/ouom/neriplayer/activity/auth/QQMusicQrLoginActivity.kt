@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrExchangeFailure
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrLoginClient
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrSession
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrStatus
@@ -76,10 +77,13 @@ class QQMusicQrLoginActivity : ComponentActivity() {
             background = MaterialColors.getColor(this@QQMusicQrLoginActivity,
                 com.google.android.material.R.attr.colorSurface, Color.WHITE).toDrawable()
         }
+        // 必须跟随主题取 onSurface：硬编码 Color.BLACK 在深色主题下是黑底黑字。
+        val onSurface = MaterialColors.getColor(this@QQMusicQrLoginActivity,
+            com.google.android.material.R.attr.colorOnSurface, Color.BLACK)
         val title = TextView(this).apply {
             text = getString(R.string.qq_music_qr_login_title)
             textSize = 26f
-            setTextColor(Color.BLACK)
+            setTextColor(onSurface)
             gravity = Gravity.CENTER
         }
         root.addView(title, LinearLayout.LayoutParams(-1, -2))
@@ -87,12 +91,17 @@ class QQMusicQrLoginActivity : ComponentActivity() {
             text = getString(R.string.qq_music_qr_login_hint)
             textSize = 15f
             gravity = Gravity.CENTER
+            setTextColor(onSurface)
             setPadding(0, 18, 0, 18)
         }
         root.addView(hint, LinearLayout.LayoutParams(-1, -2))
         qrImage = ImageView(this).apply { setPadding(12, 12, 12, 12) }
         root.addView(qrImage, LinearLayout.LayoutParams(260, 260))
-        status = TextView(this).apply { gravity = Gravity.CENTER; textSize = 15f }
+        status = TextView(this).apply {
+            gravity = Gravity.CENTER
+            textSize = 15f
+            setTextColor(onSurface)
+        }
         root.addView(status, LinearLayout.LayoutParams(-1, -2))
         refresh = MaterialButton(this).apply {
             text = getString(R.string.qq_music_qr_refresh)
@@ -138,7 +147,9 @@ class QQMusicQrLoginActivity : ComponentActivity() {
                             setResult(Activity.RESULT_OK, data)
                             finish()
                         } else {
-                            status.text = getString(R.string.qq_music_qr_failed)
+                            // 二维码本身没问题：手机端已确认，失败在换取音乐凭据。
+                            // 不能再提示「二维码获取失败」，否则用户会去无谓地刷新二维码。
+                            status.text = getString(exchangeFailureText(result.exchangeFailure))
                             refresh.isEnabled = true
                         }
                         // 授权 code 通常只能消费一次。无论凭据交换成功与否都停止轮询，
@@ -147,6 +158,7 @@ class QQMusicQrLoginActivity : ComponentActivity() {
                     }
                     QQMusicQrStatus.EXPIRED -> {
                         status.text = getString(R.string.qq_music_qr_expired)
+                        refresh.isEnabled = true
                         break
                     }
                     QQMusicQrStatus.REFUSED -> {
@@ -155,12 +167,21 @@ class QQMusicQrLoginActivity : ComponentActivity() {
                         break
                     }
                     QQMusicQrStatus.FAILED -> {
-                        status.text = getString(R.string.qq_music_qr_failed)
+                        status.text = getString(R.string.qq_music_qr_poll_failed)
+                        refresh.isEnabled = true
                         break
                     }
                 }
             }
         }
+    }
+
+    private fun exchangeFailureText(failure: QQMusicQrExchangeFailure): Int = when (failure) {
+        QQMusicQrExchangeFailure.NO_SESSION_KEY -> R.string.qq_music_qr_exchange_session_failed
+        QQMusicQrExchangeFailure.NO_CODE -> R.string.qq_music_qr_exchange_code_failed
+        QQMusicQrExchangeFailure.NO_JUMP_URL,
+        QQMusicQrExchangeFailure.NO_MUSIC_KEY -> R.string.qq_music_qr_exchange_credential_failed
+        QQMusicQrExchangeFailure.NONE -> R.string.qq_music_qr_exchange_credential_failed
     }
 
     private fun createQrBitmap(bytes: ByteArray): Bitmap {

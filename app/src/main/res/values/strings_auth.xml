@@ -222,6 +222,10 @@
     <string name="qq_music_qr_expired">二维码已过期，请刷新</string>
     <string name="qq_music_qr_refused">授权未完成，请在手机 QQ 中重新确认</string>
     <string name="qq_music_qr_failed">二维码获取失败，请重试</string>
+    <string name="qq_music_qr_poll_failed">网络异常导致登录状态查询失败，请重试</string>
+    <string name="qq_music_qr_exchange_session_failed">登录成功，但未能获取会话凭据。请重试或改用网页登录</string>
+    <string name="qq_music_qr_exchange_code_failed">登录成功，但授权失败。请重试或改用网页登录</string>
+    <string name="qq_music_qr_exchange_credential_failed">登录成功，但获取音乐登录状态失败。请重试或改用网页登录</string>
     <string name="qq_music_qr_refresh">刷新二维码</string>
     <string name="qq_music_web_login_fallback">网页登录兜底</string>
     <string name="qq_music_login_choice_title">QQ音乐登录</string>

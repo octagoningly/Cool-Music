@@ -6,8 +6,11 @@ import moe.ouom.neriplayer.data.auth.qqmusic.evaluateQQMusicAuthHealth
 import moe.ouom.neriplayer.data.auth.qqmusic.qqMusicGtk
 import moe.ouom.neriplayer.data.auth.web.shouldAutoCompleteQQMusicWebLogin
 import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicCookieHeader
+import moe.ouom.neriplayer.core.api.qqmusic.buildQQCookieHeader
+import moe.ouom.neriplayer.core.api.qqmusic.mergeQQCookies
 import moe.ouom.neriplayer.core.api.qqmusic.parseQQMusicQrCallback
 import moe.ouom.neriplayer.core.api.qqmusic.mergeQQMusicLoginResponseCookies
+import moe.ouom.neriplayer.core.api.qqmusic.parseSetCookieHeader
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -220,5 +223,79 @@ class QQMusicAuthRepositoryTest {
             )
         )
         assertFalse(shouldAutoCompleteQQMusicWebLogin(mapOf("uin" to "123456")))
+    }
+
+    @Test
+    fun qqCookie_headerSendsWholeChainSharedToEveryHop() {
+        // 不做按域裁剪：check_sig/authorize/LoginServer 共享同一份 Cookie 全量。
+        // 之前按域过滤会让发往 graph.qq.com 的请求缺少会话 Cookie。
+        val cookies = listOf(
+            moe.ouom.neriplayer.core.api.qqmusic.QQCookie("p_skey", "session-key"),
+            moe.ouom.neriplayer.core.api.qqmusic.QQCookie("qrsig", "qr-sig")
+        )
+
+        assertEquals("p_skey=session-key; qrsig=qr-sig", buildQQCookieHeader(cookies))
+    }
+
+    @Test
+    fun qqCookie_mergeLatestSameNameWins() {
+        val merged = mergeQQCookies(
+            existing = listOf(moe.ouom.neriplayer.core.api.qqmusic.QQCookie("p_skey", "old")),
+            setCookieHeaders = listOf("p_skey=new; Path=/; HttpOnly", "skey=other; Path=/")
+        )
+
+        assertEquals(2, merged.size)
+        assertEquals(
+            "new",
+            merged.single { it.name == "p_skey" }.value
+        )
+        assertEquals("p_skey=new; skey=other", buildQQCookieHeader(merged))
+    }
+
+    @Test
+    fun parseSetCookieHeader_readsNameValueAndIgnoresAttributes() {
+        val parsed = parseSetCookieHeader(
+            "p_skey=abc123; Domain=.qq.com; Path=/; HttpOnly; Expires=Wed, 01 Jan 2025 00:00:00 GMT"
+        )
+        assertEquals("p_skey", parsed?.name)
+        assertEquals("abc123", parsed?.value)
+    }
+
+    @Test
+    fun parseSetCookieHeader_rejectsMalformedHeader() {
+        assertNull(parseSetCookieHeader("novalue"))
+        assertNull(parseSetCookieHeader("=orphanvalue"))
+        assertNull(parseSetCookieHeader(""))
+        // 值为空的 Cookie 不能进入后续链路
+        assertNull(parseSetCookieHeader("p_skey=; Path=/"))
+    }
+
+    @Test
+    fun qqMusicQrLogin_readsStrPrefixedAndUinFallbackCredentialVariants() {
+        val strPrefixed = mergeQQMusicLoginResponseCookies(
+            cookies = mapOf("p_skey" to "synthetic-p-skey"),
+            body = """{"req":{"data":{"str_musicid":"987654321","str_musickey":"synthetic-key"}}}"""
+        )
+        assertEquals("987654321", strPrefixed["uin"])
+        assertEquals("synthetic-key", strPrefixed["qm_keyst"])
+
+        val uinFallback = mergeQQMusicLoginResponseCookies(
+            cookies = mapOf("p_skey" to "synthetic-p-skey"),
+            body = """{"req":{"code":0,"data":{"uin":"o11223344","musickey":"synthetic-key-2"}}}"""
+        )
+        assertEquals("11223344", uinFallback["uin"])
+        assertEquals("synthetic-key-2", uinFallback["qqmusic_key"])
+    }
+
+    @Test
+    fun qqMusicQrLogin_ignoresNonNumericMusicIdEvenWhenKeyPresent() {
+        val original = mapOf("p_skey" to "synthetic-p-skey")
+        assertEquals(
+            original,
+            mergeQQMusicLoginResponseCookies(
+                original,
+                """{"req":{"data":{"musicid":"not-a-number","musickey":"synthetic-key"}}}"""
+            )
+        )
     }
 }

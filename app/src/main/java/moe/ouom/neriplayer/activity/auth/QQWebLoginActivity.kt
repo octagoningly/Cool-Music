@@ -77,7 +77,9 @@ class QQWebLoginActivity : ComponentActivity() {
     companion object {
         const val RESULT_COOKIE = "result_cookie_json"
         private const val LOG_TAG = "NERI-QQLogin"
-        private const val LOGIN_URL = "https://y.qq.com/"
+        // 直接进入个人中心，避免 WebView 停留在移动版推荐首页而没有登录入口。
+        // 页面内由 QQ 音乐官方提供 QQ/微信授权及扫码登录。
+        private const val LOGIN_URL = "https://y.qq.com/portal/profile.html"
 
         // QQ 登录链路全部落在 *.qq.com（y / graph / ssl.ptlogin2 / xui.ptlogin2 …）
         private val ALLOWED_LOGIN_DOMAINS = setOf(

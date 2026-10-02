@@ -3,6 +3,7 @@ package moe.ouom.neriplayer.core.api.qqmusic
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.HttpCookie
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
 internal data class QQMusicQrSession(
@@ -23,6 +24,12 @@ internal data class QQMusicQrPollResult(
     val status: QQMusicQrStatus,
     val cookies: Map<String, String> = emptyMap()
 )
+
+internal fun isUsableQQMusicCookies(cookies: Map<String, String>): Boolean {
+    val uin = cookies["uin"].orEmpty().trim()
+    val key = cookies["qm_keyst"].orEmpty().ifBlank { cookies["qqmusic_key"].orEmpty() }.trim()
+    return uin.isNotEmpty() && uin.all(Char::isDigit) && key.isNotEmpty()
+}
 
 internal class QQMusicQrLoginClient {
     private val http = OkHttpClient.Builder()
@@ -77,10 +84,18 @@ internal class QQMusicQrLoginClient {
                     .flatMap { parseCookieHeader(it).entries }
                     .associate { it.key to it.value }
                 when {
-                    body.startsWith("ptuiCB('0'") -> QQMusicQrPollResult(
-                        QQMusicQrStatus.CONFIRMED,
-                        session.cookies + returnedCookies
-                    )
+                    body.startsWith("ptuiCB('0'") -> {
+                        val jumpUrl = Regex("ptuiCB\\('0','0','([^']*)'").find(body)
+                            ?.groupValues?.getOrNull(1)
+                            ?.replace("\\x26", "&")
+                        QQMusicQrPollResult(
+                            QQMusicQrStatus.CONFIRMED,
+                            followLoginRedirects(
+                                jumpUrl,
+                                session.cookies + returnedCookies
+                            )
+                        )
+                    }
                     body.startsWith("ptuiCB('67'") -> QQMusicQrPollResult(QQMusicQrStatus.SCANNED)
                     body.startsWith("ptuiCB('66'") -> QQMusicQrPollResult(QQMusicQrStatus.WAITING)
                     body.startsWith("ptuiCB('65'") || body.startsWith("ptuiCB('68'") ->
@@ -95,6 +110,33 @@ internal class QQMusicQrLoginClient {
         var hash = 0L
         value.forEach { hash += (hash shl 5) + it.code }
         return (hash and 0x7fffffff).toString()
+    }
+
+    private fun followLoginRedirects(
+        jumpUrl: String?,
+        initialCookies: Map<String, String>
+    ): Map<String, String> {
+        if (jumpUrl.isNullOrBlank()) return initialCookies
+        var currentUrl = jumpUrl
+        var cookies = initialCookies
+        repeat(6) {
+            val request = Request.Builder()
+                .url(currentUrl!!)
+                .header("Cookie", cookies.entries.joinToString("; ") { "${it.key}=${it.value}" })
+                .header("Referer", LOGIN_REFERER)
+                .header("User-Agent", UA)
+                .build()
+            val response = runCatching { http.newCall(request).execute() }.getOrNull()
+                ?: return cookies
+            response.use {
+                cookies = cookies + it.headers.values("Set-Cookie")
+                    .flatMap { header -> parseCookieHeader(header).entries }
+                    .associate { entry -> entry.key to entry.value }
+                val location = it.header("Location") ?: return cookies
+                currentUrl = URI(currentUrl!!).resolve(location).toString()
+            }
+        }
+        return cookies
     }
 
     private fun parseCookieHeader(header: String): Map<String, String> =

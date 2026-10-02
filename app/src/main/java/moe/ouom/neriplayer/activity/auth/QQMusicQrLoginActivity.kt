@@ -26,6 +26,7 @@ import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrLoginClient
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrSession
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrStatus
+import moe.ouom.neriplayer.core.api.qqmusic.isUsableQQMusicCookies
 import org.json.JSONObject
 
 class QQMusicQrLoginActivity : ComponentActivity() {
@@ -131,10 +132,15 @@ class QQMusicQrLoginActivity : ComponentActivity() {
                     QQMusicQrStatus.WAITING -> status.text = getString(R.string.qq_music_qr_waiting)
                     QQMusicQrStatus.SCANNED -> status.text = getString(R.string.qq_music_qr_scanned)
                     QQMusicQrStatus.CONFIRMED -> {
-                        returned = true
-                        val data = Intent().putExtra(RESULT_COOKIE, JSONObject(result.cookies).toString())
-                        setResult(Activity.RESULT_OK, data)
-                        finish()
+                        if (isUsableQQMusicCookies(result.cookies)) {
+                            returned = true
+                            val data = Intent().putExtra(RESULT_COOKIE, JSONObject(result.cookies).toString())
+                            setResult(Activity.RESULT_OK, data)
+                            finish()
+                        } else {
+                            status.text = getString(R.string.qq_music_qr_failed)
+                            refresh.isEnabled = true
+                        }
                     }
                     QQMusicQrStatus.EXPIRED -> {
                         status.text = getString(R.string.qq_music_qr_expired)

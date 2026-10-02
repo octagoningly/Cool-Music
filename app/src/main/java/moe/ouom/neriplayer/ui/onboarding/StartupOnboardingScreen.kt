@@ -3,7 +3,6 @@ package moe.ouom.neriplayer.ui.onboarding
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
@@ -98,8 +97,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.ouom.neriplayer.R
-import moe.ouom.neriplayer.activity.auth.QQMusicQrLoginActivity
-import moe.ouom.neriplayer.activity.auth.QQWebLoginActivity
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthState
@@ -122,6 +119,7 @@ import moe.ouom.neriplayer.ui.screen.tab.settings.auth.LoginSuccessDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsBiliAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsNeteaseAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsYouTubeAuthDialogs
+import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsQQMusicAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.component.InlineMessage
 import moe.ouom.neriplayer.ui.screen.tab.settings.component.ThemeModeActionButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.dialog.SettingsGitHubDialogs
@@ -149,7 +147,6 @@ import androidx.core.view.drawToBitmap
 import kotlin.coroutines.resume
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
-import org.json.JSONObject
 import androidx.core.graphics.createBitmap
 import androidx.core.content.ContextCompat
 import moe.ouom.neriplayer.core.startup.permission.StartupMediaPermission
@@ -402,7 +399,7 @@ fun StartupOnboardingScreen(
     var showYouTubeSheet by remember { mutableStateOf(false) }
     var showYouTubeSavedCookieDialog by remember { mutableStateOf(false) }
     var youTubeSheetTab by rememberSaveable { mutableIntStateOf(0) }
-    var showQQMusicLoginChoice by remember { mutableStateOf(false) }
+    var showQQMusicSheet by remember { mutableStateOf(false) }
     var showGitHubConfigDialog by remember { mutableStateOf(false) }
     var showClearGitHubConfigDialog by remember { mutableStateOf(false) }
     var showWebDavConfigDialog by remember { mutableStateOf(false) }
@@ -425,24 +422,6 @@ fun StartupOnboardingScreen(
     val youTubeVm: YouTubeAuthViewModel = viewModel()
     val youTubeState by youTubeVm.uiState.collectAsStateWithLifecycle()
     val qqMusicHealth by AppContainer.qqMusicCookieRepo.authHealthFlow.collectAsStateWithLifecycle()
-    val qqMusicLoginLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val json = result.data?.getStringExtra(QQMusicQrLoginActivity.RESULT_COOKIE) ?: "{}"
-            val cookies = runCatching {
-                val obj = JSONObject(json)
-                buildMap {
-                    val keys = obj.keys()
-                    while (keys.hasNext()) {
-                        val key = keys.next()
-                        put(key, obj.optString(key, ""))
-                    }
-                }
-            }.getOrDefault(emptyMap())
-            AppContainer.qqMusicCookieRepo.saveCookies(cookies)
-        }
-    }
     val githubVm: GitHubSyncViewModel = viewModel()
     val githubState by githubVm.uiState.collectAsStateWithLifecycle()
     val webDavVm: WebDavSyncViewModel = viewModel()
@@ -852,7 +831,7 @@ fun StartupOnboardingScreen(
                         showYouTubeSavedCookieDialog = true
                     },
                     onOpenQQMusic = {
-                        showQQMusicLoginChoice = true
+                        showQQMusicSheet = true
                     }
                 )
                 StartupStep.PlaybackSources -> StartupPlaybackSourceContent(
@@ -1241,37 +1220,13 @@ fun StartupOnboardingScreen(
                     youTubeVm.clearAuth()
                 }
             )
-            if (showQQMusicLoginChoice) {
-                AlertDialog(
-                    onDismissRequest = { showQQMusicLoginChoice = false },
-                    title = { Text(stringResource(R.string.qq_music_login_choice_title)) },
-                    text = { Text(stringResource(R.string.qq_music_login_choice_desc)) },
-                    confirmButton = {
-                        HapticButton(
-                            onClick = {
-                                showQQMusicLoginChoice = false
-                                qqMusicLoginLauncher.launch(
-                                    Intent(context, QQMusicQrLoginActivity::class.java)
-                                )
-                            }
-                        ) {
-                            Text(stringResource(R.string.qq_music_login_choice_qr))
-                        }
-                    },
-                    dismissButton = {
-                        HapticTextButton(
-                            onClick = {
-                                showQQMusicLoginChoice = false
-                                qqMusicLoginLauncher.launch(
-                                    Intent(context, QQWebLoginActivity::class.java)
-                                )
-                            }
-                        ) {
-                            Text(stringResource(R.string.qq_music_login_choice_web))
-                        }
-                    }
-                )
-            }
+            SettingsQQMusicAuthDialogs(
+                showSheet = showQQMusicSheet,
+                initialTab = 0,
+                inlineMsg = inlineMessage,
+                onInlineMsgChange = { inlineMessage = it },
+                onDismiss = { showQQMusicSheet = false }
+            )
             SettingsGitHubDialogs(
                 showGitHubConfigDialog = showGitHubConfigDialog,
                 onShowGitHubConfigDialogChange = { showGitHubConfigDialog = it },

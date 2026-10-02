@@ -144,8 +144,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.activity.auth.QQMusicQrLoginActivity
-import org.json.JSONObject
 import moe.ouom.neriplayer.core.download.GlobalDownloadManager
 import moe.ouom.neriplayer.core.download.ManagedDownloadStorage
 import moe.ouom.neriplayer.core.player.resolver.lxmusic.LX_ONLINE_SEARCH_PLATFORM_ORDER
@@ -204,6 +202,7 @@ import moe.ouom.neriplayer.ui.screen.tab.settings.auth.LoginSuccessDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsBiliAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsLxMusicSourceDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsNeteaseAuthDialogs
+import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsQQMusicAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsYouTubeAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.component.LazyAnimatedVisibility
 import moe.ouom.neriplayer.ui.screen.tab.settings.component.PlaybackServiceIdleShutdownSetting
@@ -705,6 +704,7 @@ fun SettingsScreen(
     var showBiliSheet by remember { mutableStateOf(false) }
     var showBiliSavedCookieDialog by remember { mutableStateOf(false) }
     var showYouTubeSheet by remember { mutableStateOf(false) }
+    var showQQMusicSheet by remember { mutableStateOf(false) }
     var showYouTubeSavedCookieDialog by remember { mutableStateOf(false) }
 
     val qqMusicPreferredQuality by AppContainer.settingsRepo.qqMusicAudioQualityFlow
@@ -1593,6 +1593,10 @@ fun SettingsScreen(
                                 inlineMsg = null
                                 neteaseSheetInitialTab = 0
                                 showNeteaseSheet = true
+                            },
+                            onOpenQQMusicSheet = {
+                                inlineMsg = null
+                                showQQMusicSheet = true
                             },
                             onOpenLxSourceDialog = {
                                 showLxSourceManageDialog = true
@@ -2552,6 +2556,14 @@ fun SettingsScreen(
             showYouTubeSavedCookieDialog = false
             youtubeVm.clearAuth()
         }
+    )
+
+    SettingsQQMusicAuthDialogs(
+        showSheet = showQQMusicSheet,
+        initialTab = 0,
+        inlineMsg = inlineMsg,
+        onInlineMsgChange = { inlineMsg = it },
+        onDismiss = { showQQMusicSheet = false }
     )
 
     SettingsLxMusicSourceDialogs(
@@ -4503,6 +4515,7 @@ private fun SettingsLoginExpandedContent(
     onOpenNeteaseSavedCookieDialog: () -> Unit,
     onOpenYouTubeSheet: () -> Unit,
     onOpenNeteaseSheet: () -> Unit,
+    onOpenQQMusicSheet: () -> Unit,
     onOpenLxSourceDialog: () -> Unit,
 ) {
     val biliAuthUiState by biliVm.uiState.collectAsStateWithLifecycleCompat()
@@ -4667,26 +4680,6 @@ private fun SettingsLoginExpandedContent(
             }
             else -> stringResource(R.string.settings_qq_music_status_missing)
         }
-        val qqMusicContext = LocalContext.current
-        val qqMusicLoginLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.StartActivityForResult()
-        ) { result ->
-            if (result.resultCode == android.app.Activity.RESULT_OK) {
-                val json = result.data?.getStringExtra(QQMusicQrLoginActivity.RESULT_COOKIE) ?: "{}"
-                val cookies = runCatching {
-                    val obj = JSONObject(json)
-                    val out = LinkedHashMap<String, String>()
-                    val keys = obj.keys()
-                    while (keys.hasNext()) {
-                        val key = keys.next()
-                        out[key] = obj.optString(key, "")
-                    }
-                    out
-                }.getOrDefault(emptyMap())
-                qqMusicCookieRepo.saveCookies(cookies)
-            }
-        }
-
         ListItem(
             leadingContent = {
                 Icon(
@@ -4699,9 +4692,7 @@ private fun SettingsLoginExpandedContent(
             headlineContent = { Text(stringResource(R.string.settings_qq_music)) },
             supportingContent = { Text(qqMusicStatusText) },
             modifier = Modifier.settingsItemClickable {
-                qqMusicLoginLauncher.launch(
-                    Intent(qqMusicContext, QQMusicQrLoginActivity::class.java)
-                )
+                onOpenQQMusicSheet()
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )

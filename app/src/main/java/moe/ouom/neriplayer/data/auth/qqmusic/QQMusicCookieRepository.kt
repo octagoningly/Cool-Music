@@ -52,7 +52,7 @@ data class QQMusicAuthBundle(
     val savedAt: Long = 0L
 ) {
     fun hasLoginCookies(): Boolean {
-        val uin = cookies["uin"]?.trim().orEmpty()
+        val uin = cookies["uin"]?.trim().orEmpty().removePrefix("o")
         if (uin.isEmpty() || !uin.all { it.isDigit() }) {
             return false
         }
@@ -67,7 +67,7 @@ data class QQMusicAuthBundle(
     }
 
     fun uin(): String? {
-        return cookies["uin"]?.trim()?.takeIf { it.isNotEmpty() }
+        return cookies["uin"]?.trim()?.removePrefix("o")?.takeIf { it.isNotEmpty() }
     }
 
     /**
@@ -77,8 +77,11 @@ data class QQMusicAuthBundle(
     fun gtk(): Int? = musicKey()?.let(::qqMusicGtk)
 
     fun normalized(savedAt: Long = this.savedAt): QQMusicAuthBundle {
+        val normalizedCookies = LinkedHashMap(cookies.filterKeys { it.isNotBlank() }).apply {
+            this["uin"] = this["uin"].orEmpty().trim().removePrefix("o")
+        }.filterValues { it.isNotBlank() }
         return copy(
-            cookies = LinkedHashMap(cookies.filterKeys { it.isNotBlank() }),
+            cookies = normalizedCookies,
             savedAt = savedAt
         )
     }

@@ -71,6 +71,21 @@ class QQMusicAuthRepositoryTest {
                 cookies = mapOf("uin" to "12345", "qm_keyst" to "key")
             ).hasLoginCookies()
         )
+        assertTrue(
+            QQMusicAuthBundle(
+                cookies = mapOf("uin" to "o12345", "qm_keyst" to "key")
+            ).hasLoginCookies()
+        )
+    }
+
+    @Test
+    fun qqMusicAuthBundle_normalizesQqCookieUinPrefix() {
+        val bundle = QQMusicAuthBundle(
+            cookies = mapOf("uin" to "o12345", "qm_keyst" to "key")
+        ).normalized()
+
+        assertEquals("12345", bundle.cookies["uin"])
+        assertEquals("12345", bundle.uin())
     }
 
     @Test

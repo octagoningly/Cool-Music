@@ -440,7 +440,8 @@ private fun LibraryTab?.isRefreshable(): Boolean {
     return when (this?.asVisibleLibraryTab()) {
         LibraryTab.BILI,
         LibraryTab.YTMUSIC,
-        LibraryTab.NETEASE -> true
+        LibraryTab.NETEASE,
+        LibraryTab.QQMUSIC -> true
         else -> false
     }
 }
@@ -873,6 +874,7 @@ fun LibraryScreen(
                                     vm.refreshNeteasePlaylists()
                                     vm.refreshNeteaseAlbums()
                                 }
+                                LibraryTab.QQMUSIC -> vm.refreshQQMusicPlaylists()
                                 else -> Unit
                             }
                         },

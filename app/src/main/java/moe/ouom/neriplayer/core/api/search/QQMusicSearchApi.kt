@@ -54,12 +54,15 @@ import java.util.Base64
 @Serializable private data class QQMusicSearchData(val song: QQMusicSearchSong?)
 @Serializable private data class QQMusicSearchSong(val list: List<QQMusicSongSummary>?)
 @Serializable private data class QQMusicSongSummary(
-    @SerialName("songmid") val songMid: String,
-    @SerialName("songname") val songName: String,
-    val singer: List<QQMusicArtist>,
-    @SerialName("albummid") val albumMid: String?,
-    @SerialName("albumname") val albumName: String?,
-    val interval: Long // 歌曲时长 (秒)
+    @SerialName("songmid") val legacySongMid: String? = null,
+    val mid: String? = null,
+    @SerialName("songname") val legacySongName: String? = null,
+    val name: String? = null,
+    val singer: List<QQMusicArtist> = emptyList(),
+    @SerialName("albummid") val legacyAlbumMid: String? = null,
+    @SerialName("albumname") val legacyAlbumName: String? = null,
+    val album: QQMusicAlbum? = null,
+    val interval: Long = 0L
 )
 
 @Serializable private data class QQMusicArtist(val name: String)
@@ -231,15 +234,21 @@ class QQMusicSearchApi(
                 JSONObject().put("data", musicuResult).toString()
             )
 
-            searchResult.data?.song?.list?.map { song ->
+            searchResult.data?.song?.list?.mapNotNull { song ->
+                val songMid = song.mid.orEmpty().ifBlank { song.legacySongMid.orEmpty() }
+                val songName = song.name.orEmpty().ifBlank { song.legacySongName.orEmpty() }
+                if (songMid.isBlank() || songName.isBlank()) return@mapNotNull null
+                val albumMid = song.album?.mid.orEmpty().ifBlank { song.legacyAlbumMid.orEmpty() }
+                val albumName = song.album?.name.orEmpty().ifBlank { song.legacyAlbumName.orEmpty() }
                 SongSearchInfo(
-                    id = song.songMid,
-                    songName = song.songName,
+                    id = songMid,
+                    songName = songName,
                     singer = song.singer.joinToString("/") { it.name },
                     duration = formatDuration(song.interval),
                     source = MusicPlatform.QQ_MUSIC,
-                    albumName = song.albumName,
-                    coverUrl = song.albumMid?.let { "https://y.qq.com/music/photo_new/T002R800x800M000$it.jpg" }
+                    albumName = albumName,
+                    coverUrl = albumMid.takeIf { it.isNotBlank() }
+                        ?.let { "https://y.qq.com/music/photo_new/T002R800x800M000$it.jpg" }
                 )
             } ?: emptyList()
         }

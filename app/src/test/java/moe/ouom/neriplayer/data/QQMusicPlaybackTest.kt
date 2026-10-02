@@ -49,6 +49,23 @@ class QQMusicPlaybackTest {
         assertEquals(9L, result.single().dissId)
     }
 
+    @Test
+    fun userPlaylistsParser_readsCurrentCreatedAndCollectedFields() {
+        val created = parseQQMusicUserPlaylists(
+            """{"data":{"disslist":[{"dissid":123,"diss_name":"通勤","song_cnt":12,"diss_cover":"https://img/created.jpg"}]}}"""
+        )
+        val collected = parseQQMusicUserPlaylists(
+            """{"data":{"cdlist":[{"dissid":456,"diss_name":"收藏歌单","total_song_num":8,"picurl":"https://img/collected.jpg"}]}}"""
+        )
+
+        assertEquals("通勤", created.single().name)
+        assertEquals(12, created.single().songCount)
+        assertEquals("https://img/created.jpg", created.single().coverUrl)
+        assertEquals("收藏歌单", collected.single().name)
+        assertEquals(8, collected.single().songCount)
+        assertEquals("https://img/collected.jpg", collected.single().coverUrl)
+    }
+
     // ---------- QQMusicQuality ----------
 
     @Test

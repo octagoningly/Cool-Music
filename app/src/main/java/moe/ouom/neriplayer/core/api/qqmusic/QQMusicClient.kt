@@ -50,6 +50,7 @@ internal fun parseQQMusicUserPlaylists(body: String): List<QQMusicPlaylistSummar
     val root = runCatching { JSONObject(body) }.getOrNull() ?: return emptyList()
     val data = root.optJSONObject("data") ?: root.optJSONObject("playlist") ?: root
     val list = data.optJSONArray("disslist")
+        ?: data.optJSONArray("cdlist")
         ?: data.optJSONArray("list")
         ?: data.optJSONArray("playlists")
         ?: return emptyList()
@@ -61,6 +62,7 @@ internal fun parseQQMusicUserPlaylists(body: String): List<QQMusicPlaylistSummar
                 ?: item.optLong("tid", 0L).takeIf { it > 0L }
                 ?: continue
             val name = item.optString("dissname")
+                .ifBlank { item.optString("diss_name") }
                 .ifBlank { item.optString("name") }
                 .ifBlank { item.optString("title") }
                 .trim()
@@ -68,10 +70,15 @@ internal fun parseQQMusicUserPlaylists(body: String): List<QQMusicPlaylistSummar
                 ?: continue
             val cover = item.optString("cover_url")
                 .ifBlank { item.optString("coverUrl") }
+                .ifBlank { item.optString("diss_cover") }
                 .ifBlank { item.optString("logo") }
+                .ifBlank { item.optString("picurl") }
+                .ifBlank { item.optString("cover") }
                 .takeIf { it.isNotBlank() }
             val count = item.optInt("songnum", 0).takeIf { it > 0 }
                 ?: item.optInt("song_cnt", 0).takeIf { it > 0 }
+                ?: item.optInt("total_song_num", 0).takeIf { it > 0 }
+                ?: item.optInt("song_count", 0).takeIf { it > 0 }
                 ?: 0
             add(QQMusicPlaylistSummary(id, name, cover, count))
         }
@@ -344,8 +351,45 @@ class QQMusicClient(
             NPLogger.w(LOG_TAG, "getUserCreatedPlaylists failed", error)
             emptyList()
         }
+        val collected = getCollectedPlaylists(auth)
         val profilePlaylists = getProfilePlaylists(auth)
-        (created + profilePlaylists).distinctBy { it.dissId }
+        val result = (created + collected + profilePlaylists).distinctBy { it.dissId }
+        NPLogger.d(
+            LOG_TAG,
+            "getUserPlaylists loaded created=${created.size} collected=${collected.size} " +
+                "profile=${profilePlaylists.size} total=${result.size}"
+        )
+        result
+    }
+
+    private fun getCollectedPlaylists(auth: QQMusicAuthBundle): List<QQMusicPlaylistSummary> {
+        val uin = auth.uin().orEmpty()
+        val url = "https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg".toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("ct", "20")
+            .addQueryParameter("cid", "205360956")
+            .addQueryParameter("userid", uin)
+            .addQueryParameter("reqtype", "3")
+            .addQueryParameter("sin", "0")
+            .addQueryParameter("ein", "200")
+            .addQueryParameter("g_tk", auth.gtk().toString())
+            .addQueryParameter("format", "json")
+            .build()
+        return runCatching {
+            val request = Request.Builder()
+                .url(url)
+                .header("Referer", "https://y.qq.com/portal/profile.html")
+                .header("User-Agent", PLAY_URL_UA)
+                .header("Cookie", buildQQMusicCookieHeader(auth))
+                .build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use emptyList()
+                parseQQMusicUserPlaylists(response.body.string())
+            }
+        }.getOrElse { error ->
+            NPLogger.w(LOG_TAG, "getCollectedPlaylists failed", error)
+            emptyList()
+        }
     }
 
     private fun getProfilePlaylists(auth: QQMusicAuthBundle): List<QQMusicPlaylistSummary> {
@@ -358,6 +402,7 @@ class QQMusicClient(
             .addQueryParameter("platform", "yqq.json")
             .addQueryParameter("g_tk", auth.gtk().toString())
             .addQueryParameter("uin", uin)
+            .addQueryParameter("userid", uin)
             .build()
         return runCatching {
             val request = Request.Builder()
@@ -379,17 +424,37 @@ private fun parseQQMusicProfilePlaylists(body: String): List<QQMusicPlaylistSumm
     val data = root.optJSONObject("data") ?: root
     val arrays = listOf(
         data.optJSONArray("mydiss"),
+        data.optJSONObject("mydiss")?.optJSONArray("list"),
         data.optJSONObject("creator")?.optJSONArray("mydiss"),
-        data.optJSONObject("profile")?.optJSONArray("mydiss")
+        data.optJSONObject("profile")?.optJSONArray("mydiss"),
+        data.optJSONObject("profile")?.optJSONObject("mydiss")?.optJSONArray("list")
     )
     return buildList {
+        data.optJSONObject("mymusic")?.let { liked ->
+            val id = liked.optLong("id", liked.optLong("dissid", 0L))
+            val name = liked.optString("title").ifBlank { liked.optString("dissname") }
+            if (id > 0L && name.isNotBlank()) {
+                add(QQMusicPlaylistSummary(id, name, liked.optString("picurl").ifBlank { null }, liked.optInt("num", 0)))
+            }
+        }
         arrays.filterNotNull().forEach { list ->
             for (index in 0 until list.length()) {
                 val item = list.optJSONObject(index) ?: continue
                 val id = item.optLong("dissid", item.optLong("id", 0L))
-                val name = item.optString("dissname").ifBlank { item.optString("name") }
+                val name = item.optString("dissname")
+                    .ifBlank { item.optString("diss_name") }
+                    .ifBlank { item.optString("name") }
+                    .ifBlank { item.optString("title") }
                 if (id > 0L && name.isNotBlank()) {
-                    add(QQMusicPlaylistSummary(id, name, item.optString("logo").ifBlank { null }, item.optInt("songnum", 0)))
+                    val cover = item.optString("logo")
+                        .ifBlank { item.optString("diss_cover") }
+                        .ifBlank { item.optString("picurl") }
+                        .ifBlank { item.optString("cover") }
+                        .ifBlank { null }
+                    val songCount = item.optInt("songnum", 0).takeIf { it > 0 }
+                        ?: item.optInt("song_cnt", 0).takeIf { it > 0 }
+                        ?: item.optInt("total_song_num", 0)
+                    add(QQMusicPlaylistSummary(id, name, cover, songCount))
                 }
             }
         }

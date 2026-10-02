@@ -24,9 +24,11 @@ import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.netease.NeteaseClient
 import moe.ouom.neriplayer.core.api.search.CloudMusicSearchApi
+import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicCookieHeader
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
+import moe.ouom.neriplayer.data.auth.qqmusic.QQMusicCookieRepository
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.util.network.awaitResponse
@@ -219,6 +221,7 @@ class ExternalPlaylistImportService(
     private val localRepo: LocalPlaylistRepository = LocalPlaylistRepository.getInstance(context),
     private val neteaseClient: NeteaseClient = AppContainer.neteaseClient,
     private val cloudMusicSearchApi: CloudMusicSearchApi = AppContainer.cloudMusicSearchApi,
+    private val qqMusicCookieRepo: QQMusicCookieRepository = AppContainer.qqMusicCookieRepo,
     private val httpClient: OkHttpClient = AppContainer.sharedOkHttpClient
 ) {
 
@@ -396,6 +399,7 @@ class ExternalPlaylistImportService(
     }
 
     private suspend fun importQqMusic(disstid: Long): ExternalPlaylistImportResult {
+        val qqAuth = qqMusicCookieRepo.getAuthBundleOnce()
         val requestData = JSONObject()
             .put(
                 "playlist",
@@ -413,7 +417,7 @@ class ExternalPlaylistImportService(
             )
             .toString()
         val url = "https://u.y.qq.com/cgi-bin/musicu.fcg?data=${java.net.URLEncoder.encode(requestData, "UTF-8")}"
-        val body = httpGet(url)
+        val body = httpGet(url, qqMusicCookie = qqAuth.takeIf { it.hasLoginCookies() })
         val root = JSONObject(body)
         val data = root.optJSONObject("playlist")?.optJSONObject("data")
             ?: root.optJSONObject("data")
@@ -430,6 +434,7 @@ class ExternalPlaylistImportService(
                 context.getString(R.string.error_missing_node, "songlist")
             )
         val tracks = ArrayList<ExternalRawTrack>(songlist.length())
+        val nativeSongs = ArrayList<SongItem>(songlist.length())
         for (i in 0 until songlist.length()) {
             val song = songlist.optJSONObject(i) ?: continue
             val name = song.optString("songname")
@@ -468,8 +473,28 @@ class ExternalPlaylistImportService(
                     }
                 )
             )
+            nativeSongs.add(
+                SongItem(
+                    id = songId.takeIf { it > 0L } ?: syntheticId(
+                        ExternalRawTrack("qq", songMid.ifBlank { "$disstid-$i" }, name, artist, albumObj?.optString("name").orEmpty(), interval * 1000L, null)
+                    ),
+                    name = name,
+                    artist = artist,
+                    album = albumObj?.optString("name").orEmpty(),
+                    albumId = 0L,
+                    durationMs = interval * 1000L,
+                    coverUrl = if (albumMid.isNotBlank()) "https://y.qq.com/music/photo_new/T002R800x800M000$albumMid.jpg" else null,
+                    originalCoverUrl = if (albumMid.isNotBlank()) "https://y.qq.com/music/photo_new/T002R800x800M000$albumMid.jpg" else null,
+                    channelId = "qqmusic",
+                    audioId = songMid
+                )
+            )
         }
-        return commitImportedPlaylist(playlistName, tracks)
+        if (nativeSongs.isEmpty()) {
+            return ExternalPlaylistImportResult.Failure(context.getString(R.string.external_playlist_import_empty))
+        }
+        val playlist = localRepo.createPlaylistWithSongs(playlistName, nativeSongs)
+        return ExternalPlaylistImportResult.Success(playlist.name, playlist.songs.size, 0)
     }
 
     private suspend fun importKugou(specialId: Long): ExternalPlaylistImportResult {
@@ -584,12 +609,16 @@ class ExternalPlaylistImportService(
         return commitImportedPlaylist(playlistName, tracks)
     }
 
-    private suspend fun httpGet(url: String): String {
+    private suspend fun httpGet(
+        url: String,
+        qqMusicCookie: moe.ouom.neriplayer.data.auth.qqmusic.QQMusicAuthBundle? = null
+    ): String {
         val request = Request.Builder()
             .url(url)
             .get()
             .header("User-Agent", EXTERNAL_IMPORT_USER_AGENT)
             .header("Referer", "https://y.qq.com/")
+            .apply { qqMusicCookie?.let { header("Cookie", buildQQMusicCookieHeader(it)) } }
             .build()
         return httpClient.newCall(request).awaitResponse { response ->
             if (!response.isSuccessful) throw IOException("HTTP ${response.code}")

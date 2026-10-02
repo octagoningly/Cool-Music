@@ -93,6 +93,7 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     private var youtubeMusicPlaylistsPending = false
     private var youtubeEnabled = YouTubeFeatureGate.isEnabled()
     private var lastObservedYouTubeEnabled: Boolean? = null
+    private val autoImportedQQMusicDissIds = mutableSetOf<Long>()
 
     init {
         // 本地歌单
@@ -393,11 +394,29 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                     qqMusicPlaylists = playlists,
                     qqMusicError = null
                 )
+                autoImportQQMusicPlaylists(playlists)
             } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     qqMusicPlaylists = emptyList(),
                     qqMusicError = error.message
                 )
+            }
+        }
+    }
+
+    /** 登录后的云端歌单落地为 QQ 音乐来源的本地歌单，播放仍走原生 QQ 在线取流。 */
+    private suspend fun autoImportQQMusicPlaylists(playlists: List<QQMusicPlaylistSummary>) {
+        val existingNames = localRepo.playlists.value
+            .filter { playlist -> playlist.songs.any { it.channelId.equals("qqmusic", true) } }
+            .map { it.name.trim() }
+            .toSet()
+        playlists.forEach { playlist ->
+            if (playlist.dissId in autoImportedQQMusicDissIds || playlist.name.trim() in existingNames) {
+                return@forEach
+            }
+            val result = importExternalPlaylist("https://y.qq.com/n/ryqq/playlist/${playlist.dissId}")
+            if (result is moe.ouom.neriplayer.data.local.playlist.importer.ExternalPlaylistImportResult.Success) {
+                autoImportedQQMusicDissIds += playlist.dissId
             }
         }
     }

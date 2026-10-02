@@ -42,8 +42,10 @@ import moe.ouom.neriplayer.core.player.metadata.AmllLyricsResolver
 import moe.ouom.neriplayer.data.auth.qqmusic.QQMusicCookieRepository
 import moe.ouom.neriplayer.util.network.awaitResponse
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.util.Base64
@@ -192,25 +194,23 @@ class QQMusicSearchApi(
     override suspend fun search(keyword: String, page: Int): List<SongSearchInfo> {
         return withContext(Dispatchers.IO) {
             val auth = qqMusicCookieRepo.getAuthBundleOnce()
-            val url = "https://c.y.qq.com/soso/fcgi-bin/client_search_cp".toHttpUrl().newBuilder()
-                .addQueryParameter("format", "json")
-                .addQueryParameter("n", "20")
-                .addQueryParameter("p", page.toString())
-                .addQueryParameter("w", keyword)
-                .addQueryParameter("cr", "1")
-                .addQueryParameter("ct", "24")
-                .addQueryParameter("t", "0")
-                .addQueryParameter("aggr", "1")
-                .addQueryParameter("lossless", "0")
-                .addQueryParameter("catZhida", "1")
-                .addQueryParameter("remoteplace", "txt.yqq.song")
-                .addQueryParameter("g_tk", (auth.gtk() ?: 5381).toString())
-                .addQueryParameter("loginUin", auth.uin().orEmpty())
-                .addQueryParameter("hostUin", "0")
-                .build()
-
+            val requestBody = JSONObject().apply {
+                put(
+                    "music.search.SearchCgiService",
+                    JSONObject().apply {
+                        put("module", "music.search.SearchCgiService")
+                        put("method", "DoSearchForQQMusicDesktop")
+                        put("param", JSONObject().apply {
+                            put("search_type", 0)
+                            put("query", keyword)
+                            put("page_num", page.coerceAtLeast(1))
+                            put("num_per_page", 20)
+                        })
+                    }
+                )
+            }.toString()
             val request = Request.Builder()
-                .url(url)
+                .url("https://u.y.qq.com/cgi-bin/musicu.fcg")
                 .header("Referer", "https://y.qq.com/")
                 .header(
                     "User-Agent",
@@ -219,9 +219,17 @@ class QQMusicSearchApi(
                 .apply {
                     if (auth.hasLoginCookies()) header("Cookie", buildQQMusicCookieHeader(auth))
                 }
+                .post(requestBody.toRequestBody("application/json; charset=utf-8".toMediaType()))
                 .build()
             val responseJson = executeRequest(request) as String
-            val searchResult = json.decodeFromString<QQMusicSearchResponse>(responseJson)
+            val musicuData = JSONObject(responseJson)
+                .optJSONObject("music.search.SearchCgiService")
+                ?.optJSONObject("data")
+                ?: JSONObject()
+            val musicuResult = musicuData.optJSONObject("body") ?: musicuData
+            val searchResult = json.decodeFromString<QQMusicSearchResponse>(
+                JSONObject().put("data", musicuResult).toString()
+            )
 
             searchResult.data?.song?.list?.map { song ->
                 SongSearchInfo(

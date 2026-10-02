@@ -335,14 +335,63 @@ class QQMusicClient(
             .header("User-Agent", PLAY_URL_UA)
             .header("Cookie", cookie)
             .build()
-        runCatching {
+        val created = runCatching {
             httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext emptyList()
+                if (!response.isSuccessful) return@use emptyList()
                 parseQQMusicUserPlaylists(response.body?.string().orEmpty())
             }
         }.getOrElse { error ->
             NPLogger.w(LOG_TAG, "getUserCreatedPlaylists failed", error)
             emptyList()
         }
+        val profilePlaylists = getProfilePlaylists(auth)
+        (created + profilePlaylists).distinctBy { it.dissId }
     }
+
+    private fun getProfilePlaylists(auth: QQMusicAuthBundle): List<QQMusicPlaylistSummary> {
+        val uin = auth.uin().orEmpty()
+        val url = "https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg".toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("cid", "205360838")
+            .addQueryParameter("reqfrom", "1")
+            .addQueryParameter("format", "json")
+            .addQueryParameter("platform", "yqq.json")
+            .addQueryParameter("g_tk", auth.gtk().toString())
+            .addQueryParameter("uin", uin)
+            .build()
+        return runCatching {
+            val request = Request.Builder()
+                .url(url)
+                .header("Referer", "https://y.qq.com/")
+                .header("User-Agent", PLAY_URL_UA)
+                .header("Cookie", buildQQMusicCookieHeader(auth))
+                .build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return emptyList()
+                parseQQMusicProfilePlaylists(response.body?.string().orEmpty())
+            }
+        }.getOrDefault(emptyList())
+    }
+}
+
+private fun parseQQMusicProfilePlaylists(body: String): List<QQMusicPlaylistSummary> {
+    val root = runCatching { JSONObject(body) }.getOrNull() ?: return emptyList()
+    val data = root.optJSONObject("data") ?: root
+    val arrays = listOf(
+        data.optJSONArray("mydiss"),
+        data.optJSONObject("creator")?.optJSONArray("mydiss"),
+        data.optJSONObject("profile")?.optJSONArray("mydiss")
+    )
+    return buildList {
+        arrays.filterNotNull().forEach { list ->
+            for (index in 0 until list.length()) {
+                val item = list.optJSONObject(index) ?: continue
+                val id = item.optLong("dissid", item.optLong("id", 0L))
+                val name = item.optString("dissname").ifBlank { item.optString("name") }
+                if (id > 0L && name.isNotBlank()) {
+                    add(QQMusicPlaylistSummary(id, name, item.optString("logo").ifBlank { null }, item.optInt("songnum", 0)))
+                }
+            }
+        }
+    }.distinctBy { it.dissId }
 }

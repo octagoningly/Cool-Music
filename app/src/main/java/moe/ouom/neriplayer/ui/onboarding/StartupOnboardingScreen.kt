@@ -99,6 +99,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.activity.auth.QQWebLoginActivity
+import moe.ouom.neriplayer.activity.auth.QQMusicQrLoginActivity
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthState
@@ -851,7 +852,7 @@ fun StartupOnboardingScreen(
                     },
                     onOpenQQMusic = {
                         qqMusicLoginLauncher.launch(
-                            Intent(context, QQWebLoginActivity::class.java)
+                            Intent(context, QQMusicQrLoginActivity::class.java)
                         )
                     }
                 )

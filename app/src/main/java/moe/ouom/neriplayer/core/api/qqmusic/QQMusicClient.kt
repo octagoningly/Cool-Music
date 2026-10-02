@@ -207,7 +207,17 @@ internal fun parsePlayUrlResponse(
     }.filter { it.isNotBlank() }
     if (sipList.isEmpty()) return QQMusicPlayUrlParseResult.Malformed
 
-    val domain = sipList.firstOrNull { !it.startsWith("http://ws") } ?: sipList.first()
+    // tc.qq.com 是旧 CDN，在部分网络已持续返回 404。优先服务端提供的
+    // stream.qqmusic.qq.com HTTPS 节点，并把同一 vkey 的其余节点保留为即时备用。
+    val normalizedSips = sipList.map(::normalizeQQMusicSip).distinct()
+    val streamCdnSips = normalizedSips.filter(::isQQMusicStreamCdn)
+    val usableSips = streamCdnSips.ifEmpty {
+        normalizedSips.filterNot(::isLegacyQQMusicCdn).ifEmpty { normalizedSips }
+    }
+    val streamUrls = usableSips.map { domain ->
+        domain.trimEnd('/') + "/" + purl.trimStart('/')
+    }.distinct()
+    val fullUrl = streamUrls.firstOrNull() ?: return QQMusicPlayUrlParseResult.Malformed
     val vkey = runCatching {
         val query = purl.substringAfter('?', "")
         query.split('&')
@@ -222,13 +232,13 @@ internal fun parsePlayUrlResponse(
             ?.removePrefix("fromtag=")
     }.getOrNull()
 
-    val fullUrl = domain.trimEnd('/') + "/" + purl.trimStart('/')
     return QQMusicPlayUrlParseResult.Success(
         QQMusicStreamInfo(
             songmid = songmid,
             qualityKey = quality.key,
             filename = quality.fileNameFor(songmid),
             url = fullUrl,
+            candidateUrls = streamUrls.drop(1),
             mimeType = quality.mimeType(),
             vkey = vkey,
             guid = guid,
@@ -236,6 +246,22 @@ internal fun parsePlayUrlResponse(
         )
     )
 }
+
+private fun normalizeQQMusicSip(sip: String): String {
+    val normalized = sip.trim()
+    return if (isQQMusicStreamCdn(normalized) && normalized.startsWith("http://", ignoreCase = true)) {
+        normalized.replaceFirst("http://", "https://")
+    } else {
+        normalized
+    }
+}
+
+private fun isQQMusicStreamCdn(sip: String): Boolean =
+    sip.contains("://", ignoreCase = true) &&
+        sip.substringAfter("://").substringBefore('/').lowercase().endsWith(".stream.qqmusic.qq.com")
+
+private fun isLegacyQQMusicCdn(sip: String): Boolean =
+    sip.substringAfter("://").substringBefore('/').lowercase().endsWith(".tc.qq.com")
 
 /**
  * QQ 音乐取流客户端。

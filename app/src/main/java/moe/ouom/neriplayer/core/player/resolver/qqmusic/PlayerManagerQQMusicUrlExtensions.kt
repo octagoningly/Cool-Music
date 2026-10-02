@@ -71,6 +71,7 @@ internal suspend fun PlayerManager.getQQMusicAudioUrl(
                 NPLogger.d(LOG_TAG, "resolved song=$songmid q=${stream.qualityKey} url=${stream.url.take(80)}")
                 SongUrlResult.Success(
                     url = stream.url,
+                    candidateUrls = stream.candidateUrls,
                     mimeType = stream.mimeType,
                     expectedContentLength = null,
                     audioInfo = buildQQMusicPlaybackAudioInfo(

@@ -80,13 +80,15 @@ enum class QQMusicQuality(
 
 /**
  * 取流结果中的单条音频流描述。
- * [url] 为已拼好的完整直链（sip 域名 + purl）。
+ * [url] 为优先使用的完整直链（sip 域名 + purl）；[candidateUrls] 是同一
+ * vkey 响应给出的备用 CDN，在首个 CDN 不可用时供播放器立即切换。
  */
 data class QQMusicStreamInfo(
     val songmid: String,
     val qualityKey: String,
     val filename: String,
     val url: String,
+    val candidateUrls: List<String> = emptyList(),
     val mimeType: String,
     val vkey: String = "",
     val guid: String = "",

@@ -162,11 +162,12 @@ class QQMusicPlaybackTest {
         )
         assertTrue(parsed is QQMusicPlayUrlParseResult.Success)
         val stream = (parsed as QQMusicPlayUrlParseResult.Success).stream
-        // 域名选择：第一个非 ws 的 sip（与开源实现一致）= aqqmusic.tc.qq.com
+        // 优先 HTTPS stream CDN，避免旧 tc.qq.com CDN 在部分网络持续 404。
         assertEquals(
-            "http://aqqmusic.tc.qq.com/M50000TEST.mp3?guid=1&vkey=ABCDEF123&uin=&fromtag=120032&src=x.m4a",
+            "https://sjy6.stream.qqmusic.qq.com/M50000TEST.mp3?guid=1&vkey=ABCDEF123&uin=&fromtag=120032&src=x.m4a",
             stream.url
         )
+        assertTrue(stream.candidateUrls.isEmpty())
         assertEquals("ABCDEF123", stream.vkey)
         assertEquals("120032", stream.fromTag)
         assertEquals("128k", stream.qualityKey)
@@ -214,11 +215,32 @@ class QQMusicPlaybackTest {
         """.trimIndent()
         val parsed = parsePlayUrlResponse(body, "00TEST", QQMusicQuality.MEDIUM, "1")
         assertTrue(parsed is QQMusicPlayUrlParseResult.Success)
-        // ws 域名被跳过，选 bar.qq.com
+        // 非 QQ 标准 stream 域名时仍保留上游顺序。
         assertEquals(
-            "http://bar.qq.com/M50000TEST.mp3?guid=1&vkey=K1&fromtag=9",
+            "http://ws.foo/M50000TEST.mp3?guid=1&vkey=K1&fromtag=9",
             (parsed as QQMusicPlayUrlParseResult.Success).stream.url
         )
+    }
+
+    @Test
+    fun parseResponse_keepsAllCurrentStreamCdnsAsFallbacks() {
+        val purl = "M50000TEST.mp3?guid=1&vkey=K1&fromtag=9"
+        val parsed = parsePlayUrlResponse(
+            successBody(
+                purl,
+                sip = listOf(
+                    "http://aqqmusic.tc.qq.com/",
+                    "http://ws.stream.qqmusic.qq.com/",
+                    "https://dl.stream.qqmusic.qq.com/"
+                )
+            ),
+            "00TEST",
+            QQMusicQuality.MEDIUM,
+            "1"
+        ) as QQMusicPlayUrlParseResult.Success
+
+        assertEquals("https://ws.stream.qqmusic.qq.com/$purl", parsed.stream.url)
+        assertEquals(listOf("https://dl.stream.qqmusic.qq.com/$purl"), parsed.stream.candidateUrls)
     }
 
     // ---------- QQMusicPlaybackRepository degradation ----------

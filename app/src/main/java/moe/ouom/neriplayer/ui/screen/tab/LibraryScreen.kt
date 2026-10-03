@@ -193,6 +193,7 @@ import moe.ouom.neriplayer.data.local.playlist.system.SystemLocalPlaylists
 import moe.ouom.neriplayer.data.model.displayArtist
 import moe.ouom.neriplayer.data.model.displayName
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
+import moe.ouom.neriplayer.ui.LocalHasCustomBackground
 import moe.ouom.neriplayer.ui.feedback.AppFeedback
 import moe.ouom.neriplayer.ui.component.playlist.showPlaylistDeleteResultGlobally
 import moe.ouom.neriplayer.ui.util.shouldAllowCollapsingTopAppBar
@@ -1077,7 +1078,12 @@ private fun LibraryMainTabs(
                 .fillMaxWidth()
                 .clip(LibraryPrimaryTabShape),
             shape = LibraryPrimaryTabShape,
-            fallbackColor = MaterialTheme.colorScheme.background
+            // 与大标题栏一致：旧系统无玻璃后端时，也不能用主题实底把壁纸截断。
+            fallbackColor = if (LocalHasCustomBackground.current) {
+                Color.Transparent
+            } else {
+                MaterialTheme.colorScheme.background
+            }
         ) {
             PrimaryScrollableTabRow(
                 selectedTabIndex = selectedTabIndex,

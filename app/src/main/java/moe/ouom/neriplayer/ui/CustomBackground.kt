@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
@@ -55,6 +56,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 
+/**
+ * True while the app root is drawing a user-selected wallpaper.
+ *
+ * Legacy Android devices cannot use the advanced glass backend.  Chrome on
+ * those devices must therefore avoid falling back to the theme's opaque
+ * background, otherwise a newly selected wallpaper stops abruptly below the
+ * status/top bar.
+ */
+val LocalHasCustomBackground = staticCompositionLocalOf { false }
 
 @Composable
 fun CustomBackground(

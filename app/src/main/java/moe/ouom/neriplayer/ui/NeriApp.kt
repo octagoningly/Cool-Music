@@ -3418,7 +3418,10 @@ private fun NeriAppContent(
             ) {
                 // 主页面玻璃宿主保持常驻。播放页使用独立宿主，因此这里不再停注册；
                 // 退出播放页时 MiniPlayer、Dock 与顶栏可以直接继续使用原采样缓存。
-                CompositionLocalProvider(LocalMainTabChromeSlot provides mainTabChromeSlot) {
+                CompositionLocalProvider(
+                    LocalMainTabChromeSlot provides mainTabChromeSlot,
+                    LocalHasCustomBackground provides (backgroundImageUri != null)
+                ) {
                 // MiniPlayer ↔ NowPlaying 封面共享元素（连贯反馈开启时）
                 SharedTransitionLayout {
                 val nowPlayingExpandSharedScope = this

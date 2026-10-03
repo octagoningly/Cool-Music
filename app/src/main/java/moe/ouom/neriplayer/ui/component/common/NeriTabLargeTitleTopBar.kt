@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassRole
 import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
+import moe.ouom.neriplayer.ui.LocalHasCustomBackground
 
 /**
  * 首页 Tab 通用紧凑大标题顶栏。
@@ -40,7 +41,13 @@ fun NeriTabLargeTitleTopBar(
         AdvancedGlassSurface(
             role = AdvancedGlassRole.ScreenTopTab,
             shape = RectangleShape,
-            fallbackColor = MaterialTheme.colorScheme.background,
+            // Android 12 及以下没有高级玻璃后端。自定义壁纸开启时让壁纸继续
+            // 穿过顶栏；否则会退回旧主题色，产生内容已换背景而顶栏没换的断层。
+            fallbackColor = if (LocalHasCustomBackground.current) {
+                Color.Transparent
+            } else {
+                MaterialTheme.colorScheme.background
+            },
             tintColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             modifier = Modifier.matchParentSize()
         ) {

@@ -43,7 +43,8 @@ import java.util.Locale
 import kotlin.math.abs
 
 private const val TAG = "ExternalPlaylistImport"
-private const val MAX_IMPORT_SONGS = 500
+internal const val MAX_IMPORT_SONGS = 500
+private const val QQ_MUSIC_PLAYLIST_PAGE_SIZE = 30
 private const val MATCH_BATCH = 5
 private const val HTTP_TIMEOUT_SECONDS = 20L
 private const val MIN_MATCH_SCORE = 0.72
@@ -215,6 +216,72 @@ internal data class ExternalRawTrack(
     val durationMs: Long,
     val coverUrl: String?
 )
+
+internal data class QQMusicPlaylistPage(
+    val name: String?,
+    val songs: List<JSONObject>,
+    val totalSongCount: Int,
+    val hasMore: Boolean?
+)
+
+internal fun buildQQMusicPlaylistRequestData(
+    disstid: Long,
+    songBegin: Int,
+    songNum: Int = QQ_MUSIC_PLAYLIST_PAGE_SIZE
+): String = JSONObject()
+    .put(
+        "playlist",
+        JSONObject()
+            .put("module", "music.srfDissInfo.aiDissInfo")
+            .put("method", "uniform_get_Dissinfo")
+            .put(
+                "param",
+                JSONObject()
+                    .put("disstid", disstid)
+                    .put("song_begin", songBegin.coerceAtLeast(0))
+                    .put("song_num", songNum.coerceAtLeast(1))
+                    .put("songlist", 1)
+                    .put("tag", 1)
+                    .put("userinfo", 1)
+            )
+    )
+    .toString()
+
+internal fun parseQQMusicPlaylistPage(body: String): QQMusicPlaylistPage? {
+    val root = runCatching { JSONObject(body) }.getOrNull() ?: return null
+    val envelope = root.optJSONObject("playlist")
+        ?: root.optJSONObject("req_0")
+        ?: root.optJSONObject("music.srfDissInfo.aiDissInfo")
+    val data = envelope?.optJSONObject("data")
+        ?: root.optJSONObject("data")
+        ?: return null
+    val songArray = data.optJSONArray("songlist") ?: return null
+    val songs = buildList(songArray.length()) {
+        for (index in 0 until songArray.length()) {
+            songArray.optJSONObject(index)?.let(::add)
+        }
+    }
+    val dirInfo = data.optJSONObject("dirinfo")
+    val name = dirInfo?.optString("title")
+        ?.ifBlank { null }
+        ?: data.optString("dissname").ifBlank { null }
+    val total = data.optInt("total_song_num", 0).takeIf { it > 0 }
+        ?: dirInfo?.optInt("songnum", 0)?.takeIf { it > 0 }
+        ?: data.optInt("songnum", 0).takeIf { it > 0 }
+        ?: 0
+    val hasMore = when (val raw = data.opt("hasmore")) {
+        is Boolean -> raw
+        is Number -> raw.toInt() != 0
+        is String -> when (raw.trim().lowercase(Locale.US)) {
+            "1", "true" -> true
+            "0", "false" -> false
+            else -> null
+        }
+        null -> null
+        else -> null
+    }
+    return QQMusicPlaylistPage(name, songs, total, hasMore)
+}
 
 class ExternalPlaylistImportService(
     private val context: Context,
@@ -400,43 +467,47 @@ class ExternalPlaylistImportService(
 
     private suspend fun importQqMusic(disstid: Long): ExternalPlaylistImportResult {
         val qqAuth = qqMusicCookieRepo.getAuthBundleOnce()
-        val requestData = JSONObject()
-            .put(
-                "playlist",
-                JSONObject()
-                    .put("module", "music.srfDissInfo.aiDissInfo")
-                    .put("method", "uniform_get_Dissinfo")
-                    .put(
-                        "param",
-                        JSONObject()
-                            .put("disstid", disstid)
-                            .put("songlist", 1)
-                            .put("tag", 1)
-                            .put("userinfo", 1)
-                    )
+        val pages = ArrayList<JSONObject>()
+        val seenKeys = HashSet<String>()
+        var playlistName: String? = null
+        var songBegin = 0
+        while (pages.size < MAX_IMPORT_SONGS) {
+            val requestData = buildQQMusicPlaylistRequestData(disstid, songBegin)
+            val url = "https://u.y.qq.com/cgi-bin/musicu.fcg?data=${java.net.URLEncoder.encode(requestData, "UTF-8")}"
+            val body = httpGet(url, qqMusicCookie = qqAuth.takeIf { it.hasLoginCookies() })
+            val page = parseQQMusicPlaylistPage(body)
+                ?: return ExternalPlaylistImportResult.Failure(
+                    context.getString(R.string.error_missing_node, "playlist")
+                )
+            NPLogger.d(
+                TAG,
+                "QQ playlist page begin=$songBegin fetched=${page.songs.size} " +
+                    "total=${page.totalSongCount} hasMore=${page.hasMore}"
             )
-            .toString()
-        val url = "https://u.y.qq.com/cgi-bin/musicu.fcg?data=${java.net.URLEncoder.encode(requestData, "UTF-8")}"
-        val body = httpGet(url, qqMusicCookie = qqAuth.takeIf { it.hasLoginCookies() })
-        val root = JSONObject(body)
-        val data = root.optJSONObject("playlist")?.optJSONObject("data")
-            ?: root.optJSONObject("data")
-            ?: return ExternalPlaylistImportResult.Failure(
-                context.getString(R.string.error_missing_node, "playlist")
-            )
-        val playlistName = data.optJSONObject("dirinfo")?.optString("title")
-            ?.ifBlank { null }
-            ?: data.optString("dissname").ifBlank { null }
+            if (playlistName.isNullOrBlank()) playlistName = page.name
+            var added = 0
+            page.songs.forEachIndexed { index, song ->
+                val key = song.optString("songmid")
+                    .ifBlank { song.optString("mid") }
+                    .ifBlank { song.optLong("songid", 0L).takeIf { it > 0L }?.toString().orEmpty() }
+                    .ifBlank { "${songBegin + index}:${song.optString("songname")}:${song.optString("name")}" }
+                if (seenKeys.add(key)) {
+                    pages += song
+                    added++
+                }
+            }
+            val fetched = page.songs.size
+            songBegin += fetched
+            val reachedTotal = page.totalSongCount > 0 && songBegin >= page.totalSongCount
+            val pageEnded = page.hasMore == false ||
+                (page.hasMore != true && fetched < QQ_MUSIC_PLAYLIST_PAGE_SIZE)
+            if (fetched == 0 || added == 0 || reachedTotal || pageEnded) break
+        }
+
+        val resolvedPlaylistName = playlistName
             ?: context.getString(R.string.external_playlist_import_default_name_qq)
-        val songlist = data.optJSONArray("songlist")
-            ?: data.optJSONArray("songlist")
-            ?: return ExternalPlaylistImportResult.Failure(
-                context.getString(R.string.error_missing_node, "songlist")
-            )
-        val tracks = ArrayList<ExternalRawTrack>(songlist.length())
-        val nativeSongs = ArrayList<SongItem>(songlist.length())
-        for (i in 0 until songlist.length()) {
-            val song = songlist.optJSONObject(i) ?: continue
+        val nativeSongs = ArrayList<SongItem>(pages.size)
+        for ((i, song) in pages.take(MAX_IMPORT_SONGS).withIndex()) {
             val name = song.optString("songname")
                 .ifBlank { song.optString("name") }
                 .ifBlank { song.optString("title") }
@@ -458,21 +529,6 @@ class ExternalPlaylistImportService(
             val songId = song.optLong("songid", 0L)
             val songMid = song.optString("songmid").ifBlank { song.optString("mid") }
             val interval = song.optLong("interval", 0L)
-            tracks.add(
-                ExternalRawTrack(
-                    platform = "qq",
-                    platformId = if (songId > 0L) songId.toString() else songMid,
-                    name = name,
-                    artist = artist,
-                    album = albumObj?.optString("name").orEmpty(),
-                    durationMs = if (interval > 0L) interval * 1000L else 0L,
-                    coverUrl = if (albumMid.isNotBlank()) {
-                        "https://y.qq.com/music/photo_new/T002R800x800M000$albumMid.jpg"
-                    } else {
-                        null
-                    }
-                )
-            )
             nativeSongs.add(
                 SongItem(
                     id = songId.takeIf { it > 0L } ?: syntheticId(
@@ -493,7 +549,16 @@ class ExternalPlaylistImportService(
         if (nativeSongs.isEmpty()) {
             return ExternalPlaylistImportResult.Failure(context.getString(R.string.external_playlist_import_empty))
         }
-        val playlist = localRepo.createPlaylistWithSongs(playlistName, nativeSongs)
+        val existing = localRepo.playlists.value.firstOrNull { playlist ->
+            playlist.name.trim() == resolvedPlaylistName.trim() &&
+                playlist.songs.any { song -> song.channelId.equals("qqmusic", ignoreCase = true) }
+        }
+        val playlist = if (existing == null) {
+            localRepo.createPlaylistWithPreparedSongs(resolvedPlaylistName, nativeSongs)
+        } else {
+            localRepo.addPreparedSongsToPlaylist(existing.id, nativeSongs)
+            localRepo.playlists.value.firstOrNull { it.id == existing.id } ?: existing
+        }
         return ExternalPlaylistImportResult.Success(playlist.name, playlist.songs.size, 0)
     }
 

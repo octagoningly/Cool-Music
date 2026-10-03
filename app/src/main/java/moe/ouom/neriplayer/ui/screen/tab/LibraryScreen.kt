@@ -817,9 +817,18 @@ fun LibraryScreen(
                         onRetryCloud = { vm.refreshQQMusicPlaylists() },
                         onImportCloud = { playlist ->
                             scope.launch {
-                                vm.importExternalPlaylist(
+                                when (val result = vm.importExternalPlaylist(
                                     "https://y.qq.com/n/ryqq/playlist/${playlist.dissId}"
-                                )
+                                )) {
+                                    is ExternalPlaylistImportResult.Success -> AppFeedback.show(
+                                        context = context,
+                                        message = context.getString(R.string.library_import_playlist_success)
+                                    )
+                                    is ExternalPlaylistImportResult.Failure -> AppFeedback.show(
+                                        context = context,
+                                        message = result.message
+                                    )
+                                }
                             }
                         },
                         playlists = ui.localPlaylists.filter { playlist ->

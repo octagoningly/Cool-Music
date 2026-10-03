@@ -12,7 +12,7 @@ class QQMusicPlaylistPaginationTest {
     @Test
     fun requestIncludesOffsetAndPageSizeInsteadOfRelyingOnThirtySongDefault() {
         val root = JSONObject(buildQQMusicPlaylistRequestData(123456L, songBegin = 30))
-        val request = root.getJSONObject("playlist")
+        val request = root.getJSONObject("req_0")
         val param = request.getJSONObject("param")
 
         assertEquals("music.srfDissInfo.aiDissInfo", request.getString("module"))
@@ -20,6 +20,9 @@ class QQMusicPlaylistPaginationTest {
         assertEquals(123456L, param.getLong("disstid"))
         assertEquals(30, param.getInt("song_begin"))
         assertEquals(30, param.getInt("song_num"))
+        assertEquals(1, param.getInt("orderlist"))
+        assertEquals(0, param.getInt("userinfo"))
+        assertEquals(5381, root.getJSONObject("comm").getInt("g_tk"))
     }
 
     @Test

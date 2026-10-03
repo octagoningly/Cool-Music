@@ -227,10 +227,22 @@ internal data class QQMusicPlaylistPage(
 internal fun buildQQMusicPlaylistRequestData(
     disstid: Long,
     songBegin: Int,
-    songNum: Int = QQ_MUSIC_PLAYLIST_PAGE_SIZE
-): String = JSONObject()
+    songNum: Int = QQ_MUSIC_PLAYLIST_PAGE_SIZE,
+    gtk: Int = 5381,
+    uin: String = "0"
+): String = JSONObject().apply {
+    put(
+        "comm",
+        JSONObject()
+            .put("g_tk", gtk)
+            .put("uin", uin.ifBlank { "0" })
+            .put("format", "json")
+            .put("platform", "h5")
+            .put("ct", 24)
+            .put("cv", 0)
+    )
     .put(
-        "playlist",
+        "req_0",
         JSONObject()
             .put("module", "music.srfDissInfo.aiDissInfo")
             .put("method", "uniform_get_Dissinfo")
@@ -238,14 +250,15 @@ internal fun buildQQMusicPlaylistRequestData(
                 "param",
                 JSONObject()
                     .put("disstid", disstid)
+                    .put("enc_host_uin", "")
                     .put("song_begin", songBegin.coerceAtLeast(0))
                     .put("song_num", songNum.coerceAtLeast(1))
-                    .put("songlist", 1)
                     .put("tag", 1)
-                    .put("userinfo", 1)
+                    .put("userinfo", 0)
+                    .put("orderlist", 1)
             )
     )
-    .toString()
+}.toString()
 
 internal fun parseQQMusicPlaylistPage(body: String): QQMusicPlaylistPage? {
     val root = runCatching { JSONObject(body) }.getOrNull() ?: return null
@@ -472,7 +485,12 @@ class ExternalPlaylistImportService(
         var playlistName: String? = null
         var songBegin = 0
         while (pages.size < MAX_IMPORT_SONGS) {
-            val requestData = buildQQMusicPlaylistRequestData(disstid, songBegin)
+            val requestData = buildQQMusicPlaylistRequestData(
+                disstid = disstid,
+                songBegin = songBegin,
+                gtk = qqAuth.gtk() ?: 5381,
+                uin = qqAuth.uin().orEmpty()
+            )
             val url = "https://u.y.qq.com/cgi-bin/musicu.fcg?data=${java.net.URLEncoder.encode(requestData, "UTF-8")}"
             val body = httpGet(url, qqMusicCookie = qqAuth.takeIf { it.hasLoginCookies() })
             val page = parseQQMusicPlaylistPage(body)

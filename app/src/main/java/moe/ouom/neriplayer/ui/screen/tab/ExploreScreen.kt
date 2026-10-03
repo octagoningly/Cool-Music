@@ -208,6 +208,7 @@ import moe.ouom.neriplayer.data.model.stableKey
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.playlist.favorite.FavoritePlaylistRepository
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
+import moe.ouom.neriplayer.ui.resolveCustomBackgroundChromeFallbackColor
 import moe.ouom.neriplayer.ui.component.playlist.AddSongToPlaylistSheet
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 import moe.ouom.neriplayer.ui.component.overlay.GlassMenuShape
@@ -964,7 +965,9 @@ fun ExploreScreen(
                         AdvancedGlassSurface(
                             role = AdvancedGlassRole.ExploreSearchOverlay,
                             shape = ExploreSearchFieldShape,
-                            fallbackColor = MaterialTheme.colorScheme.background,
+                            fallbackColor = resolveCustomBackgroundChromeFallbackColor(
+                                MaterialTheme.colorScheme.background
+                            ),
                             tintColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.matchParentSize()
                         ) {

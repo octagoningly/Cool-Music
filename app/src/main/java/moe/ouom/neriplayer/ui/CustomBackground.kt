@@ -41,6 +41,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -65,6 +67,22 @@ import androidx.core.graphics.scale
  * status/top bar.
  */
 val LocalHasCustomBackground = staticCompositionLocalOf { false }
+
+/**
+ * 无高级玻璃后端时，给自定义壁纸上的 chrome 提供足够不透明的中性遮罩。
+ *
+ * 不能完全透明：滚动列表会从标题和按钮后面穿过；也不能继续使用主题实底，
+ * 否则切换壁纸后会再次出现旧主题色的断层。
+ */
+@Composable
+fun resolveCustomBackgroundChromeFallbackColor(defaultColor: Color): Color {
+    if (!LocalHasCustomBackground.current) return defaultColor
+    return if (defaultColor.luminance() < 0.5f) {
+        Color.Black.copy(alpha = 0.88f)
+    } else {
+        Color.White.copy(alpha = 0.90f)
+    }
+}
 
 @Composable
 fun CustomBackground(

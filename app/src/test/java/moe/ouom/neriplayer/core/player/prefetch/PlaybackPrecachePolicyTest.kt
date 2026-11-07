@@ -142,6 +142,26 @@ class PlaybackPrecachePolicyTest {
     }
 
     @Test
+    fun playbackPrefetchAwaitIsZeroForRapidSkipping() {
+        assertEquals(
+            0L,
+            PlaybackPrecachePolicy.playbackPrefetchAwaitMs(rapidSkipping = true)
+        )
+        assertEquals(
+            PlaybackPrecachePolicy.PLAYBACK_PREFETCH_AWAIT_NORMAL_MS,
+            PlaybackPrecachePolicy.playbackPrefetchAwaitMs(rapidSkipping = false)
+        )
+    }
+
+    @Test
+    fun normalPrefetchAwaitStaysBelowWaitingSpinnerThreshold() {
+        // UI 的加载圈在等待持续 1000ms 后才显示；播放路径的等待必须显著低于它。
+        assertTrue(
+            PlaybackPrecachePolicy.playbackPrefetchAwaitMs(rapidSkipping = false) < 1_000L
+        )
+    }
+
+    @Test
     fun masterSwitchDisablesAllScenarios() {
         val config = PlaybackPrecacheConfig(
             masterEnabled = false,

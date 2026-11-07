@@ -32,12 +32,32 @@ object PlaybackPrecachePolicy {
     /** 开屏 / 最近列表：预取当前及后续少量曲目。 */
     const val RECENT_LIST_MAX_SONGS = 4
 
+    /**
+     * 播放路径对「正在进行的预取任务」的最长等待。
+     * 预取任务是串行下载多首的批量 job，久等会把切歌拖过 UI 的 1 秒转圈阈值。
+     */
+    const val PLAYBACK_PREFETCH_AWAIT_NORMAL_MS = 150L
+
+    /** 连点下一首时完全不等待预取：直接命中已发布 URL 或现场解析。 */
+    const val PLAYBACK_PREFETCH_AWAIT_RAPID_MS = 0L
+
     private const val MIN_PREFIX_BYTES = 24L * 1024L
     private const val MAX_PREFIX_BYTES = 512L * 1024L
     private const val DEFAULT_BITRATE_KBPS = 320
 
     fun isScenarioEnabled(masterEnabled: Boolean, scenarioEnabled: Boolean): Boolean {
         return masterEnabled && scenarioEnabled
+    }
+
+    /**
+     * 播放前对预取任务的最长等待：连点时归零，避免批量预取拖慢切歌并触发加载圈。
+     */
+    fun playbackPrefetchAwaitMs(rapidSkipping: Boolean): Long {
+        return if (rapidSkipping) {
+            PLAYBACK_PREFETCH_AWAIT_RAPID_MS
+        } else {
+            PLAYBACK_PREFETCH_AWAIT_NORMAL_MS
+        }
     }
 
     /**

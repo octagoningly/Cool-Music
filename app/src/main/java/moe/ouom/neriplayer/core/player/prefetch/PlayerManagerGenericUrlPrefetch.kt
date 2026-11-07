@@ -34,7 +34,6 @@ internal fun resolveGenericUrlPrefetchTtlMs(
 internal const val GENERIC_MEDIA_PREFETCH_BYTES = 1_536L * 1024L
 private const val GENERIC_MEDIA_PREFETCH_MIN_BYTES = 256L * 1024L
 internal const val NEXT_TRACK_MEDIA_MIN_BYTES = 512L * 1024L
-private const val PREFETCH_PLAYBACK_AWAIT_MS = 1_200L
 
 internal fun resolveGenericMediaPrefetchBytes(expectedContentLength: Long?): Long {
     return expectedContentLength
@@ -266,6 +265,17 @@ internal suspend fun PlayerManager.awaitInFlightGenericUrlPrefetch(song: SongIte
         .takeUnless { isLocalSong(it) || isYouTubeMusicTrack(it) }
         ?.let { song.cachedPlaybackKey ?: computeCacheKey(it) }
         ?: return
+    // 连点时批量预取窗口一直在重建，join 整个串行任务会把切歌拖过 1 秒转圈阈值。
+    // 预取只作为旁路加速：URL 已在「媒体前缀写入缓存后」才发布，resolveSongUrl 会自行命中；
+    // 未命中就现场解析，绝不让播放路径阻塞在后台下载上。
+    val awaitMs = PlaybackPrecachePolicy.playbackPrefetchAwaitMs(isRapidNextSkipping())
+    if (awaitMs <= 0L) {
+        NPLogger.d(
+            "NERI-PlayerManager",
+            "skip prefetch await for rapid skipping: song=" + song.name + ", key=" + key
+        )
+        return
+    }
     val genericJob = currentGenericUrlPrefetchJob?.takeIf {
         it.isActive && currentGenericUrlPrefetchKey == key
     }
@@ -273,14 +283,14 @@ internal suspend fun PlayerManager.awaitInFlightGenericUrlPrefetch(song: SongIte
         it.isActive && currentPlaybackPrecacheKeys.contains(key)
     }
     val activeJob = genericJob ?: listJob ?: return
-    // Only wait briefly: URL is usually cached first; do not block playback on a slow media download.
-    val finished = kotlinx.coroutines.withTimeoutOrNull(PREFETCH_PLAYBACK_AWAIT_MS) {
+    // 仅短暂等待已经完成的 URL 发布；超时后立即放行，不等慢速媒体下载。
+    val finished = withTimeoutOrNull(awaitMs) {
         activeJob.join()
     } != null
     NPLogger.d(
         "NERI-PlayerManager",
         "await in-flight prefetch before playback: song=" + song.name + ", key=" + key +
-            ", finished=" + finished + ", timeoutMs=" + PREFETCH_PLAYBACK_AWAIT_MS
+            ", finished=" + finished + ", timeoutMs=" + awaitMs
     )
 }
 internal fun PlayerManager.cancelGenericUrlPrefetch(reason: String) {

@@ -27,6 +27,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -258,6 +259,13 @@ internal fun resolveLibraryTabsVisibility(
     }
 }
 
+/**
+ * Tab 行收展是否带位移（跟随「设置 → 动效 → 连贯反馈」）。
+ * 关闭时只做淡入淡出，不做位移伸缩。纯函数，便于单测。
+ */
+internal fun usesCoherentChromeTransition(coherentFeedbackEnabled: Boolean): Boolean =
+    coherentFeedbackEnabled
+
 enum class LibraryTab(val labelResId: Int) {
     LOCAL(R.string.library_tab_local),
     FAVORITE(R.string.library_tab_favorite),
@@ -446,6 +454,8 @@ private fun libraryListBottomPadding(): Dp {
 private val LocalLibraryListTopPadding = staticCompositionLocalOf { 136.dp }
 
 private const val LIBRARY_TABS_EXPANDED_TOP_DP = 136f
+/** Tab 行显现时从上方滑入的距离（仅绘制层位移，不影响测量）。 */
+private const val LIBRARY_TABS_REVEAL_SLIDE_DP = 14f
 private const val LIBRARY_TABS_TOP_THRESHOLD_PX = 48
 private const val LIBRARY_TABS_SCROLL_THRESHOLD_PX = 12
 
@@ -506,6 +516,9 @@ fun LibraryScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     val youtubeEnabled by AppContainer.settingsRepo.youtubeEnabledFlow
         .collectAsStateWithLifecycle(initialValue = YouTubeFeatureGate.isEnabled())
+    // 设置 → 动效 → 连贯反馈：控制 Tab 行收展时是否带位移（关闭时只淡入淡出）。
+    val coherentFeedbackEnabled by AppContainer.settingsRepo.coherentFeedbackEnabledFlow
+        .collectAsStateWithLifecycle(initialValue = false)
     var libraryTabOrderStorage by remember {
         mutableStateOf(readLibraryTabOrderStorage(context))
     }
@@ -861,11 +874,63 @@ fun LibraryScreen(
                 }
             )
 
-            // 瞬时显隐，与列表留白（contentPadding 56<->136dp）同帧切换。
-            // 这里一旦用 fadeIn/scaleIn 的 200ms 渐变，就会出现「Tab 行慢慢淡入、
-            // 下面列表首项（搜索框 + 歌单/歌手/导入/排序）早已瞬时就位」的两段式观感。
-            // 列表留白只能瞬时切换（动画会每帧 remasure 掉帧），所以 Tab 行也必须瞬时。
-            if (showLibraryTabs) {
+            // Tab 行收展动效：只作用于 graphicsLayer（绘制阶段），不进入测量/布局。
+            //
+            // 为什么不用 AnimatedVisibility(expandVertically)：
+            // 1) 它会按高度裁切，动画早期把玻璃底和文字裁成一条缝，观感是「先出字再出底条」的两段式；
+            // 2) 它会在 220ms 内逐帧重组，而 MainTabChrome 用 SideEffect 每次重组都重新注册整块
+            //    chrome（含玻璃采样区域），采样区域逐帧跳动 → 下方列表内容出现抽动。
+            // 改为「容器布局高度恒定(展开态) + 仅绘制层做 alpha/位移」，测量尺寸一帧内就稳定，
+            // 列表与玻璃采样都不受影响。关闭「连贯反馈」时退化为纯淡入淡出，不做位移。
+            val tabsReveal = remember { Animatable(if (showLibraryTabs) 1f else 0f) }
+            LaunchedEffect(showLibraryTabs) {
+                val target = if (showLibraryTabs) 1f else 0f
+                if (usesCoherentChromeTransition(coherentFeedbackEnabled)) {
+                    tabsReveal.animateTo(
+                        targetValue = target,
+                        animationSpec = tween(
+                            durationMillis = if (showLibraryTabs) 200 else 160,
+                            easing = FastOutSlowInEasing
+                        )
+                    )
+                } else {
+                    tabsReveal.animateTo(
+                        targetValue = target,
+                        animationSpec = tween(
+                            durationMillis = if (showLibraryTabs) 110 else 90,
+                            easing = FastOutSlowInEasing
+                        )
+                    )
+                }
+            }
+            val tabsSlideDp = if (usesCoherentChromeTransition(coherentFeedbackEnabled)) {
+                LIBRARY_TABS_REVEAL_SLIDE_DP
+            } else {
+                0f
+            }
+            val tabsInteractable = tabsReveal.value > 0.05f
+            Column(
+                Modifier
+                    .graphicsLayer {
+                        alpha = tabsReveal.value
+                        translationY = (1f - tabsReveal.value) * -tabsSlideDp.dp.toPx()
+                    }
+                    // 淡出后容器仍占位（保证布局稳定），必须同时拦截点击，
+                    // 否则收起的 Tab 行会继续吃掉下方内容的触摸。
+                    .then(
+                        if (tabsInteractable) {
+                            Modifier
+                        } else {
+                            Modifier.pointerInput(Unit) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        awaitPointerEvent().changes.forEach { it.consume() }
+                                    }
+                                }
+                            }
+                        }
+                    )
+            ) {
             LibraryMainTabs(
                 tabs = orderedTabs,
                 selectedTabIndex = pagerState.currentPage,
@@ -873,7 +938,9 @@ fun LibraryScreen(
                     scope.launch {
                         pagerState.animateScrollToPage(index)
                     }
-                }
+                },
+                // alpha 接近 0 时停玻璃注册，避免收起后残留一块模糊。
+                glassEnabled = tabsReveal.value > 0.05f
             )
             }
             }
@@ -995,7 +1062,8 @@ private fun LibraryTabOrderEditorDialog(
 private fun LibraryMainTabs(
     tabs: List<LibraryTab>,
     selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (Int) -> Unit,
+    glassEnabled: Boolean = true
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -1010,6 +1078,8 @@ private fun LibraryMainTabs(
                 .fillMaxWidth()
                 .clip(LibraryPrimaryTabShape),
             shape = LibraryPrimaryTabShape,
+            // Tab 行淡出/收起时停掉玻璃区域注册，避免 alpha=0 后仍留一块模糊。
+            enabled = glassEnabled,
             fallbackColor = resolveCustomBackgroundChromeFallbackColor(
                 MaterialTheme.colorScheme.background
             )

@@ -34,7 +34,7 @@ internal fun resolveGenericUrlPrefetchTtlMs(
 internal const val GENERIC_MEDIA_PREFETCH_BYTES = 1_536L * 1024L
 private const val GENERIC_MEDIA_PREFETCH_MIN_BYTES = 256L * 1024L
 internal const val NEXT_TRACK_MEDIA_MIN_BYTES = 512L * 1024L
-private const val PREFETCH_PLAYBACK_AWAIT_MS = 350L
+private const val PREFETCH_PLAYBACK_AWAIT_MS = 1_200L
 
 internal fun resolveGenericMediaPrefetchBytes(expectedContentLength: Long?): Long {
     return expectedContentLength
@@ -65,7 +65,7 @@ internal fun PlayerManager.prefetchNextGenericTrackUrl() {
         return
     }
 
-    val upcoming = collectUpcomingSequentialSongs(maxCount = 2)
+    val upcoming = collectUpcomingSequentialSongs(maxCount = 3)
     NPLogger.d(
         "NERI-PlayerManager",
         "next-track prefetch probe: queueSize=${currentPlaylist.size}, currentIndex=$currentIndex, " +
@@ -81,7 +81,7 @@ internal fun PlayerManager.prefetchNextGenericTrackUrl() {
     precacheSongList(
         songs = upcoming,
         scenario = PlaybackPrecacheScenario.NEXT_TRACK,
-        maxSongs = 2,
+        maxSongs = 3,
         prefixMs = PlaybackPrecachePolicy.NEXT_TRACK_PREFIX_MS
     )
 

@@ -607,6 +607,14 @@ internal fun PlayerManager.handleTrackEnded() {
                     commandSource = activePlaybackCommandSource,
                     bypassLoudVolumeWarning = true
                 )
+            } else if (player.shuffleModeEnabled && currentPlaylist.size > 1) {
+                // 随机播放播完一轮不应停止：回到队首并重新洗牌，继续下一轮
+                markAutoTrackAdvance()
+                nextImpl(
+                    force = true,
+                    commandSource = activePlaybackCommandSource,
+                    bypassLoudVolumeWarning = true
+                )
             } else {
                 stopPlaybackPreservingQueue()
             }
@@ -791,7 +799,6 @@ internal fun PlayerManager.shuffleCurrentQueueForSequentialPlayback(): Boolean {
 private fun PlayerManager.reshuffleCurrentQueueForRepeatAllCycle(): Boolean {
     if (
         !player.shuffleModeEnabled ||
-        repeatModeSetting != Player.REPEAT_MODE_ALL ||
         currentPlaylist.size <= 1 ||
         currentIndex != currentPlaylist.lastIndex ||
         (isListenTogetherActive() && !isCurrentUserControllerInListenTogether())
@@ -2073,8 +2080,12 @@ internal fun PlayerManager.cyclePlaybackOrderImpl(
             nextShuffle = false
             nextRepeat = Player.REPEAT_MODE_ALL
         }
-        repeatMode == Player.REPEAT_MODE_ALL || repeatMode == Player.REPEAT_MODE_OFF -> {
-            // OFF 与 ALL 同档，避免出现「啥也不选」第四态
+        repeatMode == Player.REPEAT_MODE_OFF -> {
+            // 顺序播放按一次直接进入「列表循环」，避免用户以为已经在循环却仍是单曲循环
+            nextShuffle = false
+            nextRepeat = Player.REPEAT_MODE_ALL
+        }
+        repeatMode == Player.REPEAT_MODE_ALL -> {
             nextShuffle = false
             nextRepeat = Player.REPEAT_MODE_ONE
         }

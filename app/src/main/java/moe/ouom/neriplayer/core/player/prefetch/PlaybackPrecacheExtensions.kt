@@ -36,7 +36,7 @@ data class PlaybackPrecacheConfig(
     val appLaunchEnabled: Boolean = true,
     val nextTrackEnabled: Boolean = true,
     val recentListEnabled: Boolean = false,
-    val playlistOpenEnabled: Boolean = false,
+    val playlistOpenEnabled: Boolean = true,
     val homeRecommendEnabled: Boolean = false,
     val searchEnabled: Boolean = false
 ) {
@@ -206,23 +206,25 @@ internal suspend fun PlayerManager.precacheSongPrefix(
     if (!isDirectStreamUrl(result.url) && !LocalSongSupport.isLocalMediaUri(result.url)) return
     if (LocalSongSupport.isLocalMediaUri(result.url)) return
 
-    // Store the resolved URL so playback can skip a network resolve (this is what removes the spinner).
-    genericUrlPrefetchCache.put(
-        key = cacheKey,
-        result = result,
-        nowMs = android.os.SystemClock.elapsedRealtime(),
-        ttlMsOverride = resolveGenericUrlPrefetchTtlMs(
-            currentTrackDurationMs = maxOf(
-                playbackDurationFlow.value,
-                currentSongFlow.value?.durationMs ?: 0L
+    // 只有媒体前缀真正写入缓存后才发布 URL，避免「预取成功」只是拿到了死链地址。
+    suspend fun publishPrefetchedUrl() {
+        genericUrlPrefetchCache.put(
+            key = cacheKey,
+            result = result,
+            nowMs = android.os.SystemClock.elapsedRealtime(),
+            ttlMsOverride = resolveGenericUrlPrefetchTtlMs(
+                currentTrackDurationMs = maxOf(
+                    playbackDurationFlow.value,
+                    currentSongFlow.value?.durationMs ?: 0L
+                )
             )
         )
-    )
-    NPLogger.d(
-        "NERI-PlayerManager",
-        "precached URL ready: label=$label, song=${song.name}, key=$cacheKey"
-    )
-    warmLyricsAndCoverForPrecache(song)
+        NPLogger.d(
+            "NERI-PlayerManager",
+            "precached URL+prefix ready: label=$label, song=${song.name}, key=$cacheKey"
+        )
+        warmLyricsAndCoverForPrecache(song)
+    }
 
     val mediaCacheKey = resolveGenericMediaPrefetchCacheKey(cacheKey, result)
     if (playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey)) return
@@ -252,8 +254,17 @@ internal suspend fun PlayerManager.precacheSongPrefix(
             shouldApplyMutation = { !playbackDemandArbiter.shouldYieldPrefetch(mediaCacheKey) }
         )
     ) {
-        CachePrefetchReadiness.COMPLETE -> return
-        CachePrefetchReadiness.UNAVAILABLE -> return
+        CachePrefetchReadiness.COMPLETE -> {
+            publishPrefetchedUrl()
+            return
+        }
+        CachePrefetchReadiness.UNAVAILABLE -> {
+            NPLogger.w(
+                "NERI-PlayerManager",
+                "skip publishing prefetched URL, cache unavailable: label=$label, key=$mediaCacheKey"
+            )
+            return
+        }
         CachePrefetchReadiness.READY_FOR_PREFETCH -> Unit
     }
 
@@ -284,6 +295,13 @@ internal suspend fun PlayerManager.precacheSongPrefix(
         runCatching {
             cache?.writeCachedSong(mediaCacheKey, song)
         }
+        publishPrefetchedUrl()
+    } else {
+        NPLogger.w(
+            "NERI-PlayerManager",
+            "precache wrote no media bytes, keep URL unpublished: label=$label, " +
+                "song=${song.name}, key=$mediaCacheKey"
+        )
     }
     NPLogger.d(
         "NERI-PlayerManager",

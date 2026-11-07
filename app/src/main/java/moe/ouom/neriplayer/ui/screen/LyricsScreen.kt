@@ -129,6 +129,7 @@ import moe.ouom.neriplayer.data.model.displayArtist
 import moe.ouom.neriplayer.data.model.displayCoverUrl
 import moe.ouom.neriplayer.data.model.displayName
 import moe.ouom.neriplayer.data.local.media.isLocalSong
+import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
 import moe.ouom.neriplayer.data.model.isSyncableRemoteSong
 import moe.ouom.neriplayer.data.model.sameIdentityAs
 import moe.ouom.neriplayer.data.model.stableKey
@@ -167,7 +168,7 @@ import moe.ouom.neriplayer.ui.haptic.performHapticFeedback
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.ui.feedback.AppFeedback
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
-import moe.ouom.neriplayer.ui.component.playlist.LocalPlaylistPickList
+import moe.ouom.neriplayer.ui.component.playlist.PlaylistTargetPickerSheet
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, androidx.compose.animation.ExperimentalSharedTransitionApi::class)
 @Composable
@@ -243,8 +244,10 @@ fun LyricsScreen(
     val durationMs = currentSong?.durationMs ?: 0L
     val favoriteActionLabel = stringResource(R.string.favorite_add)
     val playlistAddActionLabel = stringResource(R.string.playlist_add_to)
+    val playlistCreateAndAddActionLabel = stringResource(R.string.playlist_create_and_add)
 
     val context = LocalContext.current
+    val localPlaylistRepo = remember(context) { LocalPlaylistRepository.getInstance(context) }
     val lowPowerLyricsRendering = remember(context) {
         context.isSystemPowerSaveMode()
     }
@@ -946,9 +949,6 @@ fun LyricsScreen(
 
             // 添加到歌单按钮
             var showAddSheet by remember { mutableStateOf(false) }
-            val addSheetState = androidx.compose.material3.rememberModalBottomSheetState(
-                skipPartiallyExpanded = true
-            )
             HapticIconButton(onClick = { showAddSheet = true },
                 modifier = toolbarActionModifier.then(
                 if (sharedTransitionScope != null && animatedContentScope != null) {
@@ -1009,61 +1009,70 @@ fun LyricsScreen(
             }
 
             // 添加到歌单弹窗
-            if (showAddSheet && currentSong != null) {
+            val songToAdd = currentSong
+            if (showAddSheet && songToAdd != null) {
                 val playlists by PlayerManager.playlistsFlow.collectAsState()
                 val selectablePlaylists = remember(playlists, context) {
                     playlists.filterNot { LocalFilesPlaylist.isSystemPlaylist(it, context) }
                 }
-                DensityScaledModalBottomSheet(
+                PlaylistTargetPickerSheet(
+                    title = stringResource(R.string.playlist_add_to),
+                    playlists = selectablePlaylists,
                     onDismissRequest = { showAddSheet = false },
-                    sheetState = addSheetState,
-                    sheetGesturesEnabled = false,
-                    dragHandle = null,
-                    shape = GlassDialogShape,
-                    panelPosition = GlassPanelPosition.Bottom,
-                    panelYOffset = -64.dp,
-                    panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = 12.dp,
-                        bottom = 16.dp
-                    )
-                ) {
-                    LocalPlaylistPickList(
-                        playlists = selectablePlaylists,
-                        enabled = true,
-                        onPick = { pl ->
-                            launchWithLocalSyncWarning(
-                                song = currentSong,
-                                actionLabel = playlistAddActionLabel
-                            ) {
-                                scope.launch {
-                                    val result = runCatching {
-                                        PlayerManager.addCurrentToPlaylist(pl.id)
-                                    }
-                                    result.onSuccess { addResult ->
-                                        val message = if (addResult.allDuplicates) {
-                                            context.getString(R.string.playlist_add_already_exists)
-                                        } else {
-                                            context.getString(R.string.playlist_add_success_one, pl.name)
-                                        }
-                                        AppFeedback.showToast(context, message)
-                                    }.onFailure {
-                                        AppFeedback.showToast(
-                                            context,
-                                            context.getString(R.string.playlist_export_failed)
-                                        )
-                                    }
+                    createDialogTitle = stringResource(R.string.playlist_add_to_new),
+                    createActionLabel = stringResource(R.string.playlist_create_and_add),
+                    canCreate = true,
+                    onCreateTarget = { name ->
+                        launchWithLocalSyncWarning(
+                            song = songToAdd,
+                            actionLabel = playlistCreateAndAddActionLabel
+                        ) {
+                            scope.launch {
+                                val result = runCatching {
+                                    localPlaylistRepo.createPlaylistWithSongs(name, listOf(songToAdd))
                                 }
-                                showAddSheet = false
+                                result.onSuccess { playlist ->
+                                    AppFeedback.showToast(
+                                        context,
+                                        context.getString(R.string.playlist_add_success_one, playlist.name)
+                                    )
+                                }.onFailure {
+                                    AppFeedback.showToast(
+                                        context,
+                                        context.getString(R.string.playlist_export_failed)
+                                    )
+                                }
                             }
-                        },
-                        sizeScale = 0.8f,
-                        maxListHeight = 320.dp,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-                    Spacer(Modifier.height(12.dp))
-                }
+                            showAddSheet = false
+                        }
+                    },
+                    onSelectTarget = { pl ->
+                        launchWithLocalSyncWarning(
+                            song = songToAdd,
+                            actionLabel = playlistAddActionLabel
+                        ) {
+                            scope.launch {
+                                val result = runCatching {
+                                    PlayerManager.addCurrentToPlaylist(pl.id)
+                                }
+                                result.onSuccess { addResult ->
+                                    val message = if (addResult.allDuplicates) {
+                                        context.getString(R.string.playlist_add_already_exists)
+                                    } else {
+                                        context.getString(R.string.playlist_add_success_one, pl.name)
+                                    }
+                                    AppFeedback.showToast(context, message)
+                                }.onFailure {
+                                    AppFeedback.showToast(
+                                        context,
+                                        context.getString(R.string.playlist_export_failed)
+                                    )
+                                }
+                            }
+                            showAddSheet = false
+                        }
+                    }
+                )
             }
         }
             }

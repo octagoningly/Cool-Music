@@ -1,25 +1,11 @@
 package moe.ouom.neriplayer.ui.component.playlist
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
@@ -27,7 +13,6 @@ import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
 import moe.ouom.neriplayer.data.local.playlist.system.LocalFilesPlaylist
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.ui.feedback.AppFeedback
-import moe.ouom.neriplayer.ui.component.overlay.DensityScaledModalBottomSheet
 
 /**
  * Bottom sheet to add [song] into a local playlist, with success / already-exists toast.
@@ -43,62 +28,53 @@ fun AddSongToPlaylistSheet(
     val repo = remember(context) { LocalPlaylistRepository.getInstance(context) }
     val playlists by repo.playlists.collectAsStateWithLifecycle()
 
-    DensityScaledModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        shape = moe.ouom.neriplayer.ui.component.overlay.GlassDialogShape,
-        sheetGesturesEnabled = false,
-        dragHandle = null,
-        panelPosition = moe.ouom.neriplayer.ui.component.overlay.GlassPanelPosition.Bottom,
-        panelYOffset = -64.dp,
-        panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 12.dp,
-            bottom = 16.dp
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.playlist_add_to),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-            val selectable = playlists.filterNot {
-                LocalFilesPlaylist.isSystemPlaylist(it, context)
-            }
-            LocalPlaylistPickList(
-                playlists = selectable,
-                enabled = true,
-                onPick = { playlist ->
-                    scope.launch {
-                        val result = runCatching {
-                            repo.addSongsToPlaylistWithResult(playlist.id, listOf(song))
-                        }
-                        result.onSuccess { addResult ->
-                            val message = if (addResult.allDuplicates) {
-                                context.getString(R.string.playlist_add_already_exists)
-                            } else {
-                                context.getString(R.string.playlist_add_success_one, playlist.name)
-                            }
-                            AppFeedback.showToast(context, message)
-                        }.onFailure {
-                            AppFeedback.showToast(
-                                context,
-                                context.getString(R.string.playlist_export_failed)
-                            )
-                        }
-                        onDismissRequest()
-                    }
-                },
-                sizeScale = 0.8f,
-                maxListHeight = 320.dp,
-                modifier = Modifier.padding(horizontal = 12.dp)
-            )
-            Spacer(Modifier.height(8.dp))
-        }
+    val selectable = playlists.filterNot {
+        LocalFilesPlaylist.isSystemPlaylist(it, context)
     }
+    PlaylistTargetPickerSheet(
+        title = stringResource(R.string.playlist_add_to),
+        playlists = selectable,
+        onDismissRequest = onDismissRequest,
+        createDialogTitle = stringResource(R.string.playlist_add_to_new),
+        createActionLabel = stringResource(R.string.playlist_create_and_add),
+        canCreate = true,
+        onCreateTarget = { name ->
+            scope.launch {
+                val result = runCatching {
+                    repo.createPlaylistWithSongs(name, listOf(song))
+                }
+                result.onSuccess { playlist ->
+                    AppFeedback.showToast(
+                        context,
+                        context.getString(R.string.playlist_add_success_one, playlist.name)
+                    )
+                }.onFailure {
+                    AppFeedback.showToast(
+                        context,
+                        context.getString(R.string.playlist_export_failed)
+                    )
+                }
+            }
+        },
+        onSelectTarget = { playlist ->
+            scope.launch {
+                val result = runCatching {
+                    repo.addSongsToPlaylistWithResult(playlist.id, listOf(song))
+                }
+                result.onSuccess { addResult ->
+                    val message = if (addResult.allDuplicates) {
+                        context.getString(R.string.playlist_add_already_exists)
+                    } else {
+                        context.getString(R.string.playlist_add_success_one, playlist.name)
+                    }
+                    AppFeedback.showToast(context, message)
+                }.onFailure {
+                    AppFeedback.showToast(
+                        context,
+                        context.getString(R.string.playlist_export_failed)
+                    )
+                }
+            }
+        }
+    )
 }

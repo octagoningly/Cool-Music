@@ -11,8 +11,8 @@ object PlaybackPrecachePolicy {
     /** 连点下一首时，扩大曲目窗口但只取前 1.3 秒。 */
     const val RAPID_SKIP_PREFIX_MS = 1_300L
 
-    /** 列表类场景（歌单 / 首页 / 搜索 / 最近列表）默认只取前 1.3 秒。 */
-    const val LIST_PREFIX_MS = 1_300L
+    /** 列表类场景（歌单 / 首页 / 搜索 / 最近列表）默认只取前 3 秒。 */
+    const val LIST_PREFIX_MS = 3_000L
 
     /** 开屏预加载：点击迷你栏即播，目标前 5 秒。 */
     const val APP_LAUNCH_PREFIX_MS = 5_000L

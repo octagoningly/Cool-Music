@@ -12,6 +12,7 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
 
 /*
@@ -848,12 +849,58 @@ internal suspend fun probeLxSourceChannels(
                 ),
                 timeoutMs = LX_PROBE_CALL_TIMEOUT_MS
             )
+            val playable = url != null && isLxStreamPlayable(url)
             LxChannelProbeResult(
                 sourceId = hit.sourceId,
-                healthy = url != null,
-                detail = url ?: engine.activeFailureReason().orEmpty().ifBlank { "failed" }
+                healthy = playable,
+                detail = when {
+                    url == null -> engine.activeFailureReason().orEmpty().ifBlank { "failed" }
+                    !playable -> "url_unplayable"
+                    else -> url
+                }
             )
         }
 }
 
 private const val LX_PROBE_CALL_TIMEOUT_MS = 6_000L
+
+/**
+ * 「通道健康」不等于「歌曲能播」：音源返回的 URL 可能已过期、被防盗链拒绝或是 VIP/试听地址。
+ * 这里用一次极小的 Range 请求验证 URL 是否真的返回音频数据，供播放与一键检测共用。
+ */
+private val lxPlayabilityClient: OkHttpClient by lazy {
+    AppContainer.sharedOkHttpClient.newBuilder()
+        .callTimeout(2, TimeUnit.SECONDS)
+        .build()
+}
+
+internal suspend fun isLxStreamPlayable(url: String?): Boolean = withContext(Dispatchers.IO) {
+    val normalized = url?.trim().orEmpty()
+    if (!normalized.startsWith("http://", ignoreCase = true) &&
+        !normalized.startsWith("https://", ignoreCase = true)
+    ) {
+        return@withContext false
+    }
+    runCatching {
+        val request = Request.Builder()
+            .url(normalized)
+            .header("Range", "bytes=0-1023")
+            .build()
+        lxPlayabilityClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return@use false
+            val contentType = response.header("Content-Type").orEmpty().lowercase()
+            if (contentType.startsWith("text/") ||
+                contentType.contains("html") ||
+                contentType.contains("json")
+            ) {
+                return@use false
+            }
+            val body = response.body ?: return@use false
+            val bytes = ByteArray(1024)
+            val read = body.byteStream().read(bytes)
+            if (read <= 0) return@use false
+            val first = bytes.firstOrNull() ?: return@use false
+            first != '<'.code.toByte() && first != '{'.code.toByte()
+        }
+    }.getOrDefault(false)
+}

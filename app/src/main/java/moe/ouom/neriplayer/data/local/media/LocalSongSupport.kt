@@ -57,7 +57,7 @@ object LocalSongSupport {
 
     fun isLocalMediaUri(mediaUri: String?): Boolean {
         if (mediaUri.isNullOrBlank()) return false
-        if (mediaUri.startsWith("/")) return true
+        if (isAbsoluteLocalFileReference(mediaUri)) return true
         if (mediaUri.startsWith("file:", ignoreCase = true)) return true
         if (mediaUri.startsWith("content://", ignoreCase = true)) return true
         if (mediaUri.startsWith("android.resource://", ignoreCase = true)) return true
@@ -163,7 +163,7 @@ object LocalSongSupport {
         song.localFileName?.takeIf { it.isNotBlank() }?.let { return it }
         song.localFilePath?.takeIf { it.isNotBlank() }?.let { return File(it).name }
         val mediaUri = song.mediaUri?.takeIf { it.isNotBlank() } ?: return null
-        if (mediaUri.startsWith("/")) {
+        if (isAbsoluteLocalFileReference(mediaUri)) {
             return File(mediaUri).name
         }
         return runCatching { mediaUri.toUri().lastPathSegment }.getOrNull()
@@ -171,7 +171,7 @@ object LocalSongSupport {
 
     private fun normalizedLocalReference(reference: String?): String? {
         val raw = reference?.trim()?.takeIf { it.isNotBlank() } ?: return null
-        if (raw.startsWith("/")) {
+        if (isAbsoluteLocalFileReference(raw)) {
             return File(raw).absolutePath
         }
         if (raw.startsWith("file://", ignoreCase = true)) {
@@ -194,4 +194,19 @@ object LocalSongSupport {
             else -> null
         }
     }
+}
+
+/**
+ * Keeps JVM validation of Android local-media code platform-neutral. Android paths are rooted at
+ * `/`; Windows unit-test temporary files use a drive-letter path instead.
+ */
+internal fun isAbsoluteLocalFileReference(reference: String): Boolean {
+    return reference.startsWith("/") ||
+        reference.startsWith("\\\\") ||
+        (
+            reference.length >= 3 &&
+                reference[0].isLetter() &&
+                reference[1] == ':' &&
+                (reference[2] == '/' || reference[2] == '\\')
+            )
 }

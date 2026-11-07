@@ -3,16 +3,14 @@ package moe.ouom.neriplayer.ui.component.playlist
 import android.content.Context
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
 import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistSongAddResult
 import moe.ouom.neriplayer.data.local.playlist.model.LocalPlaylist
 import moe.ouom.neriplayer.data.local.playlist.runLocalPlaylistMutationSafely
 import moe.ouom.neriplayer.data.model.SongItem
-import moe.ouom.neriplayer.ui.feedback.showNeriSnackbar
+import moe.ouom.neriplayer.ui.feedback.AppFeedback
 
 internal fun CoroutineScope.showPlaylistBatchExportCreatedResult(
     context: Context,
@@ -65,9 +63,9 @@ internal fun CoroutineScope.showPlaylistBatchExportAlreadyExists(
     context: Context,
     snackbarHostState: SnackbarHostState,
 ) {
-    launch {
-        snackbarHostState.showNeriSnackbar(context.getString(R.string.playlist_add_already_exists))
-    }
+    // Always target the root host. Page-local hosts live in the blur capture subtree,
+    // which makes feedback text sample itself and turn into an unreadable glass block.
+    AppFeedback.show(context, context.getString(R.string.playlist_add_already_exists))
 }
 
 internal fun CoroutineScope.showPlaylistBatchExportCreatedPlaylist(
@@ -114,9 +112,7 @@ internal fun CoroutineScope.showPlaylistBatchExportFailure(
     context: Context,
     snackbarHostState: SnackbarHostState
 ) {
-    launch {
-        snackbarHostState.showNeriSnackbar(context.getString(R.string.playlist_export_failed))
-    }
+    AppFeedback.show(context, context.getString(R.string.playlist_export_failed))
 }
 
 private fun CoroutineScope.showPlaylistBatchExportSnackbar(
@@ -133,15 +129,13 @@ private fun CoroutineScope.showPlaylistBatchExportSnackbar(
         addedCount,
         targetPlaylistName
     )
-    launch {
-        val result = snackbarHostState.showNeriSnackbar(
-            message = message,
-            actionLabel = context.getString(R.string.playlist_batch_export_undo),
-            withDismissAction = true,
-            duration = SnackbarDuration.Long
-        )
-        if (result != SnackbarResult.ActionPerformed) return@launch
-
+    AppFeedback.showWithAction(
+        context = context,
+        message = message,
+        actionLabel = context.getString(R.string.playlist_batch_export_undo),
+        duration = SnackbarDuration.Long,
+        withDismissAction = false,
+    ) {
         val undoSucceeded = runLocalPlaylistMutationSafely("undoPlaylistBatchExport") {
             undoOperation()
         }.getOrDefault(false)
@@ -150,6 +144,6 @@ private fun CoroutineScope.showPlaylistBatchExportSnackbar(
         } else {
             context.getString(R.string.playlist_batch_export_undo_failed)
         }
-        snackbarHostState.showNeriSnackbar(undoMessage)
+        AppFeedback.show(context, undoMessage)
     }
 }

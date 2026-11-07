@@ -2,6 +2,7 @@ package moe.ouom.neriplayer.ui.screen
 
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -74,6 +75,7 @@ import moe.ouom.neriplayer.data.model.displayName
 import moe.ouom.neriplayer.data.model.stableKey
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import moe.ouom.neriplayer.ui.component.playlist.GlassSheetMenuItem
+import moe.ouom.neriplayer.ui.component.playlist.GlassMenuVerticalScrollbar
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import moe.ouom.neriplayer.ui.viewmodel.NowPlayingViewModel
 import moe.ouom.neriplayer.ui.viewmodel.album.isNeteaseAlbumNavigationSource
@@ -107,54 +109,57 @@ internal fun MoreOptionsMainContent(
     onDismissSheet: (() -> Unit) -> Unit
 ) {
     val scrollState = rememberScrollState()
-    Column(
-        Modifier
-            .fillMaxWidth()
-            // 必须有限高，否则 Popup/Lazy 里 verticalScroll 会无限高闪退
-            .heightIn(max = 340.dp)
-            .verticalScroll(scrollState)
-            .padding(bottom = 8.dp)
-    ) {
-        MetadataAndPlaybackActions(
-            audioInfo = currentPlaybackAudioInfo,
-            isDismissing = isDismissing,
-            onOpenSearch = onOpenSearch,
-            onOpenEditInfo = onOpenEditInfo,
-            onOpenPlaybackSound = onOpenPlaybackSound,
-            onShowQualitySwitch = onShowQualitySwitch
-        )
-        DownloadOrDetailsAction(
-            viewModel = viewModel,
-            song = originalSong,
-            isLocalSong = isLocalSong,
-            onShowSongDetails = onShowSongDetails
-        )
-        LyricsAndAlbumActions(
-            song = originalSong,
-            onOpenLyricBehavior = onOpenLyricBehavior,
-            onOpenFontSize = onOpenFontSize,
-            onEnterAlbum = onEnterAlbum,
-            snackbarHostState = snackbarHostState
-        )
-        if (PlayerManager.isBiliTrack(originalSong)) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                // 必须有限高，否则 Popup/Lazy 里 verticalScroll 会无限高闪退
+                .heightIn(max = 340.dp)
+                .verticalScroll(scrollState)
+                .padding(end = 10.dp, bottom = 8.dp)
+        ) {
+            MetadataAndPlaybackActions(
+                audioInfo = currentPlaybackAudioInfo,
+                isDismissing = isDismissing,
+                onOpenSearch = onOpenSearch,
+                onOpenEditInfo = onOpenEditInfo,
+                onOpenPlaybackSound = onOpenPlaybackSound,
+                onShowQualitySwitch = onShowQualitySwitch
+            )
+            DownloadOrDetailsAction(
+                viewModel = viewModel,
+                song = originalSong,
+                isLocalSong = isLocalSong,
+                onShowSongDetails = onShowSongDetails
+            )
+            LyricsAndAlbumActions(
+                song = originalSong,
+                onOpenLyricBehavior = onOpenLyricBehavior,
+                onOpenFontSize = onOpenFontSize,
+                onEnterAlbum = onEnterAlbum,
+                snackbarHostState = snackbarHostState
+            )
+            if (PlayerManager.isBiliTrack(originalSong)) {
+                GlassSheetMenuItem(
+                    text = stringResource(R.string.bili_video_skip_manage),
+                    leadingIcon = { Icon(Icons.Outlined.SkipNext, null) },
+                    onClick = onOpenBiliVideoSkip
+                )
+            }
+            ShareSongAction(
+                song = originalSong,
+                queue = queue,
+                snackbarHostState = snackbarHostState,
+                onDismissSheet = onDismissSheet
+            )
+            PlaybackStatsAction(originalSong, onOpenStats)
             GlassSheetMenuItem(
-                text = stringResource(R.string.bili_video_skip_manage),
-                leadingIcon = { Icon(Icons.Outlined.SkipNext, null) },
-                onClick = onOpenBiliVideoSkip
+                text = stringResource(R.string.listen_together_title),
+                leadingIcon = { Icon(Icons.Outlined.Headphones, null) },
+                onClick = onOpenListenTogether
             )
         }
-        ShareSongAction(
-            song = originalSong,
-            queue = queue,
-            snackbarHostState = snackbarHostState,
-            onDismissSheet = onDismissSheet
-        )
-        PlaybackStatsAction(originalSong, onOpenStats)
-        GlassSheetMenuItem(
-            text = stringResource(R.string.listen_together_title),
-            leadingIcon = { Icon(Icons.Outlined.Headphones, null) },
-            onClick = onOpenListenTogether
-        )
+        GlassMenuVerticalScrollbar(scrollState)
     }
 }
 

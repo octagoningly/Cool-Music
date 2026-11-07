@@ -19,6 +19,10 @@ data class PlaybackQualityOption(
 data class PlaybackAudioInfo(
     val source: PlaybackAudioSource,
     val isNeteaseLocalFallback: Boolean = false,
+    /** Imported online-source identity. Present only while playing a direct LX source. */
+    val customSourceId: String? = null,
+    /** Imported online-source display name, kept for diagnostics alongside [customSourceId]. */
+    val customSourceName: String? = null,
     val qualityKey: String? = null,
     val qualityLabel: String? = null,
     val qualityOptions: List<PlaybackQualityOption> = emptyList(),

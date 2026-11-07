@@ -19,8 +19,7 @@ import moe.ouom.neriplayer.ui.component.common.SceneDepthMotion
  * 媒体库歌单卡片到详情页的容器变换。
  *
  * 观感：以点击的那一行为窗，**上下沿同时向外长高**（全宽行则左右已满）。
- * 详情内容钉在全屏坐标不动；窗外仍是歌单列表，窗内才是详情。
- * 不要把内容再 translationY 到 clipTop——那会把详情往上拽，慢放就是抽屉从底下顶上来。
+ * 详情内容和窗口一起从卡片等比长成全屏；窗外仍是歌单列表，窗内才是详情。
  */
 internal object PlaylistCardContainerMotion {
     const val OpenDurationMillis = 600
@@ -84,8 +83,9 @@ internal object PlaylistCardContainerMotion {
         val clipRight = lerp(source.right, viewportWidth, grow)
         val clipBottom = lerp(source.bottom, viewportHeight, grow)
 
-        // 详情钉在全屏坐标（scale=1、位移=0）：只靠裁切窗揭示。
-        // 若 content 跟 clipTop 走，展开时内容会整体上移 → 抽屉感。
+        // 详情以当前裁切窗左上角为原点，并按裁切窗宽度等比缩放。
+        // 这样卡片是在“长成”详情，而不是固定全屏页面被裁切窗慢慢揭开。
+        val contentScale = ((clipRight - clipLeft) / viewportWidth).coerceIn(0f, 1f)
         val contentFade = smoothStep(start = 0.04f, end = 0.42f, value = p)
         val cornerProgress = smoothStep(start = 0.18f, end = 1f, value = p)
         // 背景景深：先快后慢（ease-out），前段就拉开层次，后段缓缓贴到终值
@@ -102,9 +102,9 @@ internal object PlaylistCardContainerMotion {
             cornerRadiusDp = lerp(SourceCornerRadiusDp, 0f, cornerProgress),
             // 整层（含底色）跟 contentAlpha 一起淡，末帧露出真实歌单行
             contentAlpha = contentFade,
-            contentScale = 1f,
-            contentTranslationX = 0f,
-            contentTranslationY = 0f,
+            contentScale = contentScale,
+            contentTranslationX = clipLeft,
+            contentTranslationY = clipTop,
             backgroundScale = lerp(1f, BackgroundExpandedScale, depthProgress),
             backgroundAlpha = lerp(1f, BackgroundDimmedAlpha, depthProgress),
             backgroundPivotFractionX = backgroundPivotFractionX,

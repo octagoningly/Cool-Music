@@ -121,8 +121,8 @@ internal enum class SettingsPage(
 
 internal val SettingsHomePageGroups: List<List<SettingsPage>> = listOf(
     listOf(
-        SettingsPage.OnlineListening,
         SettingsPage.Accounts,
+        SettingsPage.OnlineListening,
         SettingsPage.General
     ),
     listOf(

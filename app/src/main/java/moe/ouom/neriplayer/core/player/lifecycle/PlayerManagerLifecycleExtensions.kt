@@ -121,6 +121,8 @@ import moe.ouom.neriplayer.core.player.url.currentPlaybackCacheKeyForRecovery
 import moe.ouom.neriplayer.core.player.url.invalidateCachedResourceForPlaybackRecovery
 import moe.ouom.neriplayer.core.player.url.shouldAdvanceAfterStuckTrackEnd
 import moe.ouom.neriplayer.core.player.url.shouldAttemptUrlRefresh
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.recordCurrentLxSourcePlaybackFailure
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.recordCurrentLxSourcePlaybackSuccess
 import moe.ouom.neriplayer.core.player.url.shouldInvalidateCacheAfterPlaybackFailure
 import moe.ouom.neriplayer.core.player.url.shouldInvalidateCacheForPlaybackRecovery
 import moe.ouom.neriplayer.core.player.url.shouldTreatPlaybackFailureAsTrackEnd
@@ -643,6 +645,9 @@ internal fun PlayerManager.initializeImpl(
                 val currentSong = _currentSongFlow.value
                 val currentUrl = _currentMediaUrl.value
                 val isOfflineCache = currentUrl?.startsWith("http://offline.cache/") == true
+                if (!isOfflineCache) {
+                    recordCurrentLxSourcePlaybackFailure("player_error_${error.errorCodeName}")
+                }
                 val shouldInvalidateCache =
                     shouldInvalidateCacheForPlaybackRecovery(error, isOfflineCache)
 
@@ -849,6 +854,9 @@ internal fun PlayerManager.initializeImpl(
                 logPlaybackStateTransition("is_playing_changed:$isPlaying")
                 _isPlayingFlow.value = isPlaying
                 LyriconManager.setPlaybackState(isPlaying)
+                if (isPlaying) {
+                    recordCurrentLxSourcePlaybackSuccess()
+                }
                 if (!isPlaying) {
                     syncPlaybackStatsPlayingState(
                         playing = false,
@@ -1320,7 +1328,7 @@ internal fun PlayerManager.initializeImpl(
             var appLaunch = true
             var nextTrack = true
             var recentList = false
-            var playlistOpen = false
+            var playlistOpen = true
             var homeRecommend = false
             var search = false
             fun publish() {

@@ -366,7 +366,7 @@ import kotlin.math.roundToInt
 import moe.ouom.neriplayer.ui.component.playlist.GlassDropdownMenu
 import moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText
 import moe.ouom.neriplayer.ui.component.playlist.GlassSheetMenuItem
-import moe.ouom.neriplayer.ui.component.playlist.LocalPlaylistPickList
+import moe.ouom.neriplayer.ui.component.playlist.PlaylistTargetPickerSheet
 
 private const val LyricsPageTransitionDurationMs = 300
 private const val CoverSourceBadgeRevealBufferMs = 120
@@ -2100,6 +2100,7 @@ fun NowPlayingScreen(
     val playlists by PlayerManager.playlistsFlow.collectAsStateWithLifecycle()
     val localPlaylistsReady by PlayerManager.localPlaylistsReadyFlow.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val localPlaylistRepo = remember(context) { LocalPlaylistRepository.getInstance(context) }
     val composeResources = LocalResources.current
     val downloadPresenceVersion by GlobalDownloadManager.downloadPresenceVersion.collectAsStateWithLifecycle()
     val actualCoverUrl = resolvedCoverUrl ?: visualCoverUrl
@@ -2156,7 +2157,6 @@ fun NowPlayingScreen(
     var showSongNameMenu by remember { mutableStateOf(false) }
     var showArtistMenu by remember { mutableStateOf(false) }
     var showQualitySwitchDialog by remember { mutableStateOf(false) }
-    val addSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Snackbar状态
     val snackbarHostState = remember { SnackbarHostState() }
@@ -3985,60 +3985,69 @@ fun NowPlayingScreen(
                 )
             }
 
-            if (showAddSheet) {
+            val songToAdd = currentSong
+            if (showAddSheet && songToAdd != null) {
                 val selectablePlaylists = remember(playlists, context) {
                     playlists.filterNot { LocalFilesPlaylist.isSystemPlaylist(it, context) }
                 }
-                ModalBottomSheet(
+                PlaylistTargetPickerSheet(
+                    title = stringResource(R.string.playlist_add_to),
+                    playlists = selectablePlaylists,
                     onDismissRequest = { showAddSheet = false },
-                    sheetState = addSheetState,
-                    sheetGesturesEnabled = false,
-                    dragHandle = null,
-                    shape = GlassDialogShape,
-                    panelPosition = GlassPanelPosition.Bottom,
-                    panelYOffset = -QueueSheetDockGap,
-                    panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = 12.dp,
-                        bottom = 16.dp
-                    )
-                ) {
-                    LocalPlaylistPickList(
-                        playlists = selectablePlaylists,
-                        enabled = true,
-                        onPick = { pl ->
-                            launchWithLocalSyncWarning(
-                                song = currentSong,
-                                actionLabel = composeResources.getString(R.string.playlist_add_to)
-                            ) {
-                                screenScope.launch {
-                                    val result = runCatching {
-                                        PlayerManager.addCurrentToPlaylist(pl.id)
-                                    }
-                                    result.onSuccess { addResult ->
-                                        val message = if (addResult.allDuplicates) {
-                                            context.getString(R.string.playlist_add_already_exists)
-                                        } else {
-                                            context.getString(R.string.playlist_add_success_one, pl.name)
-                                        }
-                                        AppFeedback.showToast(context, message)
-                                    }.onFailure {
-                                        AppFeedback.showToast(
-                                            context,
-                                            context.getString(R.string.playlist_export_failed)
-                                        )
-                                    }
+                    createDialogTitle = stringResource(R.string.playlist_add_to_new),
+                    createActionLabel = stringResource(R.string.playlist_create_and_add),
+                    canCreate = true,
+                    onCreateTarget = { name ->
+                        launchWithLocalSyncWarning(
+                            song = songToAdd,
+                            actionLabel = composeResources.getString(R.string.playlist_create_and_add)
+                        ) {
+                            screenScope.launch {
+                                val result = runCatching {
+                                    localPlaylistRepo.createPlaylistWithSongs(name, listOf(songToAdd))
                                 }
-                                showAddSheet = false
+                                result.onSuccess { playlist ->
+                                    AppFeedback.showToast(
+                                        context,
+                                        context.getString(R.string.playlist_add_success_one, playlist.name)
+                                    )
+                                }.onFailure {
+                                    AppFeedback.showToast(
+                                        context,
+                                        context.getString(R.string.playlist_export_failed)
+                                    )
+                                }
                             }
-                        },
-                        sizeScale = 0.8f,
-                        maxListHeight = 320.dp,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-                    Spacer(Modifier.height(12.dp))
-                }
+                            showAddSheet = false
+                        }
+                    },
+                    onSelectTarget = { pl ->
+                        launchWithLocalSyncWarning(
+                            song = songToAdd,
+                            actionLabel = composeResources.getString(R.string.playlist_add_to)
+                        ) {
+                            screenScope.launch {
+                                val result = runCatching {
+                                    PlayerManager.addCurrentToPlaylist(pl.id)
+                                }
+                                result.onSuccess { addResult ->
+                                    val message = if (addResult.allDuplicates) {
+                                        context.getString(R.string.playlist_add_already_exists)
+                                    } else {
+                                        context.getString(R.string.playlist_add_success_one, pl.name)
+                                    }
+                                    AppFeedback.showToast(context, message)
+                                }.onFailure {
+                                    AppFeedback.showToast(
+                                        context,
+                                        context.getString(R.string.playlist_export_failed)
+                                    )
+                                }
+                            }
+                            showAddSheet = false
+                        }
+                    }
+                )
             }
 
             // 睡眠定时器对话框

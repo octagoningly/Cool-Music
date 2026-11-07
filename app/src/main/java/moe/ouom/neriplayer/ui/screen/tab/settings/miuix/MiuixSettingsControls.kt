@@ -7,8 +7,11 @@ import androidx.compose.material.icons.outlined.Error
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,16 +26,22 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.ui.component.overlay.LocalGlassDialogAnimateExit
 import androidx.compose.material3.Button
@@ -59,7 +68,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
@@ -112,15 +125,87 @@ internal fun MiuixSettingsDialog(
     )
 }
 
+/**
+ * 弹窗内的可滚动内容区：右侧常驻滚动条，明确提示「下面还有内容」。
+ * 配合弹窗的 maxHeight 使用，避免内容把底部按钮挤出可视区域。
+ */
+@Composable
+internal fun MiuixSettingsScrollArea(
+    modifier: Modifier = Modifier,
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(12.dp),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val scrollState = rememberScrollState()
+    Box(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(end = 10.dp)
+                .verticalScroll(scrollState),
+            verticalArrangement = verticalArrangement,
+            content = content
+        )
+        MiuixSettingsScrollbar(
+            scrollState = scrollState,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .padding(vertical = 4.dp)
+        )
+    }
+}
+
+/** 右侧竖向滚动条：轨道 + 滑块，内容不足以滚动时自动淡出。 */
+@Composable
+private fun MiuixSettingsScrollbar(
+    scrollState: ScrollState,
+    modifier: Modifier = Modifier
+) {
+    var viewportHeight by remember { mutableStateOf(0) }
+    val scrollable = scrollState.maxValue > 0
+    val alpha by animateFloatAsState(
+        targetValue = if (scrollable) 1f else 0f,
+        animationSpec = tween(durationMillis = 120),
+        label = "miuix_scrollbar_alpha"
+    )
+    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+    val thumbColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    Canvas(
+        modifier = modifier
+            .width(4.dp)
+            .onSizeChanged { viewportHeight = it.height }
+    ) {
+        if (!scrollable || viewportHeight <= 0) return@Canvas
+        val radius = CornerRadius(size.width / 2f)
+        drawRoundRect(
+            color = trackColor.copy(alpha = trackColor.alpha * alpha),
+            size = size,
+            cornerRadius = radius
+        )
+        val contentHeight = scrollState.maxValue + viewportHeight
+        val thumbHeight = (size.height * viewportHeight / contentHeight)
+            .coerceAtLeast(minOf(size.height, 24.dp.toPx()))
+        val maxOffset = (size.height - thumbHeight).coerceAtLeast(0f)
+        val progress = (scrollState.value.toFloat() / scrollState.maxValue).coerceIn(0f, 1f)
+        drawRoundRect(
+            color = thumbColor.copy(alpha = thumbColor.alpha * alpha),
+            topLeft = Offset(0f, maxOffset * progress),
+            size = Size(size.width, thumbHeight),
+            cornerRadius = radius
+        )
+    }
+}
+
 @Composable
 internal fun MiuixSettingsButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    animateExitOnClick: Boolean = true,
     content: @Composable RowScope.() -> Unit
 ) {
     val context = LocalContext.current
-    val click = rememberDialogAwareClick(onClick)
+    val click = rememberDialogAwareClick(onClick, animateExitOnClick)
     Button(
         onClick = {
             context.performHapticFeedback()
@@ -171,10 +256,17 @@ internal fun MiuixSettingsOutlinedButton(
 /**
  * 弹窗内点击：先播退场再执行业务关闭（对应 RN `exiting={FadeOut}`）。
  * 不在弹窗内时直接 [onClick]。
+ *
+ * 注意：退场动画会让整个弹窗内容卸载，因此只有「点击后会关闭弹窗」的控件才能传
+ * [animateExitOnClick] = true；验证 / 保存 / 选择等仍需要保持弹窗可交互的操作必须传 false，
+ * 否则点击一次弹窗就再也不会出现。
  */
 @Composable
-internal fun rememberDialogAwareClick(onClick: () -> Unit): () -> Unit {
-    val animateExit = LocalGlassDialogAnimateExit.current
+internal fun rememberDialogAwareClick(
+    onClick: () -> Unit,
+    animateExitOnClick: Boolean = true
+): () -> Unit {
+    val animateExit = LocalGlassDialogAnimateExit.current.takeIf { animateExitOnClick }
     val scope = rememberCoroutineScope()
     val currentOnClick = androidx.compose.runtime.rememberUpdatedState(onClick)
     return remember(animateExit, scope) {
@@ -197,11 +289,12 @@ fun MiuixSettingsTextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    animateExitOnClick: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
     text: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    val click = rememberDialogAwareClick(onClick)
+    val click = rememberDialogAwareClick(onClick, animateExitOnClick)
     TextButton(
         onClick = {
             context.performHapticFeedback()
@@ -452,7 +545,8 @@ internal fun MiuixSettingsChoiceRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    animateExitOnClick: Boolean = true
 ) {
     val context = LocalContext.current
     val contentColor = if (enabled) {
@@ -465,7 +559,7 @@ internal fun MiuixSettingsChoiceRow(
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
     }
-    val click = rememberDialogAwareClick(onClick)
+    val click = rememberDialogAwareClick(onClick, animateExitOnClick)
     Row(
         modifier = modifier
             .fillMaxWidth()

@@ -2032,7 +2032,7 @@ object AutoSettingsSchema {
         @AutoSetting(order = 194)
         val playbackPrecachePlaylistOpen = autoSwitchSetting(
             key = "playback_precache_playlist_open",
-            defaultValue = false,
+            defaultValue = true,
             titleRes = R.string.settings_playback_precache_playlist_open,
             descriptionRes = R.string.settings_playback_precache_playlist_open_desc
         )

@@ -19,7 +19,7 @@ internal object ManagedDownloadDeleteGuard {
     ): Boolean {
         val normalizedReference = reference.takeIf(String::isNotBlank) ?: return false
         val isTrusted = normalizedReference in trustedReferences
-        if (normalizedReference.startsWith("/")) {
+        if (isAbsoluteFileReference(normalizedReference)) {
             val underRoot = managedFileRoots.any { rootPath ->
                 isFileReferenceUnderManagedRoot(normalizedReference, rootPath)
             }
@@ -48,5 +48,22 @@ internal object ManagedDownloadDeleteGuard {
         }
         return generateSequence(target.parentFile) { file -> file.parentFile }
             .any { parent -> parent == root }
+    }
+
+    /**
+     * Android stores local paths with a leading slash, while JVM tests on Windows expose
+     * the same paths as `C:\\...`.  Both must take the canonical-file containment path;
+     * treating the latter as a document URI rejects safe managed files before the guard
+     * can verify their parent directory.
+     */
+    private fun isAbsoluteFileReference(reference: String): Boolean {
+        return reference.startsWith("/") ||
+            reference.startsWith("\\\\") ||
+            (
+                reference.length >= 3 &&
+                    reference[0].isLetter() &&
+                    reference[1] == ':' &&
+                    (reference[2] == '/' || reference[2] == '\\')
+                )
     }
 }

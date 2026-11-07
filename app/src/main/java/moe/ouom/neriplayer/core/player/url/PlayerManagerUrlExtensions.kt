@@ -24,6 +24,7 @@ import moe.ouom.neriplayer.core.player.download.AudioDownloadManager
 import moe.ouom.neriplayer.core.player.lifecycle.updateAudioOffloadPreferences
 import moe.ouom.neriplayer.core.player.model.PlaybackAudioInfo
 import moe.ouom.neriplayer.core.player.model.PlaybackAudioSource
+import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.player.model.PlayerEvent
 import moe.ouom.neriplayer.core.player.model.SongUrlResult
 import moe.ouom.neriplayer.core.player.model.mergeLocalPlaybackAudioInfoWithRemoteQuality
@@ -85,6 +86,21 @@ internal enum class CachePrefetchReadiness {
     COMPLETE,
     READY_FOR_PREFETCH,
     UNAVAILABLE
+}
+
+/**
+ * 开启「在线音源优先」时，播放前不要直接吃预取阶段已经回落到网易云的 URL：
+ * 预取失败不代表这次播放也失败，先让在线音源重新尝试，保持播放顺序一致。
+ */
+internal fun PlayerManager.shouldTryLxBeforePrefetchedPlatformSource(
+    song: SongItem,
+    prefetched: SongUrlResult.Success
+): Boolean {
+    if (prefetched.isNeteaseLocalFallback) return false
+    if (prefetched.audioInfo?.source != PlaybackAudioSource.NETEASE) return false
+    val repository = runCatching { AppContainer.lxMusicSourceRepository }.getOrNull() ?: return false
+    if (!repository.peekHasActiveSources()) return false
+    return !isBiliTrack(song) && !isYouTubeMusicTrack(song) && !isQQMusicTrack(song)
 }
 
 internal fun inspectCachedResourceSpans(
@@ -238,26 +254,7 @@ internal suspend fun PlayerManager.resolveSongUrl(
         }
     }
 
-    // 在线曲目优先尝试 LX 在线音源；失败再走缓存/平台链路
-    tryResolveLxMusicCustomSource(song)
-        ?.let { lxResult ->
-            NPLogger.d(
-                "NERI-PlayerManager",
-                "resolveSongUrl: LX custom source hit for song=${song.name}"
-            )
-            return mergeListenTogetherFallbackResult(
-                localResult = lxResult,
-                listenTogetherFallback = initialListenTogetherFallback,
-                preferredQualityKey = listenTogetherPreferredQualityKey(song)
-            )
-        }
-    if (song.channelId?.startsWith("lx:") == true) {
-        sideEffects.emitError {
-            postPlayerEvent(PlayerEvent.ShowError(getLocalizedString(R.string.error_no_play_url)))
-        }
-        return SongUrlResult.Failure
-    }
-
+    // 播放顺序：已下载/已缓存 → 预取好的 URL → 在线 LX 音源 → 平台原生接口
     val localResult = checkLocalCache(song, sideEffects)
     if (localResult != null) {
         prepareBiliPlaybackSkipsForResolvedPlayback(song, playbackRequestTokenOverride)
@@ -354,14 +351,47 @@ internal suspend fun PlayerManager.resolveSongUrl(
     }
     if (!forceRefresh && allowGenericPrefetchCache && !isYouTubeTrack) {
         consumeGenericUrlPrefetch(cacheKey)?.let { prefetchedResult ->
-            prepareBiliPlaybackSkipsForResolvedPlayback(song)
-            return mergeListenTogetherFallbackResult(
-                localResult = prefetchedResult,
-                listenTogetherFallback = initialListenTogetherFallback,
-                preferredQualityKey = listenTogetherPreferredQualityKey(song)
-            )
+            if (shouldTryLxBeforePrefetchedPlatformSource(song, prefetchedResult)) {
+                NPLogger.d(
+                    "NERI-PlayerManager",
+                    "skip prefetched Netease url to keep LX priority: song=${song.name}"
+                )
+            } else {
+                prepareBiliPlaybackSkipsForResolvedPlayback(song)
+                return mergeListenTogetherFallbackResult(
+                    localResult = prefetchedResult,
+                    listenTogetherFallback = initialListenTogetherFallback,
+                    preferredQualityKey = listenTogetherPreferredQualityKey(song)
+                )
+            }
         }
     }
+
+    // 本地缓存都未命中时才尝试在线 LX 音源，尽量缩短播放等待
+    val lxResult = tryResolveLxMusicCustomSource(song)
+    if (lxResult != null) {
+        NPLogger.d(
+            "NERI-PlayerManager",
+            "resolveSongUrl: LX custom source hit for song=${song.name}"
+        )
+        return mergeListenTogetherFallbackResult(
+            localResult = lxResult,
+            listenTogetherFallback = initialListenTogetherFallback,
+            preferredQualityKey = listenTogetherPreferredQualityKey(song)
+        )
+    }
+    if (song.channelId?.startsWith("lx:") == true) {
+        sideEffects.emitError {
+            postPlayerEvent(PlayerEvent.ShowError(getLocalizedString(R.string.error_no_play_url)))
+        }
+        return SongUrlResult.Failure
+    }
+    NPLogger.w(
+        "NERI-PlayerManager",
+        "resolveSongUrl: all LX sources failed, fallback to platform resolver: " +
+            "song=${song.name}, channel=${song.channelId}, album=${song.album}"
+    )
+
     val resolverSideEffects = if (
         initialListenTogetherFallback != null || suppressListenTogetherResolverErrors
     ) {

@@ -24,14 +24,11 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.dialog
  */
 
 import android.content.Intent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -52,6 +49,7 @@ import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsChoiceRow
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsInlineMessage
+import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsScrollArea
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextField
 import moe.ouom.neriplayer.ui.screen.tab.settings.state.collectAsStateWithLifecycleCompat
@@ -87,13 +85,15 @@ internal fun SettingsGitHubDialogs(
 
         MiuixSettingsDialog(
             onDismissRequest = dismissConfigDialog,
+            // 加宽加高：Token 验证后会出现仓库选择区，太小会把底部「完成」按钮挤出可视区域
+            maxWidth = 320.dp,
+            maxHeight = 520.dp,
             title = { Text(stringResource(R.string.sync_config)) },
             text = {
-                Column(
+                MiuixSettingsScrollArea(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .heightIn(max = 360.dp)
                 ) {
                     githubState.errorMessage?.let { error ->
                         MiuixSettingsInlineMessage(
@@ -133,7 +133,9 @@ internal fun SettingsGitHubDialogs(
                                 "https://github.com/settings/tokens/new?scopes=repo&description=Cool%20Music%20Backup".toUri()
                             )
                             context.startActivity(intent)
-                        }
+                        },
+                        // 仅跳转浏览器创建 Token，弹窗必须保留，否则返回后无法继续配置
+                        animateExitOnClick = false
                     ) {
                         Text(stringResource(R.string.sync_create_token))
                     }
@@ -147,7 +149,8 @@ internal fun SettingsGitHubDialogs(
                         MiuixSettingsChoiceRow(
                             title = stringResource(R.string.sync_create_new_repo),
                             selected = !useExistingRepo,
-                            onClick = { useExistingRepo = false }
+                            onClick = { useExistingRepo = false },
+                            animateExitOnClick = false
                         )
 
                         if (!useExistingRepo) {
@@ -163,7 +166,8 @@ internal fun SettingsGitHubDialogs(
                         MiuixSettingsChoiceRow(
                             title = stringResource(R.string.sync_use_existing_repo),
                             selected = useExistingRepo,
-                            onClick = { useExistingRepo = true }
+                            onClick = { useExistingRepo = true },
+                            animateExitOnClick = false
                         )
 
                         if (useExistingRepo) {
@@ -189,7 +193,9 @@ internal fun SettingsGitHubDialogs(
                     !githubState.tokenValid -> {
                         MiuixSettingsButton(
                             onClick = { githubVm.validateToken(context, githubToken) },
-                            enabled = githubToken.isNotBlank() && !githubState.isValidating
+                            enabled = githubToken.isNotBlank() && !githubState.isValidating,
+                            // 验证后还要继续选仓库，弹窗不能被退场动画卸载
+                            animateExitOnClick = false
                         ) {
                             if (githubState.isValidating) {
                                 CircularProgressIndicator(
@@ -210,7 +216,9 @@ internal fun SettingsGitHubDialogs(
                                     githubVm.createRepository(context, githubRepoName)
                                 }
                             },
-                            enabled = !githubState.isCreatingRepo && !githubState.isCheckingRepo
+                            enabled = !githubState.isCreatingRepo && !githubState.isCheckingRepo,
+                            // 创建/绑定成功后仍停留在弹窗展示结果，由用户手动点「关闭」
+                            animateExitOnClick = false
                         ) {
                             if (githubState.isCreatingRepo || githubState.isCheckingRepo) {
                                 CircularProgressIndicator(

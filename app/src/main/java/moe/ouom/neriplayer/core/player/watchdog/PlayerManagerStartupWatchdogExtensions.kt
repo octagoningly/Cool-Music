@@ -22,6 +22,7 @@ import moe.ouom.neriplayer.core.player.policy.command.PlaybackCommandSource
 import moe.ouom.neriplayer.core.player.policy.command.resolvePlaybackStartPlan
 import moe.ouom.neriplayer.core.player.policy.progress.hasPlaybackProgressAdvancedSinceBaseline
 import moe.ouom.neriplayer.core.player.policy.refresh.YouTubePlaybackRecoveryStrategy
+import moe.ouom.neriplayer.core.player.resolver.lxmusic.recordCurrentLxSourcePlaybackFailure
 import moe.ouom.neriplayer.core.player.url.YOUTUBE_STABLE_RECOVERY_QUALITY
 import moe.ouom.neriplayer.core.player.url.currentPlaybackCacheKeyForRecovery
 import moe.ouom.neriplayer.core.player.url.invalidateCachedResourceForPlaybackRecovery
@@ -224,6 +225,7 @@ private fun PlayerManager.isStartupPlaybackStalled(startPositionMs: Long): Boole
 private fun PlayerManager.recoverPlaybackStartupStall(requestToken: Long) {
     if (requestToken != playbackRequestToken) return
     startupStallRecoveryAttempts += 1
+    recordCurrentLxSourcePlaybackFailure("startup_stall_$startupStallRecoveryAttempts")
 
     val offlineCacheKey = offlineCacheKeyFromUrl(_currentMediaUrl.value)
     if (

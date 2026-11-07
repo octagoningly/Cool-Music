@@ -26,10 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import moe.ouom.neriplayer.ui.component.overlay.DensityScaledAlertDialog as AlertDialog
@@ -40,7 +37,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,7 +55,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.data.local.playlist.model.LocalPlaylist
 import moe.ouom.neriplayer.ui.component.sheet.bottomSheetScrollGuard
@@ -68,11 +63,6 @@ import moe.ouom.neriplayer.ui.haptic.performHapticFeedback
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextField
 import java.util.concurrent.atomic.AtomicBoolean
-
-private class PendingPlaylistExport(
-    val targetName: String,
-    val onConfirm: () -> Unit
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,171 +75,175 @@ internal fun PlaylistExportSheet(
     onExportToPlaylist: (LocalPlaylist) -> Unit,
     createActionLabel: String? = null
 ) {
+    PlaylistTargetPickerSheet(
+        title = title,
+        playlists = playlists,
+        onDismissRequest = onDismissRequest,
+        createDialogTitle = stringResource(R.string.playlist_export_to_new),
+        createActionLabel = createActionLabel ?: stringResource(R.string.playlist_create_and_export),
+        canCreate = selectedCount > 0,
+        onCreateTarget = onCreateAndExport,
+        onSelectTarget = onExportToPlaylist,
+    )
+}
+
+/**
+ * Shared two-step target picker for both exporting and adding songs.
+ *
+ * The first panel only chooses a destination. "Create" intentionally opens a
+ * separate compact dialog so the name field never consumes playlist-list space.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun PlaylistTargetPickerSheet(
+    title: String,
+    playlists: List<LocalPlaylist>,
+    onDismissRequest: () -> Unit,
+    createDialogTitle: String,
+    createActionLabel: String,
+    canCreate: Boolean,
+    onCreateTarget: (String) -> Unit,
+    onSelectTarget: (LocalPlaylist) -> Unit,
+) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val playlistListState = rememberLazyListState()
     var newName by remember { mutableStateOf("") }
-    var pendingExport by remember { mutableStateOf<PendingPlaylistExport?>(null) }
-    val resolvedCreateActionLabel =
-        createActionLabel ?: stringResource(R.string.playlist_create_and_export)
+    var showSelectionSheet by remember { mutableStateOf(true) }
+    var showCreateDialog by remember { mutableStateOf(false) }
 
-    fun clearPendingExport() {
-        pendingExport = null
-    }
-
-    fun dismissAnimated() {
-        clearPendingExport()
-        scope.launch {
-            runCatching { sheetState.hide() }
-            onDismissRequest()
-        }
-    }
-
-    fun runThenDismiss(action: () -> Unit) {
-        action()
-        dismissAnimated()
-    }
-
-    fun requestExportConfirmation(targetName: String, action: () -> Unit) {
-        if (pendingExport != null) return
-        pendingExport = PendingPlaylistExport(targetName) {
-            runThenDismiss(action)
-        }
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = { dismissAnimated() },
-        sheetState = sheetState,
-        shape = moe.ouom.neriplayer.ui.component.overlay.GlassDialogShape,
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp,
-        scrimColor = Color.Black.copy(alpha = 0.46f),
-        dragHandle = null,
-        panelPosition = moe.ouom.neriplayer.ui.component.overlay.GlassPanelPosition.Bottom,
-        panelYOffset = -64.dp,
-        panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 12.dp,
-            bottom = 16.dp
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .bottomSheetScrollGuard()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 16.dp)
+    if (showSelectionSheet) {
+        ModalBottomSheet(
+            onDismissRequest = onDismissRequest,
+            sheetState = sheetState,
+            shape = moe.ouom.neriplayer.ui.component.overlay.GlassDialogShape,
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp,
+            scrimColor = Color.Black.copy(alpha = 0.46f),
+            dragHandle = null,
+            // A centered picker leaves the MiniPlayer unobstructed regardless of list length.
+            panelPosition = moe.ouom.neriplayer.ui.component.overlay.GlassPanelPosition.Centered,
+            // The title and the create action share one row. 340.dp keeps both Chinese labels
+            // on one line while still leaving a clear margin on a phone-sized screen.
+            panelMaxWidth = 340.dp,
+            panelMaxHeight = 500.dp,
+            panelContentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = 12.dp,
+                end = 12.dp,
+                top = 14.dp,
+                bottom = 14.dp
+            )
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier
+                    .bottomSheetScrollGuard()
+                    // Keep the rows and scrollbar close to the panel edge instead of wasting
+                    // almost a centimetre of space on both sides.
+                    .padding(horizontal = 8.dp)
+                    .padding(bottom = 8.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f)
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = true)
                     )
                     MiuixSettingsButton(
-                        enabled = newName.isNotBlank() && selectedCount > 0,
+                        enabled = canCreate,
                         onClick = {
-                            val name = newName.trim()
-                            if (name.isBlank()) return@MiuixSettingsButton
-                            requestExportConfirmation(name) { onCreateAndExport(name) }
+                            showSelectionSheet = false
+                            showCreateDialog = true
                         },
                     ) {
                         Icon(Icons.Outlined.Add, contentDescription = null)
                         Spacer(Modifier.width(4.dp))
-                        Text(resolvedCreateActionLabel)
+                        Text(
+                            text = createActionLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.common_selected_count,
-                        selectedCount,
-                        selectedCount
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
 
+                Spacer(Modifier.height(8.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    LazyColumn(
+                        state = playlistListState,
+                        modifier = Modifier
+                            .weight(1f)
+                            .playlistExportListHeight()
+                    ) {
+                        items(playlists, key = { it.id }) { playlist ->
+                            PlaylistExportRow(
+                                playlist = playlist,
+                                enabled = true,
+                                // Match the compact list used by "添加到歌单".
+                                compact = true,
+                                onClick = {
+                                    context.performHapticFeedback()
+                                    showSelectionSheet = false
+                                    onSelectTarget(playlist)
+                                    onDismissRequest()
+                                }
+                            )
+                        }
+                    }
+                    PlaylistExportScrollbar(
+                        listState = playlistListState,
+                        itemCount = playlists.size,
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .fillMaxHeight()
+                    )
+                }
+            }
+        }
+    }
+
+    if (showCreateDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showCreateDialog = false
+                onDismissRequest()
+            },
+            // Wider than the compact default so the two standard text buttons breathe.
+            maxWidth = 280.dp,
+            buttonSpacing = 16.dp,
+            title = { Text(createDialogTitle) },
+            text = {
                 MiuixSettingsTextField(
                     value = newName,
                     onValueChange = { newName = it },
                     placeholder = { Text(stringResource(R.string.playlist_create_name)) },
                     singleLine = true
                 )
-
-                HorizontalDivider(
-                    thickness = DividerDefaults.Thickness,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                LazyColumn(
-                    state = playlistListState,
-                    modifier = Modifier
-                        .weight(1f)
-                        .playlistExportListHeight()
-                ) {
-                    items(playlists, key = { it.id }) { playlist ->
-                        PlaylistExportRow(
-                            playlist = playlist,
-                            enabled = pendingExport == null,
-                            onClick = {
-                                context.performHapticFeedback()
-                                // 直接导出，不再弹确认框
-                                runThenDismiss { onExportToPlaylist(playlist) }
-                            }
-                        )
-                    }
-                }
-                PlaylistExportScrollbar(
-                    listState = playlistListState,
-                    itemCount = playlists.size,
-                    modifier = Modifier
-                        .padding(start = 6.dp)
-                        .fillMaxHeight()
-                )
-            }
-        }
-    }
-
-    pendingExport?.let { export ->
-        AlertDialog(
-            onDismissRequest = {
-                clearPendingExport()
-            },
-            title = { Text(stringResource(R.string.playlist_batch_export_confirm_title)) },
-            text = {
-                Text(
-                    pluralStringResource(
-                        R.plurals.playlist_batch_export_confirm_message,
-                        selectedCount,
-                        selectedCount,
-                        export.targetName
-                    )
-                )
             },
             confirmButton = {
                 HapticTextButton(
+                    enabled = newName.isNotBlank() && canCreate,
                     onClick = {
-                        val action = export.onConfirm
-                        clearPendingExport()
-                        action()
+                        val name = newName.trim()
+                        if (name.isBlank()) return@HapticTextButton
+                        showCreateDialog = false
+                        onCreateTarget(name)
+                        onDismissRequest()
                     }
                 ) {
-                    Text(stringResource(R.string.playlist_batch_export_confirm_button))
+                    Text(stringResource(R.string.action_confirm))
                 }
             },
             dismissButton = {
                 HapticTextButton(
                     onClick = {
-                        clearPendingExport()
+                        showCreateDialog = false
+                        onDismissRequest()
                     }
                 ) {
                     Text(stringResource(R.string.action_cancel))

@@ -41,8 +41,14 @@ class SettingsRepositoryTest {
         val repository = SettingsRepository(context)
 
         runBlocking {
-            repository.setExternalBluetoothLyricsEnabled(false)
-            repository.setExternalBluetoothTranslationEnabled(false)
+            val dependencies = resolveDynamicIslandLyricsDependencies(
+                enabled = true,
+                bluetoothLyricsEnabled = false,
+                bluetoothTranslationEnabled = false
+            )
+            assertTrue(dependencies.bluetoothLyricsEnabled)
+            assertTrue(dependencies.bluetoothTranslationEnabled)
+
             repository.setDynamicIslandLyricsEnabled(true)
 
             assertTrue(repository.externalBluetoothLyricsEnabledFlow.first())

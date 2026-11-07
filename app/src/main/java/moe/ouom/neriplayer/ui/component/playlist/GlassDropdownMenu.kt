@@ -7,14 +7,18 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -42,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
@@ -520,6 +525,7 @@ private fun GlassMenuPopup(
         )
     }
     val keepBlurRegion = expanded || appearProgress > 0.02f
+    val scrollState = rememberScrollState()
     CompositionLocalProvider(
         LocalGlassOverlayElevated provides true,
         LocalAdvancedGlassDepth provides 0,
@@ -549,20 +555,102 @@ private fun GlassMenuPopup(
                             textAlign = TextAlign.Center
                         )
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                                .widthIn(min = 112.dp, max = maxWidth)
-                                .heightIn(max = maxHeight)
-                                .verticalScroll(rememberScrollState()),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            content = content
-                        )
+                        Box {
+                            Column(
+                                modifier = Modifier
+                                    .padding(
+                                        start = 8.dp,
+                                        top = 4.dp,
+                                        end = if (scrollState.maxValue == 0) 8.dp else 16.dp,
+                                        bottom = 4.dp
+                                    )
+                                    .widthIn(min = 112.dp, max = maxWidth)
+                                    .heightIn(max = maxHeight)
+                                    .verticalScroll(scrollState),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                content = content
+                            )
+                            GlassMenuVerticalScrollbar(scrollState)
+                        }
                     }
                 }
             }
         }
     }
+}
+
+/** A lightweight position indicator for vertically scrolling menu/panel content. */
+@Composable
+internal fun BoxScope.GlassMenuVerticalScrollbar(
+    scrollState: androidx.compose.foundation.ScrollState,
+    modifier: Modifier = Modifier,
+) {
+    var viewportHeightPx by remember { mutableIntStateOf(0) }
+    var trackHeightPx by remember { mutableIntStateOf(0) }
+    val metrics = resolveGlassMenuScrollbarMetrics(
+        viewportHeightPx = viewportHeightPx,
+        scrollRangePx = scrollState.maxValue,
+        scrollValuePx = scrollState.value,
+    )
+
+    Box(
+        modifier = modifier
+            .matchParentSize()
+            .onSizeChanged { viewportHeightPx = it.height }
+    ) {
+        metrics?.let { scrollbar ->
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = 5.dp, top = 8.dp, bottom = 8.dp)
+                    .width(3.dp)
+                    .fillMaxHeight()
+                    .onSizeChanged { trackHeightPx = it.height }
+                    .background(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+                        shape = RoundedCornerShape(2.dp)
+                    )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .fillMaxHeight(scrollbar.thumbFraction)
+                        .offset {
+                            IntOffset(
+                                0,
+                                (trackHeightPx * scrollbar.offsetFraction).roundToInt()
+                            )
+                        }
+                        .background(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.58f),
+                            shape = RoundedCornerShape(2.dp)
+                        )
+                )
+            }
+        }
+    }
+}
+
+/** Geometry for the compact scrollbar shown only when a glass menu has overflow. */
+internal data class GlassMenuScrollbarMetrics(
+    val thumbFraction: Float,
+    val offsetFraction: Float,
+)
+
+internal fun resolveGlassMenuScrollbarMetrics(
+    viewportHeightPx: Int,
+    scrollRangePx: Int,
+    scrollValuePx: Int,
+): GlassMenuScrollbarMetrics? {
+    if (viewportHeightPx <= 0 || scrollRangePx <= 0) return null
+    val contentHeight = viewportHeightPx.toFloat() + scrollRangePx
+    val thumbFraction = (viewportHeightPx / contentHeight).coerceIn(0.14f, 0.92f)
+    val progress = (scrollValuePx.toFloat() / scrollRangePx).coerceIn(0f, 1f)
+    return GlassMenuScrollbarMetrics(
+        thumbFraction = thumbFraction,
+        offsetFraction = (1f - thumbFraction) * progress,
+    )
 }
 
 /**

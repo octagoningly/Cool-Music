@@ -2,6 +2,10 @@ package moe.ouom.neriplayer.core.player.resolver.lxmusic
 
 import android.os.SystemClock
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
@@ -18,6 +22,8 @@ import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
 import moe.ouom.neriplayer.data.source.lxmusic.LxSearchItem
 import moe.ouom.neriplayer.data.source.lxmusic.LxSongUrlResult
 import moe.ouom.neriplayer.data.source.lxmusic.inferLxMimeType
+import moe.ouom.neriplayer.data.source.lxmusic.orderLxSourcesForSong
+import moe.ouom.neriplayer.data.source.lxmusic.recentLxPlaybackFailedSourceIds
 import moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceEngine
 import moe.ouom.neriplayer.data.source.lxmusic.js.LxJsSourceRuntime
 import moe.ouom.neriplayer.data.source.lxmusic.mapNeteaseQualityToLxOrder
@@ -54,8 +60,10 @@ import kotlin.math.absoluteValue
 private const val TAG = "NERI-LxMusicSource"
 private const val LX_SEARCH_LIMIT = 6
 private const val LX_MIN_ACCEPT_SCORE = 68
-private const val LX_RESOLVE_TOTAL_TIMEOUT_MS = 11_000L
-private const val LX_FALLBACK_TOTAL_TIMEOUT_MS = 7_000L
+private const val LX_RESOLVE_TOTAL_TIMEOUT_MS = 9_000L
+private const val LX_FALLBACK_TOTAL_TIMEOUT_MS = 6_000L
+private const val LX_SOURCE_TIMEOUT_MS = 8_000L
+private const val LX_SOURCE_STAGGER_MS = 250L
 private const val LX_JS_CALL_TIMEOUT_MS = 4_500L
 private const val LX_MAX_SEARCH_QUERIES = 2
 private const val LX_MAX_QUALITY_ATTEMPTS = 2
@@ -134,13 +142,32 @@ internal suspend fun PlayerManager.tryResolveLxMusicCustomSource(
     }
     LxAttemptGuard.record(songKey, nowMs)
 
+    // 同一首歌记住上次成功的音源，失败过的音源降权但保留最后一次尝试机会
+    val affinity = repository.peekSongSourceAffinity(songKey)
+    val recentlyFailedSourceIds = recentLxPlaybackFailedSourceIds(
+        affinity = affinity,
+        nowMs = System.currentTimeMillis()
+    )
+    val orderedSources = orderLxSourcesForSong(enabledSources, affinity)
+        .filterNot { it.id in recentlyFailedSourceIds }
+    if (orderedSources.isEmpty()) {
+        NPLogger.w(
+            TAG,
+            "Skip LX sources rejected by the player recently: song=${song.name}, " +
+                "sources=$recentlyFailedSourceIds"
+        )
+        repository.recordResolveFailure("all configured sources recently failed playback")
+        return null
+    }
     val preferredNeteaseQuality = effectiveLxQuality()
         .let { mapLxQualityToNeteaseKey(it) ?: effectiveNeteaseQuality() }
     LxJsSourceEngine.clearFailureReasons()
     NPLogger.d(
         TAG,
         "Try LX custom source: song=${song.name}, id=${song.id}, fallback=$isFallbackAttempt, " +
-            "sources=${enabledSources.map { "${it.name}(${it.kind})" }}, quality=$preferredNeteaseQuality"
+            "sources=${orderedSources.map { "${it.name}(${it.kind})" }}, " +
+            "preferred=${affinity?.preferredSourceId}, skipped=$recentlyFailedSourceIds, " +
+            "quality=$preferredNeteaseQuality"
     )
     val totalTimeoutMs = if (isFallbackAttempt) {
         LX_FALLBACK_TOTAL_TIMEOUT_MS
@@ -152,41 +179,76 @@ internal suspend fun PlayerManager.tryResolveLxMusicCustomSource(
     } else {
         LX_MAX_QUALITY_ATTEMPTS
     }
+    val failedSourceIds = mutableListOf<String>()
     val resolved = withTimeoutOrNull(totalTimeoutMs) {
-        for (source in enabledSources) {
-            try {
-                val result = if (source.isJsSource) {
-                    resolveFromLxJsSource(
-                        song = song,
-                        source = source,
-                        preferredNeteaseQuality = preferredNeteaseQuality,
-                        maxQualityAttempts = qualityAttempts
-                    )
-                } else {
-                    resolveFromLxSource(
-                        song = song,
-                        source = source,
-                        preferredNeteaseQuality = preferredNeteaseQuality,
-                        maxQualityAttempts = qualityAttempts
-                    )
+        // 各音源并行尝试：优选音源先起跑，失败音源依次错后；
+        // 这样单个音源卡住不会饿死其它音源，命中结果也能立刻返回
+        coroutineScope {
+            val channel = Channel<Pair<String, SongUrlResult?>>(orderedSources.size)
+            val jobs = orderedSources.mapIndexed { index, source ->
+                launch {
+                    if (index > 0) delay(index * LX_SOURCE_STAGGER_MS)
+                    val result = try {
+                        withTimeoutOrNull(LX_SOURCE_TIMEOUT_MS) {
+                            if (source.isJsSource) {
+                                resolveFromLxJsSource(
+                                    song = song,
+                                    source = source,
+                                    preferredNeteaseQuality = preferredNeteaseQuality,
+                                    maxQualityAttempts = qualityAttempts
+                                )
+                            } else {
+                                resolveFromLxSource(
+                                    song = song,
+                                    source = source,
+                                    preferredNeteaseQuality = preferredNeteaseQuality,
+                                    maxQualityAttempts = qualityAttempts
+                                )
+                            }
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        NPLogger.w(TAG, "LX source resolve error: source=${source.name}, error=${e.message}")
+                        null
+                    }
+                    channel.send(source.id to result)
                 }
-                if (result != null) {
-                    return@withTimeoutOrNull result
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                NPLogger.w(TAG, "LX source resolve error: source=${source.name}, error=${e.message}")
             }
+            var success: Pair<String, SongUrlResult?>? = null
+            var received = 0
+            while (received < orderedSources.size) {
+                val attempt = channel.receive()
+                received++
+                if (attempt.second != null) {
+                    success = attempt
+                    break
+                }
+                failedSourceIds += attempt.first
+                NPLogger.d(
+                    TAG,
+                    "LX source unavailable, try next: source=${attempt.first}, song=${song.name}"
+                )
+            }
+            jobs.forEach { it.cancel() }
+            success
         }
-        null
     }
-    if (resolved != null) {
+    val resolvedResult = resolved?.second
+    val successSourceId = resolved?.first
+    if (resolvedResult != null) {
         repository.recordResolveSuccess()
+        successSourceId?.let { sourceId ->
+            repository.recordSongSourceOutcome(
+                songKey = songKey,
+                successSourceId = sourceId,
+                failedSourceIds = failedSourceIds
+            )
+        }
     } else {
         repository.recordResolveFailure(resolveFailureReason())
     }
-    return resolved
+    return resolvedResult
 }
 
 private suspend fun PlayerManager.resolveLxSearchSong(song: SongItem): SongUrlResult? {
@@ -195,56 +257,106 @@ private suspend fun PlayerManager.resolveLxSearchSong(song: SongItem): SongUrlRe
     val repository = AppContainer.lxMusicSourceRepository
     val sources = repository.getEnabledSources().filter { it.isJsSource }
     if (sources.isEmpty()) return null
+    val songKey = song.stableKey()
+    val affinity = repository.peekSongSourceAffinity(songKey)
+    val recentlyFailedSourceIds = recentLxPlaybackFailedSourceIds(
+        affinity = affinity,
+        nowMs = System.currentTimeMillis()
+    )
+    val orderedSources = orderLxSourcesForSong(sources, affinity)
+        .filterNot { it.id in recentlyFailedSourceIds }
+    if (orderedSources.isEmpty()) {
+        NPLogger.w(
+            TAG,
+            "Skip LX search sources rejected by the player recently: song=${song.name}, " +
+                "sources=$recentlyFailedSourceIds"
+        )
+        repository.recordResolveFailure("all configured search sources recently failed playback")
+        return null
+    }
     val preferredQuality = effectiveLxQuality()
         .let { mapLxQualityToNeteaseKey(it) ?: effectiveNeteaseQuality() }
-    val resolved = withTimeoutOrNull(LX_RESOLVE_TOTAL_TIMEOUT_MS) {
-        for (source in sources) {
-            try {
-                val script = repository.readJsScript(source) ?: continue
-                if (!LxJsSourceEngine.ensureLoaded(
-                        context = application,
-                        okHttpClient = AppContainer.sharedOkHttpClient,
-                        sourceId = source.id,
-                        sourceName = source.name,
-                        script = script,
-                        description = source.description,
-                        version = source.version,
-                        author = source.author
-                    )) continue
-                val runtime = LxJsSourceEngine.runtime(source.id) ?: continue
-                if (runtime.supportedSources.isNotEmpty() && hit.sourceId !in runtime.supportedSources) continue
-                val qualities = selectLxQualityOrder(
-                    preferredNeteaseQuality = preferredQuality,
-                    supportedQualities = runtime.supportedQualities,
-                    maxAttempts = DEFAULT_LX_QUALITIES.size
-                ).filter { hit.sourceId != LX_KUGOU_PLATFORM_ID || it in hit.qualityHashes }
-                for (quality in qualities) {
-                    val url = runtime.getMusicUrl(
-                        sourceId = hit.sourceId,
-                        quality = quality,
-                        musicInfoJson = buildLxCrossPlatformMusicInfoJson(song, hit, quality),
-                        timeoutMs = LX_JS_CALL_TIMEOUT_MS
-                    ) ?: continue
-                    if (!url.startsWith("http", ignoreCase = true)) continue
-                    val mimeType = inferLxMimeType(quality, url)
-                    return@withTimeoutOrNull SongUrlResult.Success(
-                        url = url,
-                        durationMs = song.durationMs.takeIf { it > 0L },
-                        mimeType = mimeType,
-                        audioInfo = buildLxPlaybackAudioInfo(source, quality, mimeType),
-                        cacheKeyOverride = "lxjs-${source.id}-${hit.sourceId}-${hit.songMid}-$quality"
-                    )
+    val perSourceTimeoutMs = (LX_RESOLVE_TOTAL_TIMEOUT_MS / orderedSources.size)
+        .coerceIn(2_500L, LX_SOURCE_TIMEOUT_MS)
+    val failedSourceIds = mutableListOf<String>()
+    var successSourceId: String? = null
+    val resolved = withTimeoutOrNull(LX_RESOLVE_TOTAL_TIMEOUT_MS) search@ {
+        for (source in orderedSources) {
+            val result = try {
+                withTimeoutOrNull(perSourceTimeoutMs) sourceBlock@ {
+                    val script = repository.readJsScript(source) ?: return@sourceBlock null
+                    if (!LxJsSourceEngine.ensureLoaded(
+                            context = application,
+                            okHttpClient = AppContainer.sharedOkHttpClient,
+                            sourceId = source.id,
+                            sourceName = source.name,
+                            script = script,
+                            description = source.description,
+                            version = source.version,
+                            author = source.author
+                        )) return@sourceBlock null
+                    val runtime = LxJsSourceEngine.runtime(source.id) ?: return@sourceBlock null
+                    if (runtime.supportedSources.isNotEmpty() && hit.sourceId !in runtime.supportedSources) {
+                        return@sourceBlock null
+                    }
+                    val qualities = selectLxQualityOrder(
+                        preferredNeteaseQuality = preferredQuality,
+                        supportedQualities = runtime.supportedQualities,
+                        maxAttempts = DEFAULT_LX_QUALITIES.size
+                    ).filter { hit.sourceId != LX_KUGOU_PLATFORM_ID || it in hit.qualityHashes }
+                    for (quality in qualities) {
+                        val url = runtime.getMusicUrl(
+                            sourceId = hit.sourceId,
+                            quality = quality,
+                            musicInfoJson = buildLxCrossPlatformMusicInfoJson(song, hit, quality),
+                            timeoutMs = LX_JS_CALL_TIMEOUT_MS
+                        ) ?: continue
+                        if (!url.startsWith("http", ignoreCase = true)) continue
+                        if (!isLxStreamPlayable(url)) {
+                            NPLogger.w(
+                                TAG,
+                                "LX direct resolve returned unplayable url: source=${source.name}, " +
+                                    "platform=${hit.sourceId}, song=${song.name}, quality=$quality"
+                            )
+                            continue
+                        }
+                        val mimeType = inferLxMimeType(quality, url)
+                        return@sourceBlock SongUrlResult.Success(
+                            url = url,
+                            durationMs = song.durationMs.takeIf { it > 0L },
+                            mimeType = mimeType,
+                            audioInfo = buildLxPlaybackAudioInfo(source, quality, mimeType),
+                            cacheKeyOverride = "lxjs-${source.id}-${hit.sourceId}-${hit.songMid}-$quality"
+                        )
+                    }
+                    null
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
                 NPLogger.w(TAG, "LX direct resolve failed: source=${source.name}, platform=${hit.sourceId}, error=${error.message}")
+                null
             }
+            if (result != null) {
+                successSourceId = source.id
+                return@search result
+            }
+            failedSourceIds += source.id
         }
         null
     }
-    if (resolved != null) repository.recordResolveSuccess()
-    else repository.recordResolveFailure(resolveFailureReason())
+    if (resolved != null) {
+        repository.recordResolveSuccess()
+        successSourceId?.let { sourceId ->
+            repository.recordSongSourceOutcome(
+                songKey = songKey,
+                successSourceId = sourceId,
+                failedSourceIds = failedSourceIds
+            )
+        }
+    } else {
+        repository.recordResolveFailure(resolveFailureReason())
+    }
     return resolved
 }
 
@@ -279,19 +391,36 @@ private suspend fun PlayerManager.resolveFromLxJsSource(
     val runtime = engine.runtime(source.id) ?: return null
 
     val supportedSources = runtime.supportedSources
+    val isNeteaseTrack = isNeteaseMusicTrack(song)
     val target = resolveLxJsPlatformTarget(
         song = song,
-        isNeteaseTrack = isNeteaseMusicTrack(song),
+        isNeteaseTrack = isNeteaseTrack,
         supportedSourceIds = supportedSources
     )
     if (target == null) {
+        if (!isNeteaseTrack) {
+            NPLogger.d(
+                TAG,
+                "LX JS source skipped, no platform id for song: song=${song.name}, " +
+                    "bili=${isBiliTrack(song)}, youtube=${isYouTubeMusicTrack(song)}, " +
+                    "sources=$supportedSources"
+            )
+            return null
+        }
+        // 音源脚本没有声明网易云通道时，仍可按「歌名+歌手」搜索其它平台取流，
+        // 否则网易云独家曲目会直接落到平台接口，表现为「优先使用网易云」
         NPLogger.d(
             TAG,
-            "LX JS source skipped, no platform id for song: song=${song.name}, " +
-                "bili=${isBiliTrack(song)}, youtube=${isYouTubeMusicTrack(song)}, " +
-                "sources=$supportedSources"
+            "LX JS source has no Netease channel, try cross-platform search: " +
+                "source=${source.name}, song=${song.name}, sources=$supportedSources"
         )
-        return null
+        return resolveFromLxJsCrossPlatform(
+            song = song,
+            source = source,
+            runtime = runtime,
+            preferredNeteaseQuality = preferredNeteaseQuality,
+            maxQualityAttempts = maxQualityAttempts
+        )
     }
 
     val qualities = selectLxQualityOrder(
@@ -313,6 +442,14 @@ private suspend fun PlayerManager.resolveFromLxJsSource(
             timeoutMs = LX_JS_CALL_TIMEOUT_MS
         ) ?: continue
         if (!url.startsWith("http", ignoreCase = true)) continue
+        if (!isLxStreamPlayable(url)) {
+            NPLogger.w(
+                TAG,
+                "LX JS source returned unplayable url: source=${source.name}, " +
+                    "platform=${target.sourceId}, song=${song.name}, quality=$quality"
+            )
+            continue
+        }
         val mimeType = inferLxMimeType(quality, url)
         NPLogger.w(
             TAG,
@@ -388,6 +525,14 @@ private suspend fun PlayerManager.resolveFromLxJsCrossPlatform(
                 timeoutMs = LX_JS_CALL_TIMEOUT_MS
             ) ?: continue
             if (!url.startsWith("http", ignoreCase = true)) continue
+            if (!isLxStreamPlayable(url)) {
+                NPLogger.w(
+                    TAG,
+                    "LX cross-platform channel returned unplayable url: source=${source.name}, " +
+                        "platform=${hit.sourceId}, song=${song.name}, quality=$quality"
+                )
+                continue
+            }
             val mimeType = inferLxMimeType(quality, url)
             NPLogger.w(
                 TAG,
@@ -561,6 +706,14 @@ private suspend fun PlayerManager.resolveFromLxSource(
                 quality = quality
             )) {
                 is LxSongUrlResult.Success -> {
+                    if (!isLxStreamPlayable(urlResult.url)) {
+                        NPLogger.w(
+                            TAG,
+                            "LX source returned unplayable url: source=${source.name}, " +
+                                "song=${song.name}, quality=${urlResult.quality ?: quality}"
+                        )
+                        continue
+                    }
                     val mimeType = inferLxMimeType(quality, urlResult.url)
                     val resolvedQuality = urlResult.quality?.takeIf { it.isNotBlank() } ?: quality
                     NPLogger.w(
@@ -605,12 +758,46 @@ private fun buildLxPlaybackAudioInfo(
     }
     return PlaybackAudioInfo(
         source = PlaybackAudioSource.CUSTOM_LX,
+        customSourceId = source.id,
+        customSourceName = source.name,
         qualityKey = qualityKey,
         qualityLabel = qualityLabel,
         qualityOptions = options,
         codecLabel = normalizeLxQualityLabel(qualityKey),
         mimeType = mimeType
     )
+}
+
+/** Record a Media3-level failure so the next refresh actually changes imported source. */
+internal fun PlayerManager.recordCurrentLxSourcePlaybackFailure(reason: String) {
+    val song = _currentSongFlow.value ?: return
+    val audioInfo = _currentPlaybackAudioInfo.value ?: return
+    if (audioInfo.source != PlaybackAudioSource.CUSTOM_LX) return
+    val sourceId = audioInfo.customSourceId?.takeIf { it.isNotBlank() } ?: return
+    runCatching {
+        AppContainer.lxMusicSourceRepository.recordSongSourcePlaybackFailure(song.stableKey(), sourceId)
+    }.onSuccess {
+        NPLogger.w(
+            TAG,
+            "LX playback failed; quarantine current source for this song: " +
+                "source=${audioInfo.customSourceName ?: sourceId}, song=${song.name}, reason=$reason"
+        )
+    }.onFailure { error ->
+        NPLogger.w(TAG, "Could not record LX playback failure: ${error.message}")
+    }
+}
+
+/** Promote only a source that Media3 has actually started, not one that merely returned a URL. */
+internal fun PlayerManager.recordCurrentLxSourcePlaybackSuccess() {
+    val song = _currentSongFlow.value ?: return
+    val audioInfo = _currentPlaybackAudioInfo.value ?: return
+    if (audioInfo.source != PlaybackAudioSource.CUSTOM_LX) return
+    val sourceId = audioInfo.customSourceId?.takeIf { it.isNotBlank() } ?: return
+    runCatching {
+        AppContainer.lxMusicSourceRepository.recordSongSourcePlaybackSuccess(song.stableKey(), sourceId)
+    }.onFailure { error ->
+        NPLogger.w(TAG, "Could not record LX playback success: ${error.message}")
+    }
 }
 
 private fun buildLxCacheKey(

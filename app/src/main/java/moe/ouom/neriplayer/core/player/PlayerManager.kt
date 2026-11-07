@@ -2420,12 +2420,9 @@ object PlayerManager {
         youtubeQualityOverride: String? = null,
         youtubePreferM4aOverride: Boolean? = null
     ): String {
-        val currentSource = _currentPlaybackAudioInfo.value?.source
         return when {
             song.channelId?.startsWith("lx:") == true ->
                 "lx-${song.stableKey().hashCode()}-${effectiveLxQuality()}"
-            currentSource == PlaybackAudioSource.CUSTOM_LX ->
-                "lx-${song.id}-${effectiveLxQuality()}"
             isLocalSong(song) -> "local-${song.stableKey().hashCode()}"
             isYouTubeMusicTrack(song) -> {
                 val videoId = song.audioId ?: extractYouTubeMusicVideoId(song.mediaUri).orEmpty()

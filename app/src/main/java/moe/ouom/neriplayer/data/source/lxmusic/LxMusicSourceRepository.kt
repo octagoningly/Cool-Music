@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import moe.ouom.neriplayer.core.logging.NPLogger
@@ -46,6 +47,63 @@ private val Context.lxMusicSourceDataStore by preferencesDataStore("lx_music_sou
 private object LxMusicSourcePreferenceKeys {
     val SOURCES_JSON = stringPreferencesKey("sources_json")
     val PREFER_CUSTOM_SOURCE = booleanPreferencesKey("prefer_custom_source")
+}
+
+/** 某首歌曲的在线音源偏好：成功音源优先，失败音源降权（不排除）。 */
+@Serializable
+internal data class LxSongSourceAffinity(
+    val preferredSourceId: String? = null,
+    val failedSourceIds: List<String> = emptyList(),
+    /** Sources whose URL reached Media3 but then failed to start playback. */
+    val playbackFailedSourceIds: List<String> = emptyList(),
+    /** Wall-clock time of the most recent player-level source failure. */
+    val playbackFailureAtMs: Long = 0L,
+    val updatedAtMs: Long = 0L
+)
+
+@Serializable
+private data class LxSongSourceAffinityStore(
+    val entries: Map<String, LxSongSourceAffinity> = emptyMap()
+)
+
+internal const val LX_SONG_AFFINITY_MAX_ENTRIES = 300
+internal const val LX_PLAYBACK_FAILED_SOURCE_SUPPRESSION_MS = 15 * 60 * 1000L
+
+/**
+ * A resolver returning an HTTP URL is not proof that the endpoint can actually play.
+ * Keep player-level failures out of the retry set briefly so a refresh tries another
+ * imported source instead of returning to the same dead endpoint.
+ */
+internal fun recentLxPlaybackFailedSourceIds(
+    affinity: LxSongSourceAffinity?,
+    nowMs: Long
+): Set<String> {
+    if (affinity == null || affinity.playbackFailureAtMs <= 0L) return emptySet()
+    if (nowMs - affinity.playbackFailureAtMs !in 0..LX_PLAYBACK_FAILED_SOURCE_SUPPRESSION_MS) {
+        return emptySet()
+    }
+    return affinity.playbackFailedSourceIds.filter { it.isNotBlank() }.toSet()
+}
+
+/**
+ * 按「成功音源 → 其他音源 → 本曲失败过的音源」排序，保持原有配置顺序作为次序。
+ */
+internal fun orderLxSourcesForSong(
+    sources: List<LxImportedSource>,
+    affinity: LxSongSourceAffinity?
+): List<LxImportedSource> {
+    if (affinity == null || sources.size <= 1) return sources
+    val failedIds = affinity.failedSourceIds.toSet()
+    val preferredId = affinity.preferredSourceId
+    return sources.sortedWith(
+        compareBy { source ->
+            when {
+                source.id == preferredId -> 0
+                source.id in failedIds -> 2
+                else -> 1
+            }
+        }
+    )
 }
 
 class LxMusicSourceRepository(
@@ -101,6 +159,14 @@ class LxMusicSourceRepository(
     @Volatile
     private var cacheWarmed: Boolean = false
 
+    /** 歌曲 → 在线音源记忆，独立于 DataStore，播放热路径同步读取 */
+    private val songAffinityPreferences by lazy {
+        context.getSharedPreferences(SONG_AFFINITY_PREFS_NAME, Context.MODE_PRIVATE)
+    }
+    private val songAffinityLock = Any()
+    private var songAffinityLoaded = false
+    private var songAffinityCache: MutableMap<String, LxSongSourceAffinity> = mutableMapOf()
+
     val sourcesFlow: Flow<List<LxImportedSource>> =
         context.lxMusicSourceDataStore.data.map { prefs ->
             val sources = decodeSources(prefs[LxMusicSourcePreferenceKeys.SOURCES_JSON])
@@ -135,6 +201,121 @@ class LxMusicSourceRepository(
     }
 
     fun peekHasActiveSources(): Boolean = peekEnabledSources().isNotEmpty()
+
+    /** 读取某首歌记住的在线音源顺序（无记录时返回 null）。 */
+    internal fun peekSongSourceAffinity(songKey: String): LxSongSourceAffinity? {
+        if (songKey.isBlank()) return null
+        return synchronized(songAffinityLock) {
+            loadSongAffinityLocked()[songKey]
+        }
+    }
+
+    /**
+     * 记录一次「某音源失败、另一音源成功」的解析结果。
+     * 只降权失败音源，不排除；成功后该音源成为该曲的优先音源。
+     */
+    internal fun recordSongSourceOutcome(
+        songKey: String,
+        successSourceId: String,
+        failedSourceIds: Collection<String>
+    ) {
+        if (songKey.isBlank() || successSourceId.isBlank()) return
+        synchronized(songAffinityLock) {
+            val entries = loadSongAffinityLocked()
+            val previous = entries[songKey] ?: LxSongSourceAffinity()
+            val failed = LinkedHashSet(previous.failedSourceIds)
+            failed.addAll(failedSourceIds.filter { it.isNotBlank() && it != successSourceId })
+            entries[songKey] = previous.copy(
+                preferredSourceId = successSourceId,
+                failedSourceIds = failed.toList(),
+                updatedAtMs = System.currentTimeMillis()
+            )
+            trimSongAffinityLocked(entries)
+            persistSongAffinityLocked(entries)
+        }
+    }
+
+    /**
+     * The player rejected or could not start a URL returned by this source. This is
+     * deliberately separate from resolver failures: a syntactically valid URL may
+     * still be expired, blocked, or serve an unsupported payload.
+     */
+    internal fun recordSongSourcePlaybackFailure(songKey: String, sourceId: String) {
+        if (songKey.isBlank() || sourceId.isBlank()) return
+        synchronized(songAffinityLock) {
+            val entries = loadSongAffinityLocked()
+            val previous = entries[songKey] ?: LxSongSourceAffinity()
+            val failed = LinkedHashSet(previous.playbackFailedSourceIds)
+            failed += sourceId
+            val nowMs = System.currentTimeMillis()
+            entries[songKey] = previous.copy(
+                preferredSourceId = previous.preferredSourceId.takeUnless { it == sourceId },
+                playbackFailedSourceIds = failed.toList(),
+                playbackFailureAtMs = nowMs,
+                updatedAtMs = nowMs
+            )
+            trimSongAffinityLocked(entries)
+            persistSongAffinityLocked(entries)
+        }
+    }
+
+    /** A source is promoted only after Media3 has actually started it. */
+    internal fun recordSongSourcePlaybackSuccess(songKey: String, sourceId: String) {
+        if (songKey.isBlank() || sourceId.isBlank()) return
+        synchronized(songAffinityLock) {
+            val entries = loadSongAffinityLocked()
+            val previous = entries[songKey] ?: LxSongSourceAffinity()
+            val remainingFailures = previous.playbackFailedSourceIds.filterNot { it == sourceId }
+            entries[songKey] = previous.copy(
+                preferredSourceId = sourceId,
+                playbackFailedSourceIds = remainingFailures,
+                playbackFailureAtMs = if (remainingFailures.isEmpty()) 0L else previous.playbackFailureAtMs,
+                updatedAtMs = System.currentTimeMillis()
+            )
+            trimSongAffinityLocked(entries)
+            persistSongAffinityLocked(entries)
+        }
+    }
+
+    private fun loadSongAffinityLocked(): MutableMap<String, LxSongSourceAffinity> {
+        if (songAffinityLoaded) return songAffinityCache
+        val decoded = runCatching {
+            val raw = songAffinityPreferences.getString(SONG_AFFINITY_JSON_KEY, null)
+            if (raw.isNullOrBlank()) {
+                emptyMap()
+            } else {
+                json.decodeFromString(LxSongSourceAffinityStore.serializer(), raw).entries
+            }
+        }.getOrElse {
+            NPLogger.w(TAG, "Failed to decode song source affinity: ${it.message}")
+            emptyMap()
+        }
+        songAffinityCache = decoded.toMutableMap()
+        songAffinityLoaded = true
+        return songAffinityCache
+    }
+
+    private fun trimSongAffinityLocked(entries: MutableMap<String, LxSongSourceAffinity>) {
+        if (entries.size <= LX_SONG_AFFINITY_MAX_ENTRIES) return
+        val keepKeys = entries.entries
+            .sortedByDescending { it.value.updatedAtMs }
+            .take(LX_SONG_AFFINITY_MAX_ENTRIES)
+            .map { it.key }
+            .toSet()
+        entries.keys.retainAll(keepKeys)
+    }
+
+    private fun persistSongAffinityLocked(entries: Map<String, LxSongSourceAffinity>) {
+        runCatching {
+            val encoded = json.encodeToString(
+                LxSongSourceAffinityStore.serializer(),
+                LxSongSourceAffinityStore(entries)
+            )
+            songAffinityPreferences.edit().putString(SONG_AFFINITY_JSON_KEY, encoded).apply()
+        }.onFailure {
+            NPLogger.w(TAG, "Failed to persist song source affinity: ${it.message}")
+        }
+    }
 
     suspend fun getEnabledSources(): List<LxImportedSource> {
         return sourcesFlow.first().filter { it.enabled }
@@ -313,5 +494,7 @@ class LxMusicSourceRepository(
     private companion object {
         private const val TAG = "LxMusicSourceRepository"
         private const val STATUS_THROTTLE_MS = 5_000L
+        private const val SONG_AFFINITY_PREFS_NAME = "lx_song_source_affinity"
+        private const val SONG_AFFINITY_JSON_KEY = "entries_json"
     }
 }

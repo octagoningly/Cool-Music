@@ -1,12 +1,8 @@
 package moe.ouom.neriplayer.ui.screen.tab.settings.dialog
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,6 +21,7 @@ import moe.ouom.neriplayer.data.sync.webdav.WebDavStorage
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsInlineMessage
+import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsScrollArea
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextField
 import moe.ouom.neriplayer.ui.screen.tab.settings.state.collectAsStateWithLifecycleCompat
@@ -74,12 +71,10 @@ internal fun SettingsWebDavDialogs(
             maxHeight = 520.dp,
             title = { Text(stringResource(R.string.webdav_sync_title)) },
             text = {
-                Column(
+                MiuixSettingsScrollArea(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 360.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     webDavState.errorMessage?.let { error ->
                         MiuixSettingsInlineMessage(
@@ -156,7 +151,9 @@ internal fun SettingsWebDavDialogs(
                                     basePath = basePath
                                 )
                             },
-                            enabled = !webDavState.isValidating
+                            enabled = !webDavState.isValidating,
+                            // 校验需要就地展示成功/失败结果，弹窗不能被退场动画卸载
+                            animateExitOnClick = false
                         ) {
                             if (webDavState.isValidating) {
                                 CircularProgressIndicator(

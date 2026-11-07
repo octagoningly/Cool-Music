@@ -78,6 +78,7 @@ internal fun DensityScaledAlertDialog(
     maxHeight: Dp = 300.dp,
     yOffset: Dp = 0.dp,
     position: GlassPanelPosition = GlassPanelPosition.Centered,
+    buttonSpacing: Dp = 8.dp,
     forceSolid: Boolean = false,
 ) {
     // 统一走 GlassAlertDialog：圆角 28 + 高级透明模糊（设置 → 动效 → 高级模糊 / 模糊度）
@@ -97,6 +98,7 @@ internal fun DensityScaledAlertDialog(
         maxHeight = maxHeight,
         yOffset = yOffset,
         position = position,
+        buttonSpacing = buttonSpacing,
         forceSolid = forceSolid,
     )
 }
@@ -123,6 +125,8 @@ internal fun DensityScaledModalBottomSheet(
     panelMaxWidth: Dp = 300.dp,
     panelMaxHeight: Dp = 420.dp,
     panelYOffset: Dp = 0.dp,
+    /** 当当前场景的玻璃采样层与弹窗重叠时，使用实底保证内容不被自采样模糊。 */
+    forceSolid: Boolean = false,
     panelContentPadding: androidx.compose.foundation.layout.PaddingValues =
         androidx.compose.foundation.layout.PaddingValues(
             start = 16.dp,
@@ -142,6 +146,7 @@ internal fun DensityScaledModalBottomSheet(
         maxWidth = panelMaxWidth,
         maxHeight = panelMaxHeight,
         yOffset = panelYOffset,
+        forceSolid = forceSolid,
         contentPadding = panelContentPadding,
     ) {
         if (dragHandle != null) {

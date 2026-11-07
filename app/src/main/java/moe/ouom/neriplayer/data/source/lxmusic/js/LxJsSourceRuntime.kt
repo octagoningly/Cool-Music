@@ -334,7 +334,7 @@ class LxJsSourceRuntime(
                 Thread {
                     try {
                         call.execute().use { resp ->
-                            val rawBody = resp.body.string()
+                            val rawBody = resp.body.readLxJsTextWithLimit()
                             val headers = JSONObject()
                             resp.headers.forEach { (name, value) ->
                                 headers.put(name, headers.optString(name, "") + value)
@@ -377,9 +377,19 @@ class LxJsSourceRuntime(
                             callJs("response", response.toString())
                         }
                     } catch (e: Exception) {
+                        val errorMessage = if (e is LxJsResponseTooLargeException) {
+                            lastFailureReason = "Response too large"
+                            NPLogger.w(
+                                TAG,
+                                "LX JS http response too large: ${url.take(120)}, ${e.message}"
+                            )
+                            "Response too large"
+                        } else {
+                            e.message ?: "request failed"
+                        }
                         val response = JSONObject().apply {
                             put("requestKey", requestKey)
-                            put("error", e.message ?: "request failed")
+                            put("error", errorMessage)
                             put("response", JSONObject.NULL)
                         }
                         callJs("response", response.toString())

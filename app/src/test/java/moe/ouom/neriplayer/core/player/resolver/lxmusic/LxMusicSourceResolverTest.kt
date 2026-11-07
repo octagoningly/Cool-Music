@@ -1,6 +1,10 @@
 package moe.ouom.neriplayer.core.player.resolver.lxmusic
 
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.data.source.lxmusic.LxImportedSource
+import moe.ouom.neriplayer.data.source.lxmusic.LxSongSourceAffinity
+import moe.ouom.neriplayer.data.source.lxmusic.orderLxSourcesForSong
+import moe.ouom.neriplayer.data.source.lxmusic.recentLxPlaybackFailedSourceIds
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -36,6 +40,69 @@ import org.junit.Test
 class LxMusicSourceResolverTest {
 
     private val scriptQualities = setOf("128k", "320k", "flac", "flac24bit")
+
+    private fun importedSource(id: String) = LxImportedSource(
+        id = id,
+        url = "https://example.com/$id.js",
+        name = id,
+        kind = "js",
+        scriptPath = "/tmp/$id.js"
+    )
+
+    @Test
+    fun `remembered source is tried first and failed source last`() {
+        val sources = listOf(
+            importedSource("111"),
+            importedSource("222"),
+            importedSource("333")
+        )
+        val ordered = orderLxSourcesForSong(
+            sources = sources,
+            affinity = LxSongSourceAffinity(
+                preferredSourceId = "222",
+                failedSourceIds = listOf("111")
+            )
+        )
+        assertEquals(listOf("222", "333", "111"), ordered.map { it.id })
+    }
+
+    @Test
+    fun `configured order is kept when no affinity is remembered`() {
+        val sources = listOf(
+            importedSource("111"),
+            importedSource("222"),
+            importedSource("333")
+        )
+        assertEquals(
+            listOf("111", "222", "333"),
+            orderLxSourcesForSong(sources, affinity = null).map { it.id }
+        )
+    }
+
+    @Test
+    fun `recent player rejected sources are temporarily excluded from resolving`() {
+        val nowMs = 1_000_000L
+        val affinity = LxSongSourceAffinity(
+            playbackFailedSourceIds = listOf("dead-source"),
+            playbackFailureAtMs = nowMs - 1_000L
+        )
+
+        assertEquals(
+            setOf("dead-source"),
+            recentLxPlaybackFailedSourceIds(affinity, nowMs)
+        )
+    }
+
+    @Test
+    fun `expired player failure does not permanently disable an imported source`() {
+        val nowMs = 1_000_000L
+        val affinity = LxSongSourceAffinity(
+            playbackFailedSourceIds = listOf("recoverable-source"),
+            playbackFailureAtMs = 1L
+        )
+
+        assertEquals(emptySet<String>(), recentLxPlaybackFailedSourceIds(affinity, nowMs))
+    }
 
     private fun neteaseSong(
         id: Long = 186016L,

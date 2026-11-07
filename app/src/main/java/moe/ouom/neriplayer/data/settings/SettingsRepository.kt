@@ -47,6 +47,7 @@ import moe.ouom.neriplayer.core.player.model.normalizePlaybackLoudnessGainMb
 import moe.ouom.neriplayer.core.player.model.normalizePlaybackPitch
 import moe.ouom.neriplayer.core.player.model.normalizePlaybackSpeed
 import moe.ouom.neriplayer.core.player.model.normalizePlaybackVolumeBalance
+import moe.ouom.neriplayer.data.settings.generated.AutoSettingsKeys
 import moe.ouom.neriplayer.data.settings.generated.AutoSettingsRepository
 import moe.ouom.neriplayer.ksp.annotations.AutoSettingSpec
 import java.util.Locale
@@ -875,11 +876,23 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setDynamicIslandLyricsEnabled(enabled: Boolean) {
-        if (enabled) {
-            setExternalBluetoothLyricsEnabled(true)
-            setExternalBluetoothTranslationEnabled(true)
+        // Keep the prerequisite switches and Dynamic Island state in one durable write. Apart
+        // from avoiding a partially-applied state after process death, this makes the linked
+        // settings visibly change together to collectors.
+        context.dataStore.edit { prefs ->
+            val dependencies = resolveDynamicIslandLyricsDependencies(
+                enabled = enabled,
+                bluetoothLyricsEnabled =
+                    prefs[AutoSettingsKeys.EXTERNAL_BLUETOOTH_LYRICS_ENABLED] ?: true,
+                bluetoothTranslationEnabled =
+                    prefs[AutoSettingsKeys.EXTERNAL_BLUETOOTH_TRANSLATION_ENABLED] ?: true
+            )
+            prefs[AutoSettingsKeys.EXTERNAL_BLUETOOTH_LYRICS_ENABLED] =
+                dependencies.bluetoothLyricsEnabled
+            prefs[AutoSettingsKeys.EXTERNAL_BLUETOOTH_TRANSLATION_ENABLED] =
+                dependencies.bluetoothTranslationEnabled
+            prefs[AutoSettingsKeys.DYNAMIC_ISLAND_LYRICS_ENABLED] = enabled
         }
-        setSetting(AutoSettingsSchema.lyrics.dynamicIslandLyricsEnabled, enabled)
     }
 
     suspend fun setFloatingLyricsPreferences(preferences: FloatingLyricsPreferences) {
@@ -1417,6 +1430,29 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setYouTubeEnabled(enabled: Boolean) {
         setSetting(AutoSettingsSchema.general.youtubeEnabled, enabled)
+    }
+}
+
+internal data class DynamicIslandLyricsDependencies(
+    val bluetoothLyricsEnabled: Boolean,
+    val bluetoothTranslationEnabled: Boolean
+)
+
+internal fun resolveDynamicIslandLyricsDependencies(
+    enabled: Boolean,
+    bluetoothLyricsEnabled: Boolean,
+    bluetoothTranslationEnabled: Boolean
+): DynamicIslandLyricsDependencies {
+    return if (enabled) {
+        DynamicIslandLyricsDependencies(
+            bluetoothLyricsEnabled = true,
+            bluetoothTranslationEnabled = true
+        )
+    } else {
+        DynamicIslandLyricsDependencies(
+            bluetoothLyricsEnabled = bluetoothLyricsEnabled,
+            bluetoothTranslationEnabled = bluetoothTranslationEnabled
+        )
     }
 }
 

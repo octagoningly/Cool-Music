@@ -184,7 +184,7 @@ object CustomSongCoverStorage {
 
     private fun resolveLocalFileReference(reference: String, uri: Uri?): File? {
         return when {
-            reference.startsWith("/", ignoreCase = false) -> File(reference)
+            isAbsoluteLocalFileReference(reference) -> File(reference)
             uri != null && uri.scheme.equals("file", ignoreCase = true) -> {
                 uri.path?.let(::File)
             }

@@ -362,6 +362,7 @@ internal fun GlassAlertDialog(
     maxHeight: Dp = 300.dp,
     yOffset: Dp = 0.dp,
     position: GlassPanelPosition = GlassPanelPosition.Centered,
+    buttonSpacing: Dp = 8.dp,
     forceSolid: Boolean = false,
 ) {
     GlassPanel(
@@ -409,7 +410,7 @@ internal fun GlassAlertDialog(
             } else {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    horizontalArrangement = Arrangement.spacedBy(buttonSpacing, Alignment.End),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     dismissButton?.invoke()
@@ -434,6 +435,7 @@ internal fun GlassModalBottomSheet(
     maxWidth: Dp = 300.dp,
     maxHeight: Dp = 420.dp,
     yOffset: Dp = 0.dp,
+    forceSolid: Boolean = false,
     contentPadding: androidx.compose.foundation.layout.PaddingValues =
         androidx.compose.foundation.layout.PaddingValues(
             start = 16.dp,
@@ -452,6 +454,7 @@ internal fun GlassModalBottomSheet(
         maxWidth = maxWidth,
         maxHeight = maxHeight,
         yOffset = yOffset,
+        forceSolid = forceSolid,
         contentPadding = contentPadding,
         content = content
     )

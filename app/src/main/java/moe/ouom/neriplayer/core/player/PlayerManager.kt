@@ -117,6 +117,8 @@ import moe.ouom.neriplayer.core.player.policy.command.PlaybackCommand
 import moe.ouom.neriplayer.core.player.policy.command.PlaybackCommandSource
 import moe.ouom.neriplayer.core.player.policy.refresh.RefreshInFlightController
 import moe.ouom.neriplayer.core.player.policy.refresh.RefreshRequestSemantics
+import moe.ouom.neriplayer.core.player.policy.skip.PlaybackSkipDebouncePolicy
+import moe.ouom.neriplayer.core.player.prefetch.noteNextSkipClick
 import moe.ouom.neriplayer.core.player.policy.storage.RestorableLocalMediaState
 import moe.ouom.neriplayer.core.player.policy.storage.resolveRestorableLocalMediaState
 import moe.ouom.neriplayer.core.player.policy.usb.UsbAudioSinkReconfigurationCoordinator
@@ -679,6 +681,10 @@ object PlayerManager {
         moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheScenario? = null
     internal var currentPlaybackPrecacheKeys: Set<String> = emptySet()
     internal val recentNextSkipTimestamps = mutableListOf<Long>()
+    // 连点「下一首」防抖：点击立即更新显示态，媒体装载按最后一次点击合并执行一次。
+    internal var pendingNextSkipSteps = 0
+    internal var pendingNextSkipJob: Job? = null
+    internal var pendingNextSkipLastClickAtMs = 0L
     @Volatile
     internal var playbackRequestToken = 0L
     @Volatile
@@ -2631,19 +2637,25 @@ object PlayerManager {
         songs: List<SongItem>,
         startIndex: Int,
         commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL
-    ): Unit = this.playPlaylistImpl(songs, startIndex, commandSource)
+    ): Unit {
+        cancelPendingNextSkip()
+        return this.playPlaylistImpl(songs, startIndex, commandSource)
+    }
 
     fun playLocalPlaylist(
         playlistId: Long,
         songs: List<SongItem>,
         startIndex: Int,
         commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL
-    ): Unit = this.playPlaylistImpl(
-        songs = songs,
-        startIndex = startIndex,
-        commandSource = commandSource,
-        localPlaylistId = playlistId
-    )
+    ): Unit {
+        cancelPendingNextSkip()
+        return this.playPlaylistImpl(
+            songs = songs,
+            startIndex = startIndex,
+            commandSource = commandSource,
+            localPlaylistId = playlistId
+        )
+    }
 
     fun playBiliVideoParts(videoInfo: BiliClient.VideoBasicInfo, startIndex: Int, coverUrl: String) =
         this.playBiliVideoPartsImpl(videoInfo, startIndex, coverUrl)
@@ -2654,7 +2666,10 @@ object PlayerManager {
     fun pause(
         forcePersist: Boolean = false,
         commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL
-    ) = this.pauseImpl(forcePersist, commandSource)
+    ) {
+        cancelPendingNextSkip()
+        return this.pauseImpl(forcePersist, commandSource)
+    }
 
     fun togglePlayPause() = this.togglePlayPauseImpl()
 
@@ -2670,10 +2685,75 @@ object PlayerManager {
     fun next(
         force: Boolean = false,
         commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL
-    ) = this.nextImpl(force, commandSource)
+    ) {
+        // 仅 UI 主动点击走防抖；自动切歌 / MediaSession / 远程同步 / force 直通，避免改变既有语义。
+        if (commandSource != PlaybackCommandSource.LOCAL || force) {
+            this.nextImpl(force, commandSource)
+            return
+        }
+        scheduleDebouncedNextSkip()
+    }
 
-    fun previous(commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL) =
-        this.previousImpl(commandSource)
+    /**
+     * 连点「下一首」时把重活合并，且不让单次点击变慢：
+     * - 窗口内第 1 次点击立即 nextImpl(1)（leading，单次切换零额外延迟）；
+     * - 之后同一窗口内的点击只累积步数，停手 SETTLE_DELAY_MS 后一次性 nextImpl(N)，
+     *   只做一次取流 / setMediaItem / 持久化 / 预取。
+     */
+    private fun scheduleDebouncedNextSkip() {
+        ensureInitialized()
+        if (!initialized || currentPlaylist.isEmpty()) {
+            this.nextImpl(false, PlaybackCommandSource.LOCAL)
+            return
+        }
+        val nowMs = SystemClock.elapsedRealtime()
+        val hasPending = PlaybackSkipDebouncePolicy.shouldMergeWithPending(
+            lastClickAtMs = pendingNextSkipLastClickAtMs,
+            nowMs = nowMs
+        )
+        // 连点计数按真实点击逐次记录，供预取策略判断是否正处于连点。
+        noteNextSkipClick()
+        pendingNextSkipLastClickAtMs = nowMs
+
+        if (!hasPending) {
+            // 首次点击：清掉上轮残留并立即执行，保证单次切换的跟手速度不变。
+            pendingNextSkipJob?.cancel()
+            pendingNextSkipJob = null
+            pendingNextSkipSteps = 0
+            this.nextImpl(false, PlaybackCommandSource.LOCAL)
+            return
+        }
+
+        pendingNextSkipSteps = PlaybackSkipDebouncePolicy.accumulateSteps(pendingNextSkipSteps)
+        pendingNextSkipJob?.cancel()
+        val stepsSnapshot = pendingNextSkipSteps
+        pendingNextSkipJob = ioScope.launch {
+            delay(PlaybackSkipDebouncePolicy.SETTLE_DELAY_MS)
+            if (pendingNextSkipSteps != stepsSnapshot) return@launch
+            pendingNextSkipSteps = 0
+            pendingNextSkipJob = null
+            withContext(Dispatchers.Main) {
+                this@PlayerManager.nextImpl(
+                    force = false,
+                    commandSource = PlaybackCommandSource.LOCAL,
+                    steps = stepsSnapshot
+                )
+            }
+        }
+    }
+
+    /** 用户改变主意（上一首 / 换列表 / 暂停）时丢弃尚未执行的合并切歌。 */
+    private fun cancelPendingNextSkip() {
+        pendingNextSkipJob?.cancel()
+        pendingNextSkipJob = null
+        pendingNextSkipSteps = 0
+        pendingNextSkipLastClickAtMs = 0L
+    }
+
+    fun previous(commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL): Unit {
+        cancelPendingNextSkip()
+        return this.previousImpl(commandSource)
+    }
 
     fun cycleRepeatMode(commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL) =
         this.cycleRepeatModeImpl(commandSource)

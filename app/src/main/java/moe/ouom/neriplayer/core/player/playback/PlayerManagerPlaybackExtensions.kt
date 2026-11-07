@@ -66,7 +66,6 @@ import moe.ouom.neriplayer.core.player.prefetch.cancelYouTubePrefetchForPlayback
 import moe.ouom.neriplayer.core.player.prefetch.clearPlaybackDemandCacheKey
 import moe.ouom.neriplayer.core.player.prefetch.kickoffYouTubePlaybackIntentWarmup
 import moe.ouom.neriplayer.core.player.prefetch.isRapidNextSkipping
-import moe.ouom.neriplayer.core.player.prefetch.noteNextSkipClick
 import moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecachePolicy
 import moe.ouom.neriplayer.core.player.prefetch.PlaybackPrecacheScenario
 import moe.ouom.neriplayer.core.player.prefetch.precacheSongList
@@ -1863,7 +1862,8 @@ internal fun PlayerManager.nextImpl(
     force: Boolean = false,
     commandSource: PlaybackCommandSource = PlaybackCommandSource.LOCAL,
     bypassLoudVolumeWarning: Boolean = false,
-    allowRememberedLongFormPosition: Boolean = false
+    allowRememberedLongFormPosition: Boolean = false,
+    steps: Int = 1
 ) {
     ensureInitialized()
     if (!initialized) return
@@ -1874,7 +1874,7 @@ internal fun PlayerManager.nextImpl(
         playbackCrossfadeNextEnabled && (player.isPlaying || player.playWhenReady)
     NPLogger.d(
         "NERI-PlayerManager",
-        "next requested: force=$force, source=$commandSource, isShuffle=$isShuffle, currentIndex=$currentIndex, queueSize=${currentPlaylist.size}, transitionFade=$useTransitionFade, stack=[${debugStackHint()}]"
+        "next requested: force=$force, source=$commandSource, steps=$steps, isShuffle=$isShuffle, currentIndex=$currentIndex, queueSize=${currentPlaylist.size}, transitionFade=$useTransitionFade, stack=[${debugStackHint()}]"
     )
     // 末曲按「下一首」也循环到第一首，不再卡住
     if (requestUsbExclusiveLoudPlaybackConfirmation(
@@ -1885,7 +1885,8 @@ internal fun PlayerManager.nextImpl(
                     force = force,
                     commandSource = commandSource,
                     bypassLoudVolumeWarning = true,
-                    allowRememberedLongFormPosition = allowRememberedLongFormPosition
+                    allowRememberedLongFormPosition = allowRememberedLongFormPosition,
+                    steps = steps
                 )
             }
         )
@@ -1893,12 +1894,15 @@ internal fun PlayerManager.nextImpl(
         return
     }
 
-    if (currentIndex < currentPlaylist.lastIndex) {
-        currentIndex++
-    } else {
-        // 播放列表末尾：回到第一首（随机队列则重新洗牌）
-        if (!reshuffleCurrentQueueForRepeatAllCycle()) {
-            currentIndex = 0
+    // 连点防抖合并后一次跳多首：只推进索引，媒体装载/广播/预取只在最后做一次。
+    repeat(steps.coerceAtLeast(1)) {
+        if (currentIndex < currentPlaylist.lastIndex) {
+            currentIndex++
+        } else {
+            // 播放列表末尾：回到第一首（随机队列则重新洗牌）
+            if (!reshuffleCurrentQueueForRepeatAllCycle()) {
+                currentIndex = 0
+            }
         }
     }
     playAtIndex(
@@ -1915,7 +1919,8 @@ internal fun PlayerManager.nextImpl(
         positionMs = _playbackPositionMs.value,
         force = force
     )
-    noteNextSkipClick()
+    // 连点计数只由 PlayerManager.next() 按真实用户点击记录（见 scheduleDebouncedNextSkip），
+    // 自动切歌 / 失败兜底等内部 nextImpl 调用不计入，避免污染连点判定。
     if (isRapidNextSkipping()) {
         val rapidWindow = PlaybackPrecachePolicy.selectPrefetchWindow(
             queueSize = currentPlaylist.size,

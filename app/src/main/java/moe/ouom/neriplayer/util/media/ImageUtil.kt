@@ -23,8 +23,10 @@ package moe.ouom.neriplayer.util.media
  * Created: 2025/1/20
  */
 
-import android.graphics.Bitmap
 import android.content.Context
+import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.drawable.ColorDrawable
 import coil.size.Precision
 import coil.request.ImageRequest
 import coil.request.CachePolicy
@@ -33,6 +35,24 @@ import moe.ouom.neriplayer.data.traffic.isOfflineModeNow
 
 private const val DEFAULT_LOCAL_IMAGE_REQUEST_SIZE_PX = 512
 private const val DEFAULT_IMAGE_CROSSFADE_DURATION_MILLIS = 180
+internal const val PLACEHOLDER_COLOR_LIGHT = 0xFFE4E4E8.toInt()
+internal const val PLACEHOLDER_COLOR_DARK = 0xFF2A2A2E.toInt()
+
+/**
+ * 按深浅色选中性占位色。
+ * 冷启动时封面即使命中磁盘缓存，也要等一次解码才上屏；没有占位时这段时间是纯空白，
+ * 用户会明显感觉「图是慢慢冒出来的」。加载失败也用同一底色兜底，避免闪默认图标。
+ */
+internal fun resolvePlaceholderColor(nightMode: Boolean): Int {
+    return if (nightMode) PLACEHOLDER_COLOR_DARK else PLACEHOLDER_COLOR_LIGHT
+}
+
+private fun ImageRequest.Builder.applyCoverPlaceholder(context: Context): ImageRequest.Builder {
+    val nightMode = (context.resources.configuration.uiMode and
+        Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    val placeholder = ColorDrawable(resolvePlaceholderColor(nightMode))
+    return placeholder(placeholder).error(placeholder)
+}
 
 /**
  * 创建支持离线缓存的图片请求
@@ -52,6 +72,7 @@ fun offlineCachedImageRequest(
     val resolvedAllowHardware = if (localSource && sizePx == null) false else allowHardware
     val builder = ImageRequest.Builder(context)
         .data(data)
+        .applyCoverPlaceholder(context)
         .allowHardware(resolvedAllowHardware)
         .diskCachePolicy(CachePolicy.ENABLED)
         .memoryCachePolicy(CachePolicy.ENABLED)
@@ -85,6 +106,7 @@ fun fastScrollableImageRequest(
     val remoteSource = isRemoteImageSource(data)
     val builder = ImageRequest.Builder(context)
         .data(data)
+        .applyCoverPlaceholder(context)
         .size(sizePx)
         .precision(Precision.INEXACT)
         .diskCachePolicy(CachePolicy.ENABLED)

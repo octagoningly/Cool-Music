@@ -409,6 +409,22 @@ private fun youtubeSearchTypeIcon(type: YouTubeExploreSearchType): ImageVector {
     }
 }
 
+/**
+ * 探索页列表顶部留白的三态目标值（dp 数值，纯逻辑便于单测）。
+ * 该值与 chrome 高度 / 筛选行留白必须同帧切换，配合一次性 dispatchRawDelta 补偿，
+ * 才能让下方 LazyVerticalGrid 不因布局高度变化而抽动。
+ */
+internal fun resolveExploreListContentTopDp(
+    showTypeFilterLayer: Boolean,
+    showExploreSearchField: Boolean
+): Int {
+    return when {
+        showTypeFilterLayer -> 12
+        showExploreSearchField -> 116
+        else -> 56
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 @Suppress("AssignedValueIsNeverRead")
@@ -613,11 +629,10 @@ fun ExploreScreen(
     var exploreListContentTop by remember { mutableStateOf(116.dp) }
     val exploreDensity = LocalDensity.current
     LaunchedEffect(showTypeFilterLayer, showExploreSearchField, activeListState) {
-        val target = when {
-            showTypeFilterLayer -> 12.dp
-            showExploreSearchField -> 116.dp
-            else -> 56.dp
-        }
+        val target = resolveExploreListContentTopDp(
+            showTypeFilterLayer = showTypeFilterLayer,
+            showExploreSearchField = showExploreSearchField
+        ).dp
         val deltaPx = with(exploreDensity) { (target - exploreListContentTop).toPx() }
         if (deltaPx != 0f) {
             when (activeListState) {
@@ -628,11 +643,11 @@ fun ExploreScreen(
         }
         exploreListContentTop = target
     }
-    val exploreFilterRowTop by animateDpAsState(
-        targetValue = if (showExploreSearchField) 116.dp else 56.dp,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-        label = "exploreFilterRowTop"
-    )
+    // 瞬时值，与 exploreListContentTop 同帧切换。
+    // 这里曾用 animateDpAsState(220ms)，但它包在下面 AnimatedVisibility 的内容里，
+    // 外层展开动画按最终测量高度逐帧变化、内部 padding 又独立连续变化，双重动画叠加
+    // 会让下方 LazyVerticalGrid 被反复重测推挤（见注释 611-612 已说明的「像被下面内容推动」）。
+    val exploreFilterRowTop = if (showExploreSearchField) 116.dp else 56.dp
     var previousSearchSource by remember { mutableStateOf(ui.selectedSearchSource) }
     val isExploreContentScrolled by remember(
         searchQuery,
@@ -1162,15 +1177,29 @@ fun ExploreScreen(
                     val currentSearchSource = ui.selectedSearchSource
                     // 类型行不再走 chrome 收展动画：搜索时作为列表首条「歌行」出现，动效走歌与歌之间的交错
                     if (searchQuery.isBlank()) {
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = showTypeFilterLayer,
-                        enter = androidx.compose.animation.expandVertically() +
-                            androidx.compose.animation.fadeIn(),
-                        exit = androidx.compose.animation.shrinkVertically() +
-                            androidx.compose.animation.fadeOut(),
-                    ) {
+                    // 这一行在 Scaffold 内容的布局流里，与下方 LazyVerticalGrid 上下排列。
+                    // 不能用 expandVertically/shrinkVertically：它会逐帧改变父 Column 高度，
+                    // 而 exploreListContentTop 是瞬时切换 + 一次性 dispatchRawDelta 补偿，
+                    // 两者不同步就会把网格反复推挤，表现为「发现一弹出就直接完整显示、
+                    // 底层信息流抽动」。改为同帧瞬时显隐，补偿可精确抵消，列表不跳；
+                    // 视觉过渡只用 graphicsLayer 的 alpha（不参与测量），既有中间态又不推挤网格。
+                    val filterReveal = remember { androidx.compose.animation.core.Animatable(0f) }
+                    LaunchedEffect(showTypeFilterLayer) {
+                        if (showTypeFilterLayer) {
+                            filterReveal.snapTo(0f)
+                            filterReveal.animateTo(
+                                targetValue = 1f,
+                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                            )
+                        }
+                    }
+                    if (showTypeFilterLayer) {
                     // 为 chrome（标题+搜索）让位；再上移约半个「探索」标题高
-                    Column(Modifier.padding(top = exploreFilterRowTop)) {
+                    Column(
+                        Modifier
+                            .padding(top = exploreFilterRowTop)
+                            .graphicsLayer { alpha = filterReveal.value }
+                    ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

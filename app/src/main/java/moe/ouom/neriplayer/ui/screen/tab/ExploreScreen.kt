@@ -920,32 +920,10 @@ fun ExploreScreen(
                     windowInsets = TopAppBarDefaults.windowInsets,
                     modifier = Modifier.fillMaxWidth()
                 )
-                // 搜索框收展：开启「连贯反馈」时竖直伸缩 + 淡入淡出；关闭时只做纯淡入淡出。
-                // 它位于 MainTabChrome 浮层，不参与列表布局，因此伸缩不会推挤下方网格。
                 AnimatedVisibility(
                     visible = showExploreSearchField,
-                    enter = if (coherentFeedbackEnabled) {
-                        expandVertically(
-                            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
-                        ) + fadeIn(
-                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-                        )
-                    } else {
-                        fadeIn(
-                            animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)
-                        )
-                    },
-                    exit = if (coherentFeedbackEnabled) {
-                        shrinkVertically(
-                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-                        ) + fadeOut(
-                            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)
-                        )
-                    } else {
-                        fadeOut(
-                            animationSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing)
-                        )
-                    }
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
                 ) {
                 Column(
                     Modifier

@@ -27,14 +27,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -239,16 +236,6 @@ class LibraryChromeScrollState {
     var showTabs by mutableStateOf(true)
     var lastScrollTotal: Int = 0
 }
-
-/**
- * Tab 行（本地 / 收藏 / 网易云 …）的显隐过渡策略。
- *
- * 与探索页搜索框保持一致的观感：展开/收起带竖直伸缩 + 淡入淡出。
- * 关闭「设置 → 动效 → 连贯反馈」时退化为纯淡入淡出，避免用户关掉动效后仍看到位移伸缩。
- * 纯函数，便于单测。
- */
-internal fun usesCoherentChromeTransition(coherentFeedbackEnabled: Boolean): Boolean =
-    coherentFeedbackEnabled
 
 internal fun resolveLibraryTabsVisibility(
     currentVisible: Boolean,
@@ -516,9 +503,6 @@ fun LibraryScreen(
         LocalPlaylistRepository.getInstance(context)
     }
     val isInternational by AppContainer.settingsRepo.internationalizationEnabledFlow
-        .collectAsStateWithLifecycle(initialValue = false)
-    // 设置 → 动效 → 连贯反馈：控制 Tab 行的收展过渡（伸缩 + 淡入淡出 / 纯淡入淡出）。
-    val coherentFeedbackEnabled by AppContainer.settingsRepo.coherentFeedbackEnabledFlow
         .collectAsStateWithLifecycle(initialValue = false)
     val youtubeEnabled by AppContainer.settingsRepo.youtubeEnabledFlow
         .collectAsStateWithLifecycle(initialValue = YouTubeFeatureGate.isEnabled())
@@ -877,35 +861,11 @@ fun LibraryScreen(
                 }
             )
 
-            // Tab 行收展：与探索页搜索框同一套观感（竖直伸缩 + 淡入淡出）。
-            // 它位于 MainTabChrome 浮层（画在捕获层外），expandVertically 只改变 chrome 自身高度，
-            // 不会推挤下方列表——列表顶部留白已固定为 136dp，滚动只受用户手势驱动。
-            // 关闭「连贯反馈」时退化为纯淡入淡出，不做位移伸缩。
-            AnimatedVisibility(
-                visible = showLibraryTabs,
-                enter = if (usesCoherentChromeTransition(coherentFeedbackEnabled)) {
-                    expandVertically(
-                        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
-                    ) + fadeIn(
-                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-                    )
-                } else {
-                    fadeIn(
-                        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)
-                    )
-                },
-                exit = if (usesCoherentChromeTransition(coherentFeedbackEnabled)) {
-                    shrinkVertically(
-                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-                    ) + fadeOut(
-                        animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)
-                    )
-                } else {
-                    fadeOut(
-                        animationSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing)
-                    )
-                }
-            ) {
+            // 瞬时显隐，与列表留白（contentPadding 56<->136dp）同帧切换。
+            // 这里一旦用 fadeIn/scaleIn 的 200ms 渐变，就会出现「Tab 行慢慢淡入、
+            // 下面列表首项（搜索框 + 歌单/歌手/导入/排序）早已瞬时就位」的两段式观感。
+            // 列表留白只能瞬时切换（动画会每帧 remasure 掉帧），所以 Tab 行也必须瞬时。
+            if (showLibraryTabs) {
             LibraryMainTabs(
                 tabs = orderedTabs,
                 selectedTabIndex = pagerState.currentPage,

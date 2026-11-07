@@ -1,4 +1,4 @@
-package moe.ouom.neriplayer.ui.screen.tab
+﻿package moe.ouom.neriplayer.ui.screen.tab
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -27,16 +27,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -134,7 +129,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
@@ -916,24 +910,11 @@ fun LibraryScreen(
                 }
             )
 
-            AnimatedVisibility(
-                visible = showLibraryTabs,
-                // 整块一起显隐：expandVertically 会按高度裁切，先出字再出底部滑条，像两段
-                enter = fadeIn(
-                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
-                ) + scaleIn(
-                    initialScale = 0.96f,
-                    animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                    transformOrigin = TransformOrigin.Center
-                ),
-                exit = fadeOut(
-                    animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing)
-                ) + scaleOut(
-                    targetScale = 0.96f,
-                    animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
-                    transformOrigin = TransformOrigin.Center
-                ),
-            ) {
+            // 瞬时显隐，与列表留白（contentPadding 56<->136dp）同帧切换。
+            // 这里一旦用 fadeIn/scaleIn 的 200ms 渐变，就会出现「Tab 行慢慢淡入、
+            // 下面列表首项（搜索框 + 歌单/歌手/导入/排序）早已瞬时就位」的两段式观感。
+            // 列表留白只能瞬时切换（动画会每帧 remasure 掉帧），所以 Tab 行也必须瞬时。
+            if (showLibraryTabs) {
             LibraryMainTabs(
                 tabs = orderedTabs,
                 selectedTabIndex = pagerState.currentPage,

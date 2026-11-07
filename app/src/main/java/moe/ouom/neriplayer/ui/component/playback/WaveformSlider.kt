@@ -29,6 +29,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +51,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 private const val NANOS_PER_MILLISECOND = 1_000_000L
 private const val TRACK_HEIGHT_DP = 4.5f
@@ -127,38 +130,57 @@ fun WaveformSlider(
         }
     }
 
-    val dragModifier = if (enabled) {
+    val gestureModifier = if (enabled) {
         Modifier.pointerInput(
             onValueChange,
             onValueChangeFinished,
             onValueChangeStarted,
             onValueChangeCanceled
         ) {
-            detectDragGestures(
-                onDragStart = { offset ->
-                    isDragging = true
-                    val width = size.width.toFloat()
-                    if (width > 0f) {
-                        val startValue = (offset.x / width).coerceIn(0f, 1f)
-                        onValueChangeStarted(startValue)
-                    }
-                },
-                onDragEnd = {
-                    isDragging = false
-                    onValueChangeFinished()
-                },
-                onDragCancel = {
-                    isDragging = false
-                    onValueChangeCanceled()
-                },
-                onDrag = { change, _ ->
-                    val width = size.width.toFloat()
-                    if (width > 0f) {
-                        val newValue = (change.position.x / width).coerceIn(0f, 1f)
-                        onValueChange(newValue)
+            // 拖动与点击在同一手势入口内并行检测：
+            // - 拖动越过 touch slop 后会消费指针事件，tap 检测到被消费即自动取消；
+            // - 纯点击（按下即抬起、未越过 slop）不会触发 detectDragGestures，只走 tap。
+            // 这是官方 Slider 的组合方式，保证两者互斥、不会重复 seek。
+            coroutineScope {
+                launch {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            isDragging = true
+                            val width = size.width.toFloat()
+                            if (width > 0f) {
+                                val startValue = (offset.x / width).coerceIn(0f, 1f)
+                                onValueChangeStarted(startValue)
+                            }
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            onValueChangeFinished()
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                            onValueChangeCanceled()
+                        },
+                        onDrag = { change, _ ->
+                            val width = size.width.toFloat()
+                            if (width > 0f) {
+                                val newValue = (change.position.x / width).coerceIn(0f, 1f)
+                                onValueChange(newValue)
+                            }
+                        }
+                    )
+                }
+                launch {
+                    detectTapGestures { offset ->
+                        val tappedValue = resolveTapProgress(offset.x, size.width.toFloat())
+                        if (tappedValue != null) {
+                            // 复用拖动的三段回调：预览态、触觉反馈、seekTo 与拖动保持一致。
+                            onValueChangeStarted(tappedValue)
+                            onValueChange(tappedValue)
+                            onValueChangeFinished()
+                        }
                     }
                 }
-            )
+            }
         }
     } else {
         Modifier
@@ -168,7 +190,7 @@ fun WaveformSlider(
         modifier = modifier
             .fillMaxWidth()
             .height(28.dp)
-            .then(dragModifier)
+            .then(gestureModifier)
     ) {
         val centerY = size.height / 2
         val progressValue = if (isProgressPredicting) {
@@ -220,6 +242,16 @@ internal fun shouldPredictWaveProgress(
     isProgressPreviewing: Boolean
 ): Boolean {
     return isWaveAnimating && !isProgressStalled && !isProgressPreviewing
+}
+
+/**
+ * 把单击的 x 坐标换算成进度比例。宽度非法（未测量 / 0 / 负值）时返回 null，不触发 seek。
+ * 超出控件左右边界的坐标夹到 0~1，方便点击轨道两端。
+ */
+internal fun resolveTapProgress(offsetX: Float, widthPx: Float): Float? {
+    if (widthPx <= 0f || !widthPx.isFinite()) return null
+    if (!offsetX.isFinite()) return null
+    return (offsetX / widthPx).coerceIn(0f, 1f)
 }
 
 private fun normalizeWaveProgress(value: Float): Float {

@@ -167,6 +167,27 @@ class WaveformSliderTest {
     }
 
     @Test
+    fun `tap progress maps x offset to fraction`() {
+        assertEquals(0f, resolveTapProgress(0f, 200f)!!, 0.0001f)
+        assertEquals(0.25f, resolveTapProgress(50f, 200f)!!, 0.0001f)
+        assertEquals(1f, resolveTapProgress(200f, 200f)!!, 0.0001f)
+    }
+
+    @Test
+    fun `tap progress clamps out of bounds offsets`() {
+        assertEquals(0f, resolveTapProgress(-30f, 200f)!!, 0.0001f)
+        assertEquals(1f, resolveTapProgress(260f, 200f)!!, 0.0001f)
+    }
+
+    @Test
+    fun `tap progress is ignored when width invalid`() {
+        assertEquals(null, resolveTapProgress(50f, 0f))
+        assertEquals(null, resolveTapProgress(50f, -1f))
+        assertEquals(null, resolveTapProgress(50f, Float.NaN))
+        assertEquals(null, resolveTapProgress(Float.NaN, 200f))
+    }
+
+    @Test
     fun `predictor resets its frame anchor when animation resumes`() {
         val predictor = WaveProgressPredictor(0.40f)
 

@@ -12,21 +12,7 @@ class LibraryChromeScrollStateTest {
                 currentVisible = false,
                 previousScrollTotal = 420,
                 currentScrollTotal = 420,
-                initialEmission = true,
-                compensatingContentTop = false
-            )
-        )
-    }
-
-    @Test
-    fun `content top compensation cannot reopen collapsed tabs`() {
-        assertFalse(
-            resolveLibraryTabsVisibility(
-                currentVisible = false,
-                previousScrollTotal = 420,
-                currentScrollTotal = 40,
-                initialEmission = false,
-                compensatingContentTop = true
+                initialEmission = true
             )
         )
     }
@@ -38,8 +24,7 @@ class LibraryChromeScrollStateTest {
                 currentVisible = true,
                 previousScrollTotal = 100,
                 currentScrollTotal = 120,
-                initialEmission = false,
-                compensatingContentTop = false
+                initialEmission = false
             )
         )
         assertTrue(
@@ -47,8 +32,7 @@ class LibraryChromeScrollStateTest {
                 currentVisible = false,
                 previousScrollTotal = 120,
                 currentScrollTotal = 100,
-                initialEmission = false,
-                compensatingContentTop = false
+                initialEmission = false
             )
         )
         assertTrue(
@@ -56,8 +40,7 @@ class LibraryChromeScrollStateTest {
                 currentVisible = false,
                 previousScrollTotal = 100,
                 currentScrollTotal = 40,
-                initialEmission = false,
-                compensatingContentTop = false
+                initialEmission = false
             )
         )
     }

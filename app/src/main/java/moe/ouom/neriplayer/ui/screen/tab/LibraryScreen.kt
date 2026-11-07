@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.ui.screen.tab
+package moe.ouom.neriplayer.ui.screen.tab
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -208,7 +208,6 @@ import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialogContent
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsTextField
-import moe.ouom.neriplayer.ui.util.contentTopPaddingCompensationPx
 import moe.ouom.neriplayer.ui.util.currentWindowWidthDp
 import moe.ouom.neriplayer.ui.util.rememberListRowStagger
 import moe.ouom.neriplayer.util.format.formatPlayCount
@@ -236,19 +235,14 @@ private class CardBoundsCapture {
 class LibraryChromeScrollState {
     var showTabs by mutableStateOf(true)
     var lastScrollTotal: Int = 0
-    var appliedContentTopDp: Float = LIBRARY_TABS_EXPANDED_TOP_DP
-    var isCompensatingContentTop: Boolean = false
 }
 
 internal fun resolveLibraryTabsVisibility(
     currentVisible: Boolean,
     previousScrollTotal: Int,
     currentScrollTotal: Int,
-    initialEmission: Boolean,
-    compensatingContentTop: Boolean
+    initialEmission: Boolean
 ): Boolean {
-    // 程序性补偿优先级最高：即使补偿把列表带到接近顶部，也不能伪装成用户上滑。
-    if (compensatingContentTop) return currentVisible
     // 重建后的首次发射不推断滚动方向；空列表（0）不能当成「已在顶部」，
     // 否则详情返回时首帧列表未就绪会把顶栏莫名展开，看起来像「本地」行冒出来。
     if (initialEmission) {
@@ -452,7 +446,6 @@ private fun libraryListBottomPadding(): Dp {
 private val LocalLibraryListTopPadding = staticCompositionLocalOf { 136.dp }
 
 private const val LIBRARY_TABS_EXPANDED_TOP_DP = 136f
-private const val LIBRARY_TABS_COLLAPSED_TOP_DP = 56f
 private const val LIBRARY_TABS_TOP_THRESHOLD_PX = 48
 private const val LIBRARY_TABS_SCROLL_THRESHOLD_PX = 12
 
@@ -635,10 +628,15 @@ fun LibraryScreen(
     }
     // 下滑收起 Tab 行；上滑意图时先弹出。状态由 LibraryHost 持有，详情返回不重置。
     val showLibraryTabs = chromeScrollState.showTabs
-    val libraryDensity = LocalDensity.current
-    // 顶部留白瞬时切换（动画 Dp 会每帧 remasure 发卡）。
-    // 显隐与滚动补偿必须同一拍：contentPadding 变多少，就用 dispatchRawDelta 反向补多少。
-    // 不能用 scrollBy —— 用户拖拽中会被 MutatorMutex 取消，列表会整体瞬移。
+    // 列表顶部留白恒定，不随 Tab 行显隐变化。
+    //
+    // 旧实现会在 Tab 行翻转时用 dispatchRawDelta 反向补偿 contentPadding 的 80dp 变化，
+    // 但 dispatchRawDelta 会直接改写列表的 firstVisibleItemScrollOffset，而 Tab 行的显隐
+    // 判定（resolveLibraryTabsVisibility）读的正是同一个滚动位置 → 补偿被当成用户手势
+    // → 再次翻转 → 再次补偿，形成自激振荡，表现为「下滑时歌单列表向上快速抽一下」。
+    // 让留白恒定后，列表滚动位置只由用户手势驱动，不存在任何程序性干扰。
+    val libraryContentTopDp = LIBRARY_TABS_EXPANDED_TOP_DP
+    // 仅保留「用户手势方向 → Tab 行显隐」这条单向关系，不再回写列表滚动。
     LaunchedEffect(activeLibraryListState) {
         var initialEmission = true
         snapshotFlow {
@@ -649,60 +647,13 @@ fun LibraryScreen(
                 currentVisible = chromeScrollState.showTabs,
                 previousScrollTotal = chromeScrollState.lastScrollTotal,
                 currentScrollTotal = total,
-                initialEmission = initialEmission,
-                compensatingContentTop = chromeScrollState.isCompensatingContentTop
+                initialEmission = initialEmission
             )
             if (newVisible != chromeScrollState.showTabs) {
-                val fromDp = chromeScrollState.appliedContentTopDp
-                val toDp = if (newVisible) {
-                    LIBRARY_TABS_EXPANDED_TOP_DP
-                } else {
-                    LIBRARY_TABS_COLLAPSED_TOP_DP
-                }
-                val deltaPx = contentTopPaddingCompensationPx(
-                    fromTopDp = fromDp,
-                    toTopDp = toDp,
-                    density = libraryDensity.density,
-                )
-                chromeScrollState.appliedContentTopDp = toDp
-                chromeScrollState.isCompensatingContentTop = true
-                try {
-                    // 先补滚动再切 showTabs，下一帧布局里 padding 与 offset 同时到位
-                    activeLibraryListState.dispatchRawDelta(deltaPx)
-                    chromeScrollState.showTabs = newVisible
-                } finally {
-                    chromeScrollState.lastScrollTotal =
-                        activeLibraryListState.firstVisibleItemIndex * 100_000 +
-                            activeLibraryListState.firstVisibleItemScrollOffset
-                    chromeScrollState.isCompensatingContentTop = false
-                }
-            } else {
-                chromeScrollState.lastScrollTotal = total
+                chromeScrollState.showTabs = newVisible
             }
+            chromeScrollState.lastScrollTotal = total
             initialEmission = false
-        }
-    }
-    val libraryContentTopDp = if (showLibraryTabs) {
-        LIBRARY_TABS_EXPANDED_TOP_DP
-    } else {
-        LIBRARY_TABS_COLLAPSED_TOP_DP
-    }
-    // 兜底：换列表/状态恢复后 applied 与目标不一致时再补一次（正常路径上面已补齐）
-    LaunchedEffect(libraryContentTopDp, activeLibraryListState) {
-        val deltaPx = with(libraryDensity) {
-            (libraryContentTopDp - chromeScrollState.appliedContentTopDp).dp.toPx()
-        }
-        if (deltaPx != 0f) {
-            chromeScrollState.appliedContentTopDp = libraryContentTopDp
-            chromeScrollState.isCompensatingContentTop = true
-            try {
-                activeLibraryListState.dispatchRawDelta(deltaPx)
-            } finally {
-                chromeScrollState.lastScrollTotal =
-                    activeLibraryListState.firstVisibleItemIndex * 100_000 +
-                        activeLibraryListState.firstVisibleItemScrollOffset
-                chromeScrollState.isCompensatingContentTop = false
-            }
         }
     }
 

@@ -718,7 +718,9 @@ fun GlassSheetMenuItem(
         leadingIcon = leadingIcon
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            GlassMenuItemText(text)
+            // 单行显示：菜单宽度已按最长文案放宽（见 MoreOptionsSheet 的 maxWidth），
+            // 这里限制 maxLines=1 避免较长条目（如「播放音效」「编辑歌曲信息」）折成两行。
+            GlassMenuItemText(text, maxLines = 1)
             if (supportingContent != null) {
                 CompositionLocalProvider(
                     LocalTextStyle provides LocalTextStyle.current.copy(

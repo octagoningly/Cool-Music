@@ -4304,8 +4304,9 @@ fun BoxScope.MoreOptionsSheet(
         expanded = secondaryPage == null && statsSong == null,
         onDismissRequest = onDismiss,
         shape = moe.ouom.neriplayer.ui.component.overlay.GlassMenuShape,
-        // 去掉副文案后菜单变窄，刚好包住主文案 + 图标
-        maxWidth = 168.dp,
+        // 宽度需要包住最长的菜单文案（如「播放音效」「编辑歌曲信息」等），
+        // 168dp 会把较长的项挤成两行；按开发规则「菜单宽度自适应，widthIn(max = 240.dp)」放宽。
+        maxWidth = 232.dp,
         // 菜单项较多，加高到可完整展示，避免再滚动
         maxHeight = 640.dp,
     ) {

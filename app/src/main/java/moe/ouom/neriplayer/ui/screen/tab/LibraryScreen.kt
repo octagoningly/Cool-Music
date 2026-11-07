@@ -456,6 +456,12 @@ private val LocalLibraryListTopPadding = staticCompositionLocalOf { 136.dp }
 private const val LIBRARY_TABS_EXPANDED_TOP_DP = 136f
 /** Tab 行显现时从上方滑入的距离（仅绘制层位移，不影响测量）。 */
 private const val LIBRARY_TABS_REVEAL_SLIDE_DP = 14f
+/**
+ * 在线分类页（网易云歌单/专辑等）header 顶部补的空位。
+ * 「本地」页 header 由 Spacer(12dp) + 搜索框（56dp + 12dp padding）构成，
+ * 在线分类页没有搜索框，需补等高的空位才能让分类行落在大标题 + Tab 行之下不被压住。
+ */
+private val LIBRARY_ONLINE_HEADER_TOP_GAP = 72.dp
 private const val LIBRARY_TABS_TOP_THRESHOLD_PX = 48
 private const val LIBRARY_TABS_SCROLL_THRESHOLD_PX = 12
 
@@ -3338,6 +3344,10 @@ private fun NeteaseLibraryHeaderContent(
     onCategoryChange: (Int) -> Unit
 ) {
     Column(Modifier.fillMaxWidth()) {
+        // 与「本地」页对齐：本地 header 上方有 Spacer(12dp) + 搜索框，内容自然落在
+        // 浮层 chrome（大标题 + Tab 行）下方；在线分类页没有搜索框，必须补足同样的
+        // 顶部空位，否则「歌单 / 专辑」行会被上方 Tab 行压住。
+        Spacer(Modifier.height(LIBRARY_ONLINE_HEADER_TOP_GAP))
         NeteaseCategoryTabs(
             selectedCategory = selectedCategory,
             onCategoryChange = onCategoryChange

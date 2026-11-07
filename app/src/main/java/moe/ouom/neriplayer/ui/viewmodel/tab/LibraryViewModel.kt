@@ -35,6 +35,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
@@ -43,6 +44,11 @@ import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicLibraryPlaylist
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicPlaylistSummary
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.auth.youtube.buildRefreshObserverFingerprint
+import moe.ouom.neriplayer.data.cache.LibraryListsCacheRepository
+import moe.ouom.neriplayer.data.cache.LibraryListsCacheSnapshot
+import moe.ouom.neriplayer.data.cache.shouldApplyLibraryListCache
+import moe.ouom.neriplayer.data.cache.toCacheDto
+import moe.ouom.neriplayer.data.cache.toUiModel
 import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
 import moe.ouom.neriplayer.data.local.playlist.model.LocalPlaylist
 import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
@@ -56,6 +62,7 @@ import java.io.IOException
 
 private const val BILI_DETAIL_BATCH_SIZE = 6
 private const val BILI_RESOURCE_TYPE_COLLECTION = 21
+private const val LIBRARY_LISTS_CACHE_SAVE_DEBOUNCE_MS = 400L
 
 /** 媒体库页面 UI 状态 */
 data class LibraryUiState(
@@ -84,6 +91,9 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     private val qqMusicCookieRepo = AppContainer.qqMusicCookieRepo
     private val qqMusicClient = AppContainer.qqMusicClient
 
+    private val listsCacheRepo = LibraryListsCacheRepository(application)
+    private var listsCacheSaveJob: Job? = null
+    private var listsCacheBootstrapped = false
 
     private val _uiState = MutableStateFlow(
         LibraryUiState(localPlaylists = localRepo.playlists.value)
@@ -97,6 +107,9 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     private val autoImportedQQMusicDissIds = mutableSetOf<Long>()
 
     init {
+        // 云端歌单列表：先画磁盘缓存，再由网络刷新覆盖（SWR）。
+        bootstrapLibraryListsCache()
+
         // 本地歌单
         viewModelScope.launch {
             if (!localRepo.awaitInitialized()) return@launch
@@ -196,6 +209,100 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /** 冷启动时先恢复上次成功拉取的云端歌单列表，避免弱网/离线直接空白。 */
+    private fun bootstrapLibraryListsCache() {
+        if (listsCacheBootstrapped) return
+        listsCacheBootstrapped = true
+        viewModelScope.launch(Dispatchers.IO) {
+            val snapshot = listsCacheRepo.read() ?: return@launch
+            val plan = shouldApplyLibraryListCache(
+                snapshot = snapshot,
+                neteaseFingerprint = neteaseFingerprint(),
+                youtubeFingerprint = youtubeFingerprint(),
+                biliFingerprint = biliFingerprint(),
+                qqMusicFingerprint = qqMusicFingerprint()
+            )
+            if (plan.isEmpty) return@launch
+            val neteaseLoggedIn = neteaseCookieRepo.getCookiesOnce()["MUSIC_U"].isNullOrBlank().not()
+            val biliLoggedIn = biliCookieRepo.getCookiesOnce()["SESSDATA"].isNullOrBlank().not()
+            val qqLoggedIn = qqMusicCookieRepo.getAuthBundleOnce().hasLoginCookies()
+            val ytLoggedIn = youtubeAuthRepo.getAuthOnce().hasSavedAuthMaterial()
+            val restoredNeteasePlaylists = plan.neteasePlaylists.map { it.toUiModel() }
+                .takeIf { neteaseLoggedIn }.orEmpty()
+            val restoredNeteaseAlbums = plan.neteaseAlbums.map { it.toUiModel() }
+                .takeIf { neteaseLoggedIn }.orEmpty()
+            val restoredYtPlaylists = plan.youtubeMusicPlaylists.map { it.toUiModel() }
+                .takeIf { ytLoggedIn && youtubeEnabled }.orEmpty()
+            val restoredBiliPlaylists = plan.biliPlaylists.mapNotNull { it.toUiModel() }
+                .takeIf { biliLoggedIn }.orEmpty()
+            val restoredQqPlaylists = plan.qqMusicPlaylists.map { it.toUiModel() }
+                .takeIf { qqLoggedIn }.orEmpty()
+            // 只填充「当前仍为空」的列表，不覆盖已经由网络刷新的新数据。
+            _uiState.update { state ->
+                state.copy(
+                    neteasePlaylists = state.neteasePlaylists.ifEmpty { restoredNeteasePlaylists },
+                    neteaseAlbums = state.neteaseAlbums.ifEmpty { restoredNeteaseAlbums },
+                    youtubeMusicPlaylists = state.youtubeMusicPlaylists.ifEmpty { restoredYtPlaylists },
+                    biliPlaylists = state.biliPlaylists.ifEmpty { restoredBiliPlaylists },
+                    qqMusicPlaylists = state.qqMusicPlaylists.ifEmpty { restoredQqPlaylists }
+                )
+            }
+            NPLogger.d(
+                "LibraryViewModel",
+                "library lists cache applied: netease=${restoredNeteasePlaylists.size}, " +
+                    "albums=${restoredNeteaseAlbums.size}, yt=${restoredYtPlaylists.size}, " +
+                    "bili=${restoredBiliPlaylists.size}, qq=${restoredQqPlaylists.size}"
+            )
+        }
+    }
+
+    /** 任一平台列表更新后，debounce 写整份快照（各平台携带自己的账号指纹）。 */
+    private fun scheduleLibraryListsCacheSave() {
+        listsCacheSaveJob?.cancel()
+        listsCacheSaveJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(LIBRARY_LISTS_CACHE_SAVE_DEBOUNCE_MS)
+            val state = _uiState.value
+            val snapshot = LibraryListsCacheSnapshot(
+                savedAtMs = System.currentTimeMillis(),
+                neteaseFingerprint = neteaseFingerprint(),
+                neteasePlaylists = state.neteasePlaylists.map { it.toCacheDto() },
+                neteaseAlbums = state.neteaseAlbums.map { it.toCacheDto() },
+                youtubeFingerprint = youtubeFingerprint(),
+                youtubeMusicPlaylists = state.youtubeMusicPlaylists.map { it.toCacheDto() },
+                biliFingerprint = biliFingerprint(),
+                biliPlaylists = state.biliPlaylists.map { it.toCacheDto() },
+                qqMusicFingerprint = qqMusicFingerprint(),
+                qqMusicPlaylists = state.qqMusicPlaylists.map { it.toCacheDto() }
+            )
+            withContext(Dispatchers.IO) { listsCacheRepo.save(snapshot) }
+        }
+    }
+
+    private fun neteaseFingerprint(): String = stableFingerprint(
+        "netease",
+        neteaseCookieRepo.getCookiesOnce()["MUSIC_U"]
+    )
+
+    private fun biliFingerprint(): String = stableFingerprint(
+        "bili",
+        biliCookieRepo.getCookiesOnce()["DedeUserID"],
+        biliCookieRepo.getCookiesOnce()["SESSDATA"]
+    )
+
+    private fun qqMusicFingerprint(): String = stableFingerprint(
+        "qq",
+        qqMusicCookieRepo.getAuthBundleOnce().cookies["uin"]
+            ?: qqMusicCookieRepo.getAuthBundleOnce().cookies["wxuin"]
+    )
+
+    private fun youtubeFingerprint(): String =
+        "yt:" + youtubeAuthRepo.getAuthOnce().buildRefreshObserverFingerprint()
+
+    /** 只取稳定标识位，避免把完整 cookie / token 写进缓存文件。 */
+    private fun stableFingerprint(prefix: String, vararg parts: String?): String {
+        return prefix + ":" + parts.joinToString("|") { it?.trim().orEmpty() }.hashCode().toString()
+    }
+
     fun refreshBilibili() {
         viewModelScope.launch {
             try {
@@ -236,7 +343,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
                 NPLogger.d("LibraryViewModel-Bili", mapped)
 
-                _uiState.value = _uiState.value.copy(biliPlaylists = mapped, biliError = null)
+                _uiState.update { it.copy(biliPlaylists = mapped, biliError = null) }
+                scheduleLibraryListsCacheSave()
             } catch (e: IOException) {
                 _uiState.value = _uiState.value.copy(biliError = e.message)
             } catch (e: Exception) {
@@ -310,10 +418,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 val uid = withContext(Dispatchers.IO) { neteaseClient.getCurrentUserId() }
                 val raw = withContext(Dispatchers.IO) { neteaseClient.getUserPlaylists(uid) }
                 val mapped = parseNeteasePlaylists(raw)
-                _uiState.value = _uiState.value.copy(
-                    neteasePlaylists = mapped,
-                    neteaseError = null
-                )
+                _uiState.update { it.copy(neteasePlaylists = mapped, neteaseError = null) }
+                scheduleLibraryListsCacheSave()
             } catch (e: IOException) {
                 _uiState.value = _uiState.value.copy(neteaseError = e.message)
             } catch (e: Exception) {
@@ -328,10 +434,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 val uid = withContext(Dispatchers.IO) { neteaseClient.getCurrentUserId() }
                 val raw = withContext(Dispatchers.IO) { neteaseClient.getUserStaredAlbums(uid) }
                 val mapped = parseNeteaseAlbums(raw)
-                _uiState.value = _uiState.value.copy(
-                    neteaseAlbums = mapped,
-                    neteaseError = null
-                )
+                _uiState.update { it.copy(neteaseAlbums = mapped, neteaseError = null) }
+                scheduleLibraryListsCacheSave()
             } catch (e: IOException) {
                 _uiState.value = _uiState.value.copy(neteaseError = e.message)
             } catch (e: Exception) {
@@ -356,22 +460,20 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                         resolveMissingTrackCounts = false
                     )
                 }
-                _uiState.value = _uiState.value.copy(
-                    youtubeMusicPlaylists = playlists.map(::mapYouTubeMusicPlaylist),
-                    youtubeMusicError = null
-                )
+                _uiState.update {
+                    it.copy(
+                        youtubeMusicPlaylists = playlists.map(::mapYouTubeMusicPlaylist),
+                        youtubeMusicError = null
+                    )
+                }
+                scheduleLibraryListsCacheSave()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: IOException) {
-                _uiState.value = _uiState.value.copy(
-                    youtubeMusicPlaylists = emptyList(),
-                    youtubeMusicError = e.message
-                )
+                // 弱网/离线时保留已恢复的缓存列表，不要清空成空白。
+                _uiState.update { it.copy(youtubeMusicError = e.message) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    youtubeMusicPlaylists = emptyList(),
-                    youtubeMusicError = e.message
-                )
+                _uiState.update { it.copy(youtubeMusicError = e.message) }
             } finally {
                 val completedJob = coroutineContext[Job]
                 if (youtubeMusicPlaylistsJob === completedJob) {
@@ -391,16 +493,12 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 val playlists = withContext(Dispatchers.IO) {
                     qqMusicClient.getUserCreatedPlaylists()
                 }
-                _uiState.value = _uiState.value.copy(
-                    qqMusicPlaylists = playlists,
-                    qqMusicError = null
-                )
+                _uiState.update { it.copy(qqMusicPlaylists = playlists, qqMusicError = null) }
+                scheduleLibraryListsCacheSave()
                 autoImportQQMusicPlaylists(playlists)
             } catch (error: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    qqMusicPlaylists = emptyList(),
-                    qqMusicError = error.message
-                )
+                // 弱网/离线时保留已恢复的缓存列表，不要清空成空白。
+                _uiState.update { it.copy(qqMusicError = error.message) }
             }
         }
     }

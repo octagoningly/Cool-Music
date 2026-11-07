@@ -436,17 +436,27 @@ fun ExploreScreen(
 ) {
     val context = LocalContext.current
     val composeResources = LocalResources.current
-    if (offlineMode) {
-        ExploreOfflineContent(topAppBarState)
-        return
-    }
-
     val vm: ExploreViewModel = viewModel(
         factory = viewModelFactory {
             initializer { ExploreViewModel(context.applicationContext as Application) }
         }
     )
     val ui by vm.uiState.collectAsStateWithLifecycle()
+
+    // 离线时不再整页替换成空白提示：ViewModel 已经从磁盘缓存恢复了歌单网格，
+    // 有缓存就照常展示（网络刷新会失败但 SWR 会保留缓存内容）；只有缓存也为空才显示提示。
+    if (offlineMode && ui.playlists.isEmpty() && !ui.loading) {
+        // 离线兜底页也必须注册 chrome：正常分支的 MainTabChrome 在 return 后不会执行，
+        // 上一帧的 onDispose 会把 slot 里的注册项拔掉，导致顶栏整层缺位。
+        // 标题画在捕获层外的 chrome 槽位里，不会被玻璃采样糊掉。
+        MainTabChrome(route = moe.ouom.neriplayer.navigation.Destinations.Explore.route) {
+            NeriTabLargeTitleTopBar(
+                title = stringResource(R.string.nav_explore)
+            )
+        }
+        ExploreOfflineContent()
+        return
+    }
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val searchHistoryRepository = remember(context) {
@@ -681,7 +691,8 @@ fun ExploreScreen(
     LaunchedEffect(isTabActive) {
         if (!isTabActive) return@LaunchedEffect
         vm.resetToExploreHome()
-        if (ui.playlists.isEmpty() && !ui.loading) {
+        // 离线时磁盘缓存已由 ViewModel.init 恢复，不发注定失败的网络请求。
+        if (!offlineMode && ui.playlists.isEmpty() && !ui.loading) {
             vm.loadHighQuality()
         }
     }
@@ -740,8 +751,8 @@ fun ExploreScreen(
 
     // Initialize with default tag
     LaunchedEffect(Unit) {
-        // 探索首页直接展示完整封面网格
-        if (ui.selectedTag == "tag_all" && ui.playlists.isEmpty()) {
+        // 探索首页直接展示完整封面网格；离线时保留 init 恢复的磁盘缓存即可。
+        if (!offlineMode && ui.selectedTag == "tag_all" && ui.playlists.isEmpty()) {
             vm.loadHighQuality("tag_all")
         }
     }
@@ -1796,28 +1807,15 @@ fun ExploreScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExploreOfflineContent(topAppBarState: TopAppBarState) {
+private fun ExploreOfflineContent() {
     val miniPlayerHeight = LocalMiniPlayerHeight.current
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
-        state = topAppBarState,
-        canScroll = {
-            shouldAllowCollapsingTopAppBar(
-                canScrollForward = false,
-                canScrollBackward = false,
-                collapsedFraction = topAppBarState.collapsedFraction
-            )
-        }
-    )
 
+    // 不再自带顶栏：正常路径已通过 MainTabChrome 在捕获层外注册「探索」标题，
+    // 这里再画一个会与 chrome 槽位叠两层，玻璃采样把标题文字一起糊掉。
     Scaffold(
         modifier = Modifier
             .fillMaxSize(),
-        containerColor = Color.Transparent,
-        topBar = {
-            NeriTabLargeTitleTopBar(
-                title = stringResource(R.string.nav_explore)
-            )
-        }
+        containerColor = Color.Transparent
     ) { innerPadding ->
         Box(
             modifier = Modifier

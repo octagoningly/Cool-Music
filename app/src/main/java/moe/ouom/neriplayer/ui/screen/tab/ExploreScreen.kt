@@ -68,7 +68,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
@@ -237,8 +236,6 @@ import moe.ouom.neriplayer.ui.viewmodel.tab.shouldLoadExploreSearchMore
 import moe.ouom.neriplayer.ui.util.currentWindowWidthDp
 import moe.ouom.neriplayer.ui.util.rememberSongDisplayCoverUrl
 import moe.ouom.neriplayer.ui.util.ClipboardCopyResult
-import moe.ouom.neriplayer.ui.util.compensateGridContentTopScroll
-import moe.ouom.neriplayer.ui.util.compensateListContentTopScroll
 import moe.ouom.neriplayer.ui.util.copyPlainTextSafely
 import moe.ouom.neriplayer.ui.util.rememberListRowStagger
 import moe.ouom.neriplayer.ui.haptic.HapticIconButton
@@ -624,22 +621,27 @@ fun ExploreScreen(
         }
         showExploreSearchField = true
     }
-    // 顶部留白瞬时切换 + 滚动补偿：收起搜索框/筛选行时列表不跟着跳。
-    // （animateDpAsState 会让列表连续 remasure，且视觉上像被下面内容推动）
+    // 顶部留白瞬时切换（不做 dispatchRawDelta 滚动补偿）。
+    //
+    // 曾经用 compensateGridContentTopScroll 的 dispatchRawDelta 抵消 contentPadding 变化，
+    // 但它会直接改写 gridState.firstVisibleItemScrollOffset，而上方的方向判定来自同一个
+    // snapshotFlow(total = index*100000 + offset)，阈值仅 12px。补偿量 132~312px 会被
+    // 当成用户手势 → 翻转 showExploreSearchField / showTypeFilterLayer → 再次触发补偿，
+    // 形成自激振荡，表现为「发现栏出现/消失都抽动、重复多次加重」（日志 NERI-ExploreScroll
+    // 可见 total 在 62→194→200085→632 之间乱跳）。
+    // contentPadding 变化本身只影响绘制位置、不改 scroll offset，因此移除补偿即可斩断反馈环。
     var exploreListContentTop by remember { mutableStateOf(116.dp) }
-    val exploreDensity = LocalDensity.current
-    LaunchedEffect(showTypeFilterLayer, showExploreSearchField, activeListState) {
+    LaunchedEffect(showTypeFilterLayer, showExploreSearchField) {
         val target = resolveExploreListContentTopDp(
             showTypeFilterLayer = showTypeFilterLayer,
             showExploreSearchField = showExploreSearchField
         ).dp
-        val deltaPx = with(exploreDensity) { (target - exploreListContentTop).toPx() }
-        if (deltaPx != 0f) {
-            when (activeListState) {
-                gridState -> compensateGridContentTopScroll(gridState, deltaPx)
-                youtubeGridState -> compensateGridContentTopScroll(youtubeGridState, deltaPx)
-                else -> compensateListContentTopScroll(searchListState, deltaPx)
-            }
+        if (target != exploreListContentTop) {
+            NPLogger.d(
+                "NERI-ExploreScroll",
+                "topPadding: filter=$showTypeFilterLayer search=$showExploreSearchField " +
+                    "top=${exploreListContentTop.value}->${target.value} (no scroll compensation)"
+            )
         }
         exploreListContentTop = target
     }

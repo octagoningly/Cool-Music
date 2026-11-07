@@ -37,7 +37,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
@@ -411,16 +410,8 @@ private fun youtubeSearchTypeIcon(type: YouTubeExploreSearchType): ImageVector {
  * 该值与 chrome 高度 / 筛选行留白必须同帧切换，配合一次性 dispatchRawDelta 补偿，
  * 才能让下方 LazyVerticalGrid 不因布局高度变化而抽动。
  */
-internal fun resolveExploreListContentTopDp(
-    showTypeFilterLayer: Boolean,
-    showExploreSearchField: Boolean
-): Int {
-    return when {
-        showTypeFilterLayer -> 12
-        showExploreSearchField -> 116
-        else -> 56
-    }
-}
+/** 列表顶部固定留白：给浮层 chrome（大标题 + 搜索框）让位，恒定不变。 */
+internal val EXPLORE_LIST_TOP_PADDING = 116.dp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -568,21 +559,6 @@ fun ExploreScreen(
         ui.selectedSearchSource == SearchSource.YOUTUBE_MUSIC -> youtubeGridState
         else -> searchListState
     }
-    val showTypeFilterLayer by remember(activeListState) {
-        derivedStateOf {
-            when (activeListState) {
-                gridState ->
-                    gridState.firstVisibleItemIndex == 0 &&
-                        gridState.firstVisibleItemScrollOffset < 48
-                youtubeGridState ->
-                    youtubeGridState.firstVisibleItemIndex == 0 &&
-                        youtubeGridState.firstVisibleItemScrollOffset < 48
-                else ->
-                    searchListState.firstVisibleItemIndex == 0 &&
-                        searchListState.firstVisibleItemScrollOffset < 48
-            }
-        }
-    }
     // 下滑浏览时收起搜索框；上滑意图时先弹出搜索框
     var showExploreSearchField by remember { mutableStateOf(true) }
     var sourceMenuExpanded by remember { mutableStateOf(false) }
@@ -621,35 +597,10 @@ fun ExploreScreen(
         }
         showExploreSearchField = true
     }
-    // 顶部留白瞬时切换（不做 dispatchRawDelta 滚动补偿）。
-    //
-    // 曾经用 compensateGridContentTopScroll 的 dispatchRawDelta 抵消 contentPadding 变化，
-    // 但它会直接改写 gridState.firstVisibleItemScrollOffset，而上方的方向判定来自同一个
-    // snapshotFlow(total = index*100000 + offset)，阈值仅 12px。补偿量 132~312px 会被
-    // 当成用户手势 → 翻转 showExploreSearchField / showTypeFilterLayer → 再次触发补偿，
-    // 形成自激振荡，表现为「发现栏出现/消失都抽动、重复多次加重」（日志 NERI-ExploreScroll
-    // 可见 total 在 62→194→200085→632 之间乱跳）。
-    // contentPadding 变化本身只影响绘制位置、不改 scroll offset，因此移除补偿即可斩断反馈环。
-    var exploreListContentTop by remember { mutableStateOf(116.dp) }
-    LaunchedEffect(showTypeFilterLayer, showExploreSearchField) {
-        val target = resolveExploreListContentTopDp(
-            showTypeFilterLayer = showTypeFilterLayer,
-            showExploreSearchField = showExploreSearchField
-        ).dp
-        if (target != exploreListContentTop) {
-            NPLogger.d(
-                "NERI-ExploreScroll",
-                "topPadding: filter=$showTypeFilterLayer search=$showExploreSearchField " +
-                    "top=${exploreListContentTop.value}->${target.value} (no scroll compensation)"
-            )
-        }
-        exploreListContentTop = target
-    }
-    // 瞬时值，与 exploreListContentTop 同帧切换。
-    // 这里曾用 animateDpAsState(220ms)，但它包在下面 AnimatedVisibility 的内容里，
-    // 外层展开动画按最终测量高度逐帧变化、内部 padding 又独立连续变化，双重动画叠加
-    // 会让下方 LazyVerticalGrid 被反复重测推挤（见注释 611-612 已说明的「像被下面内容推动」）。
-    val exploreFilterRowTop = if (showExploreSearchField) 116.dp else 56.dp
+    // 列表顶部固定留白，用来给上方浮层 chrome（大标题 + 搜索框）让位。
+    // 这个值恒定不变：列表的 contentPadding 不随任何 chrome 显隐状态变化，
+    // 因此 LazyGrid 的滚动位置只由用户手势决定，不存在程序性补偿或自激振荡。
+    val exploreListContentTop = EXPLORE_LIST_TOP_PADDING
     var previousSearchSource by remember { mutableStateOf(ui.selectedSearchSource) }
     val isExploreContentScrolled by remember(
         searchQuery,
@@ -1174,106 +1125,8 @@ fun ExploreScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
-                    var tagMenuExpanded by remember { mutableStateOf(false) }
-                    val currentSearchSource = ui.selectedSearchSource
-                    // 类型行不再走 chrome 收展动画：搜索时作为列表首条「歌行」出现，动效走歌与歌之间的交错
-                    if (searchQuery.isBlank()) {
-                    // 这一行在 Scaffold 内容的布局流里，与下方 LazyVerticalGrid 上下排列。
-                    // 不能用 expandVertically/shrinkVertically：它会逐帧改变父 Column 高度，
-                    // 而 exploreListContentTop 是瞬时切换 + 一次性 dispatchRawDelta 补偿，
-                    // 两者不同步就会把网格反复推挤，表现为「发现一弹出就直接完整显示、
-                    // 底层信息流抽动」。改为同帧瞬时显隐，补偿可精确抵消，列表不跳；
-                    // 视觉过渡只用 graphicsLayer 的 alpha（不参与测量），既有中间态又不推挤网格。
-                    val filterReveal = remember { androidx.compose.animation.core.Animatable(0f) }
-                    LaunchedEffect(showTypeFilterLayer) {
-                        if (showTypeFilterLayer) {
-                            filterReveal.snapTo(0f)
-                            filterReveal.animateTo(
-                                targetValue = 1f,
-                                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-                            )
-                        }
-                    }
-                    if (showTypeFilterLayer) {
-                    // 为 chrome（标题+搜索）让位；再上移约半个「探索」标题高
-                    Column(
-                        Modifier
-                            .padding(top = exploreFilterRowTop)
-                            .graphicsLayer { alpha = filterReveal.value }
-                    ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Spacer(modifier = Modifier.weight(1f))
-                        // 风格「全部」：靠右，字号更大
-                        if (
-                            (currentSearchSource == SearchSource.DEFAULT ||
-                                currentSearchSource == SearchSource.NETEASE) &&
-                            searchQuery.isBlank()
-                        ) {
-                            val currentTagLabel = tagLabels.getOrElse(
-                                tagKeys.indexOf(ui.selectedTag)
-                            ) { tagLabels.first() }
-                            Box(modifier = Modifier.padding(start = 4.dp, end = 4.dp)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                    modifier = Modifier
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = ripple()
-                                        ) { tagMenuExpanded = true }
-                                        .padding(horizontal = 8.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = currentTagLabel,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Filled.ArrowDropDown,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                GlassDropdownMenu(
-                                    expanded = tagMenuExpanded,
-                                    onDismissRequest = { tagMenuExpanded = false },
-                                    shape = GlassMenuShape,
-                                    preferDownward = true,
-                                    maxWidth = 240.dp,
-                                    maxHeight = 300.dp,
-                                    modifier = Modifier
-                                ) {
-                                    tagKeys.forEachIndexed { index, tagKey ->
-                                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
-                                            onClick = {
-                                                tagMenuExpanded = false
-                                                if (ui.selectedTag != tagKey) {
-                                                    vm.loadHighQuality(tagKey)
-                                                }
-                                            }
-                                        ) {
-                                            moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
-                                                tagLabels[index]
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    }
-                    }
-                    }
-
-                    // 类型标签行仅在「新发现」二级页展示（见 NeteaseDiscoveryPage）
+                    // 「发现/风格」筛选行已移入 NeteaseDiscoveryPage 的 LazyVerticalGrid，
+                    // 与专辑卡片共同滚动；此处不再保留独立显隐的布局块，列表滚动只受用户手势驱动。
                 }
 
             // 列表从屏幕顶铺开（chrome 浮在上面），滚动后条目进入搜索框/标题玻璃区
@@ -1588,7 +1441,11 @@ fun ExploreScreen(
                                 isTabletLayout = isTabletLayout,
                                 gridState = gridState,
                                 contentTopPadding = exploreListContentTop,
-                                contentBottomPadding = 16.dp + miniPlayerHeight
+                                contentBottomPadding = 16.dp + miniPlayerHeight,
+                                tagKeys = tagKeys,
+                                tagLabels = tagLabels,
+                                onTagSelected = { tagKey -> vm.loadHighQuality(tagKey) },
+                                showTagFilterRow = searchQuery.isBlank()
                             )
                         }
                         SearchSource.BILIBILI -> {
@@ -1639,8 +1496,12 @@ fun ExploreScreen(
                 onPlay = onPlay,
                 isTabletLayout = isTabletLayout,
                 gridState = gridState,
-                contentTopPadding = 116.dp,
-                contentBottomPadding = 16.dp + miniPlayerHeight
+                contentTopPadding = EXPLORE_LIST_TOP_PADDING,
+                contentBottomPadding = 16.dp + miniPlayerHeight,
+                tagKeys = tagKeys,
+                tagLabels = tagLabels,
+                onTagSelected = { tagKey -> vm.loadHighQuality(tagKey) },
+                showTagFilterRow = searchQuery.isBlank()
             )
         }
     }
@@ -2284,6 +2145,79 @@ internal const val EXPLORE_DEFAULT_SEARCH_TYPE_BAR_TAG = "explore_default_search
 internal const val EXPLORE_NETEASE_SEARCH_TYPE_BAR_TAG = "explore_netease_search_type_bar"
 internal const val EXPLORE_YOUTUBE_SEARCH_TYPE_BAR_TAG = "explore_youtube_search_type_bar"
 
+/**
+ * 探索页「风格/全部」筛选行。
+ *
+ * 现在作为 LazyVerticalGrid 的第一个 item，与专辑卡片在同一个滚动容器里共同运动，
+ * 因此它的出现/消失完全由用户滑动决定，不再有任何独立的显隐动画或 contentPadding
+ * 补偿去干预列表滚动 —— 这正是「底层信息流抽动/闪烁」的根治方案。
+ * 顶部让位 chrome 的空白由网格的 contentPadding.top 统一提供。
+ */
+@Composable
+private fun ExploreTagFilterRow(
+    selectedTag: String,
+    tagKeys: List<String>,
+    tagLabels: List<String>,
+    onTagSelected: (String) -> Unit
+) {
+    var tagMenuExpanded by remember { mutableStateOf(false) }
+    val currentTagLabel = tagLabels.getOrElse(tagKeys.indexOf(selectedTag)) { tagLabels.first() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Spacer(modifier = Modifier.weight(1f))
+        Box(modifier = Modifier.padding(start = 4.dp, end = 4.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple()
+                    ) { tagMenuExpanded = true }
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = currentTagLabel,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Icon(
+                    imageVector = Icons.Filled.ArrowDropDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            GlassDropdownMenu(
+                expanded = tagMenuExpanded,
+                onDismissRequest = { tagMenuExpanded = false },
+                shape = GlassMenuShape,
+                preferDownward = true,
+                maxWidth = 240.dp,
+                maxHeight = 300.dp
+            ) {
+                tagKeys.forEachIndexed { index, tagKey ->
+                    moe.ouom.neriplayer.ui.component.playlist.GlassMenuActionItem(
+                        onClick = {
+                            tagMenuExpanded = false
+                            if (selectedTag != tagKey) onTagSelected(tagKey)
+                        }
+                    ) {
+                        moe.ouom.neriplayer.ui.component.playlist.GlassMenuItemText(
+                            tagLabels[index]
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 private fun NeteaseDiscoveryPage(
@@ -2293,7 +2227,11 @@ private fun NeteaseDiscoveryPage(
     isTabletLayout: Boolean = false,
     gridState: LazyGridState,
     contentTopPadding: Dp = 116.dp,
-    contentBottomPadding: Dp = 16.dp
+    contentBottomPadding: Dp = 16.dp,
+    tagKeys: List<String> = emptyList(),
+    tagLabels: List<String> = emptyList(),
+    onTagSelected: (String) -> Unit = {},
+    showTagFilterRow: Boolean = false
 ) {
     val gridHorizontalPadding = if (isTabletLayout) 56.dp else 16.dp
     val gridMinCellSize = if (isTabletLayout) 170.dp else 150.dp
@@ -2330,6 +2268,21 @@ private fun NeteaseDiscoveryPage(
             ),
             modifier = Modifier.fillMaxSize().then(gridRowStagger.listModifier)
         ) {
+            // 「发现/风格」筛选行作为网格首个 item，与专辑卡片共同滚动。
+            // 它不再位于独立的布局流里，因此显隐不会推挤网格、也不会被任何补偿逻辑干预。
+            if (showTagFilterRow && tagLabels.isNotEmpty()) {
+                item(
+                    key = "explore-tag-filter-row",
+                    span = { GridItemSpan(maxLineSpan) }
+                ) {
+                    ExploreTagFilterRow(
+                        selectedTag = ui.selectedTag,
+                        tagKeys = tagKeys,
+                        tagLabels = tagLabels,
+                        onTagSelected = onTagSelected
+                    )
+                }
+            }
             if (ui.playlists.isNotEmpty()) {
                 itemsIndexed(items = ui.playlists, key = { _, it -> it.id }) { index, playlist ->
                     PlaylistCard(

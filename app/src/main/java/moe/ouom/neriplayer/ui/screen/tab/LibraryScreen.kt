@@ -1,4 +1,4 @@
-package moe.ouom.neriplayer.ui.screen.tab
+﻿package moe.ouom.neriplayer.ui.screen.tab
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -461,12 +461,24 @@ private const val LIBRARY_TABS_REVEAL_SLIDE_DP = 14f
  * 「本地」页 header 由 Spacer(12dp) + 搜索框（56dp + 12dp padding）构成，
  * 在线分类页没有搜索框，需补等高的空位才能让分类行落在大标题 + Tab 行之下不被压住。
  */
-private val LIBRARY_ONLINE_HEADER_TOP_GAP = 72.dp
+/**
+ * 非「本地」页（收藏 / 网易云 / B站 / YouTube / QQ 音乐）列表首行的额外顶部补距。
+ *
+ * 这些页首行没有「本地」页那层 Spacer(12dp) + 搜索框，内容会紧贴列表起始位出现。
+ * 补 24dp 让它们的首行（「歌单/专辑」「歌单/歌手/热点」等）与「本地」页搜索框顶部对齐。
+ * 直接作用于 LazyColumn 的 contentPadding.top，不侵入各页 item 结构。
+ */
+private val LIBRARY_ONLINE_HEADER_TOP_GAP = 24.dp
 private const val LIBRARY_TABS_TOP_THRESHOLD_PX = 48
 private const val LIBRARY_TABS_SCROLL_THRESHOLD_PX = 12
 
 @Composable
 private fun libraryListTopPadding(): Dp = LocalLibraryListTopPadding.current
+
+/** 非「本地」页的列表顶部留白：在通用留白基础上再加在线页补距。 */
+@Composable
+private fun libraryOnlineListTopPadding(): Dp =
+    libraryListTopPadding() + LIBRARY_ONLINE_HEADER_TOP_GAP
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -1173,7 +1185,7 @@ private fun YouTubeMusicPlaylistList(
         contentPadding = PaddingValues(
             start = 8.dp,
             end = 8.dp,
-            top = libraryListTopPadding(),
+            top = libraryOnlineListTopPadding(),
             bottom = libraryListBottomPadding()
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -1426,7 +1438,7 @@ private fun BiliPlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryOnlineListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize().then(biliPlaylistStagger.listModifier)
     ) {
@@ -3242,7 +3254,7 @@ private fun NeteaseLibraryList(
         contentPadding = PaddingValues(
             start = 8.dp,
             end = 8.dp,
-            top = libraryListTopPadding(),
+            top = libraryOnlineListTopPadding(),
             bottom = libraryListBottomPadding()
         ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -3580,7 +3592,7 @@ private fun NeteasePlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryOnlineListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -3739,7 +3751,7 @@ private fun NeteaseAlbumList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryOnlineListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {
@@ -3988,7 +4000,7 @@ private fun FavoritePlaylistList(
 
     LazyColumn(
         state = reorderState.listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryOnlineListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxSize()
@@ -4534,7 +4546,7 @@ private fun QqMusicPlaylistList(
 
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryListTopPadding(), bottom = libraryListBottomPadding()),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = libraryOnlineListTopPadding(), bottom = libraryListBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.fillMaxSize()
     ) {

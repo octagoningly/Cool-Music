@@ -1355,6 +1355,9 @@ fun SettingsScreen(
                 listState = listState,
                 topAppBarState = homeTopAppBarState,
                 title = settingsHomeTitle,
+                // 进入二级页后立即注销主页「设置」大标题，避免与二级页返回栏叠加；
+                // 返回主页时重新注册，标题正常回来。
+                chromeVisible = activeSettingsPage == null,
                 content = settingsHomeContent
             )
         } else {

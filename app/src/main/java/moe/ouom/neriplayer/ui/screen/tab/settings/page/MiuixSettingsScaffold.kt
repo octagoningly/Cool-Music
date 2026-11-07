@@ -107,6 +107,9 @@ internal fun MiuixSettingsHomeScaffold(
     topAppBarState: TopAppBarState,
     title: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    // 进入二级页时传 false：主页「设置」大标题立即从 chrome 槽位注销，
+    // 不与二级页自己的返回栏叠加。二级页结构保持原样（返回键与留白不动）。
+    chromeVisible: Boolean = true,
     content: LazyListScope.() -> Unit
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
@@ -132,7 +135,8 @@ internal fun MiuixSettingsHomeScaffold(
         topBar = {
             // chrome 挂到捕获层外，避免设置标题被自模糊
             moe.ouom.neriplayer.ui.component.common.MainTabChrome(
-                route = moe.ouom.neriplayer.navigation.Destinations.Settings.route
+                route = moe.ouom.neriplayer.navigation.Destinations.Settings.route,
+                visible = chromeVisible
             ) {
                 NeriTabLargeTitleTopBar(
                     title = { title() }
@@ -399,26 +403,20 @@ internal fun MiuixSettingsDetailScaffold(
             .background(Color.Transparent),
         containerColor = Color.Transparent,
         topBar = {
-            // 二级页同样要注册 MainTabChrome：否则父级设置主页注册的「设置」大标题
-            // 不会被拔掉，形成两层顶栏叠加（看着像上面的设置栏没消失）。
-            // 这里注册紧凑返回栏，覆盖掉父级的 chrome。
-            moe.ouom.neriplayer.ui.component.common.MainTabChrome(
-                route = moe.ouom.neriplayer.navigation.Destinations.Settings.route
+            // 二级页去掉大标题，仅保留紧凑返回栏，内容紧贴顶部
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(TopAppBarDefaults.windowInsets)
+                    .padding(start = 4.dp, end = 4.dp, top = 0.dp, bottom = 0.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(TopAppBarDefaults.windowInsets)
-                        .padding(start = 4.dp, end = 4.dp, top = 0.dp, bottom = 0.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (showBackButton) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                                contentDescription = stringResource(R.string.action_back)
-                            )
-                        }
+                if (showBackButton) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back)
+                        )
                     }
                 }
             }

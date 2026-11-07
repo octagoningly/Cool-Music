@@ -27,11 +27,14 @@ fun Context.currentTrafficNetworkType(): TrafficNetworkType {
 }
 
 private fun ConnectivityManager.hasLikelyInternetAccess(): Boolean = runCatching {
-    val network = activeNetwork ?: return@runCatching false
-    val capabilities = getNetworkCapabilities(network)
+    val network = activeNetwork
+    val capabilities = network?.let { getNetworkCapabilities(it) }
     hasLikelyNetworkTransport(
-        hasActiveNetwork = true,
+        hasActiveNetwork = network != null,
         activeHasDirectTransport = capabilities?.hasDirectNetworkTransport() == true,
+        // 息屏/Doze/默认网络切换瞬间 activeNetwork 会短暂为 null，但 allNetworks 里
+        // 往往仍有带 WiFi/蜂窝 transport 的网络。此时不能直接判离线，否则一次瞬断
+        // 就会把首页/探索页切成空白，且系统未必再补发 onAvailable 来纠正。
         anyKnownHasDirectTransport = { anyKnownNetworkHasDirectTransport() }
     )
 }.getOrDefault(false)
@@ -61,9 +64,9 @@ internal fun hasLikelyNetworkTransport(
     activeHasDirectTransport: Boolean,
     anyKnownHasDirectTransport: () -> Boolean
 ): Boolean {
-    if (!hasActiveNetwork) return false
     if (activeHasDirectTransport) return true
-
+    // 没有 activeNetwork 时不再直接判离线：息屏/Doze/默认网络切换瞬间它可能是 null，
+    // 但底层 WiFi/蜂窝网络仍然存在。用 allNetworks 的传输类型兜底，避免瞬断误判。
     return anyKnownHasDirectTransport()
 }
 

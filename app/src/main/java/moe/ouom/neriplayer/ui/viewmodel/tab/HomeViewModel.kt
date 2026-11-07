@@ -541,20 +541,33 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun setOfflineMode(enabled: Boolean) {
         if (offlineMode == enabled) return
 
-        NPLogger.d(TAG, "setOfflineMode: $enabled")
+        val wasOffline = offlineMode
+        NPLogger.d(TAG, "setOfflineMode: $enabled (wasOffline=$wasOffline)")
         offlineMode = enabled
-        if (!enabled) return
+        if (enabled) {
+            cancelHomeNetworkJobs()
+            _uiState.update { state ->
+                state.copy(
+                    playlistSections = clearPlaylistSectionLoading(state.playlistSections),
+                    trendingSongSections = clearSongSectionLoading(state.trendingSongSections),
+                    radarSongSections = clearSongSectionLoading(state.radarSongSections),
+                    radarPlaylists = state.radarPlaylists.copy(loading = false, error = null),
+                    ytMusicPlaylists = state.ytMusicPlaylists.copy(loading = false, error = null),
+                    ytMusicHomeShelves = state.ytMusicHomeShelves.copy(loading = false, error = null)
+                )
+            }
+            return
+        }
 
-        cancelHomeNetworkJobs()
-        _uiState.update { state ->
-            state.copy(
-                playlistSections = clearPlaylistSectionLoading(state.playlistSections),
-                trendingSongSections = clearSongSectionLoading(state.trendingSongSections),
-                radarSongSections = clearSongSectionLoading(state.radarSongSections),
-                radarPlaylists = state.radarPlaylists.copy(loading = false, error = null),
-                ytMusicPlaylists = state.ytMusicPlaylists.copy(loading = false, error = null),
-                ytMusicHomeShelves = state.ytMusicHomeShelves.copy(loading = false, error = null)
-            )
+        // 恢复在线时主动重拉，不能只依赖 UI 层的 LaunchedEffect(wasOffline)：
+        // 息屏/后台导致网络状态卡住时，UI 的重组时序不可靠，VM 这里兜底自愈。
+        if (wasOffline) {
+            NPLogger.d(TAG, "setOfflineMode: recovering online feed")
+            if (_uiState.value.internationalizationEnabled) {
+                refreshYtMusicHome()
+            } else {
+                refreshNeteaseHome()
+            }
         }
     }
 

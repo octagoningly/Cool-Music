@@ -57,12 +57,25 @@ class NetworkStatusMonitorPolicyTest {
     }
 
     @Test
-    fun `missing active network enters offline mode even with stale direct transport`() {
-        assertFalse(
+    fun `transient missing active network keeps app online when a direct network still exists`() {
+        // 息屏/Doze/默认网络切换瞬间 activeNetwork 会短暂为 null，
+        // 但底层 WiFi/蜂窝仍在。此时判离线会把首页切成空白，且系统未必补发 onAvailable。
+        assertTrue(
             hasLikelyNetworkTransport(
                 hasActiveNetwork = false,
                 activeHasDirectTransport = false,
                 anyKnownHasDirectTransport = { true }
+            )
+        )
+    }
+
+    @Test
+    fun `missing active network and no direct network is still offline`() {
+        assertFalse(
+            hasLikelyNetworkTransport(
+                hasActiveNetwork = false,
+                activeHasDirectTransport = false,
+                anyKnownHasDirectTransport = { false }
             )
         )
     }

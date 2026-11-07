@@ -44,4 +44,12 @@ class LibraryChromeScrollStateTest {
             )
         )
     }
+
+    @Test
+    fun `coherent feedback switch drives chrome transition style`() {
+        // 开启连贯反馈：Tab 行收展带位移
+        assertTrue(usesCoherentChromeTransition(coherentFeedbackEnabled = true))
+        // 关闭时只淡入淡出，不做位移
+        assertFalse(usesCoherentChromeTransition(coherentFeedbackEnabled = false))
+    }
 }

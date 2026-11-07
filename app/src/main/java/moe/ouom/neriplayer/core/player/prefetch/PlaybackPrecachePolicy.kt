@@ -29,6 +29,13 @@ object PlaybackPrecachePolicy {
     /** 连点时最多向前预取的曲目数（含紧邻下一首）。 */
     const val RAPID_SKIP_MAX_SONGS = 8
 
+    /**
+     * 连点期间实际使用的保守窗口：用户正在快速跳过，后台不应串行下载一大串曲目，
+     * 只保证「紧邻下一首」可用即可，停手后由正常的 next-track 预取补齐。
+     */
+    const val RAPID_SKIP_ACTIVE_MAX_SONGS = 2
+    const val RAPID_SKIP_ACTIVE_PREFIX_MS = 1_300L
+
     /** 开屏 / 最近列表：预取当前及后续少量曲目。 */
     const val RECENT_LIST_MAX_SONGS = 4
 

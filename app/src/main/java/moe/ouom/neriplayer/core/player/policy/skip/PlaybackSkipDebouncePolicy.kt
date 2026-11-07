@@ -11,8 +11,11 @@ object PlaybackSkipDebouncePolicy {
     /** 停止点击后多久执行合并后的切歌。 */
     const val SETTLE_DELAY_MS = 200L
 
-    /** 判定连点的窗口；窗口内的点击会被合并。 */
-    const val MERGE_WINDOW_MS = 2_500L
+    /**
+     * 判定「快速连点节奏」的窗口：距上次点击在此间隔内的点击才合并。
+     * 刻意远小于连点余波窗口（2.5s），避免把停手后的普通单击也拖 200ms。
+     */
+    const val MERGE_WINDOW_MS = 700L
 
     /** 单次合并最多跳过的曲目数，避免异常连点把队列跳飞。 */
     const val MAX_MERGED_STEPS = 30

@@ -63,4 +63,16 @@ class PlaybackSkipDebouncePolicyTest {
         // 合并等待本身必须短于 UI 的 1 秒加载圈阈值。
         assertTrue(PlaybackSkipDebouncePolicy.SETTLE_DELAY_MS < 1_000L)
     }
+
+    @Test
+    fun mergeWindowIsShortEnoughToSpareNormalSingleClicks() {
+        // 停手 1 秒后的普通单击不应再被合并、平白多等 SETTLE_DELAY_MS。
+        assertTrue(PlaybackSkipDebouncePolicy.MERGE_WINDOW_MS <= 1_000L)
+        assertFalse(
+            PlaybackSkipDebouncePolicy.shouldMergeWithPending(
+                lastClickAtMs = 10_000L,
+                nowMs = 11_000L
+            )
+        )
+    }
 }

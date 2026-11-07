@@ -2729,10 +2729,13 @@ object PlayerManager {
         val stepsSnapshot = pendingNextSkipSteps
         pendingNextSkipJob = ioScope.launch {
             delay(PlaybackSkipDebouncePolicy.SETTLE_DELAY_MS)
-            if (pendingNextSkipSteps != stepsSnapshot) return@launch
-            pendingNextSkipSteps = 0
-            pendingNextSkipJob = null
             withContext(Dispatchers.Main) {
+                // 复位与执行都放主线程，避免 IO/Main 之间的可见性竞争。
+                if (pendingNextSkipSteps != stepsSnapshot) return@withContext
+                pendingNextSkipSteps = 0
+                pendingNextSkipJob = null
+                // 合并窗口已结束，后续单击不应再被判为连点。
+                pendingNextSkipLastClickAtMs = 0L
                 this@PlayerManager.nextImpl(
                     force = false,
                     commandSource = PlaybackCommandSource.LOCAL,

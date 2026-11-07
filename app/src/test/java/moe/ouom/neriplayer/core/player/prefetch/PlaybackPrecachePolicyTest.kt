@@ -142,6 +142,26 @@ class PlaybackPrecachePolicyTest {
     }
 
     @Test
+    fun activeRapidSkipWindowIsConservative() {
+        // 连点期间只保证紧邻 1~2 首，避免串行下载一大串曲目抢带宽。
+        assertTrue(PlaybackPrecachePolicy.RAPID_SKIP_ACTIVE_MAX_SONGS <
+            PlaybackPrecachePolicy.RAPID_SKIP_MAX_SONGS)
+        assertTrue(PlaybackPrecachePolicy.RAPID_SKIP_ACTIVE_MAX_SONGS <= 2)
+        assertTrue(PlaybackPrecachePolicy.RAPID_SKIP_ACTIVE_PREFIX_MS <=
+            PlaybackPrecachePolicy.NEXT_TRACK_PREFIX_MS)
+        val window = PlaybackPrecachePolicy.selectPrefetchWindow(
+            queueSize = 20,
+            startIndex = 3,
+            rapidSkip = false,
+            repeatAll = false
+        )
+        assertEquals(
+            PlaybackPrecachePolicy.RAPID_SKIP_ACTIVE_MAX_SONGS,
+            window.size
+        )
+    }
+
+    @Test
     fun playbackPrefetchAwaitIsZeroForRapidSkipping() {
         assertEquals(
             0L,

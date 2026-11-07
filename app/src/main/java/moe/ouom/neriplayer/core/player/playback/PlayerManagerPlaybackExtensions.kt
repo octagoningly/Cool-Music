@@ -1922,17 +1922,19 @@ internal fun PlayerManager.nextImpl(
     // 连点计数只由 PlayerManager.next() 按真实用户点击记录（见 scheduleDebouncedNextSkip），
     // 自动切歌 / 失败兜底等内部 nextImpl 调用不计入，避免污染连点判定。
     if (isRapidNextSkipping()) {
+        // 用户正在快速跳过：只保守预取紧邻的 1~2 首、短前缀即可。
+        // 早期实现连点时反而串行预取 8 首，越急越抢带宽/连接池，得不偿失。
         val rapidWindow = PlaybackPrecachePolicy.selectPrefetchWindow(
             queueSize = currentPlaylist.size,
             startIndex = currentIndex.coerceAtLeast(0),
-            rapidSkip = true,
+            rapidSkip = false,
             repeatAll = repeatModeSetting == Player.REPEAT_MODE_ALL
         )
         precacheSongList(
             songs = rapidWindow.mapNotNull { currentPlaylist.getOrNull(it) },
             scenario = PlaybackPrecacheScenario.NEXT_TRACK,
-            maxSongs = PlaybackPrecachePolicy.RAPID_SKIP_MAX_SONGS,
-            prefixMs = PlaybackPrecachePolicy.RAPID_SKIP_PREFIX_MS
+            maxSongs = PlaybackPrecachePolicy.RAPID_SKIP_ACTIVE_MAX_SONGS,
+            prefixMs = PlaybackPrecachePolicy.RAPID_SKIP_ACTIVE_PREFIX_MS
         )
     }
 }

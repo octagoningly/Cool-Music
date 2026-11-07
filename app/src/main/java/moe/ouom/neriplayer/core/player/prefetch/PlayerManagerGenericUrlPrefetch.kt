@@ -63,6 +63,17 @@ internal fun PlayerManager.prefetchNextGenericTrackUrl() {
         cancelGenericUrlPrefetch(reason = "next_track_precache_disabled")
         return
     }
+    // 连点期间保守预取已经在进行，别用更大窗口把它取消重建（连点时窗口每次都变，
+    // 反复 cancel/launch 会让预取永远跑不完，反而拖慢落点那首的解析）。
+    if (isRapidNextSkipping() && currentPlaybackPrecacheJob?.isActive == true &&
+        currentPlaybackPrecacheScenario == PlaybackPrecacheScenario.NEXT_TRACK
+    ) {
+        NPLogger.d(
+            "NERI-PlayerManager",
+            "keep conservative rapid-skip precache running: currentIndex=$currentIndex"
+        )
+        return
+    }
 
     val upcoming = collectUpcomingSequentialSongs(maxCount = 3)
     NPLogger.d(

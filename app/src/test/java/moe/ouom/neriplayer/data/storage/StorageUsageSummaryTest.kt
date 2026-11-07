@@ -17,6 +17,16 @@ import org.junit.Test
 class StorageUsageSummaryTest {
 
     @Test
+    fun defaultClearOptionsDoNotWipePersistentImageCache() {
+        // 图片缓存已迁到 filesDir 持久化，默认清理不应把它一并删除，
+        // 否则用户一次「清理缓存」就会让所有封面重新联网下载。
+        val options = StorageCacheClearOptions()
+        assertTrue(options.audioCache)
+        assertFalse(options.imageCache)
+        assertTrue(options.needsPlayerCacheClear)
+    }
+
+    @Test
     fun selectedPlatformCacheRequiresExtraCleanup() {
         val options = StorageCacheClearOptions(
             audioCache = false,

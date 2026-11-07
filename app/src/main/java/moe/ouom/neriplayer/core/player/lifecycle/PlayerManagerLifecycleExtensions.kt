@@ -151,7 +151,9 @@ import moe.ouom.neriplayer.data.settings.UsbExclusivePreferences
 import moe.ouom.neriplayer.data.settings.readPlaybackPreferenceSnapshotSync
 import moe.ouom.neriplayer.data.settings.toUsbExclusivePreferences
 import moe.ouom.neriplayer.util.platform.readBackgroundBehaviorAllowance
+import coil.Coil
 import java.io.File
+import moe.ouom.neriplayer.data.storage.ImageCacheStorage
 
 private const val MEDIA_CACHE_DIRECTORY_NAME = "media_cache"
 
@@ -1563,6 +1565,7 @@ internal fun PlayerManager.initializeImpl(
     }
 }
 
+@OptIn(coil.annotation.ExperimentalCoilApi::class)
 internal suspend fun PlayerManager.clearCacheImpl(
     clearAudio: Boolean = true,
     clearImage: Boolean = true
@@ -1586,13 +1589,16 @@ internal suspend fun PlayerManager.clearCacheImpl(
             }
 
             if (clearImage) {
-                val imageCacheDir = File(application.cacheDir, "image_cache")
-                if (imageCacheDir.exists() && imageCacheDir.isDirectory) {
-                    val deleted = imageCacheDir.deleteRecursively()
-                    if (deleted) {
-                        imageCacheDir.mkdirs()
-                    }
+                // 只删目录文件不够：进程内已打开的 Coil DiskCache 实例与内存缓存必须同步失效，
+                // 否则清完缓存后仍可能命中旧 snapshot / 旧内存位图，出现「清了却没清干净」。
+                runCatching {
+                    val loader = Coil.imageLoader(application)
+                    loader.memoryCache?.clear()
+                    loader.diskCache?.clear()
+                }.onFailure { error ->
+                    NPLogger.w("NERI-Player", "Coil image cache clear failed", error)
                 }
+                ImageCacheStorage.clear(application)
             }
 
             NPLogger.d(

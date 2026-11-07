@@ -82,7 +82,7 @@ enum class StorageUsageItemKind {
 
 data class StorageCacheClearOptions(
     val audioCache: Boolean = true,
-    val imageCache: Boolean = true,
+    val imageCache: Boolean = false,
     val downloadStaging: Boolean = false,
     val sharedMedia: Boolean = false,
     val lyricsCache: Boolean = false,
@@ -184,7 +184,8 @@ suspend fun analyzeStorageUsage(context: Context): StorageUsageSummary = withCon
     val diagnosticsBaseDir = appContext.getExternalFilesDir(null) ?: filesDir
 
     val mediaCacheDir = File(cacheDir, DIR_MEDIA_CACHE)
-    val imageCacheDir = File(cacheDir, DIR_IMAGE_CACHE)
+    // 图片缓存已迁到 filesDir 持久化；统计路径必须跟随，否则占用显示为 0 且清理打不到实际目录。
+    val imageCacheDir = ImageCacheStorage.directory(appContext)
     val downloadStagingDirs = downloadStagingDirs(filesDir, cacheDir)
     val sharedMediaDir = File(cacheDir, DIR_SHARED_MEDIA_EXPORTS)
     val lyricsCacheDir = File(filesDir, LYRICS_CACHE_DIRECTORY_NAME)
@@ -268,7 +269,7 @@ suspend fun analyzeStorageUsage(context: Context): StorageUsageSummary = withCon
         logDir = logDir,
         crashDir = crashDir,
         downloadedStorageFiles = scanInputs.downloadLibraryUsage.localFiles
-    ) + lyricsCacheDir
+    ) + lyricsCacheDir + imageCacheDir
 
     StorageUsageSummary(
         sections = listOf(
@@ -937,7 +938,6 @@ private fun playlistDataFiles(filesDir: File): List<File> {
 }
 
 private const val DIR_MEDIA_CACHE = "media_cache"
-private const val DIR_IMAGE_CACHE = "image_cache"
 private const val DIR_DOWNLOAD_STAGING = "download_staging"
 private const val DIR_SHARED_MEDIA_EXPORTS = "shared_media_exports"
 private const val DIR_BILI_FAVORITE_CACHE = "bili_favorite_cache"

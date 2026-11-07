@@ -671,7 +671,9 @@ fun SettingsScreen(
 
     // 缓存类型选择状态
     var clearAudioCache by remember { mutableStateOf(true) }
-    var clearImageCache by remember { mutableStateOf(true) }
+    // 图片缓存已持久化到 filesDir，属于「有效缓存」而非临时垃圾；默认不勾选，
+    // 避免用户一次清理就让全库封面重新联网下载。
+    var clearImageCache by remember { mutableStateOf(false) }
     var clearDownloadStagingCache by remember { mutableStateOf(false) }
     var clearSharedMediaCache by remember { mutableStateOf(false) }
     var clearLyricsCache by remember { mutableStateOf(false) }

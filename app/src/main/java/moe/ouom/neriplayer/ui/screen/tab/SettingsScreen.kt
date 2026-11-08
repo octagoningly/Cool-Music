@@ -198,6 +198,7 @@ import moe.ouom.neriplayer.ui.effect.glass.AdvancedGlassSurface
 import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 import moe.ouom.neriplayer.ui.effect.glass.isolatedAdvancedGlassHorizontalTransition
 import moe.ouom.neriplayer.ui.screen.tab.settings.about.SettingsAboutContent
+import moe.ouom.neriplayer.ui.screen.tab.settings.about.SettingsAboutHeroHeader
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.LoginSuccessDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsBiliAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsLxMusicSourceDialogs
@@ -1372,9 +1373,15 @@ fun SettingsScreen(
                 homeListState = listState,
                 homeTopAppBarState = homeTopAppBarState,
                 homeTitle = settingsHomeTitle,
-                homeContent = settingsHomeContent
+                homeContent = settingsHomeContent,
+                // 关于页改用「大图标 + 应用名 + 版本」头部，并随列表上滑淡出收起。
+                heroHeader = if (selectedPage == SettingsPage.About) {
+                    { SettingsAboutHeroHeader(devModeEnabled = devModeEnabled) }
+                } else {
+                    null
+                }
             ) {
-                item(key = "${selectedPage.name}:header") {
+                if (selectedPage != SettingsPage.About) item(key = "${selectedPage.name}:header") {
                     MiuixSettingsHeader(
                         icon = selectedPage.icon,
                         title = stringResource(selectedPage.titleRes),

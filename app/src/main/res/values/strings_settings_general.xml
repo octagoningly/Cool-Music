@@ -390,6 +390,7 @@
     <string name="settings_android12_required">需要 Android 12+</string>
     <string name="settings_android13_required">需要 Android 13+</string>
     <string name="settings_build_uuid">构建 UUID</string>
+    <string name="settings_build_info">构建信息</string>
     <string name="settings_version_debug_suffix">调试模式</string>
     <string name="settings_github_repo_url">github.com/octagoningly/Cool-Music</string>
 </resources>

@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.ui.screen.tab
+package moe.ouom.neriplayer.ui.screen.tab
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -3356,10 +3356,8 @@ private fun NeteaseLibraryHeaderContent(
     onCategoryChange: (Int) -> Unit
 ) {
     Column(Modifier.fillMaxWidth()) {
-        // 与「本地」页对齐：本地 header 上方有 Spacer(12dp) + 搜索框，内容自然落在
-        // 浮层 chrome（大标题 + Tab 行）下方；在线分类页没有搜索框，必须补足同样的
-        // 顶部空位，否则「歌单 / 专辑」行会被上方 Tab 行压住。
-        Spacer(Modifier.height(LIBRARY_ONLINE_HEADER_TOP_GAP))
+        // 顶部留白统一由 LazyColumn 的 contentPadding（libraryOnlineListTopPadding）提供，
+        // 这里不要再补 Spacer，否则会与其他在线页错位 24dp。
         NeteaseCategoryTabs(
             selectedCategory = selectedCategory,
             onCategoryChange = onCategoryChange

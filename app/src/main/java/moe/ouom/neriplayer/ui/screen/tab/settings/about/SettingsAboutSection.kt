@@ -23,6 +23,7 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.about
  * Updated: 2026/3/23
  */
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -106,6 +107,45 @@ internal fun SettingsAboutContent(
     SettingsGitHubItem(onOpenGitHubRepo = onOpenGitHubRepo)
 }
 
+/**
+ * 关于页顶部大图标头部（图标 + 应用名 + 版本）。
+ *
+ * 由 MiuixSettingsDetailScaffold 放在列表之上，并随列表上滑逐渐淡出/缩小，
+ * 与常见的开源「可折叠关于页」一致。头部内容本身不参与列表滚动。
+ */
+@Composable
+internal fun SettingsAboutHeroHeader(devModeEnabled: Boolean) {
+    val suffix = if (devModeEnabled) {
+        " (${stringResource(R.string.settings_version_debug_suffix)})"
+    } else {
+        ""
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 32.dp, bottom = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+            contentDescription = stringResource(R.string.settings_about),
+            modifier = Modifier.size(88.dp)
+        )
+        Text(
+            text = stringResource(R.string.app_name),
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = "v${BuildConfig.VERSION_NAME}$suffix",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
 @Composable
 private fun SettingsAboutIntroItem(
     devModeEnabled: Boolean,
@@ -122,17 +162,19 @@ private fun SettingsAboutIntroItem(
     val buildUuid = BuildConfig.BUILD_UUID
     val buildTime = convertTimestampToDate(BuildConfig.BUILD_TIMESTAMP)
 
+    // 版本号与应用名已由顶部大图标头部（SettingsAboutHeroHeader）展示，
+    // 这里只保留「构建信息」入口，避免重复显示同一份版本信息。
     ListItem(
         leadingContent = {
             Icon(
                 imageVector = Icons.Outlined.Info,
-                contentDescription = stringResource(R.string.settings_about),
+                contentDescription = stringResource(R.string.settings_build_info),
                 tint = MaterialTheme.colorScheme.onSurface
             )
         },
         headlineContent = {
             Text(
-                text = stringResource(R.string.settings_about),
+                text = stringResource(R.string.settings_build_info),
                 style = MaterialTheme.typography.titleMedium
             )
         },

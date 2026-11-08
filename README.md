@@ -1,36 +1,277 @@
-[中文](./README.md) | [English upstream](./README_EN.md)
+<p align="center">
+  <img src="docs/screenshots/icon.png" width="150" alt="Cool Music" />
+</p>
 
-# Cool Music
+<h1 align="center">Cool Music</h1>
 
-## 一、二次开发说明与简介
+<p align="center">
+  一个本地优先的多源音乐播放器：在线音源取流、歌词封面补全，数据都留在你自己手里
+</p>
 
-Cool Music 是基于开源项目 **[NeriPlayer](https://github.com/cwuom/NeriPlayer)**（**GPL-3.0**）的二次开发衍生版，面向 Android 的**本地优先**音频播放器。
+<p align="center">
+  <a href="https://github.com/octagoningly/Cool-Music/releases"><img src="https://img.shields.io/badge/version-0.2.5-3F3F46?style=flat-square" alt="version" /></a>
+  <img src="https://img.shields.io/badge/platform-Android-3DDC84?style=flat-square" alt="platform" />
+  <img src="https://img.shields.io/badge/build-Kotlin%20%2B%20Compose-7F52FF?style=flat-square" alt="build" />
+  <img src="https://img.shields.io/badge/engine-Media3-1F6FEB?style=flat-square" alt="engine" />
+  <img src="https://img.shields.io/badge/license-GPL--3.0-3F3F46?style=flat-square" alt="license" />
+  <img src="https://img.shields.io/badge/min%20sdk-28-F59E0B?style=flat-square" alt="min sdk" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/octagoningly/Cool-Music/releases/latest"><b>下载 APK（GitHub）</b></a>
+  &nbsp;·&nbsp;
+  <a href="更新记录.md">更新记录</a>
+  &nbsp;·&nbsp;
+  <a href="开发规则.md">开发规则</a>
+  &nbsp;·&nbsp;
+  <a href="CONTRIBUTING.md">贡献指南</a>
+</p>
+
+<p align="center">
+  <sub>基于 <a href="https://github.com/cwuom/NeriPlayer">NeriPlayer</a> 的 GPL-3.0 衍生版，包名独立（<code>moe.ouom.coolmusic</code>），可与上游共存安装。<br />
+  在线音源依赖你自己配置的第三方接口 / 脚本；本项目不内置、不维护任何公共曲库。</sub>
+</p>
+
+---
+
+## 界面截图
+
+<p align="center">
+  <img src="docs/screenshots/home.png" width="230" alt="首页" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/explore.png" width="230" alt="探索" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/library.png" width="230" alt="媒体库" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/nowplaying.png" width="230" alt="正在播放" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/playlist.png" width="230" alt="歌单详情" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/settings.png" width="230" alt="设置" />
+</p>
+
+左起：**首页**（继续播放 / 私人雷达 / 每日推荐，次级板块收进「更多」）、**探索**
+（多引擎免登录搜索 + 精品歌单网格）、**媒体库**（本地 / 收藏 / 网易云 / B站 / YouTube / QQ 多标签）、
+**正在播放**（Apple Music 风格控件、动态取色背景、在线音源角标）、
+**歌单详情**（沉浸式头图 + 玻璃卡片列表）、**设置**（分组卡片式导航）。
+
+---
+
+## 目录
+
+- [界面截图](#界面截图)
+- [这是什么](#这是什么)
+- [相对上游新增了什么](#相对上游新增了什么)
+- [上游保留的能力](#上游保留的能力)
+- [快速开始](#快速开始)
+- [在线音源怎么配](#在线音源怎么配)
+- [模块与代码入口](#模块与代码入口)
+- [隐私与数据](#隐私与数据)
+- [免责声明](#免责声明)
+- [上游与许可证](#上游与许可证)
+
+---
+
+## 这是什么
+
+Cool Music 是 **[NeriPlayer](https://github.com/cwuom/NeriPlayer)** 的二次开发衍生版，一个面向 Android 的**本地优先**音频播放器。
+
+它的核心主张是：**播放器应该服务于你自己的曲库和授权，而不是反过来**。
+
+- 本地歌单、收藏、最近播放、播放统计默认全部留在设备里；
+- 需要同步时，写进**你自己配置**的 GitHub / WebDAV 远端，不经过开发者服务器；
+- 在线能力（搜索、取流、歌词、封面）走**你自己配置**的音源接口或平台授权。
+
+在上游已有的多平台播放、本地库、下载、歌词、USB 独占等能力之上，本仓库重点强化了**在线音源取流**、**免登录探索搜索**、**歌词封面补全**、**媒体库与歌单交互**，以及独立的**发行与应用内更新**链路。
 
 | 项 | 说明 |
 |----|------|
 | 本仓库 | <https://github.com/octagoningly/Cool-Music> |
-| 上游项目 | <https://github.com/cwuom/NeriPlayer>（作者：NeriPlayer developers / cwuom） |
-| 应用包名 | `moe.ouom.coolmusic`（与上游 `moe.ouom.neriplayer` 独立，可**共存安装**） |
-| 显示名称 | Cool Music |
-| 许可证 | **GPL-3.0**，与上游一致 |
-| 声明 | Cool Music **与原作者无关**；不对上游作任何担保 |
+| 上游项目 | <https://github.com/cwuom/NeriPlayer>（NeriPlayer developers / cwuom） |
+| 应用包名 | `moe.ouom.coolmusic`（与上游独立，可共存安装） |
+| 技术基线 | Jetpack Compose + Media3，Kotlin / Java 17，`minSdk 28` |
+| 许可证 | GNU GPL v3，与上游一致 |
 
-本衍生版在上游「**多源在线探索**、**本地优先数据**、**丰富歌词与播放体验**、**可选自有同步**」的定位上，继续强化：
+---
 
-- **在线音源取流**（LX Music 风格 JSON / JS）
-- **探索「在线」免登录搜索**（单曲 / 歌手 / 歌单，多引擎可选）
-- **歌词与封面补全**（在线音源 / QQ / 酷狗等，可开关）
-- **媒体库增强**（外部歌单导入、已缓存歌曲、自定义排序）
-- **首页与歌单交互**（信息架构、去序号、自定义排序）
-- **播放页操作**（Apple Music 风格控件）
-- **发行与应用内更新**（独立包名、GitHub Releases）
+## 相对上游新增了什么
 
-上游原有的多平台播放、本地库、下载、同步、USB 独占、安全模式等能力**默认保留**（见第四节）。
+### 在线音源（核心能力）
 
-分发时须遵守 **GPL-3.0**：保留版权与许可证声明，并提供对应源码或有效获取方式。完整文本见 [`LICENSE`](./LICENSE)。
+在上游网易云 / Bilibili / YouTube Music / 本地之外，新增 **LX Music 风格第三方在线音源**，在用户已授权的曲目上优先解析播放。
+
+| 能力 | 说明 |
+|------|------|
+| 音源导入 | 支持 LX Music **JSON** 与 **JS 脚本**，JS 由内置 **QuickJS** 执行 |
+| 优先播放 | `设置 → 在线听歌`；播放页封面区显示「**在线音源**」角标 |
+| 匹配与回落 | 按歌名 / 歌手 / 时长打分，过滤伴奏与翻唱；修复 `songmid` 错配与失败回落顺序 |
+| 跨平台兜底 | 主通道不可用时按 酷我 → 酷狗 → QQ 等搜原版取流 |
+| 通道自检 | 设置内检查脚本 / API 是否可用 |
+| 每日自动验证 | GitHub Actions 每天搜索并验证候选音源，只保留至少一个通道可用的配置；App 内可**一键获取、复制或导入** |
+| 搜索多引擎 | 探索页「在线」可选 QQ / 酷狗 / 酷我 / 网易云；默认仅 QQ（曲库与封面更准） |
+| 封面 / 歌词开关 | 可分别关闭音源封面、音源歌词请求 |
+
+### 歌词补全
+
+- 无歌词时从在线音源平台同步，也可从 QQ / 酷狗公开接口匹配；
+- 识别网易云**占位歌词**，避免空壳歌词挡住真实歌词；
+- 修复播放页占位歌词压过音源 LRC 的问题；
+- 歌词按歌曲身份**本地缓存**。
+
+### 首页与歌单交互
+
+```text
+私人雷达 → 每日推荐 → 雷达歌单 →「更多」
+              （更多内：私人 FM / 新歌榜等 / 推荐歌单）
+```
+
+- 次级板块收进「更多」**按需加载**，首页首次加载**错峰**降低并发；
+- 修复展开「更多」后私人雷达 / 每日推荐被清空的问题；
+- 全列表去掉 `1/2/3` 序号，歌曲行副标题只显示歌手；
+- 网络失败文案统一为「网络不佳」。
+
+### 探索页
+
+- 「在线」免登录搜索：以独立 LX 曲目身份直连音源取流，无需先登录平台；
+- 支持单曲 / 歌手 / 歌单分类切换与分页；
+- 精品歌单网格按标签分桶，**磁盘缓存 + 先展示后刷新**，冷启动不白屏；
+- 下滑收起搜索框与筛选行，上滑回弹，列表滚动只受手势驱动。
+
+### 媒体库
+
+- 外部歌单链接导入（网易云 / QQ / B站 / YouTube 等）；
+- 已缓存歌曲独立入口，可离线播放；
+- 本地 / 收藏 / 网易云 / 网易专辑 / B站 / YouTube Music / QQ 多标签，支持**自定义排序**；
+- 在线歌单列表**持久化缓存**，弱网与冷启动不再空白，换号自动隔离。
+
+### 播放页与动效
+
+- Apple Music 风格播放控件（圆角三角 / 胶囊竖条）；
+- 动态取色背景、进阶玻璃模糊（Android 13+）；
+- 「连贯反馈」开关统一控制转场、列表交错与 chrome 收展动效；
+- 进度条支持**单击跳转**（保留拖动，互不冲突）。
+
+### 发行与应用内更新
+
+- 独立 `applicationId` 与签名，`versionCode` 按分钟递增；
+- GitHub Releases 分发，应用内「检查更新」直接下载安装，覆盖安装保留数据。
+
+---
+
+## 上游保留的能力
+
+以下能力来自上游 NeriPlayer，本仓库默认保留：
+
+| 模块 | 能力 |
+|------|------|
+| 多源播放 | 网易云 / Bilibili / YouTube Music / 本地文件，Media3 引擎 |
+| 本地媒体库 | 扫描、歌单管理、收藏、最近播放、自定义封面与歌词 |
+| 歌词 | 逐行 / 逐词（LRC、YRC、TTML）、翻译、音译、偏移、点击跳转、歌词卡片 |
+| 播放音效 | 倍速、音调、均衡器、响度增强、声道平衡、淡入淡出、交叉淡入淡出 |
+| 硬件 | USB 独占播放（UAC1.0 / UAC2.0 Type I PCM）、比特完美音量 |
+| 系统集成 | 桌面小组件、启动器快捷方式、Mini Player、悬浮歌词、状态栏歌词 |
+| 同步与统计 | GitHub / WebDAV 同步、播放统计、流量统计 |
+| 一起听 | WebSocket 房间同步，可自建 Cloudflare Workers 服务端 |
+| 稳定性 | JVM / Native 崩溃日志、ANR 记录、安全模式 |
+
+细节以上游代码与文档为准。
+
+---
+
+## 快速开始
+
+### 下载安装
+
+1. 打开 [Releases](https://github.com/octagoningly/Cool-Music/releases/latest)，下载最新 `CoolMusic-*-arm64*.apk`；
+2. 使用**同一签名覆盖安装**即可，**无需卸载**（保留登录与本地数据）；
+3. 也可在应用内：`设置 → 关于 → 检查更新`。
+
+| 设备 | 选择 |
+|------|------|
+| 多数手机 | `arm64-v8a` |
+| 32 位老旧设备 | `armeabi-v7a` |
+| 模拟器 / x86 | 对应 x86 包 |
+
+### 本地构建
+
+```bash
+git clone --recursive https://github.com/octagoningly/Cool-Music.git
+cd Cool-Music
+```
+
+1. 用 **Android Studio** 打开并同步依赖；
+2. 配置环境：`JAVA_HOME` → **JDK 17**，`ANDROID_HOME` → Android SDK；
+3. Debug 安装（推荐脚本）：
+
+```powershell
+.\scripts\install-debug.ps1
+# 无线： .\scripts\install-debug.ps1 -Wireless 192.168.1.100:5555
+# 或： .\gradlew.bat :app:installDebug
+```
+
+4. Release（需签名，见 [开发规则.md](开发规则.md)）：
+
+```powershell
+# 配置 KEYSTORE_FILE / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD 后
+.\gradlew.bat :app:assembleRelease
+```
+
+5. 首次启动：阅读免责声明并完成引导。设置页连点**版本号 7 次**开启开发者模式。
+
+> 不要把 `*.jks`、密码或 `local.properties` 提交进仓库。
+
+---
+
+## 在线音源怎么配
+
+1. `设置 → 在线听歌`
+2. 点「**获取**」读取 GitHub 每日验证清单，可查看、复制或直接导入通过自动验证的音源地址
+3. 也可以手动导入 **LX JSON / JS** 与你的服务地址
+4. 按需开启**优先播放**、**音源封面 / 音源歌词**，可用**通道自检**
+5. 探索页「**在线**」可免登录搜索单曲 / 歌手 / 歌单；播放时看封面角标是否为「**在线音源**」
+6. 媒体库可**导入外部歌单**链接，或浏览「**已缓存歌曲**」离线播放
+
+每日清单由 GitHub Actions **每天自动搜索并验证**，只记录通过通道测试的音源配置地址与检测结果，不保存音频内容、账号凭据或 Cookie。维护者可以在 `tools_pub/lx_source_candidates.txt` 或仓库变量 `LX_SOURCE_CANDIDATE_URLS` 中添加待验证地址。
+
+---
+
+## 模块与代码入口
+
+| 路径 | 用途 |
+|------|------|
+| `app/` | 主 Android 应用 |
+| `app/.../core/player/` | 播放核心（`PlayerManager.kt`）、取流、兜底策略 |
+| `app/.../data/source/lxmusic/` | LX 音源导入、解析、QuickJS 运行时 |
+| `app/.../core/player/resolver/lxmusic/` | 在线音源解析、跨平台兜底、歌词、默认搜索、封面补全 |
+| `app/.../core/player/prefetch/` | 播放预取、连点切歌防抖、预缓存策略 |
+| `app/.../data/cache/` | 首页 / 探索 / 媒体库列表磁盘缓存（SWR） |
+| `app/.../data/local/playlist/importer/` | 外部歌单链接导入 |
+| `app/.../ui/screen/tab/HomeScreen.kt` | 首页板块与歌曲行 |
+| `app/.../ui/screen/NowPlayingScreen.kt` | 播放页 UI（巨型文件，改前先定位区块） |
+| `app/.../ui/screen/tab/settings/` | 设置页结构与各分组 |
+| `app/.../ui/effect/glass/` | 高级玻璃模糊分层实现 |
+| `scripts/install-debug.ps1` | ADB 一键安装调试 |
+| `开发规则.md` | 发行、签名、`versionCode`、Release、ADB |
+| `更新记录.md` | 本仓库功能演进日志 |
+| `np-submodule/` | 上游子模块（歌词组件、一起听服务端等） |
+
+---
+
+## 隐私与数据
+
+- 设置、授权、下载、统计默认在设备本地；
+- 同步只写入**你自己配置**的远端（GitHub / WebDAV）；
+- 在线音源请求发往**你配置的**接口 / 脚本，本项目不提供公共曲库；
+- 图片与列表数据有本地缓存，可在 `设置 → 存储与缓存` 中查看与清理。
+
+---
+
+## 免责声明
 
 > [!WARNING]
-> 本项目仅供学习与研究使用，请勿将其用于任何非法用途。
+> 本项目仅供学习与研究使用，请勿用于任何非法用途。
 > 请只在你拥有权利、授权或第三方平台规则允许的范围内访问、播放或保存内容。
 > 本项目不提供媒体内容、密钥，也不提供规避付费 / DRM / 地区限制的方案，不提供公共媒体代理或再分发服务。
 > 在线音源依赖**你自己配置**的第三方接口 / 脚本；会员或受限内容仍需遵循原平台规则与你的账号权限。
@@ -42,291 +283,8 @@ Cool Music 是基于开源项目 **[NeriPlayer](https://github.com/cwuom/NeriPla
 
 ---
 
-## 二、快速定位
-
-| 你想做什么 | 去哪看 |
-|------------|--------|
-| 了解本衍生版相对上游**新增**了什么 | 第三节 · 新增的功能 |
-| 了解上游**保留**了哪些能力 | 第四节 · 原项目保留功能 |
-| 安装 APK 或本地编译调试 | 第五节 · 快速开始 |
-| 查找代码入口、模块结构 | 第六节 · 模块与代码入口 |
-| 功能演进流水（每次改了什么） | [`更新记录.md`](./更新记录.md) |
-| 发行签名、`versionCode`、ADB、版本控制约定 | [`开发规则.md`](./开发规则.md)（按主题：发行相关 / 版本控制 / 签名 / 版本号 / 调试与 ADB） |
-| 下载最新安装包 | [Releases · 最新](https://github.com/octagoningly/Cool-Music/releases/latest) |
-| 阅读上游完整文档 | [NeriPlayer README](https://github.com/cwuom/NeriPlayer/blob/master/README.md) |
-
-```text
-Cool Music（本仓库结构速览）
-├── 新增：LX 在线音源、歌词兜底、首页/歌单交互、播放页与发行更新
-├── 保留：Media3 多源播放、本地库与下载、歌词、GitHub/WebDAV 同步、USB 独占等
-└── 文档：README · 更新记录.md · 开发规则.md · LICENSE
-```
-
----
-
-## 三、新增的功能
-
-以下为本仓库相对上游的主要**功能性**改动（不含单纯改名 / 换图标），依据 [`更新记录.md`](./更新记录.md) 与代码整理。
-
-### 3.1 在线 LX 音源（核心新能力）
-
-在上游网易云 / Bilibili / YouTube Music / 本地之外，新增 **LX Music 风格第三方在线音源**，在用户已授权的平台曲目上**优先解析播放**。
-
-| 能力 | 说明 |
-|------|------|
-| 音源导入 | 支持 LX Music **JSON** 与 **JS 脚本**；JS 由内置 **QuickJS** 执行 |
-| 优先播放 | `设置 → 第三方平台登录 → 在线音乐源`；封面区显示「**在线音源**」角标 |
-| 匹配与回落 | 按**歌名 / 歌手 / 时长**打分，过滤伴奏 / 翻唱等；修复 `songmid` 错配与失败回落顺序 |
-| 跨平台兜底 | 主通道不可用时按 **酷我 → 酷狗 → QQ** 等搜原版取流（如网易云故障时用酷我 ID） |
-| 通道自检 | 设置内检查**脚本 / API** 是否可用 |
-| **自动验证与发现** | GitHub Actions **每天**自动搜索并验证候选音源地址，只保留至少一个通道可用的配置；App 内设置页可**一键获取、复制或直接导入**通过验证的音源 |
-| 每日验证清单 | 支持**收起展开**与独立弹窗展示；优先验证**最新批次与推荐候选**；修复 JS 探测初始化过早导致可用通道误判 |
-| 导入体验 | 失败可**清空**、可**查看完整地址**；优化过高弹窗与重复探测 |
-| 脚本环境 | QuickJS 补齐 `console`、**MD5** 等，便于通过常见 API 校验；播放热路径优化 |
-| 在线搜索引擎 | 探索页「**在线**」可选 **QQ / 酷狗 / 酷我 / 网易云** 引擎；默认仅 **QQ**（曲库与专辑封面更准）；修复单引擎 NPE |
-| 真实封面 | 酷我 / 酷狗走**真实封面**；无封面时可用**音源封面**兜底 |
-| 封面 / 歌词开关 | 播放源设置新增**音源封面**、**音源歌词**开关（关闭后不请求音源歌词） |
-| 设置入口 | 设置新增「**在线听歌**」页，集中音源、封面歌词与搜索配置；默认隐藏曲源标签 |
-
-> [!NOTE]
-> 在线音源**不会**绕过平台账号权限或版权限制。本仓库**不内置、不维护**任何公共曲库或第三方音源地址。
-
-相关代码：`data/source/lxmusic/`、`core/player/resolver/lxmusic/`、`LxMusicSourceSettings.kt`
-
-### 3.2 歌词补全
-
-- 无歌词时从**在线音源平台**同步；也可从 **QQ / 酷狗公开接口**匹配。
-- 识别网易云**占位歌词**，避免空壳歌词挡住真正歌词。
-- 修复播放页**占位歌词压过音源 LRC**；兼容 QQ 新搜索字段。
-- **音源歌词**开关：开启则优先 / 兜底用音源歌词，关闭则不请求。
-- 歌词按歌曲身份**本地缓存**。
-
-### 3.3 首页与歌曲列表
-
-```text
-私人雷达 → 每日推荐 → 雷达歌单 →「更多」
-                （更多内：私人 FM / 新歌榜等 / 推荐歌单）
-```
-
-- 次级板块收进「**更多**」**按需加载**；首页首次加载**错峰**，降低启动并发。
-- 修复展开「更多」后**私人雷达 / 每日推荐被清空**的问题（子集刷新改为合并保留）。
-- **全列表去掉 `1/2/3` 序号**；封面左移后回调 **`16dp`** 左边距。
-- 歌曲行副标题**只显示歌手**，不再拼接专辑名。
-- 移除底部**红色脱机横幅**；网络失败文案改为「**网络不佳**」。
-
-### 3.4 探索页
-
-- 「**在线**」免登录默认搜索：以**独立 LX 曲目身份**直连音源取流，无需先登录平台。
-- 支持**单曲 / 歌手 / 歌单**分类切换与**分页**；歌手、歌单走**免登录多音源搜索**，并接入站内曲目详情与**图标分类**。
-- 搜索源改为**右侧下拉**，关闭左右滑动切源；类型与来源**整组居中**。
-- 上滑**保留**类型图标栏；「**新发现**」为独立全屏二级页，进入探索时重置状态。
-- 精选歌单封面冷启动**随机一张**（不再自动轮播）。
-- 搜索查找与 `cookie` **重复加载**等性能问题已修。
-
-### 3.5 媒体库与本地歌单
-
-- **外部歌单导入**：粘贴网易云 / QQ 音乐 / 酷狗 / 酷我链接，一键导入为本地歌单（匹配约 **500** 首上限，按歌名 / 歌手打分过滤）。
-- **已缓存歌曲**歌单：汇总可离线播放的缓存曲目；补列旧版 **LX** 与 **B 站**完整缓存，显示**未关联缓存**大小。
-- 片段缓存离线不再**转圈**卡住，并显示**可离线歌曲数量**；修复缓存歌单离线播放。
-- 本地页「歌单 / 歌手」与「**+ 新建**」同行，**新建靠右**。
-- 媒体库 **Tab** 支持**自定义排序**；排序 / 刷新在**顶栏右侧**。
-- 本地歌单**自定义排序**（含「**我喜欢的音乐**」）：
-  - 拖动排序、拖到底部**自动滚屏**
-  - 按**手指位置**判断是否继续上滚
-  - **收藏**可保留列表中的位置；「**本地文件**」仍固定末尾
-
-### 3.6 播放页与设置 UI
-
-- **Apple Music 风格**：直线进度条、**大号三键**、底部 **Docker**（播放顺序与常用菜单）。
-- 主控圆润图标与三角**光学居中**；封面保留**来源角标**（含「在线音源」，可按设置隐藏曲源标签）。
-- 主 Tab **紧凑大标题**、**常驻合成**、动画缩短；设置重入**回到一级页**。
-- 首页左上角标题为 **Cool Music**（已去掉 NeriPlayer 字样）；修复**跟随系统主题**不同步切换。
-- 设置新增「**在线听歌**」二级页；播放源可配**音源封面 / 音源歌词**，无封面时自动补音源封面。
-- 关于页：「**原作者声明**」单行摘要 + **圆角详情弹窗**；「**GitHub**」指向本仓库并可跳转。
-- 初次设置去掉第 **5、6** 步（播放控件 / 歌词页）。
-
-### 3.7 包名、发行与更新
-
-| 项 | 说明 |
-|----|------|
-| `applicationId` | `moe.ouom.coolmusic`，可与 NeriPlayer **共存** |
-| 应用内更新 | `设置 → 关于 → 检查更新`，对接 **GitHub Releases** 并覆盖安装 |
-| `versionCode` | **分钟级**编码；Release 正文须写 `versionCode=数字` |
-| 签名 | 固定 `app/neri.jks`；修复 vivo「无签名 / 软件包无效」 |
-| debug 签名 | 密钥就绪时 debug **复用 release 签名**，便于 ADB 覆盖安装 |
-| 安装包 | 本地 `dist/apk/`；对外以 GitHub Release 为准（[最新 Release](https://github.com/octagoningly/Cool-Music/releases/latest)） |
-| CI | 已**移除** PR 上的重型 Android / Native CI 工作流 |
-| 同步品牌 | GitHub / WebDAV 默认仓库与文件名改为 Cool Music，**兼容旧备份** |
-| 调试 | `scripts/install-debug.ps1` 一键 ADB 安装；约定见 [`开发规则.md`](./开发规则.md) |
-
----
-
-## 四、原项目保留功能（沿用上游）
-
-下列能力来自上游 **NeriPlayer**，本衍生版**默认保留**。完整说明见：[上游 README](https://github.com/cwuom/NeriPlayer/blob/master/README.md)。
-
-### 4.1 定位与技术架构
-
-- 原生 Android（**Compose + Media3**），要求 **Android 9（API 28）+**。
-- **账号即能力**：通过第三方平台授权启用搜索、播放、歌单与收藏访问。
-- **本地优先**：播放缓存、下载文件、歌单、历史、设置与授权默认保存在设备本地。
-- **可选同步**：元数据同步到**用户自己的** GitHub / WebDAV，而不是开发者中心化服务。
-- **单 Activity + Compose**：`MainActivity` 为唯一对外入口；`NavHost` + 底栏 + Mini Player + Now Playing 覆盖层。
-- **启动与恢复**：`Loading → Disclaimer → Onboarding → Main`；上次崩溃或 ANR 时优先进入**安全模式**。
-
-### 4.2 多源探索与播放
-
-- **平台入口**：网易云音乐、Bilibili、YouTube Music，以及**本地音频**；媒体库可按平台分类浏览。
-- **分层搜索**：探索页**按平台独立搜索**；支持链接识别（网易云歌曲/歌单/歌手、B 站视频/收藏夹/合集/UP 主、YouTube 视频/歌单/频道等）。
-- **Media3 播放核心**：`PlayerManager` 统一管理**音源解析、队列、随机/循环、状态恢复、失败重试**与链接刷新。
-- **网易云**：登录、搜索、歌单/专辑、播放、下载、歌词；无权限时可**降级音质**，并可选 B 站 / 本地兜底（默认关闭）。
-- **Bilibili**：Web / 二维码登录、视频与收藏夹/合集、**分 P 转音频**播放与下载；可选 SponsorBlock 与自定义跳过区间。
-- **YouTube Music**：登录、首页/媒体库浏览、歌单与搜索播放兼容；含 `Cookie`、`player.js`、`PoToken` 与 **EJS/HLS** 多级回退（受平台规则与账号权限约束）。
-- **QQ 音乐**：主要用于播放页**元数据与歌词补全**（无完整登录/库页）。
-- **本地音频**：外部分享/打开导入、设备扫描、授权文件夹扫描；识别附近**歌词与封面**；本地歌手聚合与本地歌单管理。
-- **失败兜底**：播放异常先**刷新链接**；B 站 `DASH` / 渐进流回退；连续失败跳过或停止，避免卡死。
-
-### 4.3 本地优先数据与脱机
-
-- 播放缓存（默认约 **1GB** `SimpleCache + LRU`）、下载、歌单、历史、播放统计、设置默认在本地。
-- **脱机模式**：感知系统网络状态；脱机时停用在线探索与远程图片，仍可使用**本地文件、已下载、缓存封面、本地歌单**。
-- **下载链路**：自研下载（非系统 `DownloadManager`）：可调并发、队列持久化、**HTTP / 分块 Range / HLS 续传**、标签与歌词/封面 sidecar；取消会清理半成品。
-- **下载目录**：默认应用管理目录，可经 **SAF** 迁移；支持文件名模板。
-- **存储分析**：缓存、下载、日志等**分组统计**；清缓存不会误删用户主动下载的歌曲。
-- **备份**：歌单 **JSON** 与**完整配置**导入/导出（设置、授权、同步配置可迁移）。
-
-### 4.4 歌词与外链能力
-
-- **仿 Apple Music 歌词**：逐行 / 逐词（`LRC`、`YRC`/`TTML` 等）、翻译、音译、偏移、点击跳转、长按分享与**歌词卡片**。
-- 歌词编辑器可**多平台匹配**（酷狗 / 网易云 / QQ / LRCLIB 等，视上游实现）。
-- **悬浮歌词**、**状态栏歌词**（部分机型）、`SuperLyric`、`Lyricon`、**蓝牙歌词**等外部联动。
-
-### 4.5 播放音效与硬件
-
-- 倍速、音调、**均衡器**预设/手动频段、响度增强、声道平衡、**淡入淡出 / 交叉淡入淡出**、蓝牙断连暂停、音频焦点策略等。
-- **USB 独占播放**：面向 **UAC1.0** 与兼容 **UAC2.0 Type I PCM** 设备；采样率/位深/缓冲、32-bit、**比特完美音量**（软件 `0 dB`）、失败回退系统播放等（详见上游与 `CONTRIBUTING`）。
-
-### 4.6 桌面与系统集成
-
-- **桌面小组件**（如 `4x2` / `2x2` 播放卡片）、**启动器快捷方式**（继续播放、探索、媒体库、随机喜欢等）。
-- **Mini Player** 横向滑动切歌；播放页**长按封面**大图预览。
-- **动态取色**、主题、UI 缩放、自定义背景、**进阶玻璃模糊**（Android 13+）等个性化项。
-
-### 4.7 可选同步与统计
-
-- **GitHub / WebDAV**：同步本地歌单、收藏、最近播放、删除记录与播放统计到**用户自有远端**；`WorkManager` 延迟/周期任务；数据默认**不上传**到开发者服务器。
-- **播放统计**：按歌曲稳定身份记录**次数、时长、日桶**；周/月热点等（实现细节以上游代码为准）。
-- **流量统计**：播放/下载流量与网络类型分布，**高风险网络**下载可提示。
-
-### 4.8 一起听（Listen Together）
-
-- 创建/加入房间，**WebSocket** 同时同步播放状态、队列、循环/随机等；可**自建** Cloudflare Workers 服务端。
-- 部署与协议见上游 README 与 `np-submodule/NeriPlayer-LTW`。
-
-### 4.9 稳定性与诊断
-
-- **JVM / Native** 崩溃日志、系统 **ANR** 记录、**安全模式**预览与导出。
-- 开发者模式：设置页连点**版本号 7 次**后出现 `Debug` 页（探针、日志等）。
-- 上游相关测试护栏（下载、同步、歌词、播放策略等）随代码一并保留。
-
----
-
-## 五、快速开始
-
-### 5.1 下载安装
-
-1. 打开 [Releases](https://github.com/octagoningly/Cool-Music/releases/latest)，下载最新 `CoolMusic-*-arm64*.apk`。
-2. 使用**同一签名覆盖安装**即可，**无需卸载**（保留登录与本地数据）。
-3. 也可在应用内：`设置 → 关于 → 检查更新`。
-
-| 设备 | 选择 |
-|------|------|
-| 多数手机 | `arm64-v8a` |
-| 32 位老旧设备 | `armeabi-v7a` |
-| 模拟器 / x86 | 对应 x86 包 |
-
-> 不要把 `*.jks`、密码或 `local.properties` 提交进仓库。
-
-### 5.2 本地构建
-
-```bash
-git clone --recursive https://github.com/octagoningly/Cool-Music.git
-cd Cool-Music
-```
-
-1. 用 **Android Studio** 打开并同步依赖。
-2. 配置环境：`JAVA_HOME` → **JDK 17+**，`ANDROID_HOME` → Android SDK。
-3. Debug 安装（推荐脚本）：
-
-```powershell
-.\scripts\install-debug.ps1
-# 无线： .\scripts\install-debug.ps1 -Wireless 192.168.1.100:5555
-# 或： .\gradlew.bat :app:installDebug
-```
-
-4. Release（需签名，见 [`开发规则.md`](./开发规则.md)）：
-
-```powershell
-# 配置 KEYSTORE_FILE / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD 后
-.\gradlew.bat :app:assembleRelease
-```
-
-5. 首次启动：阅读免责声明并完成引导。设置页连点**版本号 7 次**开启开发者模式。
-
-### 5.3 在线音源与「在线」搜索快速上手
-
-1. `设置 → 在线听歌`（或旧入口 `设置 → 第三方平台登录 → 在线音乐源`）
-2. 点击「**获取**」读取 GitHub 每日验证清单，可查看、复制或直接导入通过自动验证的音源地址
-3. 也可以手动导入 **LX JSON / JS** 与你的服务地址
-4. 按需开启**优先播放**、**音源封面 / 音源歌词**，可用**通道自检**；在线搜索引擎默认仅 **QQ**，可增开酷狗 / 酷我 / 网易云
-5. 探索页「**在线**」可免登录搜索单曲 / 歌手 / 歌单；播放时查看封面角标是否为「**在线音源**」
-6. 媒体库可**导入外部歌单**链接，或浏览「**已缓存歌曲**」离线播放
-
-每日清单由 GitHub Actions **每天自动搜索并验证**，只记录通过通道测试的音源配置地址与检测结果，不保存音频内容、账号凭据或 Cookie。App 内设置页可一键获取最新验证结果，优先推荐最新批次的可用地址。自动发现会同时使用 GitHub 代码搜索和无需额外令牌的公开仓库扫描；维护者也可以在 `tools_pub/lx_source_candidates.txt` 或仓库变量 `LX_SOURCE_CANDIDATE_URLS` 中添加待验证地址。
-
----
-
-## 六、模块与代码入口
-
-| 路径 | 用途 |
-|------|------|
-| `app/` | 主 Android 应用 |
-| `app/.../data/source/lxmusic/` | LX 音源导入、解析、QuickJS |
-| `app/.../core/player/resolver/lxmusic/` | 在线音源解析、跨平台兜底、歌词、默认搜索、封面补全 |
-| `app/.../data/local/playlist/importer/ExternalPlaylistImport.kt` | 外部歌单链接导入本地歌单 |
-| `app/.../ui/screen/tab/HomeScreen.kt` | 首页板块与歌曲行 |
-| `app/.../ui/screen/tab/settings/auth/LxMusicSourceSettings.kt` | 在线音源设置 UI |
-| `app/.../ui/screen/tab/settings/page/` | 设置页结构（含「在线听歌」） |
-| `scripts/install-debug.ps1` | ADB 一键安装调试 |
-| `开发规则.md` | 发行、签名、`versionCode`、Release、ADB |
-| `更新记录.md` | 本仓库功能演进日志 |
-| `np-submodule/` | 上游子模块（歌词组件、一起听服务端等） |
-
-技术基线：**Jetpack Compose + Media3**，`minSdk 28`（Android 9+），**Java/Kotlin 17**，`applicationId = moe.ouom.coolmusic`。具体以 `gradle.properties` 与 `app` 模块配置为准。
-
----
-
-## 隐私与数据
-
-- 设置、授权、下载、统计默认在设备本地；同步写入**你自己配置**的远端。
-- 在线音源请求发往**你配置的**接口 / 脚本，本项目不提供公共曲库。
-
----
-
 ## 上游与许可证
 
 代码来源于 [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer)，遵循 **GNU GPL v3**。
 
-- 分发 APK 须同时提供源码或有效获取方式，并保留版权与许可证信息
-- 许可见 [`LICENSE`](./LICENSE)
-- 提交信息风格：`修复xx功能_n` / `新增xx功能_n`（全仓统一，不用 Conventional Commits）；完成后将新条目插入 [`更新记录.md`](./更新记录.md) 标题下方（新在上）
-
----
-
-## 源码仓库
-
-| 项目 | 地址 |
-|------|------|
-| Cool Music（本衍生版） | <https://github.com/octagoningly/Cool-Music> |
-| NeriPlayer（上游） | <https://github.com/cwuom/NeriPlayer> |
-| 最新发行 | [Releases · 最新](https://github.com/octagoningly/Cool-Music/releases/latest) |
+Cool Music 与原作者无关，不对上游作任何担保。分发本应用时须保留版权与许可证声明，并提供对应源码或有效获取方式。完整文本见 [LICENSE](LICENSE)。

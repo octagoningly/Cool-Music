@@ -200,13 +200,17 @@ internal fun SettingsAboutHeroHeader(devModeEnabled: Boolean) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // 使用应用自己的启动图标（原 ic_launcher_foreground 是通用矢量占位图，不是本应用图标）
+        // 使用应用自己的图标位图。
+        // 注意不能用 R.mipmap.ic_launcher：它是 adaptive-icon XML，painterResource 只支持
+        // VectorDrawable 或 PNG/JPG/WEBP，传 XML 会抛 IllegalArgumentException。
+        // ic_launcher_foreground_coolmusic.webp 正是 adaptive icon 的前景位图，即应用图标本体；
+        // 它四周自带约 30% 安全区留白，因此容器取 112dp 再按内容裁剪，视觉上接近 88dp 的实心图标。
         Image(
-            painter = painterResource(id = R.mipmap.ic_launcher),
+            painter = painterResource(id = R.drawable.ic_launcher_foreground_coolmusic),
             contentDescription = stringResource(R.string.settings_about),
             modifier = Modifier
-                .size(88.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .size(112.dp)
+                .clip(RoundedCornerShape(26.dp))
         )
         Text(
             text = stringResource(R.string.app_name),

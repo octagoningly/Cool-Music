@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.ui.screen.tab.settings.page
+package moe.ouom.neriplayer.ui.screen.tab.settings.page
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
@@ -57,7 +57,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -395,7 +394,7 @@ internal fun MiuixSettingsDetailScaffold(
     modifier: Modifier = Modifier,
     showBackButton: Boolean = true,
     // 可选的大图标头部（关于页使用）。为 null 时保持既有紧凑返回栏布局，其它设置页不受影响。
-    heroHeader: (@Composable () -> Unit)? = null,
+    heroHeader: (@Composable (revealProgress: Float, scrollOffsetPx: Float) -> Unit)? = null,
     content: LazyListScope.() -> Unit
 ) {
     val miniPlayerHeight = LocalMiniPlayerHeight.current
@@ -446,13 +445,13 @@ internal fun MiuixSettingsDetailScaffold(
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (heroHeader != null) {
-                    // 大图标头部作为列表首项：上滑时随列表自然滚出视野，
-                    // 下面内容顺势上移补位，无需手动控制留白，也不会引发重测抖动。
-                    // 滚动中再叠加淡出/微缩，避免它「硬生生被裁掉」。
+                // 大图标头部作为列表首项：上滑时随列表自然滚出视野，
+                // 下面内容顺势上移补位，无需手动控制留白，也不会引发重测抖动。
+                val hero = heroHeader
+                if (hero != null) {
                     item(key = "settings_hero_header") {
-                        HeroHeaderFadeItem(listState = listState) {
-                            heroHeader()
+                        HeroHeaderFadeItem(listState = listState) { reveal, scrollPx ->
+                            hero(reveal, scrollPx)
                         }
                     }
                 }
@@ -478,7 +477,7 @@ internal fun MiuixSettingsResponsiveDetailScaffold(
     homeTitle: @Composable () -> Unit,
     homeContent: LazyListScope.() -> Unit,
     detailContent: (LazyListScope.(SettingsPage) -> Unit)? = null,
-    heroHeader: (@Composable () -> Unit)? = null,
+    heroHeader: (@Composable (revealProgress: Float, scrollOffsetPx: Float) -> Unit)? = null,
     content: LazyListScope.() -> Unit
 ) {
     if (!splitLayout) {
@@ -717,15 +716,15 @@ internal fun LazyListScope.miuixSettingsSectionCardItem(
 }
 
 /**
- * 大图标头部列表项：随自身被滚出视野而淡出并轻微上移缩小。
+ * 大图标头部列表项：把「滚动进度」算好后交给 content 自己决定怎么用。
  *
- * 透明度取自列表首项的实际滚动偏移，因此与滚动手感完全同步；
- * 且只作用于绘制层（graphicsLayer），不参与测量，不会引起列表重排抖动。
+ * 进度取自列表首项的实际滚动偏移，与滚动手感完全同步；
+ * 具体淡出/位移由 content 内部作用于 graphicsLayer（绘制层），不参与测量，不会引起列表重排抖动。
  */
 @Composable
 private fun HeroHeaderFadeItem(
     listState: LazyListState,
-    content: @Composable () -> Unit
+    content: @Composable (revealProgress: Float, scrollOffsetPx: Float) -> Unit
 ) {
     val fadeRangePx = with(LocalDensity.current) { 160.dp.toPx() }
     val heroOffsetPx = if (listState.firstVisibleItemIndex == 0) {
@@ -734,18 +733,5 @@ private fun HeroHeaderFadeItem(
         fadeRangePx
     }
     val revealProgress = (1f - (heroOffsetPx / fadeRangePx)).coerceIn(0f, 1f)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-                alpha = revealProgress
-                translationY = -(1f - revealProgress) * 24.dp.toPx()
-                val scale = 0.9f + 0.1f * revealProgress
-                scaleX = scale
-                scaleY = scale
-            },
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        content()
-    }
+    content(revealProgress, heroOffsetPx)
 }

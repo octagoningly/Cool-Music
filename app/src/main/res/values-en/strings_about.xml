@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about_app_footer">Cool Music (based on NeriPlayer) - GPLv3</string>
     <string name="about_developer_section">Developer</string>
+    <string name="about_app_section">App</string>
     <string name="about_developer_name">octagoningly</string>
     <string name="about_developer_handle">@octagoningly</string>
     <string name="about_developer_profile_hint">Open developer profile</string>

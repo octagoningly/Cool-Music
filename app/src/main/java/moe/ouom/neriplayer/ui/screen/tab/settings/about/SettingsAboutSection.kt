@@ -23,9 +23,22 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.about
  * Updated: 2026/3/23
  */
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
@@ -51,8 +64,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material.icons.outlined.Update
 import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -106,16 +117,26 @@ internal fun SettingsAboutContent(
     onOpenGitHubRepo: () -> Unit,
     onOpenDeveloperProfile: () -> Unit = {}
 ) {
-    // 「开发者」版块：头像 + 昵称 + 主页，点击打开 GitHub 主页。
-    SettingsDeveloperSection(onOpenProfile = onOpenDeveloperProfile)
-    SettingsAboutIntroItem(
-        devModeEnabled = devModeEnabled,
-        onVersionClick = onVersionClick,
-        onCopyValue = onCopyValue
-    )
-    SettingsOriginalAuthorItem()
-    SettingsAboutUpdateItem()
-    SettingsGitHubItem(onOpenGitHubRepo = onOpenGitHubRepo)
+    AboutSectionTitle(stringResource(R.string.about_developer_section))
+    AboutCard {
+        // 开发者卡片：头像 + 昵称 + GitHub 号，点击就地展开 GitHub 主页链接。
+        SettingsDeveloperCard(onOpenProfile = onOpenDeveloperProfile)
+    }
+
+    AboutSectionTitle(stringResource(R.string.about_app_section))
+    AboutCard {
+        SettingsAboutIntroItem(
+            devModeEnabled = devModeEnabled,
+            onVersionClick = onVersionClick,
+            onCopyValue = onCopyValue
+        )
+        AboutDivider()
+        SettingsOriginalAuthorItem()
+        AboutDivider()
+        SettingsAboutUpdateItem()
+        AboutDivider()
+        SettingsGitHubItem(onOpenGitHubRepo = onOpenGitHubRepo)
+    }
 }
 
 /** 开发者 GitHub 主页。 */
@@ -123,26 +144,58 @@ internal const val DEVELOPER_GITHUB_PROFILE = "https://github.com/octagoningly"
 /** 开发者头像（GitHub 官方头像地址）。 */
 internal const val DEVELOPER_AVATAR_URL = "https://avatars.githubusercontent.com/u/222370581?v=4"
 
+/** 分组标题：主题色 + 加粗，与参考页一致。 */
+@Composable
+private fun AboutSectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp, top = 20.dp, bottom = 6.dp)
+    )
+}
+
+/** 统一卡片容器：primaryContainer 底色 + extraLarge 圆角，整个 App 读起来是一套卡片系统。 */
+@Composable
+private fun AboutCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun AboutDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    )
+}
+
 /**
- * 「开发者」版块：分组标题 + 头像卡片（头像 / 昵称 / 主页地址 / 右侧箭头）。
- * 头像走 Coil（与项目其它页面一致，带磁盘缓存，离线时用已缓存的图）。
+ * 开发者卡片：头像 + 名称 + GitHub 号 + 箭头，整头可点、就地弹性展开/收起。
+ * 头像走 Coil（项目统一图片请求，带磁盘缓存，离线时用已缓存的图）。
  */
 @Composable
-private fun SettingsDeveloperSection(onOpenProfile: () -> Unit) {
-    Column(Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.about_developer_section),
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 8.dp)
-        )
+private fun SettingsDeveloperCard(onOpenProfile: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val arrowRotation by animateFloatAsState(
+        targetValue = if (expanded) 90f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "developerArrow"
+    )
+    Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                .clickable(onClick = onOpenProfile)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 18.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
@@ -155,29 +208,76 @@ private fun SettingsDeveloperSection(onOpenProfile: () -> Unit) {
                 contentDescription = stringResource(R.string.about_developer_section),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(56.dp)
                     .clip(CircleShape)
             )
-            Spacer(Modifier.size(12.dp))
-            Column(Modifier.weight(1f)) {
+            Column(modifier = Modifier.padding(start = 14.dp)) {
                 Text(
                     text = stringResource(R.string.about_developer_name),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = stringResource(R.string.about_developer_handle),
-                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            Spacer(Modifier.weight(1f))
             Icon(
-                imageVector = Icons.Filled.ChevronRight,
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = stringResource(R.string.about_developer_profile_hint),
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .graphicsLayer { rotationZ = arrowRotation },
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        // 展开区用 AnimatedVisibility（带裁切）而非 animateContentSize：
+        // 后者只动画父尺寸、不裁子内容，展开过程中子项会先按最终高度画出来。
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + fadeIn(),
+            exit = shrinkVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + fadeOut()
+        ) {
+            Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                AboutLinkRow(
+                    title = "GitHub",
+                    summary = stringResource(R.string.about_developer_handle),
+                    onClick = onOpenProfile
+                )
+            }
+        }
     }
+}
+
+/** 外链行：标题 + 摘要 + 右侧箭头。 */
+@Composable
+private fun AboutLinkRow(title: String, summary: String, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(title, style = MaterialTheme.typography.bodyLarge) },
+        supportingContent = { Text(summary, style = MaterialTheme.typography.bodySmall) },
+        trailingContent = {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(onClick = onClick)
+    )
 }
 
 /**
@@ -187,42 +287,57 @@ private fun SettingsDeveloperSection(onOpenProfile: () -> Unit) {
  * 与常见的开源「可折叠关于页」一致。头部内容本身不参与列表滚动。
  */
 @Composable
-internal fun SettingsAboutHeroHeader(devModeEnabled: Boolean) {
+internal fun SettingsAboutHeroHeader(
+    devModeEnabled: Boolean,
+    // 0..1：随列表上滑逐渐淡出（由 MiuixSettingsDetailScaffold 传入滚动进度）
+    revealProgress: Float = 1f,
+    scrollTranslationPx: Float = 0f
+) {
     val suffix = if (devModeEnabled) {
         " (${stringResource(R.string.settings_version_debug_suffix)})"
     } else {
         ""
     }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 32.dp, bottom = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        // 使用应用自己的图标位图。
-        // 注意不能用 R.mipmap.ic_launcher：它是 adaptive-icon XML，painterResource 只支持
-        // VectorDrawable 或 PNG/JPG/WEBP，传 XML 会抛 IllegalArgumentException。
-        // ic_launcher_foreground_coolmusic.webp 正是 adaptive icon 的前景位图，即应用图标本体；
-        // 它四周自带约 30% 安全区留白，因此容器取 112dp 再按内容裁剪，视觉上接近 88dp 的实心图标。
-        Image(
-            painter = painterResource(id = R.drawable.ic_launcher_foreground_coolmusic),
-            contentDescription = stringResource(R.string.settings_about),
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // 流动渐变背景：跟随主题色轮换，随滚动淡出。
+        AboutGradientBackdrop(
+            fadeProgress = revealProgress,
+            scrollTranslationPx = scrollTranslationPx,
+            height = 340.dp
+        )
+        Column(
             modifier = Modifier
-                .size(112.dp)
-                .clip(RoundedCornerShape(26.dp))
-        )
-        Text(
-            text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            textAlign = TextAlign.Center
-        )
-        Text(
-            text = "v${BuildConfig.VERSION_NAME}$suffix",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
+                .fillMaxWidth()
+                .padding(top = 40.dp, bottom = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // 使用应用自己的图标位图。
+            // 注意不能用 R.mipmap.ic_launcher：它是 adaptive-icon XML，painterResource 只支持
+            // VectorDrawable 或 PNG/JPG/WEBP，传 XML 会抛 IllegalArgumentException。
+            // ic_launcher_foreground_coolmusic.webp 正是 adaptive icon 的前景位图，即应用图标本体；
+            // 它四周自带约 30% 安全区留白，因此容器取 124dp 再按内容裁剪，视觉上接近 96dp 的实心图标。
+            Image(
+                painter = painterResource(id = R.drawable.ic_launcher_foreground_coolmusic),
+                contentDescription = stringResource(R.string.settings_about),
+                modifier = Modifier
+                    .size(124.dp)
+                    .clip(RoundedCornerShape(28.dp))
+            )
+            Text(
+                text = stringResource(R.string.app_name),
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "v${BuildConfig.VERSION_NAME}$suffix",
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 

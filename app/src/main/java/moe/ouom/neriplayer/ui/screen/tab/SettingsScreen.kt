@@ -1377,7 +1377,13 @@ fun SettingsScreen(
                 homeContent = settingsHomeContent,
                 // 关于页改用「大图标 + 应用名 + 版本」头部，并随列表上滑淡出收起。
                 heroHeader = if (selectedPage == SettingsPage.About) {
-                    { SettingsAboutHeroHeader(devModeEnabled = devModeEnabled) }
+                    { reveal, scrollPx ->
+                        SettingsAboutHeroHeader(
+                            devModeEnabled = devModeEnabled,
+                            revealProgress = reveal,
+                            scrollTranslationPx = scrollPx
+                        )
+                    }
                 } else {
                     null
                 }

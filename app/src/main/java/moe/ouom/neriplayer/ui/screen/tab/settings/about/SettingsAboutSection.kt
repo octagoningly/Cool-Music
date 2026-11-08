@@ -24,10 +24,14 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.about
  */
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -59,6 +63,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -95,8 +103,11 @@ internal fun SettingsAboutContent(
     devModeEnabled: Boolean,
     onVersionClick: () -> Unit,
     onCopyValue: (String) -> Unit,
-    onOpenGitHubRepo: () -> Unit
+    onOpenGitHubRepo: () -> Unit,
+    onOpenDeveloperProfile: () -> Unit = {}
 ) {
+    // 「开发者」版块：头像 + 昵称 + 主页，点击打开 GitHub 主页。
+    SettingsDeveloperSection(onOpenProfile = onOpenDeveloperProfile)
     SettingsAboutIntroItem(
         devModeEnabled = devModeEnabled,
         onVersionClick = onVersionClick,
@@ -105,6 +116,68 @@ internal fun SettingsAboutContent(
     SettingsOriginalAuthorItem()
     SettingsAboutUpdateItem()
     SettingsGitHubItem(onOpenGitHubRepo = onOpenGitHubRepo)
+}
+
+/** 开发者 GitHub 主页。 */
+internal const val DEVELOPER_GITHUB_PROFILE = "https://github.com/octagoningly"
+/** 开发者头像（GitHub 官方头像地址）。 */
+internal const val DEVELOPER_AVATAR_URL = "https://avatars.githubusercontent.com/u/222370581?v=4"
+
+/**
+ * 「开发者」版块：分组标题 + 头像卡片（头像 / 昵称 / 主页地址 / 右侧箭头）。
+ * 头像走 Coil（与项目其它页面一致，带磁盘缓存，离线时用已缓存的图）。
+ */
+@Composable
+private fun SettingsDeveloperSection(onOpenProfile: () -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.about_developer_section),
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 8.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                .clickable(onClick = onOpenProfile)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = offlineCachedImageRequest(
+                    context = LocalContext.current,
+                    data = DEVELOPER_AVATAR_URL,
+                    sizePx = 160,
+                    allowHardware = false
+                ),
+                contentDescription = stringResource(R.string.about_developer_section),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+            )
+            Spacer(Modifier.size(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.about_developer_name),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.about_developer_handle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.Filled.ChevronRight,
+                contentDescription = stringResource(R.string.about_developer_profile_hint),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
 
 /**
@@ -127,10 +200,13 @@ internal fun SettingsAboutHeroHeader(devModeEnabled: Boolean) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // 使用应用自己的启动图标（原 ic_launcher_foreground 是通用矢量占位图，不是本应用图标）
         Image(
-            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+            painter = painterResource(id = R.mipmap.ic_launcher),
             contentDescription = stringResource(R.string.settings_about),
-            modifier = Modifier.size(88.dp)
+            modifier = Modifier
+                .size(88.dp)
+                .clip(RoundedCornerShape(22.dp))
         )
         Text(
             text = stringResource(R.string.app_name),

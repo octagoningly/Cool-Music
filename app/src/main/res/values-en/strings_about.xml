@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about_app_footer">Cool Music (based on NeriPlayer) - GPLv3</string>
+    <string name="about_developer_section">Developer</string>
+    <string name="about_developer_name">octagoningly</string>
+    <string name="about_developer_handle">@octagoningly</string>
+    <string name="about_developer_profile_hint">Open developer profile</string>
     <string name="about_original_author_title">Original authors</string>
     <string name="about_original_author_summary">NeriPlayer derivative under GPLv3 — tap for details</string>
     <string name="about_original_author_detail_hint">View full statement</string>

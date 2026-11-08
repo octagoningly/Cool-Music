@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="about_app_footer">Cool Music (based on NeriPlayer) - GPLv3</string>
+    <string name="about_developer_section">开发者</string>
+    <string name="about_developer_name">octagoningly</string>
+    <string name="about_developer_handle">@octagoningly</string>
+    <string name="about_developer_profile_hint">打开开发者主页</string>
     <string name="about_original_author_title">原作者声明</string>
     <string name="about_original_author_summary">基于 NeriPlayer 的 GPLv3 衍生版本，点击查看完整说明</string>
     <string name="about_original_author_detail_hint">查看详细声明</string>

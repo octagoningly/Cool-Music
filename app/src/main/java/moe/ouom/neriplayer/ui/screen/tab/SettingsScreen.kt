@@ -199,6 +199,7 @@ import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassController
 import moe.ouom.neriplayer.ui.effect.glass.isolatedAdvancedGlassHorizontalTransition
 import moe.ouom.neriplayer.ui.screen.tab.settings.about.SettingsAboutContent
 import moe.ouom.neriplayer.ui.screen.tab.settings.about.SettingsAboutHeroHeader
+import moe.ouom.neriplayer.ui.screen.tab.settings.about.DEVELOPER_GITHUB_PROFILE
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.LoginSuccessDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsBiliAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsLxMusicSourceDialogs
@@ -2489,6 +2490,15 @@ fun SettingsScreen(
                                     "https://github.com/octagoningly/Cool-Music".toUri()
                                 )
                                 context.startActivity(intent)
+                            },
+                            // 「开发者」卡片点击：打开作者 GitHub 主页
+                            onOpenDeveloperProfile = {
+                                context.startActivity(
+                                    Intent(
+                                        Intent.ACTION_VIEW,
+                                        DEVELOPER_GITHUB_PROFILE.toUri()
+                                    )
+                                )
                             }
                         )
                     }
